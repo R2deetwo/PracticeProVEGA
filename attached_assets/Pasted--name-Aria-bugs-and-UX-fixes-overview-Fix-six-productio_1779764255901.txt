@@ -1,0 +1,232 @@
+---
+name: Aria bugs and UX fixes
+overview: Fix six production issues (chat ghosting, copy action, property delete toasts/revert, ALOA panel bleed, dictation reliability, splash branding) plus remove deprecated Compliance from mobile BottomNav. Prioritize property deletion and panel state decoupling first.
+todos:
+  - id: property-delete-unify
+    content: Unify property delete on deletePropertyCascade; remove optimistic-first + double delete; await in PropertyManagerView/ContactDetailView
+    status: pending
+  - id: aloa-panel-close
+    content: Add closePanel/openPanel to AloaProvider; fix mobile header, backdrop, MiniAloa dismiss vs minimize
+    status: pending
+  - id: chat-stream-race
+    content: AbortController + stream placeholder cleanup + error path replace in AloaChat/MiniAloa
+    status: pending
+  - id: chat-copy-mobile
+    content: Shared ChatMessageActions; copy visible on mobile for user and model messages
+    status: pending
+  - id: dictation-hardening
+    content: "SaveToNoteForm: gate getUserMedia, min blob size, retry transcribe, fix interval race"
+    status: pending
+  - id: splash-brand-bootstrap
+    content: Splash Black→Yellow→Green; tie visibility to auth/data load not hasSavedSession/7s timer
+    status: pending
+  - id: bottomnav-remove-compliance
+    content: Remove deprecated Compliance from BottomNav navItemsList / More menu
+    status: pending
+isProject: false
+---
+
+# Aria/ALOA bugs, property delete, and mobile polish
+
+## Context
+
+ARIA and ALOA share one stack: [`AloaProvider`](src/contexts/AloaProvider.tsx), [`AloaPanel`](src/components/aloa/AloaPanel.tsx), [`AloaChat`](src/components/aloa/AloaChat.tsx) (label switches via `useProduct().isProperty`), and [`MiniAloa`](src/components/aloa/MiniAloa.tsx). There is no separate `isAriaOpen` flag today — bleed is a **minimize vs close** and **toggle vs explicit close** problem.
+
+Recent pre-deploy work ([`e0ffc6c`](https://github.com/R2deetwo/PracticeProVEGA/commit/e0ffc6c)) already fixed property **update** id resolution and streaming UX; this plan targets **delete**, chat races, panel UX, dictation, splash, and BottomNav cleanup.
+
+---
+
+## Task 3 (P0): Property deletion — engineering approach (first)
+
+### Observed behavior chain
+
+```mermaid
+sequenceDiagram
+    participant UI as PropertyManagerView
+    participant DP as DataProvider_deleteItem
+    participant Convex as deleteItem_mutation
+
+    UI->>DP: deleteItem (not awaited)
+    UI->>UI: addToast Success (bulk only)
+    DP->>DP: Optimistic remove from appState
+    DP->>Convex: deleteItemMutation
+    Convex-->>DP: Error or not found
+    DP->>DP: Revert item + error toast
+```
+
+### Root causes (code-backed)
+
+| Issue | Location | Detail |
+|--------|----------|--------|
+| Optimistic delete before server OK | [`DataProvider.tsx`](src/contexts/DataProvider.tsx) L91–107 | Removes row immediately; only **error** toast on failure — UI “disappears then returns” feels like success then failure |
+| Premature success toast | [`PropertyManagerView.tsx`](src/components/PropertyManagerView.tsx) L254–265 | Bulk `onConfirm` fires `deleteItem` in a loop **without `await`**, then always `addToast('Successfully deleted…')` |
+| Wrong delete API for properties | Same file L228, [`ContactDetailView.tsx`](src/components/details/ContactDetailView.tsx) L65 | Uses generic `deleteItem` instead of [`deletePropertyCascade`](convex/myFunctions.ts) (matter unlink + delete by `_id`) |
+| Latent double-delete bug | [`useProperties.ts`](src/hooks/useProperties.ts) L22–32 | `handleDeleteProperty` runs cascade **then** `deleteItem` (second call can throw “not found” and revert) — exposed on `dataHandlers` but unused; fix before any caller adopts it |
+
+`deleteItem` already supports custom `prop_*` ids via Strategy B ([`convex/myFunctions.ts`](convex/myFunctions.ts) L1804–1846). Failures are more often **caller orchestration** (optimistic + duplicate paths) than missing index.
+
+### Fix strategy
+
+1. **Single property delete path** — new `deleteProperty(id, name)` in [`DataProvider.tsx`](src/contexts/DataProvider.tsx) (or refactor [`useProperties.ts`](src/hooks/useProperties.ts)):
+   - `await deletePropertyCascadeMutation({ propertyId: id, firmId })`
+   - Then update local state **once** (remove by `id` and `_id`), no second `deleteItem` call
+   - **One** success toast only after mutation resolves
+   - On error: **no** optimistic remove; single error toast
+
+2. **Refactor `deleteItem`** (optional, smaller scope): add `options?: { optimistic?: boolean }` defaulting to `true` for non-critical tables; properties use `optimistic: false` until confirmed.
+
+3. **Update all property delete entry points** to `await` the unified handler:
+   - [`PropertyManagerView.tsx`](src/components/PropertyManagerView.tsx) — single + bulk (`Promise.all` + per-id error aggregation)
+   - [`ContactDetailView.tsx`](src/components/details/ContactDetailView.tsx) — standalone properties
+   - Legacy embedded properties: keep `onUpdateContactProperties` only (no `deleteItem` on missing table row)
+
+4. **QA**: Delete standalone property with linked matter → matter `specialtyData.realEstate.propertyId` cleared, property gone, one success toast. Bulk delete with one invalid id → partial failure messaging, no false success.
+
+---
+
+## Task 4 (P0): Aria/Aloa panel bleed — engineering approach (second)
+
+### Observed behavior chain
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> FullOpen: FAB_togglePanel
+    FullOpen --> MiniOpen: ChevronRight_onMinimize
+    MiniOpen --> FullOpen: Mini_expand
+    FullOpen --> Closed: Close_button_togglePanel
+    MiniOpen --> Closed: User_expects_close_but_toggle_may_reopen
+```
+
+### Root causes
+
+| Symptom | Location | Detail |
+|---------|----------|--------|
+| Close shows MiniAloa | [`AloaChat.tsx`](src/components/aloa/AloaChat.tsx) L859–865 | Mobile header **ChevronRight** calls `onMinimize` → `setIsMinimized(true)` while `isPanelOpen` stays true → [`AloaPanel`](src/components/aloa/AloaPanel.tsx) L77–79 renders `MiniAloa` |
+| Backdrop “close” toggles | [`AloaPanel.tsx`](src/components/aloa/AloaPanel.tsx) L46, L54 | `onClick={togglePanel}` — same toggle semantics |
+| Mini dismiss ambiguous | [`MiniAloa.tsx`](src/components/aloa/MiniAloa.tsx) L391 | `togglePanel()` when already open + minimized can feel like “wrong” panel |
+| Single shared flag | [`AloaProvider.tsx`](src/contexts/AloaProvider.tsx) L117–127 | Only `isPanelOpen` + `isMinimized`; no explicit `closePanel()` |
+
+ARIA vs ALOA naming is **cosmetic** (`isProperty` in AloaChat); bleed is not two providers, it is **minimize wired to a control users read as “close”**.
+
+### Fix strategy
+
+1. **`AloaProvider`** — add explicit APIs:
+   - `closePanel()` → `setIsPanelOpen(false)`, `setIsMinimized(false)`, cancel speech, `setAloaState('idle')`
+   - `openPanel()` → open full (not minimized)
+   - Keep `togglePanel()` for FAB only
+
+2. **`AloaPanel`** — wire `onClose={closePanel}` on [`AloaChat`](src/components/aloa/AloaChat.tsx); backdrop uses `closePanel`, not toggle.
+
+3. **`AloaChat` header (mobile)**:
+   - Chevron / top-right arrow on `isMobile` → **`closePanel`** (hide on desktop or map to minimize only on desktop)
+   - Keep minimize as a separate affordance (desktop-only or long-press) so ARIA close never leaves MiniAloa visible
+
+4. **`MiniAloa`** — dismiss button calls `closePanel`, expand calls `openPanel` / `setIsMinimized(false)`.
+
+5. **FAB** ([`AloaFAB.tsx`](src/components/aloa/AloaFAB.tsx)) — continue `togglePanel` for open; when open+minimized, FAB should `openPanel()` not toggle closed inadvertently.
+
+6. **QA matrix**: Mobile FAB → full ARIA → top arrow → panel fully gone (no mini). Desktop minimize → mini → X → closed. Open matter ALOA vs property ARIA — same panel mechanics, correct labels only.
+
+---
+
+## Task 1: Chat message ghosting / combined bubbles
+
+### Likely causes in [`AloaChat.tsx`](src/components/aloa/AloaChat.tsx)
+
+- No **in-flight guard** on `handleSend` (input disabled via `isLoading`, but race remains if stream continues after state flip).
+- **Error path** (L761) **appends** a new error message instead of replacing the `streamMsgId` placeholder → orphan/duplicate bubbles.
+- Stream fallback: empty stream result falls through to `sendMessage` on the **same** `streamMsgId` after partial chunks — can concatenate visually in one bubble.
+- `isGeneratingRef` only blocks **history reload** (L116), not concurrent sends.
+
+### Fix strategy
+
+- Add `activeStreamRef` with `AbortController` per send; abort prior stream on new submit.
+- Set `isGeneratingRef` true at send start; ignore duplicate submits until `finally`.
+- On error: `map` replace `streamMsgId` or `filter` placeholder — never append a second model row for the same turn.
+- On new send: remove prior empty `content === ''` model placeholders from aborted turns.
+- Mirror minimal fixes in [`MiniAloa.tsx`](src/components/aloa/MiniAloa.tsx) (same `streamId` pattern).
+
+---
+
+## Task 2: Copy user messages
+
+- Copy UI already wraps **all** roles ([`AloaChat.tsx`](src/components/aloa/AloaChat.tsx) L1085–1102); Save is model-only.
+- Problem is likely **hover-only** (`opacity-0 group-hover:opacity-100`) on touch — same class of bug as pre-deploy unit menus.
+- Extract small `ChatMessageActions` (copy always available; save for model only) and use in AloaChat + MiniAloa with `opacity-100 md:opacity-0 md:group-hover:opacity-100`.
+- Ensure `handleCopyMessage` uses string content for user messages (handle non-string safely).
+
+---
+
+## Task 5: Dictation / note-taker reliability
+
+Primary surface: [`SaveToNoteForm.tsx`](src/components/forms/SaveToNoteForm.tsx) (embedded in AloaChat quick note).
+
+### Issues
+
+- `processTranscription` runs on an **8s interval** immediately after `isRecording` flips true, often **before** `getUserMedia` + `MediaRecorder` finish (L182–186).
+- Tiny/empty blobs still call [`transcribeAudio`](src/services/geminiService.ts) → throws `"Transcription failed."` (L768).
+- Effect cleanup calls `stopRecordingEngine` on dependency churn → can stop recorder early.
+
+### Fix strategy
+
+- Gate recording engine: `streamReadyRef` set only after `recorder.start`.
+- Skip API if `combinedBlob.size < MIN_BYTES` (e.g. 2KB) or duration &lt; 1s.
+- Debounce interval transcription (start after 3s of audio, increase interval to 10–12s).
+- Retry `transcribeAudio` up to 2 times with backoff; log structured error context.
+- User-facing copy: distinguish permission denied vs empty audio vs API failure.
+- Optional: reuse AloaChat live-session path only where appropriate — do not duplicate unnecessarily.
+
+---
+
+## Task 6: Splash screen — Black → Yellow → Green + consistent visibility
+
+Current: [`SplashScreen.tsx`](src/components/SplashScreen.tsx) animates Black → Amber (Vega) → Blue (Atrium). Brand green is CSS `--color-primary-600: 82, 121, 111` ([`index.css`](src/index.css) L175) → use `rgb(82, 121, 111)` for final phase.
+
+Visibility today ([`App.tsx`](src/components/App.tsx) L600–618):
+- Fixed **7s** `hasInitialSplashFinished` timer (runs even when splash hidden)
+- `isVisible={!hasInitialSplashFinished && (hasSavedSession || flowState === 'splash')}` — skips splash for many laptop/dev sessions without `practicepro_user_session`
+- `onComplete` from SplashScreen not wired to App loading gates
+
+### Fix strategy
+
+- Replace color phases: **Black → Yellow (`#EAB308`) → Brand green (`rgb(82, 121, 111)`)**; align product text phase labels.
+- Drive visibility from **bootstrap state**: show while `isLoadingSession || (currentUser && !isDataLoaded && !forceEntry)` with max timeout (reuse AuthContext safety timeout ~12s).
+- Remove `hasSavedSession`-only gate and decouple from arbitrary 7s timer; call `onComplete` / `setVisualsComplete` when animation finishes **and** data ready.
+- Ensure splash mounts at app root for all authenticated loads (dev + prod); unauthenticated users still skip to landing.
+
+---
+
+## Task 7: Remove Compliance from mobile BottomNav
+
+- Remove or filter `{ view: 'compliance', … }` from [`BottomNav.tsx`](src/components/BottomNav.tsx) L46 (`navItemsList`).
+- Leave `ComplianceView` / route type if still reachable from settings elsewhere, or redirect `compliance` view to dashboard if navigated via deep link.
+- Confirm More menu no longer lists Compliance on property + legal mobile nav.
+
+---
+
+## Implementation order
+
+| Order | Task | Risk |
+|-------|------|------|
+| 1 | Task 3 — Property delete | Data integrity |
+| 2 | Task 4 — Panel close/minimize | UX regression on FAB |
+| 3 | Task 1 — Stream race | Chat correctness |
+| 4 | Task 2 — Copy on mobile | Low |
+| 5 | Task 5 — Dictation | Medium |
+| 6 | Task 6 — Splash | Visual only |
+| 7 | Task 7 — BottomNav | Low |
+
+---
+
+## Verification
+
+- `npm run build`
+- Property: single + bulk delete — one toast, row stays gone
+- Mobile: ARIA open → arrow close — no MiniAloa
+- Chat: two fast questions — two separate bubbles, no merged text
+- Dictation: first open + record — no immediate “Transcription failed” on silence
+- Splash: visible on fresh login in dev and prod; green end state matches logo
+- BottomNav: no Compliance tab on phone
+
+No edits to the attached plan markdown file.

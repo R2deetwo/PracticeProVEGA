@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://cdn.quilljs.com;
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.quilljs.com https://cdn.tailwindcss.com https://cdn.jsdelivr.net;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: blob: https://*.convex.cloud https://i.pravatar.cc https://randomuser.me https://ui-avatars.com;
+      connect-src * 'unsafe-inline' blob: data: https://*.convex.cloud wss://*.convex.cloud https://keen-jaguar-204.convex.cloud wss://keen-jaguar-204.convex.cloud;
+      worker-src 'self' blob:;
+      frame-src 'self' blob: data:;
+      object-src 'self' blob: data:;
+    ">
+
+  <!-- PracticePro Top Block Favicon -->
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='14 8 36 28'%3E%3Cpath d='M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z' fill='%2316A34A'/%3E%3Cpath d='M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z' fill='white'/%3E%3Cpath d='M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z' fill='%2316A34A'/%3E%3C/svg%3E"
+    type="image/svg+xml" />
+
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#16A34A">
+  <title>PracticePro VEGA | Legal Practice Management for Nigerian Law Firms</title>
+  <meta name="description" content="PracticePro VEGA is the operating system for Nigerian law firms. Manage cases, draft documents, handle billing, and research law — all in one NDPA-compliant platform." />
+  <meta name="keywords" content="Nigerian legal software, law firm management, practice management Nigeria, NDPA compliance, legal tech Nigeria, case management software" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="PracticePro VEGA | Legal Practice Management for Nigerian Law Firms" />
+  <meta property="og:description" content="The operating system for Nigerian law firms. Manage cases, billing, and AI-assisted legal research — all in one secure platform." />
+  <meta property="og:site_name" content="PracticePro VEGA" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="PracticePro Legal Tech Ltd." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS (Script for Dev/Preview) -->
+  <!-- Tailwind CSS (Script for Dev/Preview) -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+  <style>
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f8fafc;
+      /* Slate-50 default */
+      color: #0f172a;
+      /* Slate-900 default */
+    }
+
+    /* Fallback Dark Mode Styles (Applied immediately if 'dark' class exists) */
+    html.dark body {
+      background-color: #18181b !important;
+      /* Zinc-900 */
+      color: #ffffff !important;
+    }
+
+    html.theme-midnight body {
+      background-color: #020617 !important; /* slate-950 */
+      color: #f1f5f9 !important;
+    }
+
+    html.theme-oled body {
+      background-color: #000000 !important;
+      color: #e5e5e5 !important;
+    }
+
+    html.theme-sepia body {
+      background-color: #faf8f5 !important;
+      color: #282421 !important;
+    }
+
+    .dark {
+      color-scheme: dark;
+    }
+
+    #root {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(156, 163, 175, 0.4);
+      border-radius: 20px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+
+    .word-processor-page .ql-container.ql-snow {
+      border: none !important;
+      font-size: 12pt;
+      font-family: 'Times New Roman', serif;
+      height: auto;
+    }
+
+    .word-processor-page .ql-editor {
+      padding: 0 !important;
+      height: auto;
+      overflow-y: visible;
+      line-height: 1.6;
+      color: #000000 !important;
+      caret-color: #000000 !important;
+      background-color: white;
+      min-height: 1123px;
+      width: 794px;
+      margin: 0 auto;
+      padding: 96px !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .page-break-container {
+      width: 100%;
+      height: 30px;
+      background-color: #e5e7eb;
+      position: relative;
+      z-index: 10;
+      border-top: 1px solid #cbd5e1;
+      border-bottom: 1px solid #cbd5e1;
+      margin: 50px -96px;
+      width: calc(100% + 192px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      page-break-before: always;
+    }
+
+    .page-break-container::before {
+      content: "Page Break";
+      font-size: 10px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: bold;
+    }
+  </style>
+
+
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.1/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+</head>
+
+<script>
+  console.log("[index.html] Initializing head script...");
+  // Apply theme classes before first paint to prevent FOUC
+  (function() {
+    try {
+      var root = document.documentElement;
+      const darkThemes = ['dark', 'midnight', 'oled', 'neon-cyber'];
+      const lightThemes = ['light', 'sunlight-soft', 'city-lights'];
+      const theme = localStorage.getItem('practicepro_theme') || 'system';
+
+      if (theme === 'dark') {
+          root.classList.add('dark');
+      } else if (theme === 'midnight') {
+          root.classList.add('dark', 'theme-midnight');
+      } else if (theme === 'oled') {
+          root.classList.add('dark', 'theme-oled');
+      } else if (theme === 'neon-cyber') {
+          root.classList.add('dark', 'theme-neon-cyber');
+      } else if (theme === 'midnight-emerald') {
+          root.classList.add('dark', 'theme-midnight-emerald');
+      } else if (theme === 'army-dark') {
+          root.classList.add('dark', 'theme-army-dark');
+      } else if (theme === 'sunlight-soft') {
+          root.classList.add('theme-sunlight-soft');
+      } else if (theme === 'city-lights') {
+          root.classList.add('theme-city-lights');
+      } else if (theme === 'city-emerald') {
+          root.classList.add('theme-city-emerald');
+      } else if (theme === 'army-light') {
+          root.classList.add('theme-army-light');
+      } else if (theme === 'system') {
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) { root.classList.add('dark'); }
+      }
+    } catch(e) {}
+  })();
+</script>
+
+<body class="dark:bg-zinc-900">
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
+</html>

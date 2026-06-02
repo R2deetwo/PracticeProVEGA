@@ -1,0 +1,81 @@
+Initialize in AGENT MODE. Use @Codebase to trace layout files, dashboard grids, component states, and database mutation pipelines. 
+
+We need to resolve dashboard visual artifacts, refactor core analytics cards, implement a feature removal workflow, fix page scrolling parameters, and prune unnecessary banking components. Review the codebase and present a comprehensive execution plan for the following 9 tasks:
+
+---
+
+### Task 1: Mobile Inbox Compose Modal Layout & Viewport Clipping Fix
+- **Symptom:** In mobile portrait mode, opening the "Compose Message" panel results in severe viewport clipping. The message text box is partially invisible and users cannot scroll down to access the "Send" button because it is trapped or blocked by the bottom layout navigation wrapper.
+- **Action Required:** Remove rigid tracking heights (`h-screen`) on the container. Implement a fully touch-scrollable outer wrapper with clear bottom safe padding (e.g., `pb-24` or `pb-safe`) ensuring all form elements clear the navigation bar.
+
+---
+
+### Task 2: Property Summary UI Refactor – Remove "Aria Intelligence" Box
+- **Requirement:** Inside the Property details view (under Summary), completely remove the static "Aria Intelligence" UI card (which holds auto-prompt suggestions like "Generate demand notice drafts").
+- **Replacement Specification:** Retain *only* the interactive "Ask Aria a custom question" input trigger field. Style it cleanly using the global AI branding. Clicking this input must dynamically open the compact **Aria Mini** drawer/drawer component instead of pushing the user to the main chat layout panel.
+
+---
+
+### Task 3: Database Persistence & Deletion for Custom Aria Queries
+- **Requirement:** Track historical user queries systematically. When a user runs a custom question via the "Ask Aria" module, persist that query instance to the database (bound to the specific firm or asset context).
+- **Action Required:** Extend the database schemas (e.g., Convex tables) to store user custom query logs. Build an inline historical list within the drawer panel allowing users to track past queries or globally delete historical records.
+
+---
+
+### Task 4: Desktop Property Units Action Menu Overflow Clipping Fix
+- **Symptom:** On the desktop Property Units table/list layout, clicking the "Actions" context trigger reveals a menu dropdown that gets clipped and hidden underneath neighboring cards or table bounding edges.
+- **Action Required:** Review cell and container wrappers for restrictive `overflow: hidden` rules. Re-index stacking contexts (`z-index`) or implement a floating portal anchor strategy to ensure dropdowns stack perfectly on top of all visual layout boundaries.
+
+---
+
+### Task 5: Core Property Data Mutation Hardening ("Reverting Changes" Bug)
+- **Symptom:** Saving property detail forms or attempting to append an extra unit record immediately throws a toaster failure notification: "Failed to update Property. Reverting changes."
+- **Action Required:** Trace the form submission schema payloads back to the database backend mutation layer. Verify all required field keys, ID parameters, and format constraints to ensure properties are fully editable, writing cleanly across to the core Financial Overview records.
+
+---
+
+### Task 6: Aria Chat Consistency & Stream Failure Prevention
+- **Symptom:** The first AI chat query streams successfully, but successive prompts fail silently. Sending a third prompt triggers an unpredictable state flush, rendering the previous missed responses completely merged into a single bubble.
+- **Action Required:** Re-architect response streaming locks and message lifecycle hooks. Force a clean reset of the message context hook immediately upon user text submission, and map an explicit loading/state placeholder to ensure responsive, decoupled chat bubbles.
+
+---
+
+### Task 7: RAG Context Smart-Routing & UX Onboarding Guardrails
+- **Requirement:** Remove the manual friction of the user toggling RAG on and off. 
+- **Action Required:** 1. **Intent Interception:** Programmatically intercept the user's prompt. If it hits workspace metadata (e.g., "How many properties do we have?"), automatically inject the dynamic system context / local database vector payload.
+  2. **Micro-Tooltip:** Render a sleek, premium, high-level tier inline confirmation badge reading: *"Aria automatically accessed your internal secure document index to answer this query. Keep this toggle enabled to analyze internal databases, or toggle off for general web/AI assistance."*
+
+---
+
+### Task 8: Complete Note-Taker & Audio Transcription Architectural Rebuild
+- **Symptom:** The built-in voice memo dictation tool breaks immediately upon activation, throwing a "Transcribing failed" exception.
+- **Action Required:** Rebuild the transcription state pipeline. Implement strict checks to ensure local media device streams and microphone channels are fully locked and resolved before triggering the speech-to-text API buffer transfer to avoid zero-byte buffer starvation errors.
+
+---
+
+### Task 9: Dashboard Layout Artifact Fix & Tabbed Financial Analytics Refactor
+- **Symptom 1 (Visual Striations):** The stats dashboard is rendering weird visual line artifacts, overlapping borders, or layer bleeding across cards (specifically cutting into "Outstanding Invoices", "Outstanding Rent Ledger", and "Real Estate Properties"). 
+- **Symptom 2 (Card Consolidation):** The separate components for "Outstanding Invoices" and "Outstanding Rent Ledger" complicate the layout.
+- **Action Required:**
+  - Audit CSS grid alignments, `box-shadow` bleeding, and explicit borders on the dashboard cards to eliminate the layering artifacts.
+  - Consolidate "Outstanding Invoices" and "Outstanding Rent Ledger" into **one single unified analytics card**. 
+  - Add a premium tab toggle within this new single card so users can switch views seamlessly between the *Rent Ledger* dataset and the *Invoices* dataset within the same UI container.
+
+---
+
+### Task 10: Unit Offboarding Workflow (Remove / Unassign Unit)
+- **Requirement:** Provide a clean, intentional operational workflow for users to remove a unit from a property asset when they are no longer actively managing that specific unit spaces.
+- **Action Required:**
+  - Build a secure "Archive / Remove Unit" action pipeline. 
+  - Ensure the delete/remove utility checks for active dependencies (leases, active tenants, historical unpaid statements).
+  - Update layout constraints across all viewports to guarantee that all configuration, creation, and deletion screens across the Property modules are completely scrollable to the absolute bottom margin without clipping page actions.
+
+---
+
+### Task 11: Remove Bank Reconciliation Modules from Revenue Monitor
+- **Requirement:** The "Reconciliation Required" sub-components inside the Revenue Monitor Payments section (specifically "Reconcile Bank Feed", "Match Manual Ledger Entries", and "Latest Bank Sync") add unnecessary complexity and are no longer required.
+- **Action Required:** Completely prune, comment out, or remove the bank feed synchronization and manual ledger matching block layouts from the `Payments` tab inside the Revenue Monitor view to keep the pipeline direct and clean.
+
+---
+
+Please analyze the codebase components and outline your architectural plan for **Task 5 (Property Mutation Bug)**, **Task 9 (Dashboard Card Consolidation)**, and **Task 11 (Reconciliation Cleanup)** first.

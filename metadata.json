@@ -1,0 +1,13 @@
+{
+  "name": "6.2 MVP PracticePro Deploy Build (Covex)",
+  "description": "AI law office case management system tailored for litigation practice. NIGERIA BUILD",
+  "prompts": {
+    "GEMINI_API_KEY": {
+      "type": "string",
+      "label": "Gemini API Key"
+    }
+  },
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

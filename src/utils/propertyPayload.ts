@@ -1,0 +1,116 @@
+import { Property } from '../types';
+
+export interface UnitRentalInput {
+  id: string;
+  unitName: string;
+  rentAmount: number;
+  rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+  leaseStart: string;
+  leaseEnd: string;
+  tenantName: string;
+  occupantTitle?: string;
+  occupantFirstName?: string;
+  occupantLastName?: string;
+  tenantPhone: string;
+  nextRentReview: string;
+  isPeriodicReviewEnabled: boolean;
+  tenancyPeriod?: string;
+  serviceCharge?: number;
+  legalFee?: number;
+  isLegalNA?: boolean;
+  agencyFee?: number;
+  isAgencyNA?: boolean;
+  cautionDeposit?: number;
+  isCautionNA?: boolean;
+  status: Property['status'];
+  _id?: string;
+}
+
+const cleanDate = (d?: string): string | null => (d && d.trim() ? d.trim() : null);
+
+export function composeTenantName(unit: UnitRentalInput): string {
+  const fromParts = [unit.occupantTitle, unit.occupantFirstName, unit.occupantLastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  return fromParts || unit.tenantName?.trim() || '';
+}
+
+export function normalizeUnitRental(unit: UnitRentalInput): UnitRentalInput {
+  const tenantName = composeTenantName(unit);
+  return {
+    ...unit,
+    tenantName,
+    leaseStart: cleanDate(unit.leaseStart) ?? '',
+    leaseEnd: cleanDate(unit.leaseEnd) ?? '',
+    nextRentReview: cleanDate(unit.nextRentReview) ?? '',
+    rentAmount: Number(unit.rentAmount) || 0,
+    serviceCharge: Number(unit.serviceCharge) || 0,
+    legalFee: unit.isLegalNA ? 0 : Number(unit.legalFee) || 0,
+    agencyFee: unit.isAgencyNA ? 0 : Number(unit.agencyFee) || 0,
+    cautionDeposit: unit.isCautionNA ? 0 : Number(unit.cautionDeposit) || 0,
+  };
+}
+
+export function buildPropertyRecord(
+  unit: UnitRentalInput,
+  propertyData: Partial<Property>,
+  unitId: string
+): Property {
+  const normalized = normalizeUnitRental(unit);
+  const pd = {
+    ...propertyData,
+    id: unitId,
+    status: normalized.status || 'Occupied',
+    managementFeePercentage:
+      propertyData.managementFeePercentage != null && !Number.isNaN(Number(propertyData.managementFeePercentage))
+        ? Number(propertyData.managementFeePercentage)
+        : 10,
+    images: propertyData.images ?? [],
+    amenities: propertyData.amenities ?? [],
+  } as Property;
+
+  if (unit._id) (pd as Property & { _id?: string })._id = unit._id;
+
+  pd.description =
+    normalized.unitName ||
+    (propertyData.description ? `${propertyData.description} (${normalized.unitName})` : normalized.unitName);
+
+  pd.rentalDetails = {
+    ...normalized,
+    leaseStart: cleanDate(normalized.leaseStart),
+    leaseEnd: cleanDate(normalized.leaseEnd),
+    nextRentReview: cleanDate(normalized.nextRentReview),
+  };
+
+  return pd;
+}
+
+export function propertyExistsInDb(
+  properties: Property[],
+  unitId: string,
+  unitConvexId?: string
+): boolean {
+  return properties.some(
+    (p) => p.id === unitId || (p as { _id?: string })._id === unitId || (unitConvexId && (p as { _id?: string })._id === unitConvexId)
+  );
+}
+
+/** Display fields for unit cards (Property rows store tenant/rent in rentalDetails). */
+export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string, unknown> }) {
+  const rd = (unit.rentalDetails || unit) as Record<string, unknown>;
+  const unitName =
+    (rd.unitName as string) ||
+    unit.description?.match(/\((.*?)\)/)?.[1] ||
+    '';
+  return {
+    name: unitName || 'Unnamed',
+    tenantName: (rd.tenantName as string) || '',
+    rentAmount: Number(rd.rentAmount ?? 0),
+    rentFrequency: (rd.rentFrequency as string) || 'Annually',
+    leaseEnd: rd.leaseEnd as string | undefined,
+    floor: (rd.floor as string) || 'N/A',
+    unitId: unit.id,
+    convexId: (unit as { _id?: string })._id,
+  };
+}
