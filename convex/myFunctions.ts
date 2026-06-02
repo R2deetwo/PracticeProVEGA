@@ -1745,7 +1745,14 @@ async function resolveRecordForUpdate(
   id: string,
   firmId: string
 ): Promise<{ docId: any }> {
-  const existing = (await ctx.db.get(id as any)) as any;
+  // Wrapped in try-catch: ctx.db.get() throws when id is a UUID (not a Convex internal ID)
+  let existing: any = null;
+  try {
+    existing = (await ctx.db.get(id as any)) as any;
+  } catch (_e) {
+    // id is a UUID / non-Convex ID — fall through to indexed search
+  }
+
   if (existing) {
     if (existing.firmId && existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
@@ -1826,7 +1833,7 @@ export const updateItem = mutation({
 /**
  * deleteItem (ROBUST VERSION)
  * Handles both Convex Internal IDs and Custom UUIDs (Legacy).
- * Fixes the bug where Properties/Matters failed to delete from the UI.
+ * Strategy A → B → C cascade ensures deletion succeeds regardless of ID format.
  */
 export const deleteItem = mutation({
   args: { table: v.string(), id: v.string(), userEmail: v.optional(v.string()) },
@@ -1834,39 +1841,67 @@ export const deleteItem = mutation({
     const { firmId } = await requireFirmUser(ctx, args.userEmail);
     const { table, id } = args;
 
-    // 1. Security Check: Does the record belong to this firm?
-    const existing = await ctx.db.get(id as any) as any;
+    // 1. Security Check: guard against cross-firm deletion.
+    //    Wrapped in try-catch because ctx.db.get() throws when passed a UUID
+    //    (non-Convex internal ID), which previously aborted the mutation before
+    //    Strategy B could run.
+    let existing: any = null;
+    try {
+      existing = await ctx.db.get(id as any) as any;
+    } catch (_e) {
+      // id is a UUID / non-Convex ID — fall through to indexed search
+    }
     if (existing && existing.firmId && existing.firmId !== firmId) {
       throw new Error("Unauthorized. This record belongs to another organization.");
     }
 
-    // 2. Strategy A: Direct Delete (Internal ID)
-    try {
-      await ctx.db.delete(id as any);
-      return { success: true, method: "internal_id" };
-    } catch (e) {
-      // 2. Strategy B: UUID Search (using high-performance indices)
+    // 2. Strategy A: Direct Delete by Convex internal _id
+    if (existing) {
       try {
-        let item = null;
-        const indexedTables = ["matters", "contacts", "properties", "invoices", "expenses", "firmActivity", "researchNotebooks", "researchSources", "researchMessages"];
-        
-        if (indexedTables.includes(table)) {
-          item = await ctx.db.query(table as any)
-            .withIndex("by_custom_id" as any, (q: any) => q.eq("id", id))
-            .first();
-        } else {
-          // Fallback for tables without index (bounded search)
-          const sample = await ctx.db.query(table as any).take(500);
-          item = sample.find((i: any) => i.id === id);
-        }
-
-        if (item) {
-          await ctx.db.delete(item._id);
-          return { success: true, method: "UUID_INDEXED" };
-        }
+        await ctx.db.delete(id as any);
+        return { success: true, method: "internal_id" };
       } catch (e) {
-        console.error(`[deleteItem] Strategy B failed for ${table}:${id}`, e);
+        console.warn(`[deleteItem] Strategy A failed for ${table}:${id}`, e);
       }
+    }
+
+    // 3. Strategy B: UUID Search via high-performance custom_id index
+    const indexedTables = ["matters", "contacts", "properties", "invoices", "expenses", "firmActivity", "researchNotebooks", "researchSources", "researchMessages"];
+    try {
+      let item = null;
+      if (indexedTables.includes(table)) {
+        item = await ctx.db.query(table as any)
+          .withIndex("by_custom_id" as any, (q: any) => q.eq("id", id))
+          .first();
+      } else {
+        const sample = await ctx.db.query(table as any).take(500);
+        item = sample.find((i: any) => i.id === id);
+      }
+
+      if (item) {
+        if (item.firmId && item.firmId !== firmId) {
+          throw new Error("Unauthorized. This record belongs to another organization.");
+        }
+        await ctx.db.delete(item._id);
+        return { success: true, method: "UUID_INDEXED" };
+      }
+    } catch (e: any) {
+      if (e.message?.includes("Unauthorized")) throw e;
+      console.error(`[deleteItem] Strategy B failed for ${table}:${id}`, e);
+    }
+
+    // 4. Strategy C: Firm-scoped full scan (last resort for records without id field)
+    try {
+      const firmRecords = await ctx.db.query(table as any)
+        .withIndex("by_firm" as any, (q: any) => q.eq("firmId", firmId))
+        .collect();
+      const match = firmRecords.find((i: any) => i.id === id || i._id === id || String(i._id) === id);
+      if (match) {
+        await ctx.db.delete(match._id);
+        return { success: true, method: "FIRM_SCAN" };
+      }
+    } catch (e) {
+      console.error(`[deleteItem] Strategy C failed for ${table}:${id}`, e);
     }
 
     throw new Error(`Failed to delete item ${id} from ${table}. Item not found.`);

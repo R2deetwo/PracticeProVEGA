@@ -1027,22 +1027,22 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 >
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                            <div className={`w-20 h-20 rounded-[40px] flex items-center justify-center mb-5 shadow-lg ${isProperty ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-green-600 shadow-green-600/20'}`}>
+                            <div className={`w-20 h-20 rounded-[40px] flex items-center justify-center mb-5 shadow-lg ${isAtrium ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-green-600 shadow-green-600/20'}`}>
                                 <AloaIcon className="w-10 h-10 text-white" />
                             </div>
                             <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
-                                {isProperty ? 'ARIA' : 'ALOA'}
+                                {isAtrium ? 'ARIA' : 'ALOA'}
                             </h3>
                             <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
-                                {isProperty ? 'Asset & Revenue Intelligent Assistant' : 'Artificial Legal & Operational Assistant'}
+                                {isAtrium ? 'Asset & Revenue Intelligent Assistant' : 'Artificial Legal & Operational Assistant'}
                             </p>
                             <p className="text-sm text-slate-500 dark:text-zinc-500 max-w-[260px] leading-relaxed">
-                                {isProperty
+                                {isAtrium
                                     ? 'I can help manage your property portfolio, track revenue, handle tenant communications, and monitor defaulters.'
                                     : 'I can help draft legal documents, manage cases, research Nigerian law, and streamline your practice operations.'}
                             </p>
                             <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-[300px]">
-                                {(isProperty ? [
+                                {(isAtrium ? [
                                     'Show revenue summary',
                                     'List defaulting tenants',
                                     'Draft a rent demand',
@@ -1122,7 +1122,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     </div>
                                 </div>
                                 <div className={`mt-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'user' ? 'You' : (isProperty ? 'ARIA' : 'ALOA')}
+                                    {msg.role === 'user' ? 'You' : (isAtrium ? 'ARIA' : 'ALOA')}
                                 </div>
                             </div>
                         </div>
@@ -1168,7 +1168,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 placeholder={
                                     isFirmSearchEnabled 
                                         ? (isProperty ? 'Search portfolio documents...' : 'Search firm documents...')
-                                        : (isProperty ? 'Ask ARIA about your properties...' : 'Ask ALOA about your practice...')
+                                        : (isAtrium ? 'Ask ARIA about your properties...' : 'Ask ALOA about your practice...')
                                 }
                                 className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
                                 disabled={isLoading || aloaState !== 'idle'}
