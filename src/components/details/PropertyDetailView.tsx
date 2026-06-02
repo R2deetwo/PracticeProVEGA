@@ -4,7 +4,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -1063,7 +1063,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
                                         {propertyInvoices.map(inv => (
-                                            <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => openModal('viewInvoice', inv.id)}>
+                                            <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => navigateTo('invoiceDetail', inv.id)}>
                                                 <td className="px-6 py-4 font-mono font-medium text-primary-600">{inv.invoiceNumber}</td>
                                                 <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{inv.issueDate}</td>
                                                 <td className="px-6 py-4">

@@ -17,8 +17,10 @@ export interface UnitRentalInput {
   tenancyPeriod?: string;
   serviceCharge?: number;
   legalFee?: number;
+  legalFeePercentage?: number;
   isLegalNA?: boolean;
   agencyFee?: number;
+  agencyFeePercentage?: number;
   isAgencyNA?: boolean;
   cautionDeposit?: number;
   isCautionNA?: boolean;
@@ -47,7 +49,9 @@ export function normalizeUnitRental(unit: UnitRentalInput): UnitRentalInput {
     rentAmount: Number(unit.rentAmount) || 0,
     serviceCharge: Number(unit.serviceCharge) || 0,
     legalFee: unit.isLegalNA ? 0 : Number(unit.legalFee) || 0,
+    legalFeePercentage: Number(unit.legalFeePercentage) || 0,
     agencyFee: unit.isAgencyNA ? 0 : Number(unit.agencyFee) || 0,
+    agencyFeePercentage: Number(unit.agencyFeePercentage) || 0,
     cautionDeposit: unit.isCautionNA ? 0 : Number(unit.cautionDeposit) || 0,
   };
 }

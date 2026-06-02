@@ -51,29 +51,65 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
         }
         return 1;
     });
-    const [unitsInputStr, setUnitsInputStr] = useState('1'); // string buffer so user can clear the field
+    const [unitsInputStr, setUnitsInputStr] = useState(() => {
+        if (propertyToEdit) {
+            const count = (coreState.properties || []).filter(p => p.address === propertyToEdit.address).length;
+            return String(Math.max(1, count));
+        }
+        return '1';
+    });
 
     // Automation
     const [remindLeaseExpiry, setRemindLeaseExpiry] = useState(propertyToEdit?.automationSettings?.remindLeaseExpiry || false);
     const [remindRentDue, setRemindRentDue] = useState(propertyToEdit?.automationSettings?.remindRentDue || false);
     const [autoCreateMaintenanceTask, setAutoCreateMaintenanceTask] = useState(propertyToEdit?.automationSettings?.autoCreateMaintenanceTask || false);
     const [activeUnitIndex, setActiveUnitIndex] = useState(0);
+    const [autoSyncUnits, setAutoSyncUnits] = useState(true);
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
 
     const [unitsData, setUnitsData] = useState<UnitRentalInput[]>(() => {
         if (propertyToEdit) {
             const allUnits = (coreState.properties || [])
                 .filter(p => p.address === propertyToEdit.address)
-                .map(p => ({ 
-                    ...(p.rentalDetails || {}), 
-                    id: p.id, 
-                    status: p.status || 'Occupied', 
-                    _id: (p as any)._id,
-                    unitName: p.rentalDetails?.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit"
-                })) as any[];
+                .map(p => {
+                    const rd = p.rentalDetails || {};
+                    const rent = Number(rd.rentAmount) || 0;
+                    const lf = Number(rd.legalFee) || 0;
+                    const af = Number(rd.agencyFee) || 0;
+                    const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
+                    const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                    return {
+                        ...rd,
+                        id: p.id,
+                        status: p.status || 'Occupied',
+                        _id: (p as any)._id,
+                        unitName: rd.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit",
+                        legalFee: lf,
+                        legalFeePercentage: legalPct,
+                        agencyFee: af,
+                        agencyFeePercentage: agencyPct
+                    };
+                }) as any[];
             
             if (allUnits.length > 0) return allUnits;
-            if (propertyToEdit.rentalDetails) return [{ ...propertyToEdit.rentalDetails, id: propertyToEdit.id, status: propertyToEdit.status, _id: (propertyToEdit as any)._id }];
+            if (propertyToEdit.rentalDetails) {
+                const rd = propertyToEdit.rentalDetails;
+                const rent = Number(rd.rentAmount) || 0;
+                const lf = Number(rd.legalFee) || 0;
+                const af = Number(rd.agencyFee) || 0;
+                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
+                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                return [{ 
+                    ...rd, 
+                    id: propertyToEdit.id, 
+                    status: propertyToEdit.status, 
+                    _id: (propertyToEdit as any)._id,
+                    legalFee: lf,
+                    legalFeePercentage: legalPct,
+                    agencyFee: af,
+                    agencyFeePercentage: agencyPct
+                }];
+            }
         }
         return [{
             id: uuidv4(),
@@ -92,8 +128,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
             tenancyPeriod: '',
             serviceCharge: 0,
             legalFee: 0,
+            legalFeePercentage: 10,
             isLegalNA: false,
             agencyFee: 0,
+            agencyFeePercentage: 10,
             isAgencyNA: false,
             cautionDeposit: 0,
             isCautionNA: false,
@@ -125,8 +163,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                         tenancyPeriod: '',
                         serviceCharge: 0,
                         legalFee: 0,
+                        legalFeePercentage: 10,
                         isLegalNA: false,
                         agencyFee: 0,
+                        agencyFeePercentage: 10,
                         isAgencyNA: false,
                         cautionDeposit: 0,
                         isCautionNA: false,
@@ -159,12 +199,43 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
 
     const isEditing = !!propertyToEdit;
 
-    // Generic unit update helper with auto lease-end calculation
-    const updateUnit = (index: number, field: keyof UnitRentalData, value: any) => {
+    // Generic unit update helper with auto lease-end calculation and percentage calculation
+    const updateUnit = (index: number, field: keyof UnitRentalInput, value: any) => {
         setUnitsData(prev => {
             const oldValue = prev[index][field];
             const newUnits = [...prev];
             newUnits[index] = { ...newUnits[index], [field]: value };
+            
+            // Recalculate legalFee / agencyFee if rentAmount, percentage, or N/A changes
+            if (field === 'rentAmount') {
+                const rent = Number(value) || 0;
+                const legalPct = newUnits[index].legalFeePercentage ?? 10;
+                const agencyPct = newUnits[index].agencyFeePercentage ?? 10;
+                newUnits[index].legalFee = newUnits[index].isLegalNA ? 0 : Math.round(rent * (legalPct / 100));
+                newUnits[index].agencyFee = newUnits[index].isAgencyNA ? 0 : Math.round(rent * (agencyPct / 100));
+            }
+            if (field === 'legalFeePercentage') {
+                const pct = Number(value) || 0;
+                const rent = newUnits[index].rentAmount || 0;
+                newUnits[index].legalFee = newUnits[index].isLegalNA ? 0 : Math.round(rent * (pct / 100));
+            }
+            if (field === 'agencyFeePercentage') {
+                const pct = Number(value) || 0;
+                const rent = newUnits[index].rentAmount || 0;
+                newUnits[index].agencyFee = newUnits[index].isAgencyNA ? 0 : Math.round(rent * (pct / 100));
+            }
+            if (field === 'isLegalNA') {
+                const isNA = !!value;
+                const pct = newUnits[index].legalFeePercentage ?? 10;
+                const rent = newUnits[index].rentAmount || 0;
+                newUnits[index].legalFee = isNA ? 0 : Math.round(rent * (pct / 100));
+            }
+            if (field === 'isAgencyNA') {
+                const isNA = !!value;
+                const pct = newUnits[index].agencyFeePercentage ?? 10;
+                const rent = newUnits[index].rentAmount || 0;
+                newUnits[index].agencyFee = isNA ? 0 : Math.round(rent * (pct / 100));
+            }
             
             // Auto-calculate Lease End Date
             if (field === 'leaseStart' || field === 'rentFrequency' || field === 'tenancyPeriod') {
@@ -197,14 +268,32 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
             }
 
             // Smart ripple: If editing Unit 1, copy general fields to other untouched units
-            if (index === 0) {
-                const generalFields = ['rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled'];
+            if (index === 0 && autoSyncUnits) {
+                const generalFields = [
+                    'rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled',
+                    'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'cautionDeposit',
+                    'isLegalNA', 'isAgencyNA', 'isCautionNA'
+                ];
                 if (generalFields.includes(field)) {
                     for (let i = 1; i < newUnits.length; i++) {
                         const targetValue = prev[i][field];
                         // If the other unit had the exact same old value as Unit 1, or was empty/default, it inherits the new value
                         if (targetValue === oldValue || !targetValue || targetValue === 'Annually' || targetValue === (false as any) || targetValue === 0) {
-                            newUnits[i] = { ...newUnits[i], [field]: newUnits[index][field] };
+                            newUnits[i] = { 
+                                ...newUnits[i], 
+                                [field]: newUnits[index][field],
+                                // Also sync computed absolute fees if they are dependent
+                                ...(field === 'rentAmount' || field === 'legalFeePercentage' || field === 'isLegalNA' ? {
+                                    legalFee: newUnits[index].legalFee,
+                                    legalFeePercentage: newUnits[index].legalFeePercentage,
+                                    isLegalNA: newUnits[index].isLegalNA
+                                } : {}),
+                                ...(field === 'rentAmount' || field === 'agencyFeePercentage' || field === 'isAgencyNA' ? {
+                                    agencyFee: newUnits[index].agencyFee,
+                                    agencyFeePercentage: newUnits[index].agencyFeePercentage,
+                                    isAgencyNA: newUnits[index].isAgencyNA
+                                } : {})
+                            };
                         }
                     }
                 }
@@ -213,6 +302,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
             return newUnits;
         });
     };
+
+    const activeUnit = unitsData[activeUnitIndex];
+    const totalPayable = activeUnit ? (
+        (Number(activeUnit.rentAmount) || 0) +
+        (Number(activeUnit.serviceCharge) || 0) +
+        (activeUnit.isCautionNA ? 0 : (Number(activeUnit.cautionDeposit) || 0)) +
+        (activeUnit.isLegalNA ? 0 : (Number(activeUnit.legalFee) || 0)) +
+        (activeUnit.isAgencyNA ? 0 : (Number(activeUnit.agencyFee) || 0))
+    ) : 0;
+
+
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -773,6 +873,22 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                             </div>
                         )}
 
+                        {unitsData.length > 1 && (
+                            <div className="flex items-center gap-3 px-1 mb-4 mt-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={autoSyncUnits} 
+                                        onChange={e => setAutoSyncUnits(e.target.checked)} 
+                                        className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-4 h-4" 
+                                    />
+                                    <span className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                                        Copy Unit 1 fields to other units automatically
+                                    </span>
+                                </label>
+                            </div>
+                        )}
+
                         <div className="space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2 group">
@@ -819,40 +935,54 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                                 </div>
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
+                                        <label className={labelClass}>Legal Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="text"
-                                        disabled={unitsData[activeUnitIndex].isLegalNA}
-                                        value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].legalFee || 0)}
-                                        onChange={e => updateUnit(activeUnitIndex, 'legalFee', parseFormattedNumber(e.target.value))}
-                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
-                                        placeholder="0.00"
-                                    />
+                                    <div className="relative rounded-xl shadow-xs">
+                                        <input autoComplete="off" data-lpignore="true" 
+                                            type="text"
+                                            disabled={unitsData[activeUnitIndex].isLegalNA}
+                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : (unitsData[activeUnitIndex].legalFeePercentage ?? 10)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'legalFeePercentage', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
+                                            placeholder="10"
+                                        />
+                                        {!unitsData[activeUnitIndex].isLegalNA && (
+                                            <div className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                ₦{(unitsData[activeUnitIndex].legalFee || 0).toLocaleString()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Agency Fee (<NairaSymbol />)</label>
+                                        <label className={labelClass}>Agency Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
                                             <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="text"
-                                        disabled={unitsData[activeUnitIndex].isAgencyNA}
-                                        value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].agencyFee || 0)}
-                                        onChange={e => updateUnit(activeUnitIndex, 'agencyFee', parseFormattedNumber(e.target.value))}
-                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
-                                        placeholder="0.00"
-                                    />
+                                    <div className="relative rounded-xl shadow-xs">
+                                        <input autoComplete="off" data-lpignore="true" 
+                                            type="text"
+                                            disabled={unitsData[activeUnitIndex].isAgencyNA}
+                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : (unitsData[activeUnitIndex].agencyFeePercentage ?? 10)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'agencyFeePercentage', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
+                                            placeholder="10"
+                                        />
+                                        {!unitsData[activeUnitIndex].isAgencyNA && (
+                                            <div className="absolute right-3 top-2.5 text-xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                ₦{(unitsData[activeUnitIndex].agencyFee || 0).toLocaleString()}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
@@ -870,6 +1000,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                                         className={`${commonInputClass} ${unitsData[activeUnitIndex].isCautionNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
                                         placeholder="0.00"
                                     />
+                                </div>
+                            </div>
+
+                            {/* Total Tenancy Package Summary Card */}
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
+                                            Total Tenancy Package
+                                        </p>
+                                        <p className="text-[10px] text-slate-500 dark:text-zinc-500">
+                                            Total payable by the tenant (Rent + Fees + Caution + Service)
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-base font-black text-emerald-700 dark:text-emerald-300">
+                                            ₦{totalPayable.toLocaleString('en-NG')}
+                                        </p>
+                                        <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
+                                            {unitsData[activeUnitIndex]?.rentFrequency === 'Monthly' ? 'Per Month' : 'Per Annum'}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
