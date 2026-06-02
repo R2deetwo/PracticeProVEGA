@@ -1,5 +1,5 @@
 import { FunctionDeclaration, Type, Content, GoogleGenAI } from "@google/genai";
-import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult } from '../types';
+import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult, AriaChatContext } from '../types';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';
 import { getSystemInstruction } from '../agents/AgencyHub';
 import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES } from '../constants/aloaPrompts';
@@ -240,6 +240,7 @@ export const sendMessage = async (
         aloaXLibrary?: any[];
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
+        injectedContext?: AriaChatContext | null;
     },
     modelPreference: 'auto' | 'flash' | 'pro' = 'auto'
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
@@ -268,7 +269,8 @@ export const sendMessage = async (
         aloaXLibrary,
         isFirmSearchEnabled,
         semanticContext,
-        new Date().toISOString()
+        new Date().toISOString(),
+        context.injectedContext
     );
 
     const preferredModelName = 
@@ -395,6 +397,7 @@ export const streamMessage = async (
         aloaXLibrary?: any[];
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
+        injectedContext?: AriaChatContext | null;
     },
     onChunk: (text: string) => void,
     modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
@@ -423,7 +426,8 @@ export const streamMessage = async (
         aloaXLibrary,
         isFirmSearchEnabled,
         semanticContext,
-        new Date().toISOString()
+        new Date().toISOString(),
+        context.injectedContext
     );
 
     const preferredModelName =

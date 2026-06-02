@@ -403,7 +403,44 @@ export interface HistoryEntry { view: View; selectedId: SelectedId; context?: an
 export interface Toast { id: number; message: React.ReactNode; type: 'success' | 'error' | 'info'; link?: { text: string; onClick: () => void; }; }
 export interface AloaArtifact { id: string; type: 'form' | 'draft' | 'confirmation' | 'note'; data: any; }
 export interface AloaConfirmationData { question: string; originalForm: any; match: { id: string; }; }
-export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; }
+export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; interactiveForm?: InteractiveFormSchema; }
+
+// ─── Deep Context Injection ───────────────────────────────────────────────────
+/** Carries the full hydrated entity payload into an ARIA/ALOA chat session. */
+export interface AriaChatContext {
+  entityType: 'property' | 'matter' | 'contact' | 'invoice';
+  entityId: string;
+  entityName: string;
+  /** Core entity data + key sub-arrays (units, tasks, etc.) — kept lean intentionally. */
+  payload: Record<string, any>;
+}
+
+// ─── Inline Form Delegation ───────────────────────────────────────────────────
+export type InteractiveFormFieldType =
+  | 'text' | 'number' | 'date' | 'select' | 'chips' | 'checkbox_group' | 'slider';
+
+export interface InteractiveFormField {
+  id: string;
+  label: string;
+  type: InteractiveFormFieldType;
+  required?: boolean;
+  placeholder?: string;
+  /** Options for select / chips / checkbox_group types */
+  options?: string[];
+  /** Bounds for slider type */
+  min?: number;
+  max?: number;
+  defaultValue?: any;
+}
+
+export interface InteractiveFormSchema {
+  type: 'INTERACTIVE_FORM';
+  formId: string;
+  title: string;
+  description?: string;
+  fields: InteractiveFormField[];
+  submitLabel?: string;
+}
 export interface AloaFormInteractionState { highlightedFieldId: string | null; isReadyForSubmit: boolean; fieldValues: Record<string, any>; }
 export interface EditorState { isOpen: boolean; documentId: string | null; }
 export interface AloaHint {

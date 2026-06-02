@@ -2,6 +2,7 @@ import React from 'react';
 import { SparklesIcon, ChevronRightIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
 import { useAloa } from '../../contexts/AloaProvider';
+import { AriaChatContext } from '../../types';
 
 export type AloaContextAction = {
     label: string;
@@ -16,6 +17,8 @@ interface AloaContextRibbonProps {
     entityName: string;
     contextStatus?: string;
     actions: AloaContextAction[];
+    /** Full entity data payload for deep context injection into the chat session. */
+    payload?: Record<string, any>;
 }
 
 export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({ 
@@ -23,10 +26,11 @@ export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({
     entityId, 
     entityName, 
     contextStatus, 
-    actions 
+    actions,
+    payload
 }) => {
     const { isProperty, isVega } = useProduct();
-    const { togglePanel } = useAloa();
+    const { openWithContext } = useAloa();
 
     const agentName = isProperty ? 'ARIA' : 'ALOA';
     const agentColorClass = isProperty ? 'text-emerald-500' : 'text-amber-500';
@@ -79,11 +83,16 @@ export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({
                 ))}
                 
                 <button
-                    onClick={() => togglePanel()}
+                    onClick={() => openWithContext({
+                        entityType,
+                        entityId,
+                        entityName,
+                        payload: payload || { entityType, entityId, entityName }
+                    })}
                     className="flex items-center justify-center gap-2 p-3 rounded-lg text-left transition-all border border-dashed border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600 hover:bg-slate-50 dark:hover:bg-zinc-800/50"
                 >
                     <span className="text-sm font-medium text-slate-500 dark:text-zinc-400">
-                        Ask {agentName} a custom question...
+                        Ask {agentName} a custom question about {entityName}...
                     </span>
                 </button>
             </div>

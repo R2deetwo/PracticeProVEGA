@@ -1,6 +1,6 @@
 
 import * as React from 'react';
-import { AloaMessage } from '../types';
+import { AloaMessage, AriaChatContext } from '../types';
 import { useLocalFileSystem, LocalFile } from '../hooks/useLocalFileSystem';
 import { FileText } from 'lucide-react';
 
@@ -65,6 +65,12 @@ interface AloaContextType {
     liveInsights: any[];
     setLiveInsights: React.Dispatch<React.SetStateAction<any[]>>;
     setActionResult: (result: { id: string; title: string; type: string }) => void;
+
+    /** The active deep-context entity injected when opening chat from a resource screen. */
+    injectedContext: AriaChatContext | null;
+    setInjectedContext: (ctx: AriaChatContext | null) => void;
+    /** Opens the chat panel and pre-loads context from a specific entity (property, matter, etc.) */
+    openWithContext: (ctx: AriaChatContext) => void;
 }
 
 export const AloaContext = React.createContext<AloaContextType | undefined>(undefined);
@@ -89,6 +95,7 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const [activeNoteId, setActiveNoteId] = React.useState<string | null>(null);
     const [quickNoteContent, setQuickNoteContent] = React.useState('');
     const [liveInsights, setLiveInsights] = React.useState<any[]>([]);
+    const [injectedContext, setInjectedContext] = React.useState<AriaChatContext | null>(null);
 
     const [wordProcessorState, setWordProcessorState] = React.useState({
         isOpen: false, title: '', content: '', disclaimer: '', status: 'thinking'
@@ -160,6 +167,7 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setActiveConversationId(null);
         setUrgencyStatus('none');
         setIsUrgencyAcknowledged(false);
+        setInjectedContext(null);
     }, []);
 
     const closeWordProcessor = React.useCallback(() => {
@@ -209,6 +217,15 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [activeConversationId]);
 
+    /** Opens the chat panel and eagerly hydrates context from a specific entity. */
+    const openWithContext = React.useCallback((ctx: AriaChatContext) => {
+        setInjectedContext(ctx);
+        setIsPanelOpen(true);
+        setIsMinimized(false);
+        setMessages([]);               // Fresh conversation for this entity
+        setActiveConversationId(null);
+    }, []);
+
     const value = {
         isPanelOpen,
         togglePanel,
@@ -251,7 +268,10 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setQuickNoteContent,
         liveInsights,
         setLiveInsights,
-        setActionResult
+        setActionResult,
+        injectedContext,
+        setInjectedContext,
+        openWithContext
     };
 
     return (

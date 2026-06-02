@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useConvex, useMutation, useAction } from 'convex/react';
-import { AloaMessage, ModalType, AppState, AloaHint } from '../../types';
+import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
 import { GoogleGenAI } from '@google/genai';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -36,6 +36,7 @@ import { ActionCard } from './ActionCard';
 import { NoteDetails } from './NoteDetails';
 import { ConversationList } from './ConversationList';
 import { validateAIResponse } from '../../constants/identityGuardrails';
+import { DynamicChatForm } from './DynamicChatForm';
 
 const SendIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -64,7 +65,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
         activeConversationId, setActiveConversationId, activeView, setActiveView,
-        activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent
+        activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent,
+        injectedContext, setInjectedContext
     } = useAloa();
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
@@ -532,8 +534,22 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
     };
 
-    const handleSend = async () => {
-        if (!textInput.trim() || isGeneratingRef.current) return;
+    /** Attempts to parse an LLM response as an INTERACTIVE_FORM JSON block. */
+    const tryParseInteractiveForm = (text: string): InteractiveFormSchema | null => {
+        try {
+            const match = text.match(/```json\s*([\s\S]*?)```/);
+            const jsonStr = match ? match[1].trim() : text.trim();
+            const parsed = JSON.parse(jsonStr);
+            if (parsed && parsed.type === 'INTERACTIVE_FORM' && Array.isArray(parsed.fields)) {
+                return parsed as InteractiveFormSchema;
+            }
+        } catch { /* not a form payload */ }
+        return null;
+    };
+
+    const handleSend = async (overrideContent?: string) => {
+        const content = overrideContent ?? textInput;
+        if (!content.trim() || isGeneratingRef.current) return;
 
         const isDemo = currentUser?.email === 'demo@practicepro.ng';
         const userMessagesCount = messages.filter(m => m.role === 'user').length;
@@ -549,16 +565,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     label: 'Create Your Account'
                 }
             }]);
-            setTextInput('');
+            if (!overrideContent) setTextInput('');
             return;
         }
 
-        const content = textInput;
         const newUserMsg: AloaMessage = { id: uuidv4(), role: 'user', content };
 
         const streamMsgId = uuidv4();
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
-        setTextInput('');
+        if (!overrideContent) setTextInput('');
         setIsLoading(true);
         setAloaStatus(isFirmSearchEnabled ? 'Searching firm records…' : 'Thinking…');
         isGeneratingRef.current = true;
@@ -572,6 +587,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             aloaXLibrary: loadAloaXLibrary(),
             isFirmSearchEnabled,
             searchBrain: undefined as ((query: string) => Promise<string>) | undefined,
+            injectedContext,
         };
 
         try {
@@ -632,10 +648,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     );
                     if (streamed.text?.trim()) {
                         const validatedText = validateAIResponse(streamed.text, isProperty);
+                        const parsedForm = tryParseInteractiveForm(validatedText);
                         const modelMsg: AloaMessage = {
                             id: streamMsgId,
                             role: 'model',
-                            content: validatedText,
+                            content: parsedForm ? '' : validatedText,
+                            interactiveForm: parsedForm ?? undefined,
                             modelUsed: streamed.modelUsed
                         };
                         setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
@@ -703,10 +721,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
             if (currentResponse.text && currentResponse.text.trim()) {
                 const validatedText = validateAIResponse(currentResponse.text, isProperty);
+                const parsedForm = tryParseInteractiveForm(validatedText);
                 const modelMsg: AloaMessage = {
                     id: streamMsgId,
                     role: 'model',
-                    content: validatedText,
+                    content: parsedForm ? '' : validatedText,
+                    interactiveForm: parsedForm ?? undefined,
                     modelUsed: currentResponse.modelUsed
                 };
                 setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
@@ -781,6 +801,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         });
     };
 
+    /**
+     * Called when the user submits a DynamicChatForm.
+     * Formats the field values into a concise text summary and injects it
+     * as a user turn so the LLM processes it on the next run.
+     */
+    const handleFormSubmit = (formId: string, values: Record<string, any>) => {
+        const summary = Object.entries(values)
+            .map(([k, v]) => `${k}="${Array.isArray(v) ? v.join(', ') : v}"`)
+            .join(', ');
+        const syntheticContent = `[Form Submitted — ${formId}: ${summary}]`;
+        handleSend(syntheticContent);
+    };
+
     const handleSaveMessage = (content: string) => {
         setQuickNoteContent(content);
         setActiveView('quickNote');
@@ -835,11 +868,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         <AloaIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${activeView === 'chat' ? 'text-white' : ''} ${aloaState === 'speaking' ? 'animate-pulse' : ''}`} />
                     </button>
                     <div className="min-w-0 overflow-hidden">
-                        <div className="flex items-center gap-2 overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden flex-wrap">
                             <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none truncate">
                                 {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : (isAtrium ? 'ARIA' : 'ALOA')}
                             </h2>
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
+                            {activeView === 'chat' && injectedContext && (
+                                <button
+                                    onClick={() => setInjectedContext(null)}
+                                    title="Click to clear context and start a fresh conversation"
+                                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold
+                                               bg-emerald-100 text-emerald-700 border border-emerald-200
+                                               dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800
+                                               hover:bg-red-100 hover:text-red-600 hover:border-red-200
+                                               dark:hover:bg-red-900/20 dark:hover:text-red-400
+                                               transition-all truncate max-w-[160px]"
+                                >
+                                    <span>💬</span>
+                                    <span className="truncate">{injectedContext.entityName}</span>
+                                    <XMarkIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                                </button>
+                            )}
                         </div>
                         {activeView === 'chat' && (
                             <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
@@ -1075,7 +1124,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             ? 'bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30'
                                             : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50'
                                     }`}>
-                                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content || '') }} />
+                                    {msg.content && (
+                                        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }} />
+                                    )}
+                                    {msg.interactiveForm && (
+                                        <DynamicChatForm
+                                            schema={msg.interactiveForm}
+                                            onSubmit={(values) => handleFormSubmit(msg.interactiveForm!.formId, values)}
+                                        />
+                                    )}
 
                                     {msg.toolAction && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
