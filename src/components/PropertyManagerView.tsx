@@ -217,6 +217,33 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         );
     }, [allProperties, searchTerm]);
 
+    // Unified helper: delete all units at an address from Convex + local state + legacy contact array
+    const deletePropertyGroup = async (ownerId: string, propertyAddress: string): Promise<number> => {
+        const normalizedAddr = propertyAddress.toLowerCase().trim();
+        const allUnits = (coreState.properties || []).filter(p =>
+            (p.address || '').toLowerCase().trim() === normalizedAddr
+        );
+        const unitIds = Array.from(new Set(allUnits.map(u => u.id).filter(Boolean)));
+
+        // Delete from Convex (ignore "already deleted" — cascade returns success)
+        await Promise.allSettled(
+            unitIds.map(id => dataHandlers.handleDeleteProperty(id, propertyAddress, true))
+        );
+
+        // Strip legacy contact properties for this address
+        const owner = (contacts || []).find(c => c.id === ownerId);
+        if (owner && owner.properties && owner.properties.length > 0) {
+            const remaining = owner.properties.filter(p =>
+                (p.address || '').toLowerCase().trim() !== normalizedAddr
+            );
+            if (remaining.length !== owner.properties.length) {
+                onUpdateContactProperties(ownerId, remaining);
+            }
+        }
+
+        return unitIds.length;
+    };
+
     const handleDeleteProperty = (e: React.MouseEvent, propertyId: string, ownerId: string, propertyAddress: string) => {
         e.stopPropagation();
         const normalizedAddr = propertyAddress.toLowerCase().trim();
@@ -224,66 +251,21 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
             (p.address || '').toLowerCase().trim() === normalizedAddr
         );
         const unitCount = allUnits.length;
-        const hasLegacy = (contacts || []).some(c =>
-            c.id === ownerId && (c.properties || []).some(p =>
-                (p.address || '').toLowerCase().trim() === normalizedAddr
-            )
-        );
-        const totalCount = unitCount + (hasLegacy ? 1 : 0);
 
         openConfirmationModal('deleteConfirmation', propertyId, {
             title: 'Delete Property?',
-            message: totalCount > 1
-                ? `This will permanently delete the property and all ${totalCount} unit records from your portfolio. Associated legal matters will be unlinked.`
-                : 'This will permanently delete the property from your portfolio and unlink any associated legal matters.',
+            message: unitCount > 1
+                ? `This will permanently delete all ${unitCount} unit records for this property from your portfolio.`
+                : 'This will permanently delete this property from your portfolio.',
             onConfirm: async () => {
-                let deleted = 0;
-                let failed = 0;
-
-                if (allUnits.length > 0) {
-                    // Build a deduplicated set: all units by address + the parent propertyId itself
-                    const unitIdSet = new Set(allUnits.map(u => u.id));
-                    unitIdSet.add(propertyId); // ensure parent record is always deleted
-                    const results = await Promise.allSettled(
-                        Array.from(unitIdSet).map(id => dataHandlers.handleDeleteProperty(id, propertyAddress, true))
-                    );
-                    deleted += results.filter(r => r.status === 'fulfilled').length;
-                    failed += results.filter(r => r.status === 'rejected').length;
-                } else {
-                    const owner = contacts.find(c => c.id === ownerId);
-                    if (owner && owner.properties) {
-                        const updatedProperties = owner.properties.filter(p =>
-                            (p.address || '').toLowerCase().trim() !== normalizedAddr
-                        );
-                        onUpdateContactProperties(ownerId, updatedProperties);
-                        deleted++;
-                    }
-                }
-
-                if (hasLegacy) {
-                    const owner = contacts.find(c => c.id === ownerId);
-                    if (owner && owner.properties) {
-                        const updatedProperties = owner.properties.filter(p =>
-                            (p.address || '').toLowerCase().trim() !== normalizedAddr
-                        );
-                        onUpdateContactProperties(ownerId, updatedProperties);
-                    }
-                }
-
-                if (failed === 0 && deleted > 0) {
-                    addToast(`Property and ${deleted} unit${deleted !== 1 ? 's' : ''} deleted.`, { type: 'success' });
-                } else if (failed > 0) {
-                    addToast(`Deleted ${deleted} unit${deleted !== 1 ? 's' : ''}; ${failed} failed.`, { type: 'error' });
-                } else {
-                    addToast('Property removed.', { type: 'success' });
-                }
-
+                await deletePropertyGroup(ownerId, propertyAddress);
                 setSelectedIds(prev => {
                     const next = new Set(prev);
                     allUnits.forEach(u => next.delete(u.id));
                     next.delete(propertyId);
                     return next;
                 });
+                addToast('Property deleted.', { type: 'success' });
                 closeModal();
             },
             confirmText: 'Delete',
@@ -293,31 +275,29 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
     const handleBulkDelete = () => {
         if (selectedIds.size === 0) return;
+        // Resolve selected IDs to full property entries (grouped by address to avoid double-deleting)
+        const toDelete = Array.from(selectedIds).reduce<{ ownerId: string; address: string }[]>((acc, id) => {
+            const entry = allProperties.find(p => p.property.id === id);
+            if (!entry) return acc;
+            const addr = (entry.property.address || '').toLowerCase().trim();
+            if (!acc.some(a => a.address === addr)) {
+                acc.push({ ownerId: entry.ownerId, address: entry.property.address });
+            }
+            return acc;
+        }, []);
+
         openConfirmationModal('deleteConfirmation', null, {
-            title: `Delete ${selectedIds.size} Properties?`,
-            message: `Are you sure you want to delete ${selectedIds.size} selected properties? This action cannot be undone.`,
+            title: `Delete ${toDelete.length} ${toDelete.length === 1 ? 'Property' : 'Properties'}?`,
+            message: `This will permanently remove ${toDelete.length === 1 ? 'this property' : 'these properties'} and all their unit records. This cannot be undone.`,
             onConfirm: async () => {
-                const idsArray = Array.from(selectedIds);
-                const standaloneIds = idsArray.filter(id => (coreState.properties || []).some(p => p.id === id));
-                const results = await Promise.allSettled(
-                    standaloneIds.map(id => {
-                        const prop = (coreState.properties || []).find(p => p.id === id);
-                        return dataHandlers.handleDeleteProperty(id, prop?.address || 'Property');
-                    })
+                await Promise.allSettled(
+                    toDelete.map(({ ownerId, address }) => deletePropertyGroup(ownerId, address))
                 );
-                const failures = results.filter(r => r.status === 'rejected').length;
-                const successes = results.filter(r => r.status === 'fulfilled').length;
-                if (successes > 0 && failures === 0) {
-                    addToast(`Successfully deleted ${successes} ${successes === 1 ? 'property' : 'properties'}.`, { type: 'success' });
-                } else if (successes > 0 && failures > 0) {
-                    addToast(`Deleted ${successes} properties; ${failures} failed.`, { type: 'info' });
-                } else if (failures > 0) {
-                    addToast(`Failed to delete ${failures} ${failures === 1 ? 'property' : 'properties'}.`, { type: 'error' });
-                }
                 setSelectedIds(new Set());
+                addToast(`${toDelete.length === 1 ? 'Property' : `${toDelete.length} properties`} deleted.`, { type: 'success' });
                 closeModal();
             },
-            confirmText: 'Delete All',
+            confirmText: 'Delete',
             confirmButtonClass: 'bg-red-600 hover:bg-red-700'
         });
     };
