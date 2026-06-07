@@ -2665,6 +2665,65 @@ export const incrementWhatsAppQuota = mutation({
 
 
 /**
+ * Add a single unit to a property's embedded units array.
+ * Dedicated mutation to avoid the generic updateItem optimistic-update bug
+ * that replaces the entire units array.
+ */
+export const addUnitToProperty = mutation({
+  args: { propertyId: v.string(), firmId: v.string(), unitData: v.any() },
+  handler: async (ctx, args) => {
+    const { propertyId, firmId, unitData } = args;
+    let property: any = null;
+    try { property = await ctx.db.get(propertyId as any); } catch (e) {}
+    if (!property) {
+      property = await ctx.db
+        .query("properties")
+        .withIndex("by_custom_id", (q) => q.eq("id", propertyId))
+        .first();
+    }
+    if (!property) throw new Error("Property not found");
+    if (property.firmId !== firmId) throw new Error("Unauthorized");
+    const existingUnits: any[] = property.units || [];
+    const newUnit = { ...unitData };
+    await ctx.db.patch(property._id, {
+      units: [...existingUnits, newUnit],
+      numberOfUnits: existingUnits.length + 1,
+    });
+    return { success: true };
+  },
+});
+
+/**
+ * Remove a single unit from a property's embedded units array by ID.
+ * Dedicated mutation so we never accidentally overwrite sibling units.
+ */
+export const removeUnitFromProperty = mutation({
+  args: { propertyId: v.string(), firmId: v.string(), unitId: v.string() },
+  handler: async (ctx, args) => {
+    const { propertyId, firmId, unitId } = args;
+    let property: any = null;
+    try { property = await ctx.db.get(propertyId as any); } catch (e) {}
+    if (!property) {
+      property = await ctx.db
+        .query("properties")
+        .withIndex("by_custom_id", (q) => q.eq("id", propertyId))
+        .first();
+    }
+    if (!property) throw new Error("Property not found");
+    if (property.firmId !== firmId) throw new Error("Unauthorized");
+    const existingUnits: any[] = property.units || [];
+    const updatedUnits = existingUnits.filter(
+      (u: any) => u.id !== unitId && u._id !== unitId
+    );
+    await ctx.db.patch(property._id, {
+      units: updatedUnits,
+      numberOfUnits: updatedUnits.length,
+    });
+    return { success: true };
+  },
+});
+
+/**
  * RBAC: Set a matter's private/public visibility status.
  * Only users in the matter's assignedUsers array may toggle this.
  */

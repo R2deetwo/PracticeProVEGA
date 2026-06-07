@@ -39,6 +39,8 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const updateItemMutation = useMutation(api.myFunctions.updateItem);
     const deleteItemMutation = useMutation(api.myFunctions.deleteItem);
     const purgeFirmDataMutation = useMutation(api.myFunctions.purgeFirmData);
+    const addUnitToPropertyMutation = useMutation(api.myFunctions.addUnitToProperty);
+    const removeUnitFromPropertyMutation = useMutation(api.myFunctions.removeUnitFromProperty);
 
     // 2. Base Generic Actions (with Optimistic UI support)
     const baseActions = React.useMemo(() => ({
@@ -73,7 +75,25 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
             setAppState(prev => ({
                 ...prev,
-                [table]: (prev[tableKey] as any[]).map((i: any) => (matchesItem(i) ? { ...i, ...item } : i))
+                [table]: (prev[tableKey] as any[]).map((i: any) => {
+                    if (!matchesItem(i)) return i;
+                    const merged = { ...i, ...item };
+                    // Deep-merge embedded units array: preserve sibling units not touched by this update
+                    if (Array.isArray(i.units) && i.units.length > 0 && Array.isArray(item.units)) {
+                        merged.units = i.units.map((eu: any) => {
+                            const uid = eu.id || eu._id;
+                            const updated = (item.units as any[]).find((u: any) => (u.id || u._id) === uid);
+                            return updated ? { ...eu, ...updated } : eu;
+                        });
+                        (item.units as any[]).forEach((u: any) => {
+                            const uid = u.id || u._id;
+                            if (uid && !i.units.some((eu: any) => (eu.id || eu._id) === uid)) {
+                                merged.units.push(u);
+                            }
+                        });
+                    }
+                    return merged;
+                })
             }));
             try {
                 await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email });
@@ -113,6 +133,58 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id),
             }));
         },
+        addUnit: async (propertyId: string, unitData: any) => {
+            const tempUnit = { ...unitData };
+            setAppState(prev => ({
+                ...prev,
+                properties: (prev.properties as any[]).map((p: any) => {
+                    const pid = p.id || p._id;
+                    if (pid !== propertyId) return p;
+                    return { ...p, units: [...(p.units || []), tempUnit], numberOfUnits: (p.numberOfUnits || 0) + 1 };
+                })
+            }));
+            try {
+                await addUnitToPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitData: tempUnit });
+                return tempUnit;
+            } catch (e) {
+                setAppState(prev => ({
+                    ...prev,
+                    properties: (prev.properties as any[]).map((p: any) => {
+                        const pid = p.id || p._id;
+                        if (pid !== propertyId) return p;
+                        return { ...p, units: (p.units || []).filter((u: any) => u.id !== tempUnit.id), numberOfUnits: Math.max((p.numberOfUnits || 1) - 1, 0) };
+                    })
+                }));
+                throw e;
+            }
+        },
+        removeUnit: async (propertyId: string, unitId: string) => {
+            let removedUnit: any = null;
+            setAppState(prev => ({
+                ...prev,
+                properties: (prev.properties as any[]).map((p: any) => {
+                    const pid = p.id || p._id;
+                    if (pid !== propertyId) return p;
+                    removedUnit = (p.units || []).find((u: any) => u.id === unitId || u._id === unitId);
+                    return { ...p, units: (p.units || []).filter((u: any) => u.id !== unitId && u._id !== unitId), numberOfUnits: Math.max((p.numberOfUnits || 1) - 1, 0) };
+                })
+            }));
+            try {
+                await removeUnitFromPropertyMutation({ propertyId, firmId: currentUser?.firmId || '', unitId });
+            } catch (e) {
+                if (removedUnit) {
+                    setAppState(prev => ({
+                        ...prev,
+                        properties: (prev.properties as any[]).map((p: any) => {
+                            const pid = p.id || p._id;
+                            if (pid !== propertyId) return p;
+                            return { ...p, units: [...(p.units || []), removedUnit], numberOfUnits: (p.numberOfUnits || 0) + 1 };
+                        })
+                    }));
+                }
+                throw e;
+            }
+        },
         logActivity: (action: string, targetType: any, targetId?: string, targetName?: string, matterId?: string) => {
             if (!currentUser || !currentUser.firmId) return;
             const activity = { 
@@ -130,7 +202,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setAppState(prev => ({ ...prev, firmActivity: [activity, ...(prev.firmActivity || [])].slice(0, 100) }));
             createItemMutation({ table: 'firmActivity', data: activity, userEmail: currentUser?.email });
         }
-    }), [currentUser, createItemMutation, updateItemMutation, deleteItemMutation, addToast]);
+    }), [currentUser, createItemMutation, updateItemMutation, deleteItemMutation, addUnitToPropertyMutation, removeUnitFromPropertyMutation, addToast]);
 
     // 3. Domain Hooks Composition
     const matterHooks = useMatters(appState, baseActions);

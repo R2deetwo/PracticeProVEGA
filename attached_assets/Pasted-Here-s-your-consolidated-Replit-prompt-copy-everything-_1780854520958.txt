@@ -1,0 +1,118 @@
+Here's your consolidated Replit prompt — copy everything below the line:
+
+---
+
+**PROMPT FOR REPLIT — PracticePro VEGA Unit Bugs + UX Improvements + Vercel Prevention**
+
+---
+
+## PROJECT CONTEXT
+
+I'm building **PracticePro**, a Nigerian legal practice management app with a property management module (Atrium). Stack: **React + Convex**. GitHub repo: `github.com/R2deetwo/PracticeProVEGA`. Convex URL: `https://gregarious-malamute-537.convex.cloud` (env var `VITE_CONVEX_URL`).
+
+---
+
+## BUG 1: UNITS DISAPPEAR WHEN EDITING A UNIT (CRITICAL)
+
+**Symptom**: When I edit a unit under a property that has multiple units (e.g., 10 units), all units except one disappear from the UI. After a page refresh, all units return and the edit IS persisted. This happens every time a unit is edited.
+
+**Root Cause**: The `DataProvider.tsx` optimistic update pattern. When `updateItem` is called for a unit edit, it captures `prevState = appState` at call time and then replaces the entire property object in state. Since properties contain nested units arrays, the optimistic update overwrites the full units array with data that only includes the edited unit — the other units are lost from state temporarily. When Convex refreshes the real data, the full units array returns, which is why a refresh fixes it.
+
+**Fix Required**:
+1. In `DataProvider.tsx`, fix `updateItem` to do a **deep merge** instead of a shallow replace when updating entities that have nested arrays (especially properties with units). The optimistic update must preserve existing units that aren't being edited.
+2. Specifically: when updating a property, the optimistic state should merge the new data into the existing property object, NOT replace it. Use something like:
+   ```
+   updatedItem = { ...existingItem, ...updateData }
+   ```
+   where `existingItem` is the current item from state (not from stale `prevState`).
+3. Fix the stale `prevState` capture — use a functional state updater pattern (`setState(prev => ...)`) instead of capturing `appState` at call time, so the update always works against the latest state.
+4. For unit-specific edits: if the edit mutation only updates a single unit within a property's units array, the optimistic update should only modify that one unit in the array, not replace the entire array. Map over the existing units array and replace only the unit with the matching ID.
+
+**Files to modify**:
+- `src/contexts/DataProvider.tsx` — fix optimistic update logic in `updateItem`
+- `src/hooks/useProperties.ts` — ensure unit edit calls pass the full units array (with the edited unit merged in) to `updateItem`, OR add a dedicated `updateUnit` action that only updates one unit within the property
+
+---
+
+## BUG 2: UNIT MODAL SHOWS PROPERTY-LEVEL INFO
+
+**Symptom**: When clicking on a unit under the Units tab, the modal opens and shows property-level information (e.g., "number of units in property") alongside unit info. This is confusing — the user clicked a unit, not the property.
+
+**Fix Required**:
+1. When a unit is clicked, the modal should display **only unit-specific information**: unit name/number, unit type (residential/commercial), rent amount, tenant info, lease status, unit size, etc.
+2. Remove or hide property-level aggregations (total units count, property-wide stats) from the unit modal.
+3. If the same modal component is shared between property view and unit view, add a `mode` or `context` prop (`"property"` vs `"unit"`) and conditionally render only the relevant sections.
+4. The unit modal should have a clear heading like "Unit Details" (not "Property Details") to reinforce context.
+
+**Files to modify**:
+- The modal/dialog component used when clicking a unit (likely in `src/components/`)
+- Any shared modal component that handles both property and unit display
+
+---
+
+## FEATURE: ADD/REMOVE UNITS FOR EXISTING PROPERTIES
+
+**Requirement**: After a property is initially created, there is no way to add or remove units. Users need this.
+
+**Implementation**:
+1. **Add Unit button**: Place an "Add Unit" button prominently in the units tab/list area. Clicking it should open a form (modal or inline) to create a new unit under the current property. Required fields: unit name/number, unit type. Optional: rent, size, notes.
+2. **Remove Unit button**: Each unit card/row should have a remove/delete option (icon button or menu item). Clicking it should confirm with the user ("Remove Unit 5?") then delete that unit from the property's units array.
+3. The add/remove operations must update the Convex backend via mutations and handle optimistic UI updates correctly (see Bug 1 fix — the same deep merge logic applies here).
+4. After adding or removing a unit, the units list should update immediately without a full page refresh.
+
+**Backend changes needed**:
+- Add a Convex mutation `addUnitToProperty(propertyId, unitData)` that appends a new unit to the property's units array
+- Add a Convex mutation `removeUnitFromProperty(propertyId, unitId)` that removes a specific unit from the property's units array by filtering the units array
+- These should be separate mutations, not going through the generic `updateItem`, to avoid the state overwrite bug
+
+**Files to add/modify**:
+- `convex/myFunctions.ts` — add `addUnitToProperty` and `removeUnitFromProperty` mutations
+- `convex/schema.ts` — verify units array structure supports these operations
+- `src/hooks/useProperties.ts` — add `addUnit` and `removeUnit` hook functions
+- `src/contexts/DataProvider.tsx` — add `addUnit` and `removeUnit` actions with correct optimistic updates
+- Unit list component — add "Add Unit" button and per-unit "Remove" option
+
+---
+
+## CRITICAL: VERCEL BUILD PREVENTION
+
+**⚠️ DO NOT regenerate `package-lock.json` using `npm install` inside Replit.** Replit's npm proxy bakes internal URLs into the lockfile that break Vercel builds.
+
+**The Problem**: Replit routes npm through `http://package-firewall.replit.local/npm/...`. This URL gets written into `package-lock.json` under the `"resolved"` field. Vercel's build servers cannot resolve `package-firewall.replit.local` and the build fails with `ENOTFOUND`.
+
+**Prevention Rules**:
+1. **Never run `npm install`** for adding packages. Use `npm install --package-lock-only=false` or manually add packages to `package.json` and let the user install locally.
+2. If you MUST run `npm install`, immediately run this after:
+   ```bash
+   sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
+   ```
+3. Before any `git push`, verify the lockfile is clean:
+   ```bash
+   grep -c "package-firewall.replit.local" package-lock.json
+   ```
+   If the count is > 0, run the `sed` command above.
+4. Consider adding this as a git pre-push hook or a script in `package.json`.
+
+---
+
+## EXECUTION ORDER
+
+1. **Fix Bug 1 first** (unit disappearing on edit) — this is the most critical and affects data integrity perception
+2. **Fix Bug 2** (unit modal UX) — can be done alongside Bug 1 if modifying the same component files
+3. **Implement Add/Remove units** — requires backend mutations + frontend UI
+4. **Verify Vercel safety** — run the `grep` check before any git push
+
+---
+
+## TECHNICAL NOTES
+
+- Convex env variable is `VITE_CONVEX_URL` (NOT `VITE_CONVEX_UI`)
+- The `DataProvider.tsx` uses a generic `updateItem(entityType, id, data)` pattern for all entities. Be careful that your fix for unit edits doesn't break edits for other entity types (clients, matters, etc.)
+- Use functional state updaters `setState(prev => ...)` everywhere in DataProvider to avoid stale state captures
+- For the add/remove unit mutations, prefer dedicated mutations over the generic `updateItem` to avoid the optimistic update complexity
+- All currency values should display in Naira (₦) for the Nigerian market
+- Test each fix independently before moving to the next
+
+---
+
+Copy everything above and paste it into Replit. It covers all four areas in a single token-efficient prompt.

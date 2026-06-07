@@ -4,7 +4,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -61,13 +61,17 @@ const PropertyDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { updateItem, onAddMatter } = useDataActions();
+    const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
     const { currentUser } = useAuth();
     const { togglePanel } = useAloa();
     const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
     const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
     const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
     const unitMenuRef = useRef<HTMLDivElement>(null);
+    const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
+    const [showAddUnitForm, setShowAddUnitForm] = useState(false);
+    const [newUnitName, setNewUnitName] = useState('');
+    const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -726,6 +730,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             units.push(lu);
                         }
                     });
+                    const isEmbeddedUnit = (unit: any) => legacyUnits.some((lu: any) => lu.id === unit.id);
                     const statusColors: Record<string, string> = {
                         'Occupied': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
                         'Vacant': 'bg-slate-100 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300',
@@ -734,9 +739,50 @@ const PropertyDetailViewContent: React.FC = () => {
                     const occupiedCount = units.filter(u => u?.status === 'Occupied').length;
                     const vacantCount = units.filter(u => u?.status === 'Vacant').length;
                     const maintenanceCount = units.filter(u => u?.status === 'Maintenance').length;
+
+                    const handleAddUnitSubmit = async () => {
+                        if (!newUnitName.trim()) { addToast('Unit name is required', { type: 'error' }); return; }
+                        const newUnit = {
+                            id: `unit-${Date.now()}`,
+                            unitName: newUnitName.trim(),
+                            name: newUnitName.trim(),
+                            propertyType: newUnitType,
+                            status: 'Vacant',
+                            rentAmount: 0,
+                        };
+                        try {
+                            await addUnit(property.id, newUnit);
+                            setNewUnitName('');
+                            setNewUnitType('Residential');
+                            setShowAddUnitForm(false);
+                        } catch (e) { addToast('Failed to add unit.', { type: 'error' }); }
+                    };
+
+                    const handleRemoveUnit = (unit: any, d: ReturnType<typeof getUnitDisplay>) => {
+                        openModal('deleteConfirmation', unit.id, {
+                            title: 'Remove Unit',
+                            message: `Remove "${d.name}" from this property? This action cannot be undone.`,
+                            onConfirm: async () => {
+                                try {
+                                    if (isEmbeddedUnit(unit)) {
+                                        await removeUnit(property.id, unit.id);
+                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
+                                    } else {
+                                        await handleDeleteProperty(unit.id, d.name, true);
+                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
+                                    }
+                                    setSelectedUnit(null);
+                                } catch (e) { addToast('Failed to remove unit.', { type: 'error' }); }
+                            },
+                            confirmText: 'Remove Unit',
+                        });
+                    };
+
                     return (
                         <div className="space-y-6 animate-fade-in">
-                            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                            {/* Header: status pills + Add Unit button */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex gap-2 flex-1 overflow-x-auto pb-1 no-scrollbar">
                                 <div className="bg-green-50 dark:bg-green-900/20 rounded-lg px-4 py-2 border border-green-100 dark:border-green-800 flex items-center gap-2 flex-shrink-0">
                                     <span className="text-xl font-black text-green-700 dark:text-green-300">{occupiedCount}</span>
                                     <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Occupied</span>
@@ -749,18 +795,121 @@ const PropertyDetailViewContent: React.FC = () => {
                                     <span className="text-xl font-black text-amber-700 dark:text-amber-300">{maintenanceCount}</span>
                                     <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Maintenance</span>
                                 </div>
+                                </div>
+                                <button
+                                    onClick={() => { setShowAddUnitForm(v => !v); setSelectedUnit(null); }}
+                                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-colors"
+                                >
+                                    <Plus className="w-4 h-4" /> Add Unit
+                                </button>
                             </div>
+
+                            {/* Add Unit inline form */}
+                            {showAddUnitForm && (
+                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-sm p-5">
+                                    <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                                        <Plus className="w-4 h-4 text-primary-500" /> Add New Unit
+                                    </h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Name / Number <span className="text-rose-500">*</span></label>
+                                            <input
+                                                type="text"
+                                                value={newUnitName}
+                                                onChange={e => setNewUnitName(e.target.value)}
+                                                placeholder="e.g. Unit 1A, Flat 3, Shop 2"
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                onKeyDown={e => { if (e.key === 'Enter') handleAddUnitSubmit(); if (e.key === 'Escape') setShowAddUnitForm(false); }}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Type</label>
+                                            <select
+                                                value={newUnitType}
+                                                onChange={e => setNewUnitType(e.target.value as 'Residential' | 'Commercial')}
+                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                            >
+                                                <option value="Residential">Residential</option>
+                                                <option value="Commercial">Commercial</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-4">
+                                        <button onClick={handleAddUnitSubmit} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors">Add Unit</button>
+                                        <button onClick={() => { setShowAddUnitForm(false); setNewUnitName(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-sm font-bold rounded-lg transition-colors">Cancel</button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Unit detail panel — shows unit-specific info only, replaces the old "open property form" behaviour */}
+                            {selectedUnit && (() => {
+                                const sd = getUnitDisplay(selectedUnit);
+                                return (
+                                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5">
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{sd.name}</h4>
+                                                {sd.floor && <p className="text-xs text-slate-400">Floor {sd.floor}</p>}
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                    {String(selectedUnit.status || 'Vacant')}
+                                                </span>
+                                                <button onClick={() => setSelectedUnit(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                                                    <XIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                                            {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
+                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
+                                                <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+                                            )}
+                                            {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
+                                            {(selectedUnit as any).rentalDetails?.tenantPhone && <DetailItem label="Tenant Phone" value={(selectedUnit as any).rentalDetails.tenantPhone} />}
+                                            {(selectedUnit as any).rentalDetails?.tenantEmail && <DetailItem label="Tenant Email" value={(selectedUnit as any).rentalDetails.tenantEmail} />}
+                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && <DetailItem label="Service Charge" value={<>₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}</>} />}
+                                            {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
+                                            {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
+                                            {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
+                                            <button
+                                                onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
+                                                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+                                            >
+                                                <EditIcon className="w-3.5 h-3.5" /> Edit Unit
+                                            </button>
+                                            {selectedUnit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                <button onClick={() => openModal('collectRent', property.id, { unitName: sd.name, tenantName: sd.tenantName, rentAmount: sd.rentAmount, unitId: selectedUnit.id })} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                    <Receipt className="w-3.5 h-3.5" /> Record Payment
+                                                </button>
+                                            )}
+                                            <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                            </button>
+                                            <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
+                                                <Trash2 className="w-3.5 h-3.5" /> Remove Unit
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
                             {/* Unit Grid */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {units.map((unit: Property) => {
                                     const d = getUnitDisplay(unit);
                                     const isFloor = d.name.toLowerCase().includes('floor');
                                     const menuOpen = openUnitMenuId === unit.id;
+                                    const isSelected = selectedUnit?.id === unit.id;
                                     return (
                                     <div
                                         key={unit.id}
-                                        onClick={() => openModal('editProperty', property.id, { contactId: owner?.id, activeUnitId: unit.id })}
-                                        className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm p-4 hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer"
+                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); }}
+                                        className={`bg-white dark:bg-zinc-800 rounded-xl border shadow-sm p-4 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="min-w-0 flex-1 pr-2">
@@ -919,22 +1068,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         </>
                                                     )}
                                                     <button
-                                                        onClick={() => {
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             setOpenUnitMenuId(null);
                                                             setOpenUnitMenuPos(null);
-                                                            openModal('confirm', null, {
-                                                                message: `Archive unit "${d.name}"? It will be removed from active management. You can restore it by editing the unit.`,
-                                                                onConfirm: () => {
-                                                                    const full = units.find((u: Property) => u.id === unit.id) || unit;
-                                                                    updateItem('properties', { ...full, status: 'Archived' }, 'Property');
-                                                                    addToast(`Unit ${d.name} archived.`, { type: 'success' });
-                                                                },
-                                                                confirmText: 'Archive Unit'
-                                                            });
+                                                            handleRemoveUnit(unit, d);
                                                         }}
                                                         className="px-3 py-2.5 text-[10px] font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
                                                     >
-                                                        <XIcon className="w-3.5 h-3.5 shrink-0" /> Archive / Remove Unit
+                                                        <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
                                                     </button>
                                                 </div>
                                                 )}

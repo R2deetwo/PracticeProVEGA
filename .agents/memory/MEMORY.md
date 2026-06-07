@@ -1,0 +1,2 @@
+- [Unit array deep-merge fix](unit-deep-merge.md) — updateItem's optimistic update must deep-merge `units` sub-array or siblings disappear on edit.
+- [Unit add/remove mutations](unit-mutations.md) — dedicated Convex mutations `addUnitToProperty` / `removeUnitFromProperty` in myFunctions.ts; generic updateItem must NOT be used for unit array mutations.
