@@ -1,0 +1,583 @@
+You are an expert full-stack developer taking over an existing React + Convex codebase called PracticePro. This app has critical, persistent CRUD bugs that must be fixed once and for all. I am giving you one-time permission to delete corrupted data, rebuild the database architecture, and re-add clean data. This permission is strictly ONE-TIME — after this fix, the app must NEVER automatically delete or revert data under any circumstances.
+
+THE BUGS I'M EXPERIENCING
+Bug 1: Property DELETE fails — shows "restored" / item reappears
+When I click Delete on a property, it momentarily disappears then comes back
+The app shows a "restored" or "reverting" message instead of successfully deleting
+Bug 2: Property/unit EDIT fails — shows "Failed to update Property. Reverting changes."
+When I edit a property or unit and click Save, it fails
+Two error messages appear: "Failed to update Property. Reverting changes." and "Failed to save property. Please try again."
+The form reverts to the old values
+ROOT CAUSE ANALYSIS (I've had the codebase audited — here are the confirmed bugs)
+ROOT CAUSE 1: Property delete DOUBLE-FIRES
+File: src/hooks/useProperties.ts → handleDeleteProperty
+
+The delete handler calls BOTH:
+
+deletePropertyCascadeMutation (which hard-deletes from the database)
+actions.deleteItem (the generic delete, which tries to delete the SAME record again)
+Since the cascade mutation already deleted the record, the second generic delete call FAILS (record not found). The DataProvider.tsx optimistic update pattern then ROLLS BACK the UI change (removes the deletion from local state), making the property reappear — even though it was actually deleted from the database. On the next data refresh, the property is gone, but until then it looks like it "restored" itself.
+
+ROOT CAUSE 2: updateItem mutation has NO authentication — it silently fails
+File: convex/myFunctions.ts → updateItem (around line 1663)
+
+The updateItem mutation does NOT call requireFirmUser or any auth check. It also uses v.any() for the data parameter with no type validation. When the edit form submits, the mutation may fail due to:
+
+Invalid field names or types being passed (no validation with v.any())
+The mutation converting null to undefined for field deletion, which can cause schema validation errors
+No firmId authorization check, so ownership validation is missing
+ROOT CAUSE 3: Stale prevState in optimistic updates
+File: src/contexts/DataProvider.tsx
+
+The updateItem and deleteItem functions capture prevState = appState at call time via closure, NOT at render time. If two rapid operations happen, the second rollback undoes the first operation's changes. This causes state desync.
+
+ROOT CAUSE 4: deleteItem Strategy A deletes wrong records
+File: convex/myFunctions.ts → deleteItem (around line 1713)
+
+The deleteItem mutation has a dangerous pattern:
+
+text
+
+try { ctx.db.delete(id) } catch(e) { /* fallback to UUID search */ }
+This catches ALL errors, including permission errors. If a valid Convex ID from a DIFFERENT table is accidentally passed, it silently deletes that record instead. There is NO table validation and NO firmId check.
+
+EXECUTION PLAN — Follow This Exact Sequence
+PHASE 1: FIX THE PROPERTY DELETE BUG (Highest Priority)
+Step 1: Open src/hooks/useProperties.ts and find handleDeleteProperty
+
+Currently it does something like:
+
+typescript
+
+// BROKEN: Double-fires delete
+await deletePropertyCascadeMutation({ id: propertyId });
+actions.deleteItem("properties", propertyId); // This fails because record is already gone
+Fix it to ONLY use the cascade mutation, and manually update local state:
+
+typescript
+
+// FIXED: Single delete, manual state cleanup
+try {
+  await deletePropertyCascadeMutation({ id: propertyId });
+  // Remove from local state directly instead of calling generic deleteItem
+  setAppState(prev => ({
+    ...prev,
+    properties: prev.properties.filter(p => p._id !== propertyId && p.id !== propertyId),
+  }));
+  toast.success("Property deleted successfully");
+} catch (error) {
+  toast.error("Failed to delete property. Please try again.");
+  // DO NOT roll back — only roll back if the mutation itself failed
+}
+Step 2: Open src/contexts/DataProvider.tsx and fix the optimistic update rollback
+
+The deleteItem function currently does:
+
+typescript
+
+// BROKEN: Stale prevState
+const prevState = appState;
+// ... optimistic removal ...
+// on failure: setAppState(prevState) — rolls back to stale state
+Fix ALL three functions (addItem, updateItem, deleteItem) to use functional state updates:
+
+typescript
+
+// FIXED: Use functional setState for rollback
+deleteItem: async (table, id) => {
+  let removedItem: any = null;
+  let removedIndex = -1;
+
+  setAppState(prev => {
+    const items = prev[table as keyof typeof prev] as any[];
+    const idx = items.findIndex((item: any) => item._id === id || item.id === id);
+    if (idx !== -1) {
+      removedItem = items[idx];
+      removedIndex = idx;
+      const newItems = [...items];
+      newItems.splice(idx, 1);
+      return { ...prev, [table]: newItems };
+    }
+    return prev;
+  });
+
+  try {
+    await deleteItemMutation({ table, id });
+  } catch (error) {
+    // Roll back by re-inserting the removed item at its original position
+    if (removedItem && removedIndex !== -1) {
+      setAppState(prev => {
+        const items = [...(prev[table as keyof typeof prev] as any[])];
+        items.splice(removedIndex, 0, removedItem);
+        return { ...prev, [table]: items };
+      });
+    }
+    toast.error(`Failed to delete ${table.slice(0, -1)}. Changes reverted.`);
+  }
+},
+Apply the same functional setState pattern to updateItem:
+
+typescript
+
+updateItem: async (table, id, data) => {
+  let previousItem: any = null;
+
+  setAppState(prev => {
+    const items = prev[table as keyof typeof prev] as any[];
+    const idx = items.findIndex((item: any) => item._id === id || item.id === id);
+    if (idx !== -1) {
+      previousItem = { ...items[idx] };
+      const newItems = [...items];
+      newItems[idx] = { ...newItems[idx], ...data };
+      return { ...prev, [table]: newItems };
+    }
+    return prev;
+  });
+
+  try {
+    await updateItemMutation({ table, id, data });
+    toast.success(`${table.slice(0, -1)} updated successfully`);
+  } catch (error) {
+    // Roll back the specific item, not the entire state
+    if (previousItem) {
+      setAppState(prev => {
+        const items = [...(prev[table as keyof typeof prev] as any[])];
+        const idx = items.findIndex((item: any) => item._id === id || item.id === id);
+        if (idx !== -1) {
+          items[idx] = previousItem;
+        }
+        return { ...prev, [table]: items };
+      });
+    }
+    toast.error(`Failed to update ${table.slice(0, -1)}. Reverting changes.`);
+  }
+},
+PHASE 2: FIX THE PROPERTY UPDATE BUG
+Step 1: Open convex/myFunctions.ts and find the updateItem mutation (around line 1663)
+
+Add authentication and proper validation:
+
+typescript
+
+export const updateItem = mutation({
+  args: {
+    table: v.string(),
+    id: v.string(),
+    data: v.any(),
+  },
+  handler: async (ctx, args) => {
+    // ADD: Authentication check
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    // ADD: Table whitelist — only allow known tables
+    const allowedTables = [
+      "properties", "contacts", "matters", "tasks", "documents",
+      "events", "notePages", "ledger_entries", "serviceCharges",
+      "invoices", "timeEntries", "expenses", "chatMessages",
+      "clientMessages", "researchNotes", "automations",
+    ];
+    if (!allowedTables.includes(args.table)) {
+      throw new ConvexError(`Invalid table: ${args.table}`);
+    }
+
+    // EXISTING: Strip internal fields
+    const { _id, _creationTime, _version, createdAt, ...cleanData } = args.data as any;
+
+    // ADD: Convert null to undefined for field deletion (but handle carefully)
+    const processedData: any = {};
+    for (const [key, value] of Object.entries(cleanData)) {
+      // Skip undefined values — don't send them to the database
+      if (value === undefined) continue;
+      // Convert null to undefined for Convex field deletion
+      if (value === null) {
+        processedData[key] = undefined;
+      } else {
+        processedData[key] = value;
+      }
+    }
+
+    // Resolve the Convex document ID
+    let docId: Id<any>;
+    try {
+      docId = args.id as Id<any>;
+    } catch {
+      // Try finding by custom UUID field
+      const doc = await ctx.db
+        .query(args.table)
+        .filter(q => q.eq(q.field("id"), args.id))
+        .first();
+      if (!doc) throw new ConvexError(`Document not found: ${args.id}`);
+      docId = doc._id;
+    }
+
+    // ADD: Verify the document exists and belongs to the user's firm
+    const existing = await ctx.db.get(docId);
+    if (!existing) throw new ConvexError(`Document not found: ${args.id}`);
+
+    // ADD: firmId ownership check (if the table has firmId)
+    if (existing.firmId) {
+      const user = await ctx.db
+        .query("users")
+        .filter(q => q.eq(q.field("clerkId"), identity.subject))
+        .first();
+      if (!user || user.firmId !== existing.firmId) {
+        throw new ConvexError("Not authorized to update this resource");
+      }
+    }
+
+    // EXISTING: Apply the update with version bump
+    await ctx.db.patch(docId, {
+      ...processedData,
+      _version: (existing._version || 0) + 1,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, id: docId };
+  },
+});
+PHASE 3: FIX THE deleteItem MUTATION (Prevent Wrong-Record Deletion)
+In convex/myFunctions.ts, find deleteItem (around line 1713) and replace it:
+
+typescript
+
+export const deleteItem = mutation({
+  args: {
+    table: v.string(),
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // ADD: Authentication check
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    // ADD: Table whitelist
+    const allowedTables = [
+      "properties", "contacts", "matters", "tasks", "documents",
+      "events", "notePages", "ledger_entries", "serviceCharges",
+      "invoices", "timeEntries", "expenses", "chatMessages",
+      "clientMessages", "researchNotes", "automations",
+    ];
+    if (!allowedTables.includes(args.table)) {
+      throw new ConvexError(`Invalid table: ${args.table}`);
+    }
+
+    // FIXED: Validate table ownership before deleting
+    let docId: Id<any>;
+
+    // Strategy 1: Try as Convex ID with table validation
+    try {
+      docId = args.id as Id<any>;
+      const existing = await ctx.db.get(docId);
+
+      if (!existing) {
+        throw new ConvexError(`Document not found: ${args.id}`);
+      }
+
+      // CRITICAL FIX: Verify this document actually belongs to the expected table
+      // by checking if it has the expected fields for that table
+      if (args.table === "properties" && !existing.firmId) {
+        throw new ConvexError("Document does not belong to properties table");
+      }
+
+      // CRITICAL FIX: Verify firmId ownership
+      if (existing.firmId) {
+        const user = await ctx.db
+          .query("users")
+          .filter(q => q.eq(q.field("clerkId"), identity.subject))
+          .first();
+        if (!user || user.firmId !== existing.firmId) {
+          throw new ConvexError("Not authorized to delete this resource");
+        }
+      }
+
+      await ctx.db.delete(docId);
+      return { success: true, deletedId: args.id };
+
+    } catch (ConvexError) {
+      throw ConvexError; // Re-throw our own errors
+    } catch (e) {
+      // Strategy 2: Try finding by custom UUID
+      const doc = await ctx.db
+        .query(args.table)
+        .filter(q => q.eq(q.field("id"), args.id))
+        .first();
+
+      if (!doc) {
+        throw new ConvexError(`Document not found in ${args.table}: ${args.id}`);
+      }
+
+      // CRITICAL FIX: Verify firmId ownership for UUID-based delete too
+      if (doc.firmId) {
+        const user = await ctx.db
+          .query("users")
+          .filter(q => q.eq(q.field("clerkId"), identity.subject))
+          .first();
+        if (!user || user.firmId !== doc.firmId) {
+          throw new ConvexError("Not authorized to delete this resource");
+        }
+      }
+
+      await ctx.db.delete(doc._id);
+      return { success: true, deletedId: args.id };
+    }
+  },
+});
+Also fix forceDeleteItem (around line 1796) — add the same authentication and firmId checks. This mutation currently has NO authorization and could delete ANY record across ALL firms.
+
+PHASE 4: ADD SOFT-DELETE TO PROPERTIES & CONTACTS
+In convex/schema.ts, add soft-delete fields to the properties and contacts table definitions:
+
+For properties, add these fields:
+
+typescript
+
+isDeleted: v.optional(v.boolean()),        // Soft-delete flag
+deletedAt: v.optional(v.number()),         // Timestamp of deletion
+deletedBy: v.optional(v.string()),         // User who deleted
+For contacts, add the same fields.
+
+Update ALL queries that fetch properties/contacts to filter out soft-deleted items:
+
+In convex/myFunctions.ts, find getFirmData (around line 149) and update the fetchByFirm helper:
+
+typescript
+
+// BEFORE (returns ALL items including deleted):
+async function fetchByFirm(table: string) {
+  return await ctx.db.query(table).withIndex("by_firm", q => q.eq("firmId", firmId)).collect();
+}
+
+// AFTER (filters out soft-deleted items):
+async function fetchByFirm(table: string) {
+  const items = await ctx.db.query(table).withIndex("by_firm", q => q.eq("firmId", firmId)).collect();
+  // Filter out soft-deleted items for tables that support it
+  if (["properties", "contacts"].includes(table)) {
+    return items.filter(item => !item.isDeleted);
+  }
+  return items;
+}
+Create a new softDeleteItem mutation:
+
+typescript
+
+export const softDeleteItem = mutation({
+  args: {
+    table: v.string(),
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Not authenticated");
+
+    // Only allow soft-delete on tables that support it
+    if (!["properties", "contacts"].includes(args.table)) {
+      throw new ConvexError(`Soft delete not supported for table: ${args.table}`);
+    }
+
+    let docId: Id<any>;
+    try {
+      docId = args.id as Id<any>;
+    } catch {
+      const doc = await ctx.db
+        .query(args.table)
+        .filter(q => q.eq(q.field("id"), args.id))
+        .first();
+      if (!doc) throw new ConvexError(`Document not found: ${args.id}`);
+      docId = doc._id;
+    }
+
+    const existing = await ctx.db.get(docId);
+    if (!existing) throw new ConvexError(`Document not found: ${args.id}`);
+
+    // Verify ownership
+    if (existing.firmId) {
+      const user = await ctx.db
+        .query("users")
+        .filter(q => q.eq(q.field("clerkId"), identity.subject))
+        .first();
+      if (!user || user.firmId !== existing.firmId) {
+        throw new ConvexError("Not authorized");
+      }
+    }
+
+    await ctx.db.patch(docId, {
+      isDeleted: true,
+      deletedAt: Date.now(),
+      deletedBy: identity.subject,
+      _version: (existing._version || 0) + 1,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+Create a restoreItem mutation:
+
+typescript
+
+export const restoreItem = mutation({
+  args: {
+    table: v.string(),
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new ConvexError("Not authenticated");
+
+    if (!["properties", "contacts"].includes(args.table)) {
+      throw new ConvexError(`Restore not supported for table: ${args.table}`);
+    }
+
+    let docId: Id<any>;
+    try {
+      docId = args.id as Id<any>;
+    } catch {
+      const doc = await ctx.db
+        .query(args.table)
+        .filter(q => q.eq(q.field("id"), args.id))
+        .first();
+      if (!doc) throw new ConvexError(`Document not found: ${args.id}`);
+      docId = doc._id;
+    }
+
+    const existing = await ctx.db.get(docId);
+    if (!existing) throw new ConvexError(`Document not found: ${args.id}`);
+
+    await ctx.db.patch(docId, {
+      isDeleted: false,
+      deletedAt: undefined,
+      deletedBy: undefined,
+      _version: (existing._version || 0) + 1,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+PHASE 5: ONE-TIME DATA CLEANUP & REBUILD
+⚠️ THIS IS A ONE-TIME OPERATION. After this, the app must NEVER automatically delete data.
+
+Step 1: Add a one-time cleanup mutation (delete this mutation after running it):
+
+typescript
+
+// ONE-TIME USE ONLY — DELETE THIS MUTATION AFTER RUNNING
+export const oneTimeCleanupProperties = mutation({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    // Get all properties for this firm
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", q => q.eq("firmId", args.firmId))
+      .collect();
+
+    let deleted = 0;
+    let repaired = 0;
+
+    for (const prop of properties) {
+      // Delete properties that have corrupted/missing required fields
+      if (!prop.name || !prop.address || !prop.firmId) {
+        await ctx.db.delete(prop._id);
+        deleted++;
+        continue;
+      }
+
+      // Repair properties with missing or malformed rentalDetails
+      if (!prop.rentalDetails || typeof prop.rentalDetails !== 'object') {
+        await ctx.db.patch(prop._id, {
+          rentalDetails: {
+            rentAmount: 0,
+            currency: "NGN",
+            paymentFrequency: "annual",
+            serviceCharge: 0,
+            cautionFee: 0,
+            totalPackage: 0,
+          },
+        });
+        repaired++;
+      }
+
+      // Add soft-delete fields if missing
+      if (prop.isDeleted === undefined) {
+        await ctx.db.patch(prop._id, {
+          isDeleted: false,
+        });
+      }
+    }
+
+    return { deleted, repaired, total: properties.length };
+  },
+});
+Step 2: Run the cleanup from the Convex dashboard (dashboard.convex.dev → your project → Functions → run oneTimeCleanupProperties with your firmId)
+
+Step 3: DELETE the oneTimeCleanupProperties mutation from the codebase after running it. This ensures it can never be triggered again.
+
+PHASE 6: FIX ALL OTHER ENTITY CRUD
+After fixing Properties, verify and fix CRUD for EVERY other entity:
+
+Contacts/Tenants — Ensure create, read, update, delete all work. Verify the edit form saves correctly and the delete doesn't double-fire.
+Matters — Verify deleteMatterCascade doesn't double-fire with generic deleteItem. Same fix as properties.
+Tasks, Documents, Events — These use the generic createItem/updateItem/deleteItem. After fixing those generic mutations, verify they work for each entity type.
+Ledger Entries — Verify addLedgerEntry, updateLedgerStatus work correctly. These are in convex/sentry.ts.
+Service Charges — Verify upsertServiceCharge works for both create and update.
+Notes — Verify notePages archive/restore works (it has archivedAt).
+PHASE 7: FIX THE FRONTEND — Property Edit Form
+Find the property edit modal/form component (likely in src/components/ or src/pages/) and fix:
+
+Ensure the form submits using actions.updateItem("properties", id, data) — NOT a separate mutation that bypasses the data provider
+Ensure field names in the form match EXACTLY what the Convex schema expects (check convex/schema.ts for the properties table definition)
+The rentalDetails object must be sent as a complete nested object, not as flattened individual fields
+Add proper error handling — if the mutation fails, show the specific error message from the backend, not a generic "Failed to update"
+PHASE 8: PREVENTION — Ensure This Never Happens Again
+Add a comment block at the top of myFunctions.ts stating:
+text
+
+// IMPORTANT: All mutations must call authentication checks.
+// Never use try/catch to silently swallow errors in delete operations.
+// Always validate table ownership before deleting.
+// Soft-delete is mandatory for properties and contacts.
+Add input validation to createItem and updateItem — replace v.any() with proper schema validation for each table type.
+Remove or secure forceDeleteItem — it currently has no authorization and could delete any record in any table.
+Remove or secure purgeFirmData — it deletes ALL data for a firm across 18 tables with no server-side confirmation.
+Add requireFirmUser to ALL mutations in myFunctions.ts — it already exists in convex/authHelpers.ts but is only used in drafting.ts.
+FILES TO MODIFY
+File
+Changes
+convex/myFunctions.ts	Fix updateItem, deleteItem, forceDeleteItem — add auth, validation, table ownership checks
+convex/myFunctions.ts	Add softDeleteItem, restoreItem, one-time cleanup mutation
+convex/schema.ts	Add isDeleted, deletedAt, deletedBy fields to properties and contacts
+convex/myFunctions.ts	Update getFirmData / fetchByFirm to filter out soft-deleted items
+src/contexts/DataProvider.tsx	Fix optimistic update rollback — use functional setState instead of stale prevState
+src/hooks/useProperties.ts	Fix handleDeleteProperty — remove double-fire, use cascade mutation only
+Property edit form component	Fix form submission, field names, and error handling
+
+TESTING CHECKLIST
+After all fixes, verify EVERY operation:
+
+ CREATE a new property — it should appear immediately without refresh
+ EDIT a property (change name, rent amount, etc.) — changes should save and persist
+ EDIT a unit within a property — changes should save without "reverting" error
+ DELETE a property — it should disappear and NOT come back on refresh
+ DELETE a property, then refresh the page — it should still be gone (soft-deleted in DB)
+ CREATE a new contact/tenant — should work without errors
+ EDIT a contact/tenant — changes should save correctly
+ DELETE a contact/tenant — should work without the "restored" bug
+ CREATE a new matter — should work
+ DELETE a matter — cascade delete should work without double-fire
+ Add a ledger entry — should persist correctly
+ Rapid sequential operations (create + delete quickly) — should not cause state desync
+ Two different users in different firms — should NOT be able to see or delete each other's data
+ABSOLUTE RULES
+NEVER silently swallow errors in delete operations — if a delete fails, throw the error, don't catch it and try a different strategy
+NEVER delete a record without verifying it belongs to the correct table AND the user's firm
+NEVER double-fire delete operations — use either the cascade mutation OR the generic delete, never both
+Soft-delete is mandatory for properties and contacts — never hard-delete these
+After the one-time cleanup, the app must NEVER automatically delete or purge data
+Every mutation must authenticate the user — use requireFirmUser from convex/authHelpers.ts
+END OF PROMPT
+

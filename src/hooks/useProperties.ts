@@ -22,6 +22,9 @@ export const useProperties = (appState: AppState, actions: any) => {
     const handleDeleteProperty = useCallback(async (id: string, name: string, silent = false) => {
         try {
             await deletePropertyCascadeMutation({ propertyId: id, firmId: currentUser?.firmId || '' });
+            // Remove from local state immediately so the UI reflects the deletion
+            // without waiting for the Convex subscription to re-fire.
+            actions.removeItemFromState('properties', id);
             if (!silent) {
                 addToast(`Property "${name}" deleted.`, { type: 'success' });
             }
@@ -32,7 +35,7 @@ export const useProperties = (appState: AppState, actions: any) => {
             }
             throw e;
         }
-    }, [currentUser, deletePropertyCascadeMutation, addToast]);
+    }, [currentUser, deletePropertyCascadeMutation, actions, addToast]);
 
     /**
      * Bulk update property statuses or categories.

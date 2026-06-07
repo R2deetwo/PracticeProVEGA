@@ -1819,8 +1819,11 @@ export const updateItem = mutation({
         }
       }
 
-      // 3. The 'Null' Sanitizer: Convert JSON null values to undefined for field deletion
-      patchData[key] = val === null ? undefined : sanitizeForConvex(val);
+      // 3. The 'Null' Sanitizer: Skip null values entirely rather than setting to
+      //    undefined, which can trip Convex schema validation on required fields.
+      if (val === null) continue;
+
+      patchData[key] = sanitizeForConvex(val);
     }
 
     patchData.updatedAt = new Date().toISOString();
@@ -1857,12 +1860,8 @@ export const deleteItem = mutation({
 
     // 2. Strategy A: Direct Delete by Convex internal _id
     if (existing) {
-      try {
-        await ctx.db.delete(id as any);
-        return { success: true, method: "internal_id" };
-      } catch (e) {
-        console.warn(`[deleteItem] Strategy A failed for ${table}:${id}`, e);
-      }
+      await ctx.db.delete(id as any);
+      return { success: true, method: "internal_id" };
     }
 
     // 3. Strategy B: UUID Search via high-performance custom_id index

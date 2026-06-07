@@ -100,6 +100,7 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleDeleteMatter: (id: string, name: string) => Promise<void>;
     handleUpdateMatterStage: (id: string, stage: string) => void;
     switchDemoProduct: (product: 'vega' | 'atrium') => void;
+    removeItemFromState: (table: string, id: string) => void;
 }
 
 export const DataStateContext = React.createContext<DataStateContextType | undefined>(undefined);

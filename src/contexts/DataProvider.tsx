@@ -106,6 +106,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 throw e;
             }
         },
+        removeItemFromState: (table: string, id: string) => {
+            const tableKey = table as keyof AppState;
+            setAppState(prev => ({
+                ...prev,
+                [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id),
+            }));
+        },
         logActivity: (action: string, targetType: any, targetId?: string, targetName?: string, matterId?: string) => {
             if (!currentUser || !currentUser.firmId) return;
             const activity = { 
