@@ -1,0 +1,237 @@
+I've thought this through carefully. Here's the rationale I'm working with:
+
+- **Residential vs Commercial** need fundamentally different visual identities (cool vs warm tones)
+- **Data completeness** should use a traffic-light system — but subtle, not garish
+- **Critical tracking fields** (lease dates, tenant contact) missing on an occupied unit is a risk — needs a visual red flag
+- **Having a phone number** should feel neutral-to-positive; *missing* it on an occupied unit is the problem
+- **Vacant units** should feel different from occupied ones — they're opportunities, not problems
+
+Here's the full consolidated prompt with everything included — copy everything below:
+
+---
+
+**PROMPT FOR REPLIT — PracticePro VEGA: Unit Bugs + UX + Rent Range + Visual Status System + Vercel Prevention**
+
+---
+
+## PROJECT CONTEXT
+
+I'm building **PracticePro**, a Nigerian legal practice management app with a property management module (Atrium). Stack: **React + Convex**. GitHub repo: `github.com/R2deetwo/PracticeProVEGA`. Convex URL: `https://gregarious-malamute-537.convex.cloud` (env var `VITE_CONVEX_URL`).
+
+---
+
+## BUG 1: UNITS DISAPPEAR WHEN EDITING A UNIT (CRITICAL)
+
+**Symptom**: When I edit a unit under a property that has multiple units (e.g., 10 units), all units except one disappear from the UI. After a page refresh, all units return and the edit IS persisted. This happens every time a unit is edited.
+
+**Root Cause**: The `DataProvider.tsx` optimistic update pattern. When `updateItem` is called for a unit edit, it captures `prevState = appState` at call time and then replaces the entire property object in state. Since properties contain nested units arrays, the optimistic update overwrites the full units array with data that only includes the edited unit — the other units are lost from state temporarily. When Convex refreshes the real data, the full units array returns, which is why a refresh fixes it.
+
+**Fix Required**:
+1. In `DataProvider.tsx`, fix `updateItem` to do a **deep merge** instead of a shallow replace when updating entities that have nested arrays (especially properties with units). The optimistic update must preserve existing units that aren't being edited.
+2. Specifically: when updating a property, the optimistic state should merge the new data into the existing property object, NOT replace it. Use:
+   ```
+   updatedItem = { ...existingItem, ...updateData }
+   ```
+   where `existingItem` is the current item from state (not from stale `prevState`).
+3. Fix the stale `prevState` capture — use a functional state updater pattern (`setState(prev => ...)`) instead of capturing `appState` at call time, so the update always works against the latest state.
+4. For unit-specific edits: if the edit mutation only updates a single unit within a property's units array, the optimistic update should only modify that one unit in the array, not replace the entire array. Map over the existing units array and replace only the unit with the matching ID.
+
+**Files to modify**:
+- `src/contexts/DataProvider.tsx` — fix optimistic update logic in `updateItem`
+- `src/hooks/useProperties.ts` — ensure unit edit calls pass the full units array (with the edited unit merged in) to `updateItem`, OR add a dedicated `updateUnit` action that only updates one unit within the property
+
+---
+
+## BUG 2: UNIT MODAL SHOWS PROPERTY-LEVEL INFO
+
+**Symptom**: When clicking on a unit under the Units tab, the modal opens and shows property-level information (e.g., "number of units in property") alongside unit info. This is confusing — the user clicked a unit, not the property.
+
+**Fix Required**:
+1. When a unit is clicked, the modal should display **only unit-specific information**: unit name/number, unit type (residential/commercial), rent amount, tenant info, lease status, unit size, etc.
+2. Remove or hide property-level aggregations (total units count, property-wide stats) from the unit modal.
+3. If the same modal component is shared between property view and unit view, add a `mode` or `context` prop (`"property"` vs `"unit"`) and conditionally render only the relevant sections.
+4. The unit modal should have a clear heading like "Unit Details" (not "Property Details") to reinforce context.
+
+**Files to modify**:
+- The modal/dialog component used when clicking a unit (likely in `src/components/`)
+- Any shared modal component that handles both property and unit display
+
+---
+
+## FEATURE 1: ADD/REMOVE UNITS FOR EXISTING PROPERTIES
+
+**Requirement**: After a property is initially created, there is no way to add or remove units. Users need this.
+
+**Implementation**:
+1. **Add Unit button**: Place an "Add Unit" button prominently in the units tab/list area. Clicking it should open a form (modal or inline) to create a new unit under the current property. Required fields: unit name/number, unit type. Optional: rent, size, notes.
+2. **Remove Unit button**: Each unit card/row should have a remove/delete option (icon button or menu item). Clicking it should confirm with the user ("Remove Unit 5?") then delete that unit from the property's units array.
+3. The add/remove operations must update the Convex backend via mutations and handle optimistic UI updates correctly (see Bug 1 fix — the same deep merge logic applies here).
+4. After adding or removing a unit, the units list should update immediately without a full page refresh.
+
+**Backend changes needed**:
+- Add a Convex mutation `addUnitToProperty(propertyId, unitData)` that appends a new unit to the property's units array
+- Add a Convex mutation `removeUnitFromProperty(propertyId, unitId)` that removes a specific unit from the property's units array by filtering the units array
+- These should be separate mutations, not going through the generic `updateItem`, to avoid the state overwrite bug
+
+**Files to add/modify**:
+- `convex/myFunctions.ts` — add `addUnitToProperty` and `removeUnitFromProperty` mutations
+- `convex/schema.ts` — verify units array structure supports these operations
+- `src/hooks/useProperties.ts` — add `addUnit` and `removeUnit` hook functions
+- `src/contexts/DataProvider.tsx` — add `addUnit` and `removeUnit` actions with correct optimistic updates
+- Unit list component — add "Add Unit" button and per-unit "Remove" option
+
+---
+
+## FEATURE 2: RENT RANGE DISPLAY ON PROPERTY CARDS
+
+**Current Behavior**: The property listing in the middle section of the dashboard shows a single rent number on each property card. But properties have multiple units with varying rents (e.g., 9 units at ₦500,000 and 1 unit at ₦650,000). Showing just one rent figure is misleading.
+
+**Required Change**: Instead of a single rent number, display a **rent range** in the format **₦X – ₦Y** where X is the lowest unit rent and Y is the highest unit rent under that property.
+
+**Display Logic**:
+- If `minRent === maxRent` → show `₦{minRent.toLocaleString()}` (no range needed)
+- If `minRent !== maxRent` → show `₦{minRent.toLocaleString()} – ₦{maxRent.toLocaleString()}`
+- If only one unit → show that unit's rent
+- If no units → show "No units" or "—"
+- Format numbers with commas (Nigerian Naira standard): 500000 → 500,000
+- Use the ₦ symbol (Naira), not $ or other currencies
+
+**Files to modify**:
+- Property card/list component (wherever the single rent is currently rendered)
+- Optionally create a shared utility function `formatRentRange(units)` for reuse
+
+---
+
+## FEATURE 3: UNIT CARD VISUAL STATUS SYSTEM
+
+**Current Behavior**: All unit cards under the Units tab look the same — same color, same style, no visual distinction. This makes it impossible to scan the list and quickly identify which units need attention, which are commercial vs residential, or which have incomplete data.
+
+**Design Philosophy**: The visual system should communicate three independent dimensions at a glance: (1) what type of unit is this, (2) is the data complete, and (3) is anyone living/operating there. The colors should be **subtle** — background tints and accent borders, not loud or garish. Think professional dashboard, not children's game.
+
+### A. Unit Type Distinction (Base Tint)
+
+Each unit card should have a **subtle background tint** based on unit type:
+
+| Unit Type | Background Tint | Rationale |
+|-----------|----------------|-----------|
+| **Residential** | Cool blue-slate (#EFF6FF or similar very light blue) | Calm, stable, living spaces — blue conveys trust and permanence |
+| **Commercial** | Warm amber-gold (#FFFBEB or similar very light gold) | Business, commerce, professional — warm tones convey activity and enterprise |
+
+This immediately lets the user distinguish unit types when scanning the grid. If the user has a mixed-use property, they can visually separate residential from commercial at a glance.
+
+### B. Data Completeness Status (Left Border Accent)
+
+Each unit card should have a **4px left border** whose color indicates data completeness. This is the most important visual signal — it tells the user "does this unit have what it needs for proper tracking?"
+
+**Critical Fields Hierarchy** (for occupied units):
+
+| Tier | Fields | Why Critical |
+|------|--------|-------------|
+| **Tier 1 — Must Have** | Tenant name, tenancy start date, tenancy end date | Without these, you cannot track who is in the unit, when they moved in, or when the lease expires. This is legal and financial risk. |
+| **Tier 2 — Should Have** | Tenant phone number, rent amount | Phone is critical for communication and emergencies. Rent amount is needed for financial tracking. Missing these creates operational gaps. |
+| **Tier 3 — Nice to Have** | Tenant email, unit size, notes | These improve records but are not urgent for tracking or compliance. |
+
+**Status Determination Logic**:
+
+```
+if unit is VACANT (no tenant):
+    status = "vacant" → grey border (#D1D5DB)
+
+if unit is OCCUPIED:
+    if ALL Tier 1 AND Tier 2 fields are present:
+        status = "complete" → green border (#22C55E)
+    else if any Tier 1 field is missing:
+        status = "critical" → red border (#EF4444)
+    else if Tier 1 is complete but any Tier 2 field is missing:
+        status = "partial" → amber border (#F59E0B)
+```
+
+**Rationale for each status**:
+- **🟢 Complete (green)**: This unit is fully tracked. The landlord/manager can reach the tenant, knows when the lease ends, and has all critical data. No action needed.
+- **🟡 Partial (amber)**: Most critical data is there, but something operational is missing — typically a phone number or rent amount. The user should fill this in when convenient. Not urgent but should not be ignored.
+- **🔴 Critical (red)**: This unit is occupied but missing fundamental tracking data. A tenant is living there without a recorded lease start/end, or the tenant's name is unknown. This is a legal and financial risk — imagine trying to enforce a lease without knowing when it started or ends. The user needs to address this.
+- **⚪ Vacant (grey)**: No tenant, so most fields are irrelevant. This unit needs a tenant, not data. Grey is neutral — it's not a problem, it's an opportunity.
+
+### C. Visual Layout of Unit Card
+
+Each unit card should follow this layout (top to bottom):
+
+```
+┌─────────────────────────────────────┐
+│ ▌ Unit 5                    [Type]  │  ← Header: unit name + type badge
+│ ▌                                  │     (▌ = colored left border)
+│ ▌ Tenant: Adeyemi Consulting       │  ← Tenant name (or "Vacant")
+│ ▌ ₦500,000/yr                      │  ← Rent amount
+│ ▌ Lease: Jan 2025 – Dec 2025       │  ← Tenancy period (or "No lease")
+│ ▌                                   │
+│ ▌ 📞 0802-XXX-XXXX    ✉ email      │  ← Contact icons (filled/greyed)
+│ ▌                          [Status] │  ← Small status badge/pill
+└─────────────────────────────────────┘
+```
+
+**Key design details**:
+- The type badge in the top-right should be a small pill: "Residential" in blue text on blue-tinted background, or "Commercial" in amber text on amber-tinted background
+- Contact fields (phone, email) should show an icon with the value if present, or a **dimmed/greyed icon** with placeholder text like "No phone" if missing — this way missing data is visible but not alarming (it's Tier 2, not Tier 1)
+- The lease dates line is the most critical info for an occupied unit — if missing, it should show "No lease dates" in a muted red/amber text to draw attention
+- The status badge at the bottom-right is a small pill: "Complete" (green), "Needs Info" (amber), "Action Required" (red), or "Vacant" (grey)
+
+### D. Implementation Notes
+
+1. Create a utility function `getUnitStatus(unit)` that evaluates the fields and returns: `{ status: "complete" | "partial" | "critical" | "vacant", missingFields: string[] }`
+2. Create a utility function `getUnitTypeStyle(unitType)` that returns the appropriate tint color and badge style
+3. Apply the left border color via inline style or a CSS class: `borderLeft: "4px solid {statusColor}"`
+4. Apply the background tint via CSS class: `bg-residential` or `bg-commercial`
+5. Do NOT change the overall card shape, shadows, or border-radius — keep the existing card structure, just add the tint and left border
+6. The status badge and type badge should use existing UI components if possible (shadcn Badge, etc.)
+7. All colors must work in both light and dark mode if the app supports them
+
+**Files to modify**:
+- Unit card component (in `src/components/`)
+- Add `src/utils/unitStatus.ts` (or similar) for `getUnitStatus` and `getUnitTypeStyle`
+- Add CSS classes or Tailwind utilities for the residential/commercial tints
+- Possibly update the Units tab grid/list to ensure cards are consistent size for the visual scan effect
+
+---
+
+## CRITICAL: VERCEL BUILD PREVENTION
+
+**⚠️ DO NOT regenerate `package-lock.json` using `npm install` inside Replit.** Replit's npm proxy bakes internal URLs into the lockfile that break Vercel builds.
+
+**The Problem**: Replit routes npm through `http://package-firewall.replit.local/npm/...`. This URL gets written into `package-lock.json` under the `"resolved"` field. Vercel's build servers cannot resolve `package-firewall.replit.local` and the build fails with `ENOTFOUND`.
+
+**Prevention Rules**:
+1. **Never run `npm install`** for adding packages. Use `npm install --package-lock-only=false` or manually add packages to `package.json` and let the user install locally.
+2. If you MUST run `npm install`, immediately run this after:
+   ```bash
+   sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
+   ```
+3. Before any `git push`, verify the lockfile is clean:
+   ```bash
+   grep -c "package-firewall.replit.local" package-lock.json
+   ```
+   If the count is > 0, run the `sed` command above.
+4. Consider adding this as a git pre-push hook or a script in `package.json`.
+
+---
+
+## EXECUTION ORDER
+
+1. **Fix Bug 1** (unit disappearing on edit) — most critical, affects data integrity perception
+2. **Fix Bug 2** (unit modal UX) — can be done alongside Bug 1 if modifying the same component files
+3. **Implement Feature 1** (add/remove units) — requires backend mutations + frontend UI
+4. **Implement Feature 2** (rent range display) — straightforward frontend change, can parallel with Feature 1
+5. **Implement Feature 3** (visual status system) — transforms the units tab into something scannable and useful
+6. **Verify Vercel safety** — run the `grep` check before any git push
+
+---
+
+## TECHNICAL NOTES
+
+- Convex env variable is `VITE_CONVEX_URL` (NOT `VITE_CONVEX_UI`)
+- The `DataProvider.tsx` uses a generic `updateItem(entityType, id, data)` pattern for all entities. Be careful that your fix for unit edits doesn't break edits for other entity types (clients, matters, etc.)
+- Use functional state updaters `setState(prev => ...)` everywhere in DataProvider to avoid stale state captures
+- For the add/remove unit mutations, prefer dedicated mutations over the generic `updateItem` to avoid the optimistic update complexity
+- All currency values must display in Naira (₦) for the Nigerian market
+- Format rent amounts with commas: `toLocaleString()` or equivalent
+- The visual status system colors should be subtle tints and borders — professional dashboard aesthetic, not loud
+- Test each fix independently before moving to the next
