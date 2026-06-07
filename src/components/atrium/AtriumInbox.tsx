@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { AtriumInboundMessage, AutomationChannel } from '../../types';
-import { ComposeModal } from './ComposeModal';
+import { ComposeModal, ComposeModalPrefill } from './ComposeModal';
 import { 
     Mail as EnvelopeIcon, 
     MessageSquare as ChatBubbleLeftRightIcon, 
@@ -38,7 +38,19 @@ export const AtriumInbox: React.FC = () => {
     const [replyText, setReplyText] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
+    const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
 
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem('atrium_compose_prefill');
+            if (raw) {
+                const prefill: ComposeModalPrefill = JSON.parse(raw);
+                sessionStorage.removeItem('atrium_compose_prefill');
+                setComposePrefill(prefill);
+                setShowCompose(true);
+            }
+        } catch (e) {}
+    }, []);
 
     const selectedMessage = useMemo(() => 
         messages.find(m => m._id === selectedThreadId), 
@@ -291,7 +303,7 @@ export const AtriumInbox: React.FC = () => {
                 </div>
             </div>
 
-            {showCompose && firmId && <ComposeModal firmId={firmId} onClose={() => setShowCompose(false)} onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') ? 'error' : 'success' })} />}
+            {showCompose && firmId && <ComposeModal firmId={firmId} prefill={composePrefill} onClose={() => { setShowCompose(false); setComposePrefill(undefined); }} onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') ? 'error' : 'success' })} />}
         </div>
     );
 };

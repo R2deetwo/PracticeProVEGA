@@ -586,6 +586,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     autoFocus
                                 />
                             </div>
+                            {!activeUnitId && (
                             <div className="space-y-2 group">
                                 <label className={labelClass}>{isEditing ? 'Add Units' : 'Total Units'}</label>
                                 <input autoComplete="off" data-lpignore="true" 
@@ -611,6 +612,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     placeholder="1"
                                 />
                             </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

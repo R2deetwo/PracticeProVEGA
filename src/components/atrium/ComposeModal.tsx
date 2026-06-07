@@ -163,18 +163,32 @@ export function buildMessage(
   return result;
 }
 
-export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void }> = ({ firmId, onClose, onToast }) => {
+export interface ComposeModalPrefill {
+  unitId?: string;
+  unitName?: string;
+  tenantName?: string;
+  tenantPhone?: string;
+  tenantEmail?: string;
+  rentAmount?: number;
+  propertyAddress?: string;
+  channel?: AutomationChannel;
+}
+
+export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
   const convex = useConvex();
   const logAuto = useMutation(api.sentry.logAutomation);
   const [msgType, setMsgType] = useState<AutomationMessageType>('custom');
-  const [channel, setChannel] = useState<AutomationChannel>('whatsapp');
-  const [unitId, setUnitId] = useState('');
-  const [recipient, setRecipient] = useState('');
+  const [channel, setChannel] = useState<AutomationChannel>(() => prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp'));
+  const [unitId, setUnitId] = useState(() => prefill?.unitId || '');
+  const [recipient, setRecipient] = useState(() => {
+    if (prefill?.channel === 'email' || (!prefill?.tenantPhone && prefill?.tenantEmail)) return prefill?.tenantEmail || '';
+    return prefill?.tenantPhone || '';
+  });
   const [countryCode, setCountryCode] = useState('+234');
-  const [tenantName, setTenantName] = useState('');
-  const [amount, setAmount] = useState('');
+  const [tenantName, setTenantName] = useState(() => prefill?.tenantName || '');
+  const [amount, setAmount] = useState(() => prefill?.rentAmount ? String(prefill.rentAmount) : '');
   const [customText, setCustomText] = useState('');
   const [isEdited, setIsEdited] = useState(false);
   const [serviceCharge, setServiceCharge] = useState('');

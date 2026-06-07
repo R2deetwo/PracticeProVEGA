@@ -4,7 +4,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -72,6 +72,7 @@ const PropertyDetailViewContent: React.FC = () => {
     const [showAddUnitForm, setShowAddUnitForm] = useState(false);
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
+    const [showUnitMessaging, setShowUnitMessaging] = useState(false);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -842,11 +843,46 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* Unit detail panel — shows unit-specific info only, replaces the old "open property form" behaviour */}
+                            {/* Unit detail panel — shows unit-specific info only */}
                             {selectedUnit && (() => {
                                 const sd = getUnitDisplay(selectedUnit);
+                                const tenantPhone: string = (selectedUnit as any).rentalDetails?.tenantPhone || (selectedUnit as any).tenantPhone || '';
+                                const tenantEmail: string = (selectedUnit as any).rentalDetails?.tenantEmail || (selectedUnit as any).tenantEmail || '';
+                                const hasContactInfo = !!(tenantPhone || tenantEmail);
+
+                                const handleWhatsApp = () => {
+                                    if (!tenantPhone) return;
+                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
+                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
+                                    const msg = encodeURIComponent(`Hello ${sd.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${sd.name} at ${property.address}.`);
+                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+                                };
+
+                                const handleEmailTenant = () => {
+                                    openModal('composeEmail', null, {
+                                        to: tenantEmail,
+                                        subject: `Re: ${sd.name} — ${property.address}`,
+                                    });
+                                };
+
+                                const handleOpenInbox = () => {
+                                    try {
+                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
+                                            unitId: selectedUnit.id,
+                                            unitName: sd.name,
+                                            tenantName: sd.tenantName,
+                                            tenantPhone,
+                                            tenantEmail,
+                                            rentAmount: sd.rentAmount,
+                                            propertyAddress: property.address,
+                                        }));
+                                    } catch (e) {}
+                                    navigateTo('atriumEngine');
+                                };
+
                                 return (
                                     <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5">
+                                        {/* Header */}
                                         <div className="flex items-start justify-between mb-4">
                                             <div>
                                                 <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
@@ -857,24 +893,73 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
                                                     {String(selectedUnit.status || 'Vacant')}
                                                 </span>
-                                                <button onClick={() => setSelectedUnit(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                                                <button onClick={() => { setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
                                                     <XIcon className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </div>
+
+                                        {/* Details grid */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
                                             {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
                                                 <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
                                             )}
                                             {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
-                                            {(selectedUnit as any).rentalDetails?.tenantPhone && <DetailItem label="Tenant Phone" value={(selectedUnit as any).rentalDetails.tenantPhone} />}
-                                            {(selectedUnit as any).rentalDetails?.tenantEmail && <DetailItem label="Tenant Email" value={(selectedUnit as any).rentalDetails.tenantEmail} />}
+                                            {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
+                                            {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
                                             {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && <DetailItem label="Service Charge" value={<>₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}</>} />}
                                             {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
                                             {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
                                             {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
                                         </div>
+
+                                        {/* Message Tenant panel */}
+                                        {showUnitMessaging && (
+                                            <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
+                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
+                                                    Contact {sd.tenantName || 'Tenant'}
+                                                </p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {tenantPhone && (
+                                                        <button
+                                                            onClick={handleWhatsApp}
+                                                            className="flex items-center gap-2 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                                        >
+                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                                            WhatsApp
+                                                        </button>
+                                                    )}
+                                                    {tenantEmail && (
+                                                        <button
+                                                            onClick={handleEmailTenant}
+                                                            className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                                        >
+                                                            <Mail className="w-4 h-4" /> Email
+                                                        </button>
+                                                    )}
+                                                    {tenantPhone && (
+                                                        <a
+                                                            href={`tel:${tenantPhone}`}
+                                                            className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                                                        >
+                                                            <Phone className="w-4 h-4" /> Call
+                                                        </a>
+                                                    )}
+                                                    <button
+                                                        onClick={handleOpenInbox}
+                                                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm ml-auto"
+                                                    >
+                                                        <MessageSquare className="w-4 h-4 text-emerald-500" /> Full Compose in Revenue Monitor →
+                                                    </button>
+                                                </div>
+                                                {!hasContactInfo && (
+                                                    <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Action buttons */}
                                         <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
                                             <button
                                                 onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
@@ -889,6 +974,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                             )}
                                             <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
                                                 <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                            </button>
+                                            <button
+                                                onClick={() => setShowUnitMessaging(v => !v)}
+                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+                                            >
+                                                <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
                                             </button>
                                             <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
                                                 <Trash2 className="w-3.5 h-3.5" /> Remove Unit
@@ -908,7 +999,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     return (
                                     <div
                                         key={unit.id}
-                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); }}
+                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
                                         className={`bg-white dark:bg-zinc-800 rounded-xl border shadow-sm p-4 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
                                     >
                                         <div className="flex items-start justify-between mb-3">
