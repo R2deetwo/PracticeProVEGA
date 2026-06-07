@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
-    "@google/genai": "^2.6.0",
+    "@google/genai": "^2.8.0",
     "@tiptap/extension-character-count": "^3.20.0",
     "@tiptap/extension-color": "^3.20.0",
     "@tiptap/extension-font-family": "^3.20.0",
@@ -47,8 +47,6 @@
     "framer-motion": "^12.38.0",
     "fuse.js": "^7.3.0",
     "html2canvas": "^1.4.1",
-    "jspdf": "^2.5.1",
-    "jspdf-autotable": "^3.8.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.300.0",
     "p-limit": "^7.3.0",
