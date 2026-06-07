@@ -22,11 +22,12 @@ import {
 interface PropertyFormProps {
     contact: Contact;
     propertyToEdit?: Property;
+    activeUnitId?: string;
     onSave?: (contactId: string, properties: Property[]) => void; // Keeping for legacy support if needed
     onClose: () => void;
 }
 
-const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, onSave, onClose }) => {
+const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, activeUnitId, onSave, onClose }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { appState } = useDataState();
     const { addItem, updateItem, deleteItem, onAddMatter } = useDataActions();
@@ -66,6 +67,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
     const [activeUnitIndex, setActiveUnitIndex] = useState(0);
     const [autoSyncUnits, setAutoSyncUnits] = useState(true);
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
+    const formTouched = React.useRef(false);
 
     const [unitsData, setUnitsData] = useState<UnitRentalInput[]>(() => {
         if (propertyToEdit) {
@@ -138,6 +140,24 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
             status: 'Occupied' as PropertyStatus
         }];
     });
+
+    // Local string buffers for % inputs so decimal typing (e.g. "2.") isn't snapped to "2"
+    const [agencyPctStr, setAgencyPctStr] = useState<string>(() => String(unitsData[0]?.agencyFeePercentage ?? 10));
+    const [legalPctStr, setLegalPctStr] = useState<string>(() => String(unitsData[0]?.legalFeePercentage ?? 10));
+
+    // Sync % string buffers when switching active unit
+    useEffect(() => {
+        setAgencyPctStr(String(unitsData[activeUnitIndex]?.agencyFeePercentage ?? 10));
+        setLegalPctStr(String(unitsData[activeUnitIndex]?.legalFeePercentage ?? 10));
+    }, [activeUnitIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Jump to the specific unit (when opened from a unit card)
+    useEffect(() => {
+        if (activeUnitId && unitsData.length > 0) {
+            const idx = unitsData.findIndex(u => u.id === activeUnitId || u._id === activeUnitId);
+            if (idx >= 0) setActiveUnitIndex(idx);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Keep units array in sync with numberOfUnits
     useEffect(() => {
@@ -460,9 +480,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
 
             // 2. Handle unit deletions (if numberOfUnits was decreased)
             if (isEditing && propertyToEdit) {
-                const keptIds = new Set(currentUnits.map(u => u.id).filter(Boolean));
+                const keptIds = new Set([
+                    ...currentUnits.map(u => u.id).filter(Boolean),
+                    ...currentUnits.map(u => u._id).filter(Boolean)
+                ]);
                 const siblingsToRemove = (coreState.properties || [])
-                    .filter(p => p.address === propertyToEdit.address && !keptIds.has(p.id));
+                    .filter(p => {
+                        const convexId = (p as any)._id;
+                        return p.address === propertyToEdit.address &&
+                            !keptIds.has(p.id) &&
+                            !keptIds.has(convexId);
+                    });
                 
                 for (const p of siblingsToRemove) {
                     await deleteItem('properties', p.id, 'Property');
@@ -529,7 +557,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
     const isDisputed = category === 'Disputed Property';
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative">
+        <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
             <div className="space-y-3 pb-6">
                 {/* Core Profile Section */}
                 <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
@@ -945,8 +973,19 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isLegalNA}
-                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : (unitsData[activeUnitIndex].legalFeePercentage ?? 10)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'legalFeePercentage', parseFormattedNumber(e.target.value))}
+                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : legalPctStr}
+                                            onChange={e => {
+                                                const raw = e.target.value;
+                                                setLegalPctStr(raw);
+                                                if (raw !== '' && !raw.endsWith('.')) {
+                                                    updateUnit(activeUnitIndex, 'legalFeePercentage', parseFormattedNumber(raw));
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                const parsed = parseFormattedNumber(legalPctStr);
+                                                setLegalPctStr(String(parsed));
+                                                updateUnit(activeUnitIndex, 'legalFeePercentage', parsed);
+                                            }}
                                             className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
                                             placeholder="10"
                                         />
@@ -972,8 +1011,19 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="text"
                                             disabled={unitsData[activeUnitIndex].isAgencyNA}
-                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : (unitsData[activeUnitIndex].agencyFeePercentage ?? 10)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'agencyFeePercentage', parseFormattedNumber(e.target.value))}
+                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : agencyPctStr}
+                                            onChange={e => {
+                                                const raw = e.target.value;
+                                                setAgencyPctStr(raw);
+                                                if (raw !== '' && !raw.endsWith('.')) {
+                                                    updateUnit(activeUnitIndex, 'agencyFeePercentage', parseFormattedNumber(raw));
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                const parsed = parseFormattedNumber(agencyPctStr);
+                                                setAgencyPctStr(String(parsed));
+                                                updateUnit(activeUnitIndex, 'agencyFeePercentage', parsed);
+                                            }}
                                             className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''} pr-24`}
                                             placeholder="10"
                                         />
@@ -1211,7 +1261,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, on
             </div>
 
             <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-50 mt-4 rounded-b-2xl">
-                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={() => {
+                    if (formTouched.current && !window.confirm('You have unsaved changes. Discard them?')) return;
+                    onClose();
+                }} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
                 <button type="submit" className="flex-1 sm:flex-none px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">

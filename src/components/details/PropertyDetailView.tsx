@@ -759,7 +759,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                     return (
                                     <div
                                         key={unit.id}
-                                        className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm p-4 hover:shadow-md transition-shadow"
+                                        onClick={() => openModal('editProperty', property.id, { contactId: owner?.id, activeUnitId: unit.id })}
+                                        className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm p-4 hover:shadow-md hover:border-primary-300 dark:hover:border-primary-700 transition-all cursor-pointer"
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="min-w-0 flex-1 pr-2">
@@ -824,12 +825,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {
+                                                        e.stopPropagation();
                                                         if (menuOpen) {
                                                             setOpenUnitMenuId(null);
                                                             setOpenUnitMenuPos(null);
                                                         } else {
                                                             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                                            setOpenUnitMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                                            const estimatedMenuHeight = 340;
+                                                            const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
+                                                            setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
                                                             setOpenUnitMenuId(unit.id);
                                                         }
                                                     }}
