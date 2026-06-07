@@ -843,11 +843,13 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         </div>
                     </ToolbarGroup>
 
-                    {/* ALOA Agentic Ribbon */}
-                    <ToolbarGroup label={isProperty ? 'ARIA Intelligence' : 'DraftPro AI'} className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10">
+                    {/* Agentic Ribbon — legal context only */}
+                    {!isProperty && (
+                    <ToolbarGroup label="DraftPro AI" className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10">
                         <ToolbarBtn icon={Wand} label="Auto-Format" onClick={() => setActiveModal('auto_format_rules')} size="lg" className="text-emerald-600 dark:text-emerald-400" />
                         <ToolbarBtn icon={Sparkles} label="Ask ALOA" onClick={() => { if (!isAloaPanelOpen) toggleAloaPanel(); }} size="lg" className="text-violet-600 dark:text-violet-400 font-bold" />
                     </ToolbarGroup>
+                    )}
 
                     <div className="flex-1" />
 

@@ -376,25 +376,47 @@ const PropertyDetailViewContent: React.FC = () => {
 
         // Prepare strict context for the new matter
         const addressPart = property.address.split(',')[0];
-        const unitName = unit ? unit.name : (property.rentalDetails?.unitName || property.description || '');
+
+        // For embedded units, rental data lives in rentalDetails; for standalone properties it's top-level
+        const unitRental = unit ? (unit.rentalDetails || unit) : null;
+        const unitName = unit
+            ? (unit.name || unit.address || unitRental?.unitName || '')
+            : (property.rentalDetails?.unitName || property.description || '');
+        const unitTenantName = unitRental?.tenantName || '';
+        const unitTenantPhone = unitRental?.tenantPhone || '';
+        const unitTenantEmail = unitRental?.tenantEmail || '';
+        const unitLeaseEnd = unitRental?.leaseEndDate || unitRental?.leaseEnd || '';
 
         const matterTitle = isSale
             ? `Sale: ${addressPart} ${unitName ? `(${unitName})` : ''}`
-            : `Tenancy: ${addressPart} ${unitName ? `(${unitName})` : ''}`;
+            : `Tenancy: ${addressPart}${unitName ? ` — ${unitName}` : ''}${unitTenantName ? ` [${unitTenantName}]` : ''}`;
 
         const matterType = 'Real Estate';
         const subCategory = isSale ? 'Acquisition' : 'Lease/Tenancy';
 
-        const propValue = unit ? unit.value : (property.value || (property.saleDetails?.targetPrice) || 0);
-        const rentAmount = unit ? unit.rentAmount : (property.rentalDetails?.rentAmount || 0);
+        const propValue = unit
+            ? (unitRental?.value || unit.value || 0)
+            : (property.value || property.saleDetails?.targetPrice || 0);
+        const rentAmount = unit
+            ? (unitRental?.rentAmount || unit.rentAmount || 0)
+            : (property.rentalDetails?.rentAmount || 0);
         const defaultFee = isSale ? propValue * 0.1 : rentAmount * 0.1;
+
+        // Build a rich description with all available unit context
+        const descParts = [`Property: ${property.address}`];
+        if (unitName) descParts.push(`Unit: ${unitName}`);
+        if (unitTenantName) descParts.push(`Tenant: ${unitTenantName}`);
+        if (unitTenantPhone) descParts.push(`Phone: ${unitTenantPhone}`);
+        if (unitTenantEmail) descParts.push(`Email: ${unitTenantEmail}`);
+        if (rentAmount > 0) descParts.push(`Rent: ₦${rentAmount.toLocaleString()}`);
+        if (unitLeaseEnd) descParts.push(`Lease Ends: ${unitLeaseEnd}`);
 
         const newMatterData: any = {
             title: matterTitle,
             clientId: owner?.id,
             type: matterType,
             subCategory,
-            description: `Managed Property: ${property.address} ${unitName ? `[${unitName}]` : ''}`,
+            description: descParts.join(' | '),
             status: MatterStatus.Active,
             stage: 'Intake',
             stageLastUpdated: new Date().toISOString(),
@@ -413,6 +435,13 @@ const PropertyDetailViewContent: React.FC = () => {
                 realEstate: {
                     purchasePrice: isSale ? propValue : 0,
                     propertyId: property.id,
+                    unitId: unit?.id || undefined,
+                    unitName: unitName || undefined,
+                    tenantName: unitTenantName || undefined,
+                    tenantPhone: unitTenantPhone || undefined,
+                    tenantEmail: unitTenantEmail || undefined,
+                    rentAmount: rentAmount || undefined,
+                    leaseEndDate: unitLeaseEnd || undefined,
                     transactionType: isSale ? 'Sale' : 'Lease'
                 }
             }
