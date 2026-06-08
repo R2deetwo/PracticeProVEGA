@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MoreVertical, ListChecks } from 'lucide-react';
 import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType } from '../../types';
-import { ChevronRightIcon, SparklesIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon } from '../../constants';
+import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";

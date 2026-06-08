@@ -516,8 +516,8 @@ const ChatWindow: React.FC<{
     );
 };
 
-// ... (Rest of MessagingView remains similar, just imports updated ChatWindow)
-const MessagingView: React.FC = () => {
+// ... (Rest of CommsView remains similar, just imports updated ChatWindow)
+const CommsView: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
     const { currentUser } = useAuth();
@@ -897,4 +897,4 @@ const MessagingView: React.FC = () => {
     );
 };
 
-export default MessagingView;
+export default CommsView;

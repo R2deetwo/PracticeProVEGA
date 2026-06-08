@@ -76,8 +76,18 @@
 }
 
 /* ===== Smooth Theme Transitions ===== */
-/* When the theme class changes on <html>, background/border/color animate smoothly */
-*, *::before, *::after {
+/* Only apply theme transitions to root elements — not every DOM node */
+html,
+body {
+  transition: background-color 0.25s ease, color 0.15s ease;
+}
+/* Themed surface elements also get smooth color transitions */
+.glass,
+.card-premium,
+.bg-white,
+.dark .bg-zinc-800,
+.bg-slate-50,
+.dark .bg-zinc-900 {
   transition: background-color 0.25s ease, border-color 0.2s ease, color 0.15s ease;
 }
 /* Preserve performance-sensitive / animation-specific elements */
@@ -684,6 +694,16 @@ body.aloax-is-processing .aloax-nav-badge {
   @apply bg-slate-300 dark:bg-zinc-700;
 }
 
+/* Utility class used across the app for consistent scrollable areas */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-slate-200)) transparent;
+}
+
+.dark .custom-scrollbar {
+  scrollbar-color: rgb(var(--color-zinc-800)) transparent;
+}
+
 /* Custom Selection Color */
 ::selection {
   background-color: #0f172a;
@@ -879,4 +899,4 @@ span[data-type="legal-placeholder"] {
 
 .animate-swap-in {
   animation: swap-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
+}
