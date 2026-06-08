@@ -609,6 +609,13 @@ const PropertyDetailViewContent: React.FC = () => {
                                             {(property.rentalDetails.serviceCharge || 0) > 0 && (
                                                 <DetailItem label="Service Charge" value={<><NairaSymbol />{formatNaira(property.rentalDetails.serviceCharge || 0)}</>} />
                                             )}
+                                            {property.minimumVendEnabled && (
+                                                <DetailItem 
+                                                    label={property.minimumVendLabel || 'Minimum Vend'} 
+                                                    value={<><NairaSymbol />{formatNaira(property.minimumVendAmount || 0)}</>} 
+                                                    subText="Estate minimum utility vend" 
+                                                />
+                                            )}
                                             {(property.rentalDetails.legalFee || 0) > 0 && (
                                                 <DetailItem label="Legal Fee" value={<><NairaSymbol />{formatNaira(property.rentalDetails.legalFee || 0)}</>} />
                                             )}
@@ -921,7 +928,25 @@ const PropertyDetailViewContent: React.FC = () => {
                                             {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
                                             {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
                                             {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
-                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && <DetailItem label="Service Charge" value={<>₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}</>} />}
+                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+                                                <DetailItem label="Service Charge" value={
+                                                    <>
+                                                        ₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                        {(() => {
+                                                            const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+                                                            if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                            return null;
+                                                        })()}
+                                                    </>
+                                                } />
+                                            )}
+                                            {(() => {
+                                                const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+                                                const outstanding = sd.outstandingServiceChargeBalance || (selectedUnit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
+                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+                                            })()}
                                             {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
                                             {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
                                             {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
@@ -1075,14 +1100,17 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     ₦{Number(d.serviceChargeAmount || unit.serviceCharge || unit.rentalDetails?.serviceCharge || 0).toLocaleString()}
                                                     {(() => {
                                                         const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                        const isPaid = scStatus === 'PAID' || scStatus === 'paid';
-                                                        const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
-                                                        if (isPaid) {
+                                                        const outstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
+                                                        if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
                                                             return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
-                                                        } else if (isUnpaid) {
-                                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Unpaid</span>;
+                                                        } else if (scStatus === 'PARTIALLY_PAID') {
+                                                            return <>
+                                                                <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
+                                                                {outstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{outstanding.toLocaleString()}</span>}
+                                                            </>;
+                                                        } else {
+                                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
                                                         }
-                                                        return null;
                                                     })()}
                                                 </p>
                                             )}
@@ -1307,7 +1335,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                 const paidCount = units.filter(u => {
                                     const rd = u.rentalDetails || {};
                                     const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
-                                    return st === 'PAID' || st === 'paid';
+                                    return st === 'PAID_FULLY' || st === 'PAID' || st === 'paid';
+                                }).length;
+                                const partialCount = units.filter(u => {
+                                    const rd = u.rentalDetails || {};
+                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+                                    return st === 'PARTIALLY_PAID';
                                 }).length;
                                 const unpaidCount = units.filter(u => {
                                     const rd = u.rentalDetails || {};
@@ -1320,7 +1353,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<BanknotesIcon />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
                                         <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<BanknotesIcon />} colorClass="bg-blue-600" scrollOnOverflow={true} />
                                         <StatCard title="Service Charges" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
-                                        <StatCard title="Service Charge Status" value={`${paidCount} Paid / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : 'bg-green-600'} scrollOnOverflow={true} />
+                                        <StatCard title="SC Status" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
                                     </>
                                 );
                             })()}
@@ -1343,6 +1376,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rent</th>
                                             <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
                                             <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">SC Status</th>
+                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
@@ -1351,7 +1385,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                             const rd = (unit.rentalDetails || {}) as any;
                                             const scAmount = d.serviceChargeAmount || Number(rd.serviceCharge || 0);
                                             const scStatus = d.serviceChargeStatus || rd.serviceChargeStatus || '';
-                                            const isPaid = scStatus === 'PAID' || scStatus === 'paid';
+                                            const outstanding = d.outstandingServiceChargeBalance || rd.outstandingServiceChargeBalance || 0;
+                                            const isPaidFully = scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid';
+                                            const isPartial = scStatus === 'PARTIALLY_PAID';
                                             const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
                                             return (
                                                 <tr key={unit.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
@@ -1360,9 +1396,13 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
                                                     <td className="px-4 py-2.5 text-center">
-                                                        {isPaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
-                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Unpaid</span>}
-                                                        {!isPaid && !isUnpaid && <span className="text-[10px] text-slate-400">—</span>}
+                                                        {isPaidFully && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
+                                                        {isPartial && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
+                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>}
+                                                        {!isPaidFully && !isPartial && !isUnpaid && <span className="text-[10px] text-slate-400">—</span>}
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-right">
+                                                        {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-[10px] text-slate-400">—</span>}
                                                     </td>
                                                 </tr>
                                             );

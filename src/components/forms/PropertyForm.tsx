@@ -69,6 +69,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
     const formTouched = React.useRef(false);
 
+    // Minimum Vend / Estate Fees
+    const [minimumVendEnabled, setMinimumVendEnabled] = useState(propertyToEdit?.minimumVendEnabled || false);
+    const [minimumVendAmount, setMinimumVendAmount] = useState<string>(String(propertyToEdit?.minimumVendAmount || 0));
+    const [minimumVendLabel, setMinimumVendLabel] = useState(propertyToEdit?.minimumVendLabel || 'Minimum Vend');
+
     const [unitsData, setUnitsData] = useState<UnitRentalInput[]>(() => {
         if (propertyToEdit) {
             const allUnits = (coreState.properties || [])
@@ -131,6 +136,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             serviceCharge: 0,
             serviceChargeAmount: 0,
             serviceChargeStatus: 'UNPAID' as const,
+            outstandingServiceChargeBalance: 0,
             legalFee: 0,
             legalFeePercentage: 10,
             isLegalNA: false,
@@ -186,6 +192,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         serviceCharge: 0,
                         serviceChargeAmount: 0,
                         serviceChargeStatus: 'UNPAID' as const,
+                        outstandingServiceChargeBalance: 0,
                         legalFee: 0,
                         legalFeePercentage: 10,
                         isLegalNA: false,
@@ -295,7 +302,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (index === 0 && autoSyncUnits) {
                 const generalFields = [
                     'rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled',
-                    'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'serviceChargeAmount', 'serviceChargeStatus', 'cautionDeposit',
+                    'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'serviceChargeAmount', 'serviceChargeStatus', 'outstandingServiceChargeBalance', 'cautionDeposit',
                     'isLegalNA', 'isAgencyNA', 'isCautionNA'
                 ];
                 if (generalFields.includes(field)) {
@@ -410,7 +417,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 remindLeaseExpiry,
                 remindRentDue,
                 autoCreateMaintenanceTask
-            }
+            },
+            minimumVendEnabled,
+            minimumVendAmount: Number(minimumVendAmount) || 0,
+            minimumVendLabel: minimumVendLabel || 'Minimum Vend',
         };
 
         // Rental Check
@@ -763,6 +773,50 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     </div>
                 </div>
 
+                {/* --- Minimum Vend / Estate Fees --- */}
+                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                    <div className="flex items-center gap-4 px-1">
+                        <div className="p-1.5 bg-teal-500 text-white rounded-lg shadow-sm ring-2 ring-teal-400/10">
+                            <CalculatorIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-teal-600/70 uppercase tracking-widest leading-none mb-0.5">Fees</p>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Minimum Vend / Estate Fees</h3>
+                        </div>
+                    </div>
+                    <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
+                        <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
+                        <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
+                    </label>
+                    {minimumVendEnabled && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Minimum Vend Amount</label>
+                                <div className="relative rounded-xl shadow-xs">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                    <input autoComplete="off" data-lpignore="true"
+                                        type="text"
+                                        value={formatNumberWithCommas(parseFormattedNumber(minimumVendAmount))}
+                                        onChange={e => setMinimumVendAmount(String(parseFormattedNumber(e.target.value)))}
+                                        className={`${commonInputClass} pl-8`}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Label</label>
+                                <input autoComplete="off" data-lpignore="true"
+                                    type="text"
+                                    value={minimumVendLabel}
+                                    onChange={e => setMinimumVendLabel(e.target.value)}
+                                    className={commonInputClass}
+                                    placeholder="e.g. Diesel Surcharge, Estate Levy"
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* --- Conditional Sections --- */}
 
                 {/* 1. Dispute Details */}
@@ -989,13 +1043,29 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <label className={labelClass}>Service Charge Status</label>
                                     <select
                                         value={activeUnit.serviceChargeStatus || 'UNPAID'}
-                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeStatus', e.target.value as 'PAID' | 'UNPAID')}
+                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeStatus', e.target.value as 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID')}
                                         className={commonInputClass}
                                     >
                                         <option value="UNPAID">Unpaid</option>
-                                        <option value="PAID">Paid</option>
+                                        <option value="PARTIALLY_PAID">Partially Paid</option>
+                                        <option value="PAID_FULLY">Paid Fully</option>
                                     </select>
                                 </div>
+                                {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
+                                    <div className="space-y-2 group animate-fade-in">
+                                        <label className={labelClass}>Outstanding Balance</label>
+                                        <div className="relative rounded-xl shadow-xs">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                value={formatNumberWithCommas(activeUnit.outstandingServiceChargeBalance || 0)}
+                                                onChange={e => updateUnit(activeUnitIndex, 'outstandingServiceChargeBalance', parseFormattedNumber(e.target.value))}
+                                                className={`${commonInputClass} pl-8`}
+                                                placeholder="0.00"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Legal Fee (%)</label>

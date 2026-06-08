@@ -687,6 +687,10 @@ export default defineSchema({
     trackingTimeline: v.optional(v.array(v.any())),
     maintenanceHistory: v.optional(v.array(v.any())),
     rentPaymentHistory: v.optional(v.array(v.any())),
+    // Minimum Vend / Estate Fees toggle (property-wide)
+    minimumVendEnabled: nullableBoolean,
+    minimumVendAmount: nullableNumber,
+    minimumVendLabel: nullableString,
     id: nullableString, // Legacy ID from frontend
     userId: nullableString, // Legacy ID from frontend
     createdAt: nullableString,
@@ -901,12 +905,28 @@ export default defineSchema({
     daysOverdue: v.optional(v.number()),
     penaltyApplied: v.optional(v.boolean()),
     notes: v.optional(v.string()),
+    // Granular payment status (replaces simple boolean)
+    serviceChargeStatus: v.optional(v.union(
+      v.literal("PAID_FULLY"),
+      v.literal("PARTIALLY_PAID"),
+      v.literal("UNPAID"),
+    )),
+    // Outstanding balance when PARTIALLY_PAID
+    outstandingBalance: v.optional(v.number()),
+    // Amount paid so far in current cycle
+    amountPaidThisCycle: v.optional(v.number()),
+    // Last reset timestamp (monthly reset cron)
+    lastResetAt: v.optional(v.number()),
+    // Whether this is a minimum vend charge
+    isMinimumVend: v.optional(v.boolean()),
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])
     .index("by_defaulter", ["isDefaulter"])
     .index("by_next_due", ["nextDueDate"])
-    .index("by_firm_defaulter", ["firmId", "isDefaulter"]),
+    .index("by_firm_defaulter", ["firmId", "isDefaulter"])
+    .index("by_status", ["serviceChargeStatus"])
+    .index("by_firm_status", ["firmId", "serviceChargeStatus"]),
 
   leads_pipeline: defineTable({
     firmId: v.string(),

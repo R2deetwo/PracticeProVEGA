@@ -196,21 +196,50 @@ export const markChargeAsPaid = mutation({
     paidAmount: v.number(),
     firmId: v.string(),
     channel: v.optional(v.string()),
+    isPartialPayment: v.optional(v.boolean()),
   },
-  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel }) => {
+  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment }) => {
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
 
-    // Advance nextDueDate
-    const cycleMs = sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000;
-    const nextDueDate = Date.now() + cycleMs;
+    const totalAmount = sc.amount;
+    const previouslyPaid = sc.amountPaidThisCycle ?? 0;
+    const newTotalPaid = previouslyPaid + paidAmount;
+    const outstandingBalance = Math.max(0, totalAmount - newTotalPaid);
+
+    // Determine new status
+    let newStatus: "PAID_FULLY" | "PARTIALLY_PAID" | "UNPAID";
+    if (outstandingBalance <= 0) {
+      newStatus = "PAID_FULLY";
+    } else if (newTotalPaid > 0) {
+      newStatus = "PARTIALLY_PAID";
+    } else {
+      newStatus = "UNPAID";
+    }
+
+    // If fully paid, advance nextDueDate
+    let nextDueDate = sc.nextDueDate;
+    let isDefaulter = sc.isDefaulter;
+    let daysOverdue = sc.daysOverdue;
+    let penaltyApplied = sc.penaltyApplied;
+
+    if (newStatus === "PAID_FULLY") {
+      const cycleMs = sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000;
+      nextDueDate = Date.now() + cycleMs;
+      isDefaulter = false;
+      daysOverdue = 0;
+      penaltyApplied = false;
+    }
 
     await ctx.db.patch(serviceChargeId, {
-      isDefaulter: false,
+      isDefaulter,
       lastPaidDate: Date.now(),
       nextDueDate,
-      penaltyApplied: false,
-      daysOverdue: 0,
+      penaltyApplied,
+      daysOverdue,
+      serviceChargeStatus: newStatus,
+      outstandingBalance: newStatus === "PAID_FULLY" ? 0 : outstandingBalance,
+      amountPaidThisCycle: newStatus === "PAID_FULLY" ? 0 : newTotalPaid,
     });
 
     // Ledger entry
@@ -222,11 +251,13 @@ export const markChargeAsPaid = mutation({
       tenantId: sc.tenantId,
       amount: paidAmount,
       type: "service_charge",
-      status: "cleared",
+      status: newStatus === "PAID_FULLY" ? "cleared" : "pending",
       timestamp,
       txHash,
       channel,
-      description: `${sc.category} service charge payment`,
+      description: newStatus === "PAID_FULLY"
+        ? `${sc.category} service charge — full payment`
+        : `${sc.category} service charge — partial payment (₦${newTotalPaid.toLocaleString()} of ₦${totalAmount.toLocaleString()})`,
     });
   },
 });
@@ -239,9 +270,19 @@ export const flagOverdueCharges = internalMutation({
     const allCharges = await ctx.db.query("service_charges").collect();
     let flagged = 0;
     for (const charge of allCharges) {
-      if (charge.nextDueDate < now) {
+      if (charge.nextDueDate < now && charge.serviceChargeStatus !== "PAID_FULLY") {
         const daysOverdue = Math.floor((now - charge.nextDueDate) / 86400000);
-        await ctx.db.patch(charge._id, { isDefaulter: true, daysOverdue });
+        // If no partial payment has been made, status stays UNPAID (or becomes UNPAID if not set)
+        const currentStatus = charge.serviceChargeStatus || (charge.isDefaulter ? "UNPAID" : "UNPAID");
+        await ctx.db.patch(charge._id, {
+          isDefaulter: true,
+          daysOverdue,
+          // Preserve PARTIALLY_PAID if tenant has made a partial payment, otherwise UNPAID
+          serviceChargeStatus: currentStatus === "PARTIALLY_PAID" ? "PARTIALLY_PAID" : "UNPAID",
+          outstandingBalance: currentStatus === "PARTIALLY_PAID"
+            ? (charge.outstandingBalance ?? charge.amount - (charge.amountPaidThisCycle ?? 0))
+            : charge.amount,
+        });
         flagged++;
       }
     }
@@ -410,9 +451,10 @@ export const processInboundMessage = internalMutation({
 });
 
 // ─── SERVICE CHARGE WHATSAPP REMINDERS ─────────────────────────────────────
-// Scans all active tenancies with unpaid service charges and triggers
-// automated WhatsApp reminder notifications via the integration gateway.
+// Scans all active tenancies with unpaid or partially-paid service charges
+// and triggers automated WhatsApp reminder notifications via the integration gateway.
 // Called daily by cron job "serviceChargeWhatsAppReminder" at 6:30 AM UTC.
+// Dynamically includes outstanding balance for PARTIALLY_PAID tenants.
 export const sendServiceChargeReminders = internalMutation({
   args: {},
   handler: async (ctx) => {
@@ -424,9 +466,11 @@ export const sendServiceChargeReminders = internalMutation({
     // 1. Find all service_charges that are overdue or upcoming (nextDue within 7 days)
     const allCharges = await ctx.db.query("service_charges").collect();
     const actionableCharges = allCharges.filter(sc => {
+      // Skip fully paid charges
+      if (sc.serviceChargeStatus === "PAID_FULLY") return false;
       const daysUntilDue = Math.floor((sc.nextDueDate - now) / 86400000);
-      // Include: currently unpaid/defaulted OR due within the next 7 days
-      return sc.isDefaulter || daysUntilDue <= 7;
+      // Include: currently unpaid/defaulted OR partially paid OR due within the next 7 days
+      return sc.isDefaulter || sc.serviceChargeStatus === "PARTIALLY_PAID" || daysUntilDue <= 7;
     });
 
     for (const charge of actionableCharges) {
@@ -453,6 +497,9 @@ export const sendServiceChargeReminders = internalMutation({
       const tenantEmail: string = rd.tenantEmail || '';
       const tenantName: string = rd.tenantName || 'Tenant';
       const unitName: string = rd.unitName || 'Unit';
+      // Check if property has minimum vend enabled
+      const minimumVendEnabled = (unitDoc as any).minimumVendEnabled || false;
+      const vendLabel = charge.isMinimumVend ? ((unitDoc as any).minimumVendLabel || 'Minimum Vend') : null;
 
       if (!tenantPhone && !tenantEmail) {
         remindersSkipped++;
@@ -478,16 +525,24 @@ export const sendServiceChargeReminders = internalMutation({
         continue;
       }
 
-      // 4. Build reminder message
+      // 4. Build dynamic reminder message based on payment status
       const daysOverdue = charge.isDefaulter && charge.daysOverdue
         ? charge.daysOverdue
         : Math.max(0, Math.floor((now - charge.nextDueDate) / 86400000));
       const isUpcoming = !charge.isDefaulter && charge.nextDueDate > now;
       const dueDateStr = new Date(charge.nextDueDate).toLocaleDateString('en-NG');
+      const chargeLabel = charge.isMinimumVend ? (vendLabel || 'Minimum Vend') : charge.category;
 
-      const messagePreview = isUpcoming
-        ? `Dear ${tenantName}, your ${charge.category} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is due on ${dueDateStr}. Please ensure timely payment.`
-        : `Dear ${tenantName}, your ${charge.category} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is ${daysOverdue} day(s) overdue. Kindly make payment to avoid penalties.`;
+      let messagePreview: string;
+      if (charge.serviceChargeStatus === "PARTIALLY_PAID") {
+        // Dynamic message for partial payments — include exact outstanding balance
+        const outstanding = charge.outstandingBalance ?? (charge.amount - (charge.amountPaidThisCycle ?? 0));
+        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge for ${unitName} has an outstanding balance of ₦${outstanding.toLocaleString()}. You have paid ₦${(charge.amountPaidThisCycle ?? 0).toLocaleString()} of ₦${charge.amount.toLocaleString()}. Kindly complete the payment to avoid penalties.`;
+      } else if (isUpcoming) {
+        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is due on ${dueDateStr}. Please ensure timely payment.`;
+      } else {
+        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is ${daysOverdue} day(s) overdue. Kindly make payment to avoid penalties.`;
+      }
 
       // 5. Determine channel — prefer WhatsApp if phone available
       const channel = tenantPhone ? "whatsapp" as const : "email" as const;
@@ -574,6 +629,103 @@ export const deleteInboundMessage = mutation({
   args: { messageId: v.id("atrium_inbound_messages") },
   handler: async (ctx, { messageId }) => {
     await ctx.db.delete(messageId);
+  },
+});
+
+// ─── MONTHLY SERVICE CHARGE RESET ─────────────────────────────────────────
+// Resets all active service charges back to UNPAID on the 1st of every month.
+// Called by cron job "monthlyServiceChargeReset" at 00:30 UTC on the 1st.
+// Handles both regular service charges and minimum vend charges.
+export const resetMonthlyServiceCharges = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Running Monthly Service Charge Reset...");
+    const now = Date.now();
+    let resetCount = 0;
+    let skippedCount = 0;
+
+    // Get all service charges
+    const allCharges = await ctx.db.query("service_charges").collect();
+
+    for (const charge of allCharges) {
+      // Only reset Monthly cycle charges (Quarterly/Annual have their own cycle)
+      // Also reset minimum vend charges regardless of cycle since they're monthly
+      if (charge.cycle !== "Monthly" && !charge.isMinimumVend) {
+        skippedCount++;
+        continue;
+      }
+
+      // Skip if already reset this month (idempotency guard)
+      if (charge.lastResetAt) {
+        const lastReset = new Date(charge.lastResetAt);
+        const currentMonth = new Date(now);
+        if (lastReset.getMonth() === currentMonth.getMonth() && lastReset.getFullYear() === currentMonth.getFullYear()) {
+          skippedCount++;
+          continue;
+        }
+      }
+
+      // Reset to UNPAID, clear cycle payment tracking
+      await ctx.db.patch(charge._id, {
+        serviceChargeStatus: "UNPAID",
+        outstandingBalance: charge.amount,
+        amountPaidThisCycle: 0,
+        lastResetAt: now,
+        // Recalculate nextDueDate for the new month
+        nextDueDate: now + 30 * 86400000,
+        // Clear defaulter status for the new cycle
+        isDefaulter: false,
+        daysOverdue: 0,
+        penaltyApplied: false,
+      });
+      resetCount++;
+    }
+
+    // Also check for properties with minimumVendEnabled that might not have a service_charges record yet
+    const allProperties = await ctx.db.query("properties").collect();
+    const propertiesWithVend = allProperties.filter(p => p.minimumVendEnabled);
+
+    for (const prop of propertiesWithVend) {
+      // Check if a minimum vend charge already exists for each unit
+      const units: any[] = (prop as any).units || [];
+      const unitIds = units.length > 0
+        ? units.map((u: any) => u.id || u._id)
+        : [prop.id];
+
+      for (const unitId of unitIds) {
+        if (!unitId) continue;
+
+        const existingVend = allCharges.find(c =>
+          c.unitId === unitId && c.isMinimumVend
+        );
+
+        if (!existingVend) {
+          // Create the minimum vend charge record
+          const vendAmount = (prop as any).minimumVendAmount || 0;
+          if (vendAmount > 0) {
+            await ctx.db.insert("service_charges", {
+              firmId: prop.firmId!,
+              unitId,
+              tenantId: prop.tenantId || prop.currentTenantId || undefined,
+              category: "Other",
+              amount: vendAmount,
+              cycle: "Monthly",
+              nextDueDate: now + 30 * 86400000,
+              isDefaulter: false,
+              isMinimumVend: true,
+              serviceChargeStatus: "UNPAID",
+              outstandingBalance: vendAmount,
+              amountPaidThisCycle: 0,
+              lastResetAt: now,
+            });
+            resetCount++;
+          }
+        }
+      }
+    }
+
+    console.log(`Monthly SC Reset: ${resetCount} reset, ${skippedCount} skipped.`);
+    return { resetCount, skippedCount };
   },
 });
 

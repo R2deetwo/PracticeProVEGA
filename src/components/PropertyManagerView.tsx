@@ -21,6 +21,16 @@ interface PropertyManagerViewProps {
     isCompact?: boolean;
 }
 
+// ─── Filter Presets (aligned with Matters module UI) ──────────────────────────
+type PropPreset = 'all' | 'occupied' | 'vacant' | 'expiring';
+
+const PROP_PRESETS: { id: PropPreset; label: string }[] = [
+    { id: 'all', label: 'All' },
+    { id: 'occupied', label: 'Occupied' },
+    { id: 'vacant', label: 'Vacant' },
+    { id: 'expiring', label: 'Expiring' },
+];
+
 // Helper to compute days remaining on a lease
 const getDaysUntilLeaseEnd = (leaseEnd?: string): number | null => {
     if (!leaseEnd) return null;
@@ -122,6 +132,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     const { onUpdateContactProperties } = dataHandlers;
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [preset, setPreset] = useState<PropPreset>('all');
 
     // Feature Gating
     // Property firms (Atrium/Unified): any paid plan gets access.
@@ -194,13 +205,29 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     }, [contacts, coreState.properties]); // This dependency ensures list rebuilds on any contact or property update
 
     const filteredProperties = useMemo(() => {
-        if (!searchTerm) return allProperties;
+        // First apply preset filter
+        const now = new Date();
+        let presetFiltered = allProperties;
+        if (preset === 'occupied') {
+            presetFiltered = allProperties.filter(p => p.property.status === 'Occupied');
+        } else if (preset === 'vacant') {
+            presetFiltered = allProperties.filter(p => p.property.status === 'Vacant' || p.property.status === 'Listed');
+        } else if (preset === 'expiring') {
+            presetFiltered = allProperties.filter(p => {
+                if (!p.property.rentalDetails?.leaseEnd) return false;
+                const end = new Date(p.property.rentalDetails.leaseEnd);
+                const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                return diff > 0 && diff <= 90;
+            });
+        }
+        // Then apply search
+        if (!searchTerm) return presetFiltered;
         const lower = searchTerm.toLowerCase();
-        return allProperties.filter(p =>
+        return presetFiltered.filter(p =>
             p.property.address.toLowerCase().includes(lower) ||
             p.ownerName.toLowerCase().includes(lower)
         );
-    }, [allProperties, searchTerm]);
+    }, [allProperties, searchTerm, preset]);
 
     // Unified helper: delete all units at an address from Convex + local state + legacy contact array
     const deletePropertyGroup = async (ownerId: string, propertyAddress: string): Promise<number> => {
@@ -306,8 +333,8 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     if (isCompact) {
         return (
             <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/30 border-r border-slate-200 dark:border-zinc-800">
-                <div className="flex-shrink-0 p-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10">
-                    <div className="flex items-center justify-between mb-4">
+                <div className="flex-shrink-0 py-4 px-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10 space-y-3">
+                    <div className="flex items-center justify-between">
                         <h3 className="font-bold text-xl text-slate-900 dark:text-white">Properties</h3>
                         <button
                             onClick={() => openModal('newProperty')}
@@ -316,9 +343,21 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                             <PlusIcon className="w-4 h-4" /> New
                         </button>
                     </div>
+                    {/* Filter Presets — aligned with Matters module */}
+                    <div className="flex gap-1.5">
+                        {PROP_PRESETS.map(p => (
+                            <button
+                                key={p.id}
+                                onClick={() => setPreset(p.id)}
+                                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${preset === p.id ? 'bg-primary-600 text-white shadow' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+                            >
+                                {p.label}
+                            </button>
+                        ))}
+                    </div>
                     <div className="relative">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input autoComplete="off" data-lpignore="true"  type="search" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
+                        <input autoComplete="off" data-lpignore="true"  type="search" placeholder="Search properties..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
                     </div>
                 </div>
                 <div className="flex-grow flex flex-col overflow-hidden">
@@ -425,6 +464,18 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                 {/* Filter Bar */}
                 <div className="bg-white dark:bg-zinc-800 p-4 rounded-t-xl border border-slate-200 dark:border-zinc-700 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-all">
                     <div className="flex items-center gap-4 flex-grow max-w-2xl w-full">
+                        {/* Filter Presets — aligned with Matters module */}
+                        <div className="flex gap-1.5 mr-2 border-r border-slate-200 dark:border-zinc-700 pr-4">
+                            {PROP_PRESETS.map(p => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => setPreset(p.id)}
+                                    className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${preset === p.id ? 'bg-primary-600 text-white shadow' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
                         <div className="relative flex-grow">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input autoComplete="off" data-lpignore="true" 

@@ -512,8 +512,9 @@ export const ATRIUM_DEMO_APP_STATE: AppState = {
         { id: 'sdl-3', firmId: 'atrium-demo-firm-id', unitId: 'spu-5', amount: 3800000, type: 'rent', status: 'defaulted', timestamp: now() - 120 * 86400000, txHash: 'TX-D03', description: 'Outstanding Rent - Unit 3A' } as any,
     ],
     serviceCharges: [
-        { id: 'ssc-1', firmId: 'atrium-demo-firm-id', unitId: 'spu-1', category: 'Diesel', amount: 45000, cycle: 'Monthly', nextDueDate: now() + 15 * 86400000, isDefaulter: false } as any,
-        { id: 'ssc-2', firmId: 'atrium-demo-firm-id', unitId: 'spu-5', category: 'Security', amount: 25000, cycle: 'Monthly', nextDueDate: now() - 10 * 86400000, isDefaulter: true, daysOverdue: 10 } as any,
+        { id: 'ssc-1', firmId: 'atrium-demo-firm-id', unitId: 'spu-1', category: 'Diesel', amount: 45000, cycle: 'Monthly', nextDueDate: now() + 15 * 86400000, isDefaulter: false, serviceChargeStatus: 'PAID_FULLY', outstandingBalance: 0, amountPaidThisCycle: 0 } as any,
+        { id: 'ssc-2', firmId: 'atrium-demo-firm-id', unitId: 'spu-5', category: 'Security', amount: 25000, cycle: 'Monthly', nextDueDate: now() - 10 * 86400000, isDefaulter: true, daysOverdue: 10, serviceChargeStatus: 'UNPAID', outstandingBalance: 25000, amountPaidThisCycle: 0 } as any,
+        { id: 'ssc-3', firmId: 'atrium-demo-firm-id', unitId: 'spu-2', category: 'Cleaning', amount: 15000, cycle: 'Monthly', nextDueDate: now() - 3 * 86400000, isDefaulter: true, daysOverdue: 3, serviceChargeStatus: 'PARTIALLY_PAID', outstandingBalance: 7000, amountPaidThisCycle: 8000 } as any,
     ],
     leadsPipeline: [
         { id: 'slp-1', firmId: 'atrium-demo-firm-id', unitId: 'spu-3', applicantName: 'Ibrahim Musa', contactInfo: '08012345678', stage: 'Vetted', vettingScore: 85, createdAt: now() - 5 * 86400000, updatedAt: now() - 86400000 } as any,

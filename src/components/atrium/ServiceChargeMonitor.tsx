@@ -176,11 +176,16 @@ const ChargeRow: React.FC<{
   onRestrict: () => void;
   onSendWhatsApp: () => void;
   onMarkPaid: () => void;
-}> = ({ charge, unitLabel, onPenalty, onRestrict, onSendWhatsApp, onMarkPaid }) => {
+  onPartialPayment: () => void;
+}> = ({ charge, unitLabel, onPenalty, onRestrict, onSendWhatsApp, onMarkPaid, onPartialPayment }) => {
   const isCritical = (charge.daysOverdue ?? 0) > 14;
+  const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
+  const isPaidFully = charge.serviceChargeStatus === 'PAID_FULLY';
   return (
     <div className={`relative flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 border rounded-xl transition-all ${
+      isPaidFully ? 'bg-emerald-950/20 border-emerald-800/40' :
       isCritical ? 'bg-rose-950/30 border-rose-800/60 shadow-rose-900/10 shadow-md' :
+      isPartial ? 'bg-amber-950/20 border-amber-800/40' :
       charge.isDefaulter ? 'bg-amber-950/20 border-amber-800/40' :
       'bg-slate-900 border-slate-800'
     }`}>
@@ -188,24 +193,30 @@ const ChargeRow: React.FC<{
       
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Category icon */}
-        <span className="text-xl flex-shrink-0 w-8 text-center">{CAT_ICONS[charge.category]}</span>
+        <span className="text-xl flex-shrink-0 w-8 text-center">{charge.isMinimumVend ? '⚡' : CAT_ICONS[charge.category]}</span>
         {/* Unit info */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{unitLabel}</p>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
             <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+              isPaidFully ? 'bg-emerald-900/60 text-emerald-300' :
+              isPartial ? 'bg-amber-900/60 text-amber-300' :
               isCritical ? 'bg-rose-900/60 text-rose-300' : charge.isDefaulter ? 'bg-amber-900/60 text-amber-300' : 'bg-slate-800 text-slate-500'
-            }`}>{charge.category}</span>
+            }`}>{charge.isMinimumVend ? 'Min Vend' : charge.category}</span>
+            {/* Status badge */}
+            {isPaidFully && <span className="text-[9px] font-bold text-emerald-400">Paid</span>}
+            {isPartial && <span className="text-[9px] font-bold text-amber-400">Partial (₦{(charge.outstandingBalance ?? 0).toLocaleString()} owed)</span>}
             <span className="text-[10px] text-slate-500">{charge.cycle}</span>
-            {charge.isDefaulter && <span className="text-[10px] text-rose-400 font-bold">{charge.daysOverdue ?? 0}d overdue</span>}
+            {charge.isDefaulter && !isPaidFully && <span className="text-[10px] text-rose-400 font-bold">{charge.daysOverdue ?? 0}d overdue</span>}
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-800 sm:border-0 pt-3 sm:pt-0">
-        {/* Next due */}
+        {/* Amount + outstanding */}
         <div className="text-left sm:text-right flex-shrink-0 sm:w-28">
           <p className="text-xs font-black text-white">₦{charge.amount.toLocaleString('en-NG')}</p>
+          {isPartial && <p className="text-[10px] text-amber-400 font-bold">Bal: ₦{(charge.outstandingBalance ?? 0).toLocaleString()}</p>}
           <p className={`text-[10px] ${charge.isDefaulter ? 'text-rose-400' : 'text-slate-500'}`}>Due: {formatDate(charge.nextDueDate)}</p>
         </div>
         {/* Actions */}
@@ -223,7 +234,12 @@ const ChargeRow: React.FC<{
               <BanIcon className="w-5 h-5" />
             </button>
           )}
-          <button onClick={onMarkPaid} title="Mark as Paid" className="p-2.5 sm:p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors">
+          {!isPaidFully && (
+            <button onClick={onPartialPayment} title="Record Partial Payment" className="p-2.5 sm:p-2 text-slate-500 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+            </button>
+          )}
+          <button onClick={onMarkPaid} title="Mark as Fully Paid" className="p-2.5 sm:p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors">
             <CheckIcon className="w-5 h-5" />
           </button>
         </div>
@@ -244,8 +260,10 @@ const ServiceChargeMonitor: React.FC = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [penaltyCharge, setPenaltyCharge] = useState<ServiceCharge | null>(null);
+  const [partialPaymentCharge, setPartialPaymentCharge] = useState<ServiceCharge | null>(null);
+  const [partialAmount, setPartialAmount] = useState('');
   const [toast, setToast] = useState('');
-  const [filter, setFilter] = useState<'all' | 'defaulters' | 'critical'>('all');
+  const [filter, setFilter] = useState<'all' | 'defaulters' | 'critical' | 'partial'>('all');
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
@@ -257,16 +275,28 @@ const ServiceChargeMonitor: React.FC = () => {
   const charges = useMemo(() => {
     if (filter === 'defaulters') return allCharges.filter(c => c.isDefaulter);
     if (filter === 'critical') return allCharges.filter(c => (c.daysOverdue ?? 0) > 14);
+    if (filter === 'partial') return allCharges.filter(c => c.serviceChargeStatus === 'PARTIALLY_PAID');
     return allCharges;
   }, [allCharges, filter]);
 
   const defaulters = allCharges.filter(c => c.isDefaulter);
   const critical = allCharges.filter(c => (c.daysOverdue ?? 0) > 14);
+  const partialPayers = allCharges.filter(c => c.serviceChargeStatus === 'PARTIALLY_PAID');
   const revenueAtRisk = defaulters.reduce((s, c) => s + c.amount + (c.penaltyApplied ? c.amount * PENALTY_RATE : 0), 0);
 
   const handleMarkPaid = async (charge: ServiceCharge) => {
     await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer' });
-    showToast(`${charge.category} charge marked as paid`);
+    showToast(`${charge.category} charge marked as fully paid`);
+  };
+
+  const handlePartialPayment = async () => {
+    if (!partialPaymentCharge || !partialAmount) return;
+    const amount = parseFloat(partialAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true });
+    showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
+    setPartialPaymentCharge(null);
+    setPartialAmount('');
   };
 
   const handleRestrict = async (charge: ServiceCharge) => {
@@ -275,7 +305,12 @@ const ServiceChargeMonitor: React.FC = () => {
   };
 
   const handleWhatsApp = async (charge: ServiceCharge) => {
-    await logAuto({ firmId, unitId: charge.unitId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: `Reminder: Your ${charge.category} charge of ₦${charge.amount.toLocaleString()} is ${charge.isDefaulter ? `${charge.daysOverdue} days overdue` : 'due soon'}.`, status: 'simulated', triggeredBy: currentUser?.id });
+    const isPartial = charge.serviceChargeStatus === 'PARTIALLY_PAID';
+    const outstanding = charge.outstandingBalance ?? 0;
+    const msgPreview = isPartial
+      ? `Reminder: Your ${charge.category} charge has an outstanding balance of ₦${outstanding.toLocaleString()} (₦${(charge.amountPaidThisCycle ?? 0).toLocaleString()} paid of ₦${charge.amount.toLocaleString()}). Kindly complete payment.`
+      : `Reminder: Your ${charge.category} charge of ₦${charge.amount.toLocaleString()} is ${charge.isDefaulter ? `${charge.daysOverdue} days overdue` : 'due soon'}.`;
+    await logAuto({ firmId, unitId: charge.unitId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: charge.tenantId || 'tenant', messagePreview: msgPreview, status: 'simulated', triggeredBy: currentUser?.id });
     showToast('WhatsApp reminder sent (simulated)');
   };
 
@@ -317,9 +352,9 @@ const ServiceChargeMonitor: React.FC = () => {
       {/* Filter Tabs */}
       <div className="flex-shrink-0 px-6 pb-3 flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
         <FilterIcon className="w-4 h-4 text-slate-600 flex-shrink-0" />
-        {(['all', 'defaulters', 'critical'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filter === f ? (f === 'critical' ? 'bg-rose-600 text-white' : 'bg-slate-700 text-white') : 'text-slate-500 hover:text-slate-300'}`}>
-            {f === 'all' ? `All (${(allCharges || []).length})` : f === 'defaulters' ? `Defaulters (${defaulters.length})` : `Critical (${critical.length})`}
+        {(['all', 'defaulters', 'critical', 'partial'] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filter === f ? (f === 'critical' ? 'bg-rose-600 text-white' : f === 'partial' ? 'bg-amber-600 text-white' : 'bg-slate-700 text-white') : 'text-slate-500 hover:text-slate-300'}`}>
+            {f === 'all' ? `All (${(allCharges || []).length})` : f === 'defaulters' ? `Defaulters (${defaulters.length})` : f === 'partial' ? `Partial (${partialPayers.length})` : `Critical (${critical.length})`}
           </button>
         ))}
       </div>
@@ -344,6 +379,7 @@ const ServiceChargeMonitor: React.FC = () => {
               onRestrict={() => handleRestrict(charge)}
               onSendWhatsApp={() => handleWhatsApp(charge)}
               onMarkPaid={() => handleMarkPaid(charge)}
+              onPartialPayment={() => { setPartialPaymentCharge(charge); setPartialAmount(''); }}
             />
           ))
         )}
@@ -358,6 +394,57 @@ const ServiceChargeMonitor: React.FC = () => {
 
       {showAddModal && <AddChargeModal firmId={firmId} onClose={() => setShowAddModal(false)} />}
       {penaltyCharge && <PenaltyModal charge={penaltyCharge} firmId={firmId} onClose={() => setPenaltyCharge(null)} onToast={showToast} />}
+      
+      {/* Partial Payment Modal */}
+      {partialPaymentCharge && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPartialPaymentCharge(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white mb-1">Record Partial Payment</h3>
+            <p className="text-sm text-slate-400 mb-4">
+              {partialPaymentCharge.isMinimumVend ? 'Minimum Vend' : partialPaymentCharge.category} — Total: ₦{partialPaymentCharge.amount.toLocaleString()}
+              {partialPaymentCharge.serviceChargeStatus === 'PARTIALLY_PAID' && (
+                <> (₦{(partialPaymentCharge.amountPaidThisCycle ?? 0).toLocaleString()} already paid)</>
+              )}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Payment Amount</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₦</span>
+                  <input
+                    type="text"
+                    value={partialAmount}
+                    onChange={e => setPartialAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 pl-8 text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="Enter amount received"
+                    autoFocus
+                  />
+                </div>
+                {partialPaymentCharge.serviceChargeStatus === 'PARTIALLY_PAID' && (
+                  <p className="text-[10px] text-amber-400 mt-1">
+                    Outstanding: ₦{(partialPaymentCharge.outstandingBalance ?? 0).toLocaleString()}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPartialPaymentCharge(null)}
+                  className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePartialPayment}
+                  disabled={!partialAmount || parseFloat(partialAmount) <= 0}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl text-sm font-bold hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Record Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

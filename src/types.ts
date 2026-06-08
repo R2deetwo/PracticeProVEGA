@@ -218,7 +218,8 @@ export interface Property {
         tenancyPeriod?: string;
         serviceCharge?: number;
         serviceChargeAmount?: number;
-        serviceChargeStatus?: 'PAID' | 'UNPAID';
+        serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
+        outstandingServiceChargeBalance?: number;
         legalFee?: number;
         agencyFee?: number;
         cautionDeposit?: number;
@@ -237,6 +238,10 @@ export interface Property {
         latePenaltyRate?: number;
     };
     amenities?: string[];
+    // Minimum Vend / Estate Fees toggle (property-wide)
+    minimumVendEnabled?: boolean;
+    minimumVendAmount?: number;
+    minimumVendLabel?: string;
     trackingTimeline?: PropertyEvent[];
     maintenanceHistory?: MaintenanceRecord[];
     rentPaymentHistory?: RentPayment[];
@@ -666,6 +671,16 @@ export interface ServiceCharge {
   daysOverdue?: number;
   penaltyApplied?: boolean;
   notes?: string;
+  // Granular payment status
+  serviceChargeStatus?: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID';
+  // Outstanding balance when PARTIALLY_PAID
+  outstandingBalance?: number;
+  // Amount paid so far in current cycle
+  amountPaidThisCycle?: number;
+  // Last reset timestamp (monthly reset cron)
+  lastResetAt?: number;
+  // Whether this is a minimum vend charge
+  isMinimumVend?: boolean;
 }
 
 export interface LeadPipelineEntry {

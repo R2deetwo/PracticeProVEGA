@@ -44,4 +44,14 @@ crons.daily(
   {}
 );
 
+// Monthly Service Charge Reset: 1st of every month at 00:30 UTC (1:30 AM WAT)
+// Resets all monthly service charges back to UNPAID, clears partial payment tracking,
+// and auto-creates minimum vend charges for properties that have the toggle enabled.
+crons.monthly(
+  "monthlyServiceChargeReset",
+  { day: 1, hourUTC: 0, minuteUTC: 30 },
+  internal.sentry.resetMonthlyServiceCharges,
+  {}
+);
+
 export default crons;
