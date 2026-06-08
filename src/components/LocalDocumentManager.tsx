@@ -11,7 +11,7 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
-import { Modal } from './Modal';
+import { Modal } from './modals/Modal';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";

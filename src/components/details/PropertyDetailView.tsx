@@ -4,7 +4,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Sparkles, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -19,7 +19,6 @@ import PropertyTrackingView from './PropertyTrackingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
-import { useAloa } from '../../contexts/AloaProvider';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -63,7 +62,6 @@ const PropertyDetailViewContent: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
     const { currentUser } = useAuth();
-    const { togglePanel } = useAloa();
     const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
     const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
     const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -481,7 +479,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                     <button onClick={onGoBack} className="text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors text-xs font-bold uppercase flex items-center gap-1 flex-shrink-0">
-                        &larr; <span className="hidden xs:inline">Back</span>
+                        &larr;
                     </button>
                     <div className="h-6 w-px bg-slate-200 dark:bg-zinc-700 flex-shrink-0"></div>
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -491,11 +489,6 @@ const PropertyDetailViewContent: React.FC = () => {
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-none max-w-[160px] sm:max-w-md">{property.address}</h2>
-                                {property.rentCollectionMode === 'Management Only (No Rent)' && (
-                                    <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[8px] font-black text-slate-400 uppercase tracking-widest border border-slate-200 dark:border-zinc-700 hidden sm:inline flex-shrink-0">
-                                        Mgmt Only
-                                    </span>
-                                )}
                             </div>
                             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
                                 {property.propertyType || 'Property'} • {owner?.name}
@@ -547,17 +540,6 @@ const PropertyDetailViewContent: React.FC = () => {
                 {activeTab === 'summary' && (
                     <div className="space-y-8 animate-fade-in">
                         
-                        <button
-                            onClick={() => togglePanel()}
-                            className="w-full flex items-center gap-3 px-4 py-3 mb-2 rounded-xl border border-dashed border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors group"
-                        >
-                            <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
-                            <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex-1 text-left">
-                                Ask ARIA a question about this property...
-                            </span>
-                            <span className="text-emerald-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity">&#8594;</span>
-                        </button>
-
                         {/* 1. Core Information & Quick Actions Row */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             {/* Identity Card */}

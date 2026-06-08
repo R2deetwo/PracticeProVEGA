@@ -1,0 +1,426 @@
+Here's the **combined prompt** — UI/UX declutter first, then code cleanup. Copy everything below:
+
+---
+
+**PROMPT FOR REPLIT — PracticePro VEGA: UI/UX De-clutter + Codebase Cleanup**
+
+---
+
+## PROJECT CONTEXT
+
+I'm building **PracticePro**, a Nigerian legal practice management app (VEGA legal + Atrium property management). Stack: **React + Convex**. GitHub repo: `github.com/R2deetwo/PracticeProVEGA`. Convex URL: `https://gregarious-malamute-537.convex.cloud` (env var `VITE_CONVEX_URL`).
+
+This is a **two-part sprint**: first clean up the user-facing UI/UX (remove visual noise), then clean up the codebase (remove dead code, break up monoliths). After each phase the app should look and work correctly — no broken features.
+
+---
+
+# ═══════════════════════════════════════════
+# PART A: UI/UX DE-CLUTTER (DO THESE FIRST)
+# ═══════════════════════════════════════════
+
+---
+
+## A1. REMOVE ARIA INTELLIGENCE FROM MATTER DETAIL VIEW
+
+**Current State**: The `MatterDetailView.tsx` renders an `<AloaContextRibbon>` in the "Brief" (overview) tab showing "ARIA Intelligence | Contextual Actions for Tenancy: ..." with action cards like "Draft Agreement", "Generate Status Report", and "Ask ARIA a custom question...". This takes up significant vertical space and is not needed.
+
+**What to Remove**:
+In `src/components/details/MatterDetailView.tsx`, find and remove:
+1. The `<AloaContextRibbon>` JSX block in the overview tab
+2. The `aiActions` useMemo that builds the actions array (~lines 303-331) — only used by AloaContextRibbon
+3. If `togglePanel` from `useAloa()` is only called by `aiActions`, remove the `useAloa` import and `togglePanel` call too
+
+**Do NOT delete `AloaContextRibbon.tsx`** — it may be used elsewhere. Just stop rendering it in the matter detail view.
+
+---
+
+## A2. REMOVE "ASK ARIA" BUTTON FROM PROPERTY DETAIL VIEW
+
+**Current State**: `PropertyDetailView.tsx` has a button at the top of the summary tab:
+```tsx
+<button onClick={() => togglePanel()} className="w-full flex items-center gap-3 ...">
+    <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+    <span>Ask ARIA a question about this property...</span>
+</button>
+```
+
+**What to Remove**: Delete this entire button block from the summary tab. If `togglePanel` and `useAloa` are no longer used in this file after removal, remove those imports too.
+
+---
+
+## A3. HIDE THE FLOATING ALOA/ARIA FAB
+
+**Current State**: The app has a floating action button (`AloaFAB.tsx`) — a small circle (likely bottom-right) that opens the AI assistant. Since we're removing ARIA from views, this FAB is orphaned.
+
+**What to Change**: Find where `<AloaFAB` is rendered (likely in `App.tsx` or the main layout) and **comment it out or wrap in a dev-mode check**:
+```tsx
+{import.meta.env.DEV && <AloaFAB />}
+```
+Don't delete the component file — just stop rendering it in production.
+
+---
+
+## A4. REMOVE MINI ALOA WIDGET IF RENDERED
+
+**Current State**: `MiniAloa.tsx` (502 lines) may be rendered as a floating AI widget within views.
+
+**What to Change**: Search for `<MiniAloa` across all component files. If it's rendered anywhere visible, remove or comment out that render. Don't delete the file.
+
+---
+
+## A5. FIX UNIT EDIT FORM — REMOVE PROPERTY-ONLY FIELDS
+
+**Current State**: When editing a unit, the edit form shows property-level fields like "Number of Units: 10" as editable. This makes no sense — editing a unit should only affect that unit.
+
+**What to Change**: In the unit edit form (`PropertyForm.tsx` or wherever it's rendered), when in "unit edit" mode (vs "property edit" mode), **hide** these fields:
+- Number of units
+- Property address (read-only context at most)
+- Collection mode
+- Portfolio type
+- Property type
+
+The unit edit form should ONLY show:
+- Unit name/number
+- Unit type (Residential/Commercial)
+- Rent amount
+- Unit size
+- Tenant name, phone, email
+- Tenancy start/end dates
+- Notes
+
+If the form doesn't have a mode distinction, add a `mode="property" | "unit"` prop and conditionally render fields based on mode.
+
+---
+
+## A6. CONSOLIDATE MATTER DETAIL HEADER BUTTONS
+
+**Current State**: The matter detail header has 4 action buttons visible at once:
+- Privacy toggle (lock icon)
+- Edit workflow (cog icon, admin only)
+- Delete (trash icon)
+- Edit (text link)
+
+Four buttons is a lot for a clean reading experience.
+
+**What to Change**: Keep **Edit** as a visible primary button. Move the rest into a "⋮" (More) dropdown menu:
+- **Visible**: Edit button only
+- **In "⋮" dropdown**: Privacy Toggle, Edit Workflow (admin only), Delete (destructive, red text), Show Workflow Progress
+
+This reduces the header from 4 buttons to 2 (Edit + More), much cleaner while keeping all functionality accessible. Use shadcn DropdownMenu if available.
+
+---
+
+## A7. MOVE WORKFLOW PROGRESS TO HEADER ICON
+
+**Current State**: The matter detail header has a "Workflow Progress" label + "Show/Hide" toggle as a separate section, taking up vertical space even when hidden.
+
+**What to Change**: Remove the separate "Workflow Progress" label and toggle. Instead, add a small progress/track icon button in the header action row. When clicked, the MatterStageTracker expands below the header as a collapsible panel. When not expanded, no label or toggle is visible — just the icon.
+
+---
+
+## A8. RENAME "MESSAGES" SIDEBAR ITEM TO "COMMS"
+
+**Current State**: Sidebar shows "Messages" as a nav item.
+
+**What to Change**: In `Sidebar.tsx`, change `text: 'Messages'` to `text: 'Comms'`. The `view` value stays `'messaging'` (it's a route key). Also update the page heading in `MessagingView.tsx` from "Messages" or "Inbox" to "Comms".
+
+Rationale: "Messages" is used elsewhere in the app for different things. "Comms" (Communications) creates a distinct identity for this section.
+
+---
+
+## A9. SIMPLIFY PROPERTY DETAIL HEADER
+
+**Current State**: The property detail header shows address, type, owner, category badge, edit button, and a conditional "Mgmt Only" badge.
+
+**What to Change**:
+- Remove the "Mgmt Only" badge — internal categorization that doesn't help the user at a glance. The collection mode is already in the summary tab.
+- The back button should just be an arrow icon (←), not "← Back" with text — saves horizontal space.
+
+---
+
+## A10. REMOVE PLAN CARD FROM SIDEBAR FOOTER
+
+**Current State**: The sidebar footer shows a "Current Plan" card with plan name and "Manage Subscription" button. This takes up permanent vertical space on every page.
+
+**What to Change**: Remove the entire plan card and "Manage Subscription" button from the sidebar footer. Users access subscription management via Settings. In the retracted sidebar, remove the shield icon too. The sidebar footer should be minimal or removed entirely.
+
+---
+
+## A11. FINAL SWEEP — REMOVE REMAINING ARIA/ALOA REFERENCES FROM VIEWS
+
+After completing A1-A4, do a final sweep:
+1. Search all component files for "Ask ARIA", "Ask ALOA", "ARIA Intelligence", "ALOA Intelligence" in rendered text
+2. Remove any remaining visible AI assistant prompts/buttons from user-facing pages
+3. Keep the ALOA/ARIA components in the codebase (they may be re-enabled later) — just stop rendering them
+
+---
+
+# ═══════════════════════════════════════════
+# PART B: CODEBASE CLEANUP (DO THESE AFTER PART A)
+# ═══════════════════════════════════════════
+
+---
+
+## B1. DELETE DEAD CODE
+
+These components are NOT imported anywhere. Delete them entirely:
+
+| File | Lines | Reason |
+|------|-------|--------|
+| `src/components/MatterListView.tsx` | 315 | Superseded by `MatterList.tsx` |
+| `src/components/SearchOverlay.tsx` | 224 | Replaced by `FullScreenSearch.tsx` |
+| `src/components/SafeHtml.tsx` | 32 | Unused |
+| `src/components/PortraitTourGuide.tsx` | 19 | Unused |
+| `src/components/PriorityPopover.tsx` | 91 | Unused |
+| `src/components/TemplateTip.tsx` | 112 | Unused |
+| `src/components/RpcGuidanceTip.tsx` | 118 | Only used by LandingPage — inline it there and delete |
+
+Also delete `src/components/ComplianceView.tsx` (31 lines) — nearly empty. If referenced in routing, replace with inline "Coming Soon" placeholder.
+
+After deletion, grep to confirm no imports remain:
+```bash
+grep -r "MatterListView\|SearchOverlay\|SafeHtml\|PortraitTourGuide\|PriorityPopover\|TemplateTip\|RpcGuidanceTip" src/
+```
+If any import is found, remove that import line too.
+
+**Total lines removed: ~942**
+
+---
+
+## B2. RESOLVE DUPLICATES
+
+### B2A. Duplicate Accordion
+- `src/components/Accordion.tsx` (62 lines)
+- `src/components/toolkit/Accordion.tsx` (136 lines)
+
+**Action**: Delete the root version. Update all imports to point to `toolkit/Accordion`.
+
+### B2B. Duplicate identityGuardrails
+- `src/config/identityGuardrails.ts` (134 lines)
+- `src/constants/identityGuardrails.ts` (210 lines)
+
+**Action**: Keep the longer `constants/` version. Update all imports. Delete `config/identityGuardrails.ts`.
+
+### B2C. Duplicate Modal
+- `src/components/Modal.tsx` (92 lines)
+- `src/components/modals/Modal.tsx` (110 lines)
+
+**Action**: Check which is used. If root `Modal.tsx` is unused, delete it. If both are used, consolidate into one and update imports.
+
+### B2D. Consolidate Mock Data
+- `src/utils/mockData.ts` (131 lines)
+- `src/utils/demoData.ts` (526 lines)
+
+**Action**: Merge unique data from `mockData.ts` into `demoData.ts`. Delete `mockData.ts`. Update imports.
+
+---
+
+## B3. REMOVE FAKE/STUB HANDLERS IN DATAPROVIDER
+
+These handlers in `src/contexts/DataProvider.tsx` show a toast but **do nothing real** — users think something happened when it didn't:
+
+| Handler | Action |
+|---------|--------|
+| `restoreFromLocalBackup` | Remove handler + the UI button that calls it |
+| `handleRestoreBackup` | Remove handler + UI button |
+| `handleExportData` | Remove handler + export button |
+| `handleSyncGoogleContacts` | Remove handler + sync button |
+| `handleDeleteAllChats` | Remove handler + UI button |
+| `handleToggleBookmarkCase` | Remove handler + UI button |
+| `registerBroadcastHandler` | Remove (empty function) |
+| `handleRemoteAction` | Remove (empty function) |
+| `ensureUserInState` | Remove (empty function) |
+
+**Important**: When removing handlers, also find and remove the UI buttons/links that trigger them. Don't leave dead UI.
+
+Also remove `refreshData` — it just toggles an `isDataLoaded` flag and doesn't actually refresh. Replace calls with proper Convex query refetch.
+
+---
+
+## B4. BREAK UP THE CONVEX MONOLITH
+
+`convex/myFunctions.ts` is **2,756 lines** in a single file. Split into domain files:
+
+### Target Structure:
+```
+convex/
+├── matters.ts          → All matter CRUD + queries
+├── properties.ts       → All property/unit CRUD + queries
+├── contacts.ts         → All contact CRUD + queries
+├── tasks.ts            → All task CRUD + queries
+├── documents.ts        → All document CRUD + queries
+├── events.ts           → All event CRUD + queries
+├── finance.ts          → Invoice, expense, time entry mutations
+├── auth.ts             → User auth, firm management, heartbeat
+├── analytics.ts        → Analytics events, usage snapshots
+├── messaging.ts        → Chat messages, conversations
+├── research.ts         → Research notebooks, sources, messages
+├── schema.ts           → Unchanged
+├── sentry.ts           → Unchanged
+├── legalRepo.ts        → Unchanged
+├── ... (all other existing files unchanged)
+```
+
+**How**: Move functions from `myFunctions.ts` into the appropriate domain file. Keep all function names, signatures, and logic identical. Convex auto-discovers exported functions from all files. Once empty, delete `myFunctions.ts`.
+
+**⚠️ Do NOT change any function names or signatures.** The frontend calls these by string reference.
+
+---
+
+## B5. BREAK UP GIANT COMPONENTS
+
+### B5A. `PropertyDetailView.tsx` (1,417 lines)
+Split into:
+- `PropertyDetailView.tsx` — main container, tab routing (~200 lines)
+- `PropertyUnitsTab.tsx` — units grid/list with visual status (~300 lines)
+- `PropertyTenanciesTab.tsx` — tenancy tracking (~200 lines)
+- `PropertyDocumentsTab.tsx` — documents for this property (~150 lines)
+- `PropertyTrackingTab.tsx` — timeline, maintenance, activity (~200 lines)
+- `PropertyHeader.tsx` — property name, address, key stats (~100 lines)
+
+### B5B. `PropertyForm.tsx` (1,280 lines)
+Split into:
+- `PropertyForm.tsx` — main form container, tab routing (~200 lines)
+- `PropertyDetailsForm.tsx` — name, address, type fields (~150 lines)
+- `PropertyUnitsForm.tsx` — units management section (~300 lines)
+- `PropertyRentalForm.tsx` — rental terms, rent amount (~150 lines)
+- `PropertySaleForm.tsx` — sale details (~150 lines)
+
+### B5C. `MatterIntakeWizard.tsx` (1,405 lines)
+Split into:
+- `MatterIntakeWizard.tsx` — step routing, state management (~300 lines)
+- `MatterBasicInfoStep.tsx` — matter name, type, practice area (~150 lines)
+- `MatterPartiesStep.tsx` — client, opposing party (~150 lines)
+- `MatterDetailsStep.tsx` — specialty-specific sections (~300 lines)
+- `MatterReviewStep.tsx` — review and submit (~150 lines)
+
+### B5D. `ModalManager.tsx` (984 lines)
+Split into:
+- `ModalManager.tsx` — routing logic (~200 lines)
+- `modalRenderers.ts` — factory functions organized by domain (~600 lines)
+
+**How to split safely**: Extract sub-components by identifying self-contained sections. Move each into its own file, import into parent, pass needed props. Parent becomes a thin orchestrator. Test after each split.
+
+---
+
+## B6. CSS CLEANUP
+
+### B6A. Consolidate Scrollbar Utilities
+Three classes doing the same thing: `scrollbar-none`, `no-scrollbar`, `hide-scrollbar`.
+
+**Action**: Standardize on `no-scrollbar`. Replace all uses of the other two. Delete duplicate CSS definitions from `index.css`.
+
+### B6B. Remove Global `*` Transition
+`transition: background-color 0.25s` on `*` causes performance issues.
+
+**Action**: Remove the global rule. Add the transition only to specific elements that need it (buttons, cards, links).
+
+### B6C. Remove console.log Statements
+```bash
+grep -rn "console.log" src/
+```
+Remove all `console.log` calls. If any are genuinely useful, convert to `console.debug` or wrap in `if (import.meta.env.DEV)`.
+
+### B6D. Wrap FloatingTestControls in Dev Check
+`src/components/FloatingTestControls.tsx` (454 lines) should never appear in production. Wrap its render:
+```tsx
+{import.meta.env.DEV && <FloatingTestControls />}
+```
+
+---
+
+## B7. CONTEXT CONSOLIDATION (OPTIONAL — IF TIME ALLOWS)
+
+Five thin context wrappers can be merged into one `DomainContext`:
+- `CoreContext.tsx` (166 lines)
+- `MatterContext.tsx` (59 lines)
+- `FinanceContext.tsx` (54 lines)
+- `DocumentContext.tsx` (58 lines)
+- `ExecutionContext.tsx` (66 lines)
+
+**Action**: Merge into a single `DomainContext.tsx`. Update ALL imports. This reduces the provider stack from 12 to 8.
+
+**⚠️ Riskiest phase** — many components import from these contexts. Test thoroughly after.
+
+---
+
+# ═══════════════════════════════════════════
+# EXECUTION ORDER
+# ═══════════════════════════════════════════
+
+### Part A (UI/UX De-clutter) — DO FIRST:
+1. A1 — Remove ARIA Intelligence from Matter Detail
+2. A2 — Remove "Ask ARIA" from Property Detail
+3. A3 — Hide floating ALOA/ARIA FAB
+4. A4 — Remove MiniAloa widget if rendered
+5. A5 — Fix unit edit form (remove property-only fields)
+6. A6 — Consolidate matter header buttons into dropdown
+7. A7 — Move workflow progress to header icon
+8. A8 — Rename Messages → Comms in sidebar + page
+9. A9 — Simplify property detail header
+10. A10 — Remove plan card from sidebar footer
+11. A11 — Final sweep for remaining ARIA/ALOA references
+
+### Part B (Codebase Cleanup) — DO AFTER PART A:
+1. B1 — Delete dead code (7 files, ~942 lines)
+2. B2 — Resolve duplicates (Accordion, identityGuardrails, Modal, mockData)
+3. B6C — Remove console.logs (quick, do while testing B1-B2)
+4. B3 — Remove fake handlers + their UI buttons
+5. B4 — Break up Convex monolith (2,756 lines → domain files)
+6. B5 — Break up giant components (one at a time with testing)
+7. B6A/B6B/B6D — CSS cleanup + dev-mode guards
+8. B7 — Context consolidation (highest risk, do last if at all)
+
+---
+
+# ═══════════════════════════════════════════
+# TESTING CHECKLIST (RUN AFTER EACH ITEM)
+# ═══════════════════════════════════════════
+
+- [ ] App loads without errors in browser console
+- [ ] All sidebar navigation items work
+- [ ] Properties list loads and units are visible
+- [ ] Unit edit form shows only unit fields (no "number of units")
+- [ ] Matters list loads and matter detail works
+- [ ] No "ARIA Intelligence" visible on any page
+- [ ] No floating AI buttons visible
+- [ ] Comms tab loads (renamed from Messages)
+- [ ] Revenue Monitor loads
+- [ ] Settings page loads
+- [ ] No 404 errors in network tab for missing imports
+- [ ] No new TypeScript compilation errors
+
+---
+
+# ═══════════════════════════════════════════
+# CRITICAL: VERCEL BUILD PREVENTION
+# ═══════════════════════════════════════════
+
+**⚠️ DO NOT regenerate `package-lock.json` using `npm install` inside Replit.** Replit's npm proxy bakes `http://package-firewall.replit.local/` into the lockfile, breaking Vercel builds.
+
+**Prevention Rules**:
+1. **Never run `npm install`** for adding packages. Manually add to `package.json` instead.
+2. If you MUST run `npm install`, immediately run:
+   ```bash
+   sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
+   ```
+3. Before any `git push`, verify:
+   ```bash
+   grep -c "package-firewall.replit.local" package-lock.json
+   ```
+   If count > 0, run the `sed` command.
+
+---
+
+# ═══════════════════════════════════════════
+# TECHNICAL NOTES
+# ═══════════════════════════════════════════
+
+- Convex env variable is `VITE_CONVEX_URL` (NOT `VITE_CONVEX_UI`)
+- When removing components from views, don't delete the component files — just stop rendering them
+- When splitting components, keep the same export names so imports don't break
+- When moving Convex functions, keep the same function names — frontend calls them by string reference
+- All currency in Naira (₦), format with `toLocaleString()`
+- Test after each item before moving to the next
+- If an item causes breakage, revert that commit and move on
+- Commit after each item with a descriptive message like "declutter: remove ARIA Intelligence from matter detail view" or "cleanup: delete dead code components"

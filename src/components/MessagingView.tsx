@@ -660,7 +660,7 @@ const MessagingView: React.FC = () => {
             <div className={`w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 ${selectedId ? 'hidden md:flex' : 'flex'}`}>
                 {/* Sidebar Header */}
                 <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 shadow-sm border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Comms</h2>
                     <button onClick={() => openModal('newDirectMessage')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold">
                         <PlusIcon className="w-4 h-4" /> New
                     </button>

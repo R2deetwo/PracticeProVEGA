@@ -61,7 +61,7 @@ const ScrollArrows: React.FC<ScrollArrowsProps> = ({ children, className = 'item
                 </button>
             )}
 
-            <div ref={scrollRef} className="overflow-x-auto hide-scrollbar w-full px-1 scroll-smooth">
+            <div ref={scrollRef} className="overflow-x-auto no-scrollbar w-full px-1 scroll-smooth">
                 {children}
             </div>
 

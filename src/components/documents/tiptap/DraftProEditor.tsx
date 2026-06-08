@@ -51,7 +51,6 @@ import { useProduct } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useAloa } from '../../../contexts/AloaProvider';
 import { HeaderRenderer } from '../HeaderRenderer';
 import { HeaderDesigner } from '../HeaderDesigner';
 import { HeaderConfiguration } from '../../../types';
@@ -300,7 +299,6 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const { handleUpdateFirmDetails } = useDataActions();
     const { currentUser } = useAuth();
     const { isProperty } = useProduct();
-    const { togglePanel: toggleAloaPanel, isPanelOpen: isAloaPanelOpen } = useAloa();
 
     // States
     // Number of explicit pageBreak nodes currently in the document
@@ -847,7 +845,6 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     {!isProperty && (
                     <ToolbarGroup label="DraftPro AI" className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10">
                         <ToolbarBtn icon={Wand} label="Auto-Format" onClick={() => setActiveModal('auto_format_rules')} size="lg" className="text-emerald-600 dark:text-emerald-400" />
-                        <ToolbarBtn icon={Sparkles} label="Ask ALOA" onClick={() => { if (!isAloaPanelOpen) toggleAloaPanel(); }} size="lg" className="text-violet-600 dark:text-violet-400 font-bold" />
                     </ToolbarGroup>
                     )}
 

@@ -145,7 +145,7 @@ const ContactListContent: React.FC<{
                     />
                 </div>
 
-                <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                     {categoriesForFilter.map(category => (
                         <button key={category} onClick={() => onCategoryChange(category)}
                             className={`${category === activeCategory ? 'bg-slate-800 text-white dark:bg-white dark:text-slate-900' : 'text-slate-500 bg-slate-100 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'} whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold transition-all`}>

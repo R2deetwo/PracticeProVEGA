@@ -37,7 +37,7 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
       */}
       <div className="relative group/tracker">
         <ScrollArrows className="items-start transition-all">
-          <div className="flex items-start py-2 px-2 scrollbar-none">
+          <div className="flex items-start py-2 px-2 no-scrollbar">
             {stages.map((stage, index) => {
               const isCompleted = index < visualStageIndex;
               const isCurrent = index === visualStageIndex;

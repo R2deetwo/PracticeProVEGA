@@ -615,6 +615,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             )}
                         </div>
 
+                        {!activeUnitId && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Category</label>
@@ -651,6 +652,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </select>
                             </div>
                         </div>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Status moved to unit level */}

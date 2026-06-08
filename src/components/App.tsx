@@ -371,7 +371,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                 <>
                     <ContextMenu />
                     <DockedModal />
-                    <AloaFAB />
+                    {import.meta.env.DEV && <AloaFAB />}
                     <AloaPanel />
                     <CommandPalette />
                     <FullScreenSearch />
@@ -591,9 +591,7 @@ export const App: React.FC = () => {
                             onEnableDevMode={() => setIsToolkitOpen(true)}
                             flowState={flowState}
                         />
-                        {import.meta.env.DEV && (
-                            <FloatingTestControls isOpen={isToolkitOpen} onClose={() => setIsToolkitOpen(false)} />
-                        )}
+                        {import.meta.env.DEV && <FloatingTestControls isOpen={isToolkitOpen} onClose={() => setIsToolkitOpen(false)} />}
                     </>
                 )}
             </>

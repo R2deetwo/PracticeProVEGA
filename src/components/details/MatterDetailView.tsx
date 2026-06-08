@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { MoreVertical, ListChecks } from 'lucide-react';
 import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType } from '../../types';
 import { ChevronRightIcon, SparklesIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
@@ -32,8 +33,6 @@ import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { MatterBrief } from './MatterBrief';
 import ErrorBoundary from '../ErrorBoundary';
-import { useAloa } from '../../contexts/AloaProvider';
-import { AloaContextRibbon, AloaContextAction } from '../aloa/AloaContextRibbon';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number }> = ({ label, isActive, onClick, badgeCount }) => (
     <button
@@ -73,7 +72,6 @@ const MatterDetailViewContent: React.FC = () => {
     const { financeState, financeActions } = useFinanceState();
     const { currentUser } = useAuth();
     const { canViewBilling } = usePermissions();
-    const { togglePanel } = useAloa();
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
     const [privacyLoading, setPrivacyLoading] = useState(false);
     
@@ -147,6 +145,7 @@ const MatterDetailViewContent: React.FC = () => {
     const initialTab = currentHistoryEntry.initialTab || currentHistoryEntry.context?.initialTab;
     const [activeTab, setActiveTab] = useState<MatterTab>(resolveTab(initialTab));
     const [showWorkflow, setShowWorkflow] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [updatingStage, setUpdatingStage] = useState<string | null>(null);
 
     // Robust persistent baseline logic per tab
@@ -300,35 +299,6 @@ const MatterDetailViewContent: React.FC = () => {
         }
     };
 
-    const aiActions: AloaContextAction[] = useMemo(() => {
-        const actions: AloaContextAction[] = [];
-        if (isContentious) {
-            actions.push({
-                label: "Draft Originating Process",
-                description: "Generate a writ of summons or statement of claim",
-                onClick: () => { togglePanel(); },
-                isPrimary: true
-            });
-            actions.push({
-                label: "Calculate Filing Deadline",
-                description: "Determine next deadlines based on court rules",
-                onClick: () => { togglePanel(); }
-            });
-        } else {
-            actions.push({
-                label: "Draft Agreement",
-                description: "Start a new contract or agreement draft",
-                onClick: () => { togglePanel(); },
-                isPrimary: true
-            });
-            actions.push({
-                label: "Generate Status Report",
-                description: "Create an update for the client",
-                onClick: () => { togglePanel(); }
-            });
-        }
-        return actions;
-    }, [isContentious, togglePanel]);
 
     const formattedDate = useMemo(() => {
         if (!matterData?.createdAt && !matterData?.stageLastUpdated) return 'Unknown';
@@ -348,32 +318,59 @@ const MatterDetailViewContent: React.FC = () => {
                         <button onClick={onGoBack} className="flex items-center text-[10px] font-bold uppercase text-slate-400 hover:text-primary-600 transition-colors">
                             <ChevronRightIcon className="w-3 h-3 rotate-180 mr-1" /> Back
                         </button>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                            {/* Workflow Progress toggle icon */}
                             <button
-                                onClick={handleTogglePrivacy}
-                                disabled={privacyLoading}
-                                title={(matterData as any).isPrivate ? 'Matter is Private — click to make visible to all' : 'Matter is Visible — click to make private'}
-                                className={`p-1.5 rounded-lg transition-colors ${
-                                    (matterData as any).isPrivate
-                                        ? 'text-amber-500 bg-amber-50 dark:bg-amber-900/20 hover:text-amber-700'
-                                        : 'text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20'
-                                }`}
+                                onClick={() => setShowWorkflow(v => !v)}
+                                title="Workflow Progress"
+                                className={`p-1.5 rounded-lg transition-colors ${showWorkflow ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-zinc-800'}`}
                             >
-                                <LockClosedIcon className="w-4 h-4" />
+                                <ListChecks className="w-4 h-4" />
                             </button>
-                            {currentUser?.role === 'Admin' && (
+
+                            {/* ⋮ More menu */}
+                            <div className="relative">
                                 <button
-                                    onClick={() => openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory })}
-                                    className="p-1.5 text-slate-400 hover:text-primary-600 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                                    title="Edit Matter Workflow"
+                                    onClick={(e) => { e.stopPropagation(); setShowMoreMenu(m => !m); }}
+                                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    title="More actions"
                                 >
-                                    <CogIcon className="w-4 h-4" />
+                                    <MoreVertical className="w-4 h-4" />
                                 </button>
-                            )}
-                            <button onClick={confirmDelete} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Delete Matter">
-                                <TrashIcon className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => openModal('editMatter', matterData.id)} className="text-xs font-bold text-primary-600 hover:underline">Edit</button>
+                                {showMoreMenu && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
+                                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
+                                            <button
+                                                onClick={() => { setShowMoreMenu(false); handleTogglePrivacy(); }}
+                                                disabled={privacyLoading}
+                                                className={`w-full px-3 py-2.5 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 ${(matterData as any).isPrivate ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-zinc-300'}`}
+                                            >
+                                                <LockClosedIcon className="w-3.5 h-3.5 shrink-0" />
+                                                {(matterData as any).isPrivate ? 'Remove Privacy' : 'Make Private'}
+                                                {privacyLoading && <span className="ml-auto text-[10px] opacity-60">...</span>}
+                                            </button>
+                                            {currentUser?.role === 'Admin' && (
+                                                <button
+                                                    onClick={() => { setShowMoreMenu(false); openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory }); }}
+                                                    className="w-full px-3 py-2.5 text-[11px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                >
+                                                    <CogIcon className="w-3.5 h-3.5 shrink-0" /> Edit Workflow
+                                                </button>
+                                            )}
+                                            <div className="my-1 border-t border-slate-100 dark:border-zinc-700" />
+                                            <button
+                                                onClick={() => { setShowMoreMenu(false); confirmDelete(); }}
+                                                className="w-full px-3 py-2.5 text-[11px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left flex items-center gap-2"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5 shrink-0" /> Delete Matter
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            <button onClick={() => openModal('editMatter', matterData.id)} className="text-xs font-bold text-primary-600 hover:underline px-1">Edit</button>
                         </div>
                     </div>
                     <div className="mb-1">
@@ -382,27 +379,18 @@ const MatterDetailViewContent: React.FC = () => {
                             <span className="text-[10px] font-mono text-slate-400">{matterData.referenceNumber}</span>
                         </div>
                     </div>
-                    <div className="mb-2 relative group overflow-visible">
-                        <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workflow Progress</p>
-                            <button
-                                onClick={() => setShowWorkflow(!showWorkflow)}
-                                className="text-[10px] font-bold text-primary-600 hover:underline"
-                            >
-                                {showWorkflow ? 'Hide' : 'Show'}
-                            </button>
-                        </div>
-                        {showWorkflow && (
-                            stages && stages.length > 0 ? (
+                    {showWorkflow && (
+                        <div className="mb-2">
+                            {stages && stages.length > 0 ? (
                                 <MatterStageTracker currentStage={matterData.stage} stages={stages} onStageChange={handleStageUpdate} updatingStage={updatingStage} />
                             ) : (
                                 <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs rounded border border-amber-200 dark:border-amber-800 flex items-center justify-between">
                                     <span><strong>Safe Mode:</strong> Workflow definition missing.</span>
                                     <button onClick={() => openModal('editMatter', matterData.id)} className="underline font-bold">Edit Matter Type</button>
                                 </div>
-                            )
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
 
@@ -458,13 +446,6 @@ const MatterDetailViewContent: React.FC = () => {
                     ) : (
                         // Default: Brief (Overview)
                         <div className="space-y-6">
-                            <AloaContextRibbon
-                                entityType="matter"
-                                entityId={matterData.id}
-                                entityName={matterData.title}
-                                contextStatus={matterData.stage}
-                                actions={aiActions}
-                            />
                             <MatterBrief
                             matter={matterData}
                             client={client}

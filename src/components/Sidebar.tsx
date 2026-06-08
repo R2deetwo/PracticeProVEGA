@@ -12,7 +12,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon
+
 } from '../constants';
 
 // ALOA-X inline icon
@@ -348,7 +348,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         />
                     )}
                     <NavItemLink
-                        item={{ view: 'messaging', text: 'Messages', icon: <MessagingIcon /> }}
+                        item={{ view: 'messaging', text: 'Comms', icon: <MessagingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
                     {isLegal && (
@@ -394,38 +394,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
             </div>
 
-            {/* Plan Footer */}
-            <div className={`p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 ${isSidebarRetracted ? 'flex justify-center px-0' : ''}`}>
-                {!isSidebarRetracted ? (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 shadow-sm">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className={`p-1.5 rounded-md ${isUltimate ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
-                                <ShieldCheckIcon className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center">
-                                    <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Current Plan</p>
-                                </div>
-                                <p className={`text-xs font-bold truncate ${isUltimate ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-800 dark:text-white'}`}>{currentPlan}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setView('settings', null, { settingsTargetId: 'subscription-management' })}
-                            className="w-full py-1.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 hover:bg-slate-200 dark:bg-zinc-700 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 rounded-lg transition-colors border border-slate-200 dark:border-zinc-600"
-                        >
-                            Manage Subscription
-                        </button>
-                    </div>
-                ) : (
-                    <div
-                        className="w-9 h-9 mx-auto bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-green-600 dark:text-green-400 cursor-pointer hover:border-green-500 transition-colors shadow-sm"
-                        onClick={() => setView('settings', null, { settingsTargetId: 'subscription-management' })}
-                        title="Manage Plan"
-                    >
-                        <ShieldCheckIcon className="w-4 h-4" />
-                    </div>
-                )}
-            </div>
         </aside>
     );
 };
