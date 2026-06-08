@@ -54,92 +54,62 @@ const PropertyListItem: React.FC<{
     const leaseUrgent = daysLeft !== null && daysLeft <= 90 && daysLeft > 0;
     const leaseExpired = daysLeft !== null && daysLeft <= 0;
 
-    // Status dot color
-    const dotColor = isOccupied
-        ? leaseExpired ? 'bg-red-500' : leaseUrgent ? 'bg-amber-400' : 'bg-green-500'
-        : isListed ? 'bg-blue-400'
-        : 'bg-slate-300 dark:bg-zinc-600';
-
     return (
         <div
             onClick={onClick}
-            className={`flex flex-col sm:flex-row sm:items-center px-4 py-3.5 sm:py-3 hover:bg-slate-50 dark:hover:bg-zinc-800/40 cursor-pointer transition-all border-b border-slate-50 dark:border-zinc-800 last:border-0 group relative ${isSelected ? 'bg-primary-50/30 dark:bg-primary-900/10' : ''}`}
+            className={`group relative p-3 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
-            {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary-600"></div>}
-            
-            <div className="flex items-center w-full sm:flex-1 min-w-0">
-                <div 
-                    onClick={onToggleSelect}
-                    className="pr-4 flex items-center justify-center relative z-10"
-                >
-                    <div className={`w-4.5 h-4.5 rounded border transition-all flex items-center justify-center ${isSelected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-600 group-hover:border-primary-500'}`}>
-                        {isSelected && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
-                    </div>
-                </div>
-
-                <div className="flex-grow min-w-0 flex items-center gap-3">
-                    {/* Status dot */}
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotColor}`} title={isOccupied ? (leaseExpired ? 'Lease Expired' : leaseUrgent ? `Lease expiring in ${daysLeft} days` : 'Occupied') : property.status} />
-                    
-                    <div className="flex-grow min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                            <p className={`text-[13px] font-bold truncate max-w-[200px] sm:max-w-none ${isSelected ? 'text-primary-900 dark:text-white' : 'text-slate-800 dark:text-zinc-100'}`}>{property.address}</p>
-                            {unitCount && unitCount > 1 && (
-                                <span className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-tighter bg-slate-100 dark:bg-zinc-800/50 px-1.5 py-0.5 rounded">
-                                    {unitCount} Units
-                                </span>
-                            )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate font-medium">{ownerName}</p>
-                            {allRents.length > 0 ? (
-                                <>
-                                    <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
-                                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start mb-1">
+                        <div className="flex-1 min-w-0 pr-2">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{property.address}</h3>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                {unitCount && unitCount > 1 && (
+                                    <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{unitCount} Units</span>
+                                )}
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">{ownerName}</span>
+                                {allRents.length > 0 ? (
+                                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                         {showRange
                                             ? <>₦{minRent.toLocaleString('en-NG')} – ₦{maxRent.toLocaleString('en-NG')}<span className="font-normal text-slate-400">/yr</span></>
                                             : <>₦{minRent.toLocaleString('en-NG')}<span className="font-normal text-slate-400">/yr</span></>
                                         }
-                                    </p>
-                                </>
-                            ) : !isOccupied && (
-                                <>
-                                    <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
-                                    <p className="text-[11px] font-medium text-slate-400 dark:text-zinc-500 italic">Vacant</p>
-                                </>
-                            )}
+                                    </span>
+                                ) : !isOccupied && (
+                                    <span className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 italic">Vacant</span>
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
                             {leaseUrgent && (
                                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                    ⚠ {daysLeft}d left
+                                    ⚠ {daysLeft}d
                                 </span>
                             )}
                             {leaseExpired && isOccupied && (
                                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
-                                    Lease Expired
+                                    Expired
                                 </span>
                             )}
+                            <span className={`text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${
+                                isOccupied 
+                                    ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' 
+                                    : isListed
+                                    ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
+                                    : 'text-slate-400 bg-slate-50 dark:bg-zinc-800 dark:text-zinc-500'
+                            }`}>
+                                {property.status}
+                            </span>
+                            <button
+                                onClick={onDelete}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-opacity"
+                            >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <div className="flex flex-row items-center justify-between sm:justify-end flex-shrink-0 gap-4 mt-3 sm:mt-0 pl-10 sm:pl-0 ml-auto">
-                <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase tracking-widest ${
-                    isOccupied 
-                        ? 'text-green-600 bg-green-50 dark:bg-green-900/20 dark:text-green-400' 
-                        : isListed
-                        ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20 dark:text-blue-400'
-                        : 'text-slate-400 bg-slate-50 dark:bg-zinc-800 dark:text-zinc-500'
-                }`}>
-                    {property.status}
-                </span>
-                
-                <button
-                    onClick={onDelete}
-                    className="p-1.5 sm:p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                >
-                    <TrashIcon className="w-4 h-4" />
-                </button>
             </div>
         </div>
     );
@@ -400,7 +370,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                         <span className="text-[9px] font-bold text-slate-400 uppercase">{filteredProperties.length}</span>
                     </div>
 
-                    <div className="flex-grow overflow-y-auto custom-scrollbar p-1">
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-2">
                         {filteredProperties.length > 0 ? (
                             filteredProperties.map(item => (
                                 <PropertyListItem
@@ -551,31 +521,29 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                     </div>
                 </div>
 
-                {/* List */}
-                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                {/* List — card-style items matching Matters UI */}
+                <div className="p-2">
                     {filteredProperties.length > 0 ? (
-                        <div className="divide-y divide-slate-100 dark:divide-zinc-700">
-                            {filteredProperties.map(item => (
-                                <PropertyListItem
-                                    key={item.property.id}
-                                    property={item.property}
-                                    ownerName={item.ownerName}
-                                    unitCount={item.unitCount}
-                                    isSelected={selectedIds.has(item.property.id)}
-                                    onToggleSelect={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedIds(prev => {
-                                            const next = new Set(prev);
-                                            if (next.has(item.property.id)) next.delete(item.property.id);
-                                            else next.add(item.property.id);
-                                            return next;
-                                        });
-                                    }}
-                                    onClick={() => onViewDetails(item.property.id)}
-                                    onDelete={(e) => handleDeleteProperty(e, item.property.id, item.ownerId, item.property.address)}
-                                />
-                            ))}
-                        </div>
+                        filteredProperties.map(item => (
+                            <PropertyListItem
+                                key={item.property.id}
+                                property={item.property}
+                                ownerName={item.ownerName}
+                                unitCount={item.unitCount}
+                                isSelected={selectedIds.has(item.property.id)}
+                                onToggleSelect={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        if (next.has(item.property.id)) next.delete(item.property.id);
+                                        else next.add(item.property.id);
+                                        return next;
+                                    });
+                                }}
+                                onClick={() => onViewDetails(item.property.id)}
+                                onDelete={(e) => handleDeleteProperty(e, item.property.id, item.ownerId, item.property.address)}
+                            />
+                        ))
                     ) : (
                         <EmptyState
                             title="No Properties Yet"

@@ -16,6 +16,8 @@ export interface UnitRentalInput {
   isPeriodicReviewEnabled: boolean;
   tenancyPeriod?: string;
   serviceCharge?: number;
+  serviceChargeAmount?: number;
+  serviceChargeStatus?: 'PAID' | 'UNPAID';
   legalFee?: number;
   legalFeePercentage?: number;
   isLegalNA?: boolean;
@@ -48,6 +50,8 @@ export function normalizeUnitRental(unit: UnitRentalInput): UnitRentalInput {
     nextRentReview: cleanDate(unit.nextRentReview) ?? '',
     rentAmount: Number(unit.rentAmount) || 0,
     serviceCharge: Number(unit.serviceCharge) || 0,
+    serviceChargeAmount: Number(unit.serviceChargeAmount) || Number(unit.serviceCharge) || 0,
+    serviceChargeStatus: unit.serviceChargeStatus || 'UNPAID',
     legalFee: unit.isLegalNA ? 0 : Number(unit.legalFee) || 0,
     legalFeePercentage: Number(unit.legalFeePercentage) || 0,
     agencyFee: unit.isAgencyNA ? 0 : Number(unit.agencyFee) || 0,
@@ -107,6 +111,8 @@ export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string,
     (rd.unitName as string) ||
     unit.description?.match(/\((.*?)\)/)?.[1] ||
     '';
+  const scAmount = Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0);
+  const scStatus = (rd.serviceChargeStatus as string) || '';
   return {
     name: unitName || 'Unnamed',
     tenantName: (rd.tenantName as string) || '',
@@ -116,5 +122,7 @@ export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string,
     floor: (rd.floor as string) || 'N/A',
     unitId: unit.id,
     convexId: (unit as { _id?: string })._id,
+    serviceChargeAmount: scAmount,
+    serviceChargeStatus: scStatus as 'PAID' | 'UNPAID' | '',
   };
 }

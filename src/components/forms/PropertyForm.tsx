@@ -129,6 +129,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             isPeriodicReviewEnabled: false,
             tenancyPeriod: '',
             serviceCharge: 0,
+            serviceChargeAmount: 0,
+            serviceChargeStatus: 'UNPAID' as const,
             legalFee: 0,
             legalFeePercentage: 10,
             isLegalNA: false,
@@ -182,6 +184,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         isPeriodicReviewEnabled: false,
                         tenancyPeriod: '',
                         serviceCharge: 0,
+                        serviceChargeAmount: 0,
+                        serviceChargeStatus: 'UNPAID' as const,
                         legalFee: 0,
                         legalFeePercentage: 10,
                         isLegalNA: false,
@@ -291,7 +295,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (index === 0 && autoSyncUnits) {
                 const generalFields = [
                     'rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled',
-                    'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'cautionDeposit',
+                    'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'serviceChargeAmount', 'serviceChargeStatus', 'cautionDeposit',
                     'isLegalNA', 'isAgencyNA', 'isCautionNA'
                 ];
                 if (generalFields.includes(field)) {
@@ -964,6 +968,33 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         className={commonInputClass}
                                         placeholder="0.00"
                                     />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Service Charge Amount (<NairaSymbol />)</label>
+                                    <input
+                                        autoComplete="off"
+                                        data-lpignore="true"
+                                        type="text"
+                                        value={formatNumberWithCommas(activeUnit.serviceChargeAmount || 0)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeAmount', parseFormattedNumber(e.target.value))}
+                                        className={commonInputClass}
+                                        placeholder="0.00"
+                                    />
+                                    <p className="text-[9px] text-slate-400 pl-1">Total service charge due for this billing period</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Service Charge Status</label>
+                                    <select
+                                        value={activeUnit.serviceChargeStatus || 'UNPAID'}
+                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeStatus', e.target.value as 'PAID' | 'UNPAID')}
+                                        className={commonInputClass}
+                                    >
+                                        <option value="UNPAID">Unpaid</option>
+                                        <option value="PAID">Paid</option>
+                                    </select>
                                 </div>
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">

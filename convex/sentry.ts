@@ -409,6 +409,113 @@ export const processInboundMessage = internalMutation({
   },
 });
 
+// ─── SERVICE CHARGE WHATSAPP REMINDERS ─────────────────────────────────────
+// Scans all active tenancies with unpaid service charges and triggers
+// automated WhatsApp reminder notifications via the integration gateway.
+// Called daily by cron job "serviceChargeWhatsAppReminder" at 6:30 AM UTC.
+export const sendServiceChargeReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    console.log("Running Service Charge WhatsApp Reminder scan...");
+    const now = Date.now();
+    let remindersSent = 0;
+    let remindersSkipped = 0;
+
+    // 1. Find all service_charges that are overdue or upcoming (nextDue within 7 days)
+    const allCharges = await ctx.db.query("service_charges").collect();
+    const actionableCharges = allCharges.filter(sc => {
+      const daysUntilDue = Math.floor((sc.nextDueDate - now) / 86400000);
+      // Include: currently unpaid/defaulted OR due within the next 7 days
+      return sc.isDefaulter || daysUntilDue <= 7;
+    });
+
+    for (const charge of actionableCharges) {
+      // 2. Resolve tenant phone from the properties table
+      const property = await ctx.db
+        .query("properties")
+        .withIndex("by_custom_id", q => q.eq("id", charge.unitId))
+        .first();
+
+      // Also try by Convex _id match
+      const unitDoc = property || await ctx.db
+        .query("properties")
+        .filter(q => q.eq(q.field("_id"), charge.unitId))
+        .first();
+
+      if (!unitDoc) {
+        remindersSkipped++;
+        continue;
+      }
+
+      // Extract tenant contact info from rentalDetails
+      const rd = (unitDoc as any).rentalDetails || {};
+      const tenantPhone: string = rd.tenantPhone || '';
+      const tenantEmail: string = rd.tenantEmail || '';
+      const tenantName: string = rd.tenantName || 'Tenant';
+      const unitName: string = rd.unitName || 'Unit';
+
+      if (!tenantPhone && !tenantEmail) {
+        remindersSkipped++;
+        continue;
+      }
+
+      // 3. Spam guard: check if we already sent a service_charge_alert in the last 24 hours
+      const cutoff = now - 24 * 3600000;
+      const recentAlert = await ctx.db
+        .query("automation_logs")
+        .withIndex("by_firm", q => q.eq("firmId", charge.firmId))
+        .filter(q =>
+          q.and(
+            q.eq(q.field("unitId"), charge.unitId),
+            q.eq(q.field("messageType"), "service_charge_alert"),
+            q.gte(q.field("sentAt"), cutoff)
+          )
+        )
+        .first();
+
+      if (recentAlert) {
+        remindersSkipped++;
+        continue;
+      }
+
+      // 4. Build reminder message
+      const daysOverdue = charge.isDefaulter && charge.daysOverdue
+        ? charge.daysOverdue
+        : Math.max(0, Math.floor((now - charge.nextDueDate) / 86400000));
+      const isUpcoming = !charge.isDefaulter && charge.nextDueDate > now;
+      const dueDateStr = new Date(charge.nextDueDate).toLocaleDateString('en-NG');
+
+      const messagePreview = isUpcoming
+        ? `Dear ${tenantName}, your ${charge.category} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is due on ${dueDateStr}. Please ensure timely payment.`
+        : `Dear ${tenantName}, your ${charge.category} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is ${daysOverdue} day(s) overdue. Kindly make payment to avoid penalties.`;
+
+      // 5. Determine channel — prefer WhatsApp if phone available
+      const channel = tenantPhone ? "whatsapp" as const : "email" as const;
+      const recipient = tenantPhone || tenantEmail;
+
+      // 6. Log the automation (simulated for now — actual WhatsApp/email dispatch
+      // would integrate with Twilio/Resend here)
+      await ctx.db.insert("automation_logs", {
+        firmId: charge.firmId,
+        unitId: charge.unitId,
+        tenantId: charge.tenantId,
+        messageType: "service_charge_alert",
+        channel,
+        recipient,
+        messagePreview,
+        sentAt: now,
+        status: "simulated",
+        triggeredBy: "cron_service_charge_reminder",
+      });
+
+      remindersSent++;
+    }
+
+    console.log(`Service Charge Reminders: ${remindersSent} sent, ${remindersSkipped} skipped.`);
+    return { remindersSent, remindersSkipped };
+  },
+});
+
 export const runDailyAutomation = internalMutation({
   args: {},
   handler: async (ctx) => {

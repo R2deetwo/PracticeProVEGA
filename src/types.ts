@@ -217,6 +217,8 @@ export interface Property {
         isPeriodicReviewEnabled?: boolean;
         tenancyPeriod?: string;
         serviceCharge?: number;
+        serviceChargeAmount?: number;
+        serviceChargeStatus?: 'PAID' | 'UNPAID';
         legalFee?: number;
         agencyFee?: number;
         cautionDeposit?: number;

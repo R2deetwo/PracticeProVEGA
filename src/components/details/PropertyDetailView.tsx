@@ -32,7 +32,7 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
     </div>
 );
 
-type PropertyTab = 'summary' | 'units' | 'tracking' | 'docs';
+type PropertyTab = 'summary' | 'units' | 'revenue' | 'tracking' | 'docs';
 const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
     if (!leaseEnd) return null;
     const endDate = new Date(leaseEnd);
@@ -515,6 +515,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {([
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
+                            ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> Activity & Tracking</> },
                             { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs & Financials</> },
                         ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
@@ -1002,7 +1003,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             })()}
 
                             {/* Unit Grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                 {units.map((unit: Property) => {
                                     const d = getUnitDisplay(unit);
                                     const isFloor = d.name.toLowerCase().includes('floor');
@@ -1045,18 +1046,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                         key={unit.id}
                                         onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                        className={`${typeBg} rounded-xl border shadow-sm p-4 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+                                        className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
                                     >
-                                        <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-start justify-between mb-2">
                                             <div className="min-w-0 flex-1 pr-2">
-                                                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
-                                                <p className="text-xs text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>
+                                                <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
+                                                <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>
                                             </div>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
                                                 {String(unit.status || 'Vacant')}
                                             </span>
                                         </div>
-                                        <div className="space-y-1.5 text-xs">
+                                        <div className="space-y-1 text-xs">
                                             {d.tenantName && (
                                                 <p className="text-slate-700 dark:text-zinc-200">
                                                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
@@ -1068,28 +1069,21 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     ₦{d.rentAmount.toLocaleString()}<span className="text-slate-400">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span>
                                                 </p>
                                             )}
-                                            {(unit.serviceCharge || unit.rentalDetails?.serviceCharge) > 0 && (
-                                                <p className="text-slate-700 dark:text-zinc-200">
+                                            {(d.serviceChargeAmount > 0 || (unit.serviceCharge || unit.rentalDetails?.serviceCharge || 0) > 0) && (
+                                                <p className="text-slate-700 dark:text-zinc-200 flex items-center gap-1.5">
                                                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Service</span>
-                                                    ₦{Number(unit.serviceCharge || unit.rentalDetails?.serviceCharge || 0).toLocaleString()}
-                                                </p>
-                                            )}
-                                            {(unit.legalFee || unit.rentalDetails?.legalFee) > 0 && (
-                                                <p className="text-slate-700 dark:text-zinc-200">
-                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Legal</span>
-                                                    ₦{Number(unit.legalFee || unit.rentalDetails?.legalFee || 0).toLocaleString()}
-                                                </p>
-                                            )}
-                                            {(unit.agencyFee || unit.rentalDetails?.agencyFee) > 0 && (
-                                                <p className="text-slate-700 dark:text-zinc-200">
-                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Agency</span>
-                                                    ₦{Number(unit.agencyFee || unit.rentalDetails?.agencyFee || 0).toLocaleString()}
-                                                </p>
-                                            )}
-                                            {(unit.cautionDeposit || unit.rentalDetails?.cautionDeposit) > 0 && (
-                                                <p className="text-slate-700 dark:text-zinc-200">
-                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Caution</span>
-                                                    ₦{Number(unit.cautionDeposit || unit.rentalDetails?.cautionDeposit || 0).toLocaleString()}
+                                                    ₦{Number(d.serviceChargeAmount || unit.serviceCharge || unit.rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                    {(() => {
+                                                        const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                        const isPaid = scStatus === 'PAID' || scStatus === 'paid';
+                                                        const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
+                                                        if (isPaid) {
+                                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
+                                                        } else if (isUnpaid) {
+                                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Unpaid</span>;
+                                                        }
+                                                        return null;
+                                                    })()}
                                                 </p>
                                             )}
                                             {d.leaseEnd && (
@@ -1105,7 +1099,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="mt-4 flex items-center justify-between border-t border-slate-50 dark:border-zinc-700/50 pt-3" ref={menuOpen ? unitMenuRef : undefined}>
+                                        <div className="mt-3 flex items-center justify-between border-t border-slate-50 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
                                             {statusBadge ? (
                                                 <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide ${statusBadge.cls}`}>
                                                     {statusBadge.label}
@@ -1279,6 +1273,121 @@ const PropertyDetailViewContent: React.FC = () => {
                                 );})}
                             </div>
                         </div>
+                    );
+                })()}
+
+                {activeTab === 'revenue' && (() => {
+                    const units = [...(allUnits || [])]
+                        .map(u => u && u.id ? u : null)
+                        .filter((u): u is Property => u !== null);
+                    const legacyUnits = ((property as any)?.units || [])
+                        .map((u: any, idx: number) => ({ ...u, id: u.id || `temp-unit-${idx}` }))
+                        .filter((u: any) => u);
+                    legacyUnits.forEach((lu: any) => {
+                        if (!units.some(u => u.id === lu.id || (u as any).name === lu.name)) {
+                            units.push(lu);
+                        }
+                    });
+
+                    return (
+                    <div className="space-y-6 animate-fade-in">
+                        {/* Revenue Summary Cards */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {(() => {
+                                const allRent = units.reduce((sum: number, u: Property) => {
+                                    const rd = u.rentalDetails || {};
+                                    const rent = Number((rd as any).rentAmount || 0);
+                                    return sum + rent;
+                                }, 0);
+                                const allServiceCharge = units.reduce((sum: number, u: Property) => {
+                                    const rd = u.rentalDetails || {};
+                                    const sc = Number((rd as any).serviceChargeAmount || (rd as any).serviceCharge || 0);
+                                    return sum + sc;
+                                }, 0);
+                                const paidCount = units.filter(u => {
+                                    const rd = u.rentalDetails || {};
+                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+                                    return st === 'PAID' || st === 'paid';
+                                }).length;
+                                const unpaidCount = units.filter(u => {
+                                    const rd = u.rentalDetails || {};
+                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+                                    return st === 'UNPAID' || st === 'unpaid';
+                                }).length;
+                                const totalAnnual = allRent + allServiceCharge;
+                                return (
+                                    <>
+                                        <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<BanknotesIcon />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
+                                        <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<BanknotesIcon />} colorClass="bg-blue-600" scrollOnOverflow={true} />
+                                        <StatCard title="Service Charges" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
+                                        <StatCard title="Service Charge Status" value={`${paidCount} Paid / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : 'bg-green-600'} scrollOnOverflow={true} />
+                                    </>
+                                );
+                            })()}
+                        </div>
+
+                        {/* Revenue Breakdown by Unit */}
+                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                            <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between">
+                                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revenue Breakdown by Unit</h3>
+                                <button onClick={() => navigateTo('atriumEngine')} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                    Full Revenue Monitor <span>&rarr;</span>
+                                </button>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-50 dark:bg-zinc-900/50">
+                                        <tr>
+                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit</th>
+                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tenant</th>
+                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rent</th>
+                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+                                            <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">SC Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+                                        {units.map((unit: Property) => {
+                                            const d = getUnitDisplay(unit);
+                                            const rd = (unit.rentalDetails || {}) as any;
+                                            const scAmount = d.serviceChargeAmount || Number(rd.serviceCharge || 0);
+                                            const scStatus = d.serviceChargeStatus || rd.serviceChargeStatus || '';
+                                            const isPaid = scStatus === 'PAID' || scStatus === 'paid';
+                                            const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
+                                            return (
+                                                <tr key={unit.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                                    <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
+                                                    <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
+                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+                                                    <td className="px-4 py-2.5 text-center">
+                                                        {isPaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
+                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Unpaid</span>}
+                                                        {!isPaid && !isUnpaid && <span className="text-[10px] text-slate-400">—</span>}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Link to Full Revenue Monitor */}
+                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                                <Wallet className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Portfolio Revenue Monitor</h4>
+                                <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed mb-3">
+                                    View firm-wide revenue tracking, defaulters, payment receipts, and automated reminder logs across all properties in the Revenue Monitor.
+                                </p>
+                                <button onClick={() => navigateTo('atriumEngine')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
+                                    Open Revenue Monitor <span>&rarr;</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     );
                 })()}
 

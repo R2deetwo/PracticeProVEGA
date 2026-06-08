@@ -26,11 +26,22 @@ crons.interval(
   {}
 );
 
-export default crons;
-
+// Atrium Daily Automation: overdue late notices, reminders (8:00 AM WAT = 7:00 AM UTC)
 crons.daily(
   "sentryDailyAutomation",
-  { hourUTC: 7, minuteUTC: 0 }, // 8:00 AM WAT is 7:00 AM UTC
+  { hourUTC: 7, minuteUTC: 0 },
   internal.sentry.runDailyAutomation,
   {}
 );
+
+// Service Charge WhatsApp Reminders: every morning at 7:30 AM WAT (6:30 UTC)
+// Scans all active tenancies with unpaid service charges and triggers
+// automated WhatsApp reminder notifications via the integration gateway
+crons.daily(
+  "serviceChargeWhatsAppReminder",
+  { hourUTC: 6, minuteUTC: 30 },
+  internal.sentry.sendServiceChargeReminders,
+  {}
+);
+
+export default crons;
