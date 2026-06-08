@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import LedgerManager from './LedgerManager';
 import ServiceChargeMonitor from './ServiceChargeMonitor';
 import VacancyPipeline from './VacancyPipeline';
@@ -50,7 +50,13 @@ interface Tab {
 }
 
 const RevenueEngine: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>('defaulters');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    try {
+      const hint = sessionStorage.getItem('atrium_open_tab') as TabId | null;
+      if (hint) { sessionStorage.removeItem('atrium_open_tab'); return hint; }
+    } catch (e) {}
+    return 'defaulters';
+  });
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
@@ -65,7 +71,7 @@ const RevenueEngine: React.FC = () => {
   const tabs: Tab[] = [
     { id: 'defaulters', label: 'Service Charges', shortLabel: 'Charges', icon: <ShieldIcon />, badge: criticalCount || undefined },
     { id: 'ledger', label: 'Payments & Receipts', shortLabel: 'Payments', icon: <LedgerIcon />, badge: pendingLedger || undefined },
-    { id: 'inbox', label: 'Unified Inbox', shortLabel: 'Inbox', icon: <InboxIcon /> },
+    { id: 'inbox', label: 'Comms', shortLabel: 'Comms', icon: <InboxIcon /> },
     { id: 'automations', label: 'Automation Center', shortLabel: 'Automations', icon: <BellIcon />, badge: todayLogs || undefined },
     { id: 'pipeline', label: 'Available Units', shortLabel: 'Vacancies', icon: <FunnelIcon />, badge: activePipeline || undefined },
   ];

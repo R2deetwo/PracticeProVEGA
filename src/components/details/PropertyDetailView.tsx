@@ -905,6 +905,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             rentAmount: sd.rentAmount,
                                             propertyAddress: property.address,
                                         }));
+                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
                                     } catch (e) {}
                                     navigateTo('atriumEngine');
                                 };
@@ -1025,11 +1026,44 @@ const PropertyDetailViewContent: React.FC = () => {
                                     const isFloor = d.name.toLowerCase().includes('floor');
                                     const menuOpen = openUnitMenuId === unit.id;
                                     const isSelected = selectedUnit?.id === unit.id;
+
+                                    // ── Visual status system ──────────────────────────────────
+                                    const rental = (unit as any).rentalDetails || {};
+                                    const uStatus = String(unit.status || 'Vacant');
+                                    const uType = (unit as any).propertyType || (unit as any).unitType || '';
+
+                                    // Left border colour based on data completeness
+                                    let statusBorder = '#D1D5DB'; // vacant → grey
+                                    let statusBadge: { label: string; cls: string } | null = null;
+                                    if (uStatus === 'Occupied') {
+                                        const hasTier1 = !!(d.tenantName && d.leaseEnd);
+                                        const hasTier2 = !!(
+                                            (rental.tenantPhone || (unit as any).tenantPhone) &&
+                                            d.rentAmount > 0
+                                        );
+                                        if (hasTier1 && hasTier2) {
+                                            statusBorder = '#22C55E'; // green
+                                            statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400' };
+                                        } else if (!hasTier1) {
+                                            statusBorder = '#EF4444'; // red
+                                            statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400' };
+                                        } else {
+                                            statusBorder = '#F59E0B'; // amber
+                                            statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400' };
+                                        }
+                                    }
+
+                                    // Background tint by unit type
+                                    const typeBg = uType === 'Commercial'
+                                        ? 'bg-amber-50/60 dark:bg-amber-950/20'
+                                        : 'bg-blue-50/40 dark:bg-blue-950/10';
+
                                     return (
                                     <div
                                         key={unit.id}
                                         onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
-                                        className={`bg-white dark:bg-zinc-800 rounded-xl border shadow-sm p-4 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+                                        style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
+                                        className={`${typeBg} rounded-xl border shadow-sm p-4 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="min-w-0 flex-1 pr-2">
@@ -1089,7 +1123,16 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 </p>
                                             )}
                                         </div>
-                                        <div className="mt-4 flex items-center justify-end border-t border-slate-50 dark:border-zinc-700/50 pt-3" ref={menuOpen ? unitMenuRef : undefined}>
+                                        <div className="mt-4 flex items-center justify-between border-t border-slate-50 dark:border-zinc-700/50 pt-3" ref={menuOpen ? unitMenuRef : undefined}>
+                                            {statusBadge ? (
+                                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide ${statusBadge.cls}`}>
+                                                    {statusBadge.label}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+                                                    Vacant
+                                                </span>
+                                            )}
                                             <div className="relative">
                                                 <button
                                                     type="button"
@@ -1187,6 +1230,54 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             </button>
                                                         </>
                                                     )}
+                                                    {/* Status toggle */}
+                                                    <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
+                                                        {uStatus !== 'Vacant' && (
+                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
+                                                            </button>
+                                                        )}
+                                                        {uStatus === 'Vacant' && (
+                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
+                                                                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenUnitMenuId(null);
+                                                                try {
+                                                                    sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
+                                                                    sessionStorage.setItem('atrium_open_tab', 'inbox');
+                                                                } catch (_) {}
+                                                                navigateTo('atriumEngine');
+                                                            }}
+                                                            className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
+                                                        >
+                                                            <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setOpenUnitMenuId(null);
+                                                                const details = [
+                                                                    `Unit: ${d.name}`,
+                                                                    `Property: ${property.address}`,
+                                                                    `Status: ${uStatus}`,
+                                                                    d.tenantName ? `Tenant: ${d.tenantName}` : '',
+                                                                    rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
+                                                                    rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
+                                                                    d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
+                                                                    d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
+                                                                ].filter(Boolean).join('\n');
+                                                                try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
+                                                            }}
+                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
+                                                        >
+                                                            <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
+                                                        </button>
+                                                    </div>
+
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();

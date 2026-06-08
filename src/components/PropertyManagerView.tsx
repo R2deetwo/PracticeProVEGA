@@ -41,6 +41,16 @@ const PropertyListItem: React.FC<{
     const isListed = property.status === 'Listed';
     const rent = property.rentalDetails?.rentAmount;
     const daysLeft = getDaysUntilLeaseEnd(property.rentalDetails?.leaseEnd);
+
+    // Compute rent range from embedded units array (multi-unit properties)
+    const embeddedUnits: any[] = (property as any).units || [];
+    const unitRents = embeddedUnits
+        .map((u: any) => u.rentalDetails?.rentAmount || u.rentAmount || 0)
+        .filter((r: number) => r > 0);
+    const allRents = unitRents.length > 0 ? unitRents : (rent && rent > 0 ? [rent] : []);
+    const minRent = allRents.length > 0 ? Math.min(...allRents) : 0;
+    const maxRent = allRents.length > 0 ? Math.max(...allRents) : 0;
+    const showRange = allRents.length > 1 && minRent !== maxRent;
     const leaseUrgent = daysLeft !== null && daysLeft <= 90 && daysLeft > 0;
     const leaseExpired = daysLeft !== null && daysLeft <= 0;
 
@@ -82,10 +92,15 @@ const PropertyListItem: React.FC<{
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate font-medium">{ownerName}</p>
-                            {rent && rent > 0 ? (
+                            {allRents.length > 0 ? (
                                 <>
                                     <span className="w-1 h-1 rounded-full bg-slate-200 dark:bg-zinc-700"></span>
-                                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">₦{rent.toLocaleString('en-NG')}<span className="font-normal text-slate-400">/yr</span></p>
+                                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                        {showRange
+                                            ? <>₦{minRent.toLocaleString('en-NG')} – ₦{maxRent.toLocaleString('en-NG')}<span className="font-normal text-slate-400">/yr</span></>
+                                            : <>₦{minRent.toLocaleString('en-NG')}<span className="font-normal text-slate-400">/yr</span></>
+                                        }
+                                    </p>
                                 </>
                             ) : !isOccupied && (
                                 <>
