@@ -2754,3 +2754,35 @@ export const setMatterPrivacy = mutation({
     return { success: true };
   },
 });
+
+/**
+ * fixCorporateName — One-time migration to correct the deprecated
+ * "LAKE NURE INVESTMENTS LTD" name to "LAKE-NUWA Investment LTD"
+ * across all contact records in the firm.
+ */
+export const fixCorporateName = mutation({
+  args: { userEmail: v.string() },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .collect();
+
+    let patched = 0;
+    for (const contact of contacts) {
+      if (
+        contact.name &&
+        /LAKE\s+NURE\s+INVESTMENTS\s+LTD/i.test(contact.name)
+      ) {
+        const corrected = contact.name.replace(
+          /LAKE\s+NURE\s+INVESTMENTS\s+LTD/gi,
+          "LAKE-NUWA Investment LTD"
+        );
+        await ctx.db.patch(contact._id, { name: corrected, updatedAt: new Date().toISOString() });
+        patched++;
+      }
+    }
+    return { success: true, patched };
+  },
+});

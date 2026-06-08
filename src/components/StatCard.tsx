@@ -1,5 +1,6 @@
 
 
+
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { EyeIcon, EyeOffIcon } from '../constants';
 
@@ -60,20 +61,21 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
             className={`
                 relative overflow-hidden card-premium p-4 sm:p-5 halo-hover
                 ${onClick ? 'cursor-pointer active:scale-[0.98]' : ''}
-                h-full flex items-center gap-3 group
+                h-full min-h-[80px] flex items-center gap-3 group
             `}
+            style={{ contain: 'layout paint style' }}
         >
-            {/* Icon — anchored top-right with predictable placement */}
-            <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${bgClass} bg-opacity-10 text-opacity-100 flex-shrink-0 shadow-sm border border-white/10 self-start mt-0.5`}>
-                {React.cloneElement(icon, { className: `w-5 h-5 ${textClass}` })}
+            {/* Icon — locked inside bounding frame, never clips out */}
+            <div className={`relative z-10 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${bgClass} bg-opacity-10 text-opacity-100 flex-shrink-0 shadow-sm border border-white/10`}>
+                {React.cloneElement(icon, { className: `w-4 h-4 sm:w-5 sm:h-5 ${textClass}` })}
             </div>
 
-            {/* Text content — flexible, min-w-0 for truncation */}
-            <div className="relative z-10 flex flex-col justify-center min-w-0 flex-1">
-                <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap truncate mb-0.5">{title}</p>
+            {/* Text content — fluid, min-w-0 prevents overflow push */}
+            <div className="relative z-10 flex flex-col justify-center min-w-0 flex-1 gap-0.5">
+                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis mb-0">{title}</p>
                 <div
                     ref={containerRef}
-                    className={`text-base sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight ${scrollOnOverflow && isRevealed ? 'overflow-hidden whitespace-nowrap' : ''}`}
+                    className={`text-sm sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight ${scrollOnOverflow && isRevealed ? 'overflow-hidden whitespace-nowrap' : ''}`}
                 >
                     {valueContent}
                 </div>
@@ -90,9 +92,9 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
                 )}
             </div>
 
-            {/* Decorative Background Icon — strictly contained */}
-            <div className="absolute -right-4 -top-4 opacity-[0.03] dark:opacity-[0.05] text-slate-900 dark:text-white pointer-events-none transform -rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-0">
-                {React.cloneElement(icon, { className: "w-24 h-24" })}
+            {/* Decorative Background Icon — strictly contained inside the card bounds */}
+            <div className="absolute right-0 top-0 opacity-[0.03] dark:opacity-[0.05] text-slate-900 dark:text-white pointer-events-none transform -rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-0 overflow-hidden w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center">
+                {React.cloneElement(icon, { className: "w-16 h-16 sm:w-20 sm:h-20" })}
             </div>
         </div>
     );

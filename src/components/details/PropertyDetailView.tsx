@@ -15,6 +15,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import StatCard from '../StatCard';
+import Tooltip from '../Tooltip';
 import PropertyTrackingView from './PropertyTrackingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
@@ -491,7 +492,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                 <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-none max-w-[160px] sm:max-w-md">{property.address}</h2>
                             </div>
                             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
-                                {property.propertyType || 'Property'} • {owner?.name}
+                                {property.propertyType || 'Property'} • {owner?.name?.replace(/LAKE\s+NURE\s+INVESTMENTS\s+LTD/gi, 'LAKE-NUWA Investment LTD')}
                             </p>
                         </div>
                     </div>
@@ -863,481 +864,510 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── HIGH-DENSITY UNIT CARDS ── Micro-Profile Layout */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                {units.map((unit: Property, unitIdx: number) => {
-                                    const d = getUnitDisplay(unit);
-                                    const isFloor = d.name.toLowerCase().includes('floor');
-                                    const menuOpen = openUnitMenuId === unit.id;
-                                    const isSelected = selectedUnit?.id === unit.id;
-                                    const rental = (unit as any).rentalDetails || {};
-                                    const uStatus = String(unit.status || 'Vacant');
-                                    const uType = (unit as any).propertyType || (unit as any).unitType || '';
+                            {/* ── HIGH-DENSITY UNIT CARDS ── Row-grouped inline expansion layout */}
+                            {(() => {
+                                // Determine column count for row grouping
+                                // xl:4, lg:3, sm:2, xs:1 — we use a JS-based approach
+                                const COLS_XL = 4;
+                                const COLS_LG = 3;
+                                const COLS_SM = 2;
+                                // Group units into rows for the largest breakpoint (xl=4)
+                                // The expansion panel will span all columns via grid-column: 1 / -1
+                                const rows: Property[][] = [];
+                                const chunkSize = COLS_XL;
+                                for (let i = 0; i < units.length; i += chunkSize) {
+                                    rows.push(units.slice(i, i + chunkSize));
+                                }
 
-                                    // ── Visual status — contextual tooltips replace static labels ──
-                                    let statusBorder = '#94A3B8';
-                                    let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
-                                    if (uStatus === 'Occupied') {
-                                        const hasTier1 = !!(d.tenantName && d.leaseEnd);
-                                        const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
-                                        if (hasTier1 && hasTier2) {
-                                            statusBorder = '#22C55E';
-                                            statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
-                                        } else if (!hasTier1) {
-                                            statusBorder = '#EF4444';
-                                            statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
-                                        } else {
-                                            statusBorder = '#F59E0B';
-                                            statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400', tooltip: d.statusTooltip };
-                                        }
-                                    }
-
-                                    const typeBg = uType === 'Commercial'
-                                        ? 'bg-amber-50/60 dark:bg-amber-950/20'
-                                        : 'bg-blue-50/40 dark:bg-blue-950/10';
-
-                                    // ── SC status badge renderer ──
-                                    const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                    const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
-                                    const scAmount = d.serviceChargeAmount || Number((unit as any).serviceCharge || (rental as any).serviceCharge || 0);
-
-                                    const renderScBadge = () => {
-                                        if (d.remindersPaused) {
-                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
-                                        }
-                                        if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
-                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
-                                        }
-                                        if (scStatus === 'PARTIALLY_PAID') {
-                                            return <>
-                                                <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
-                                                {scOutstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
-                                            </>;
-                                        }
-                                        if (scStatus === 'UNPAID') {
-                                            return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
-                                        }
-                                        return null;
-                                    };
-
-                                    // ── Statutory timeline milestone ──
-                                    const renderTermMilestone = () => {
-                                        if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
-                                        const pct = Math.round((d.termProgress ?? 0) * 100);
-                                        return (
-                                            <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
-                                                <Scale className="w-3 h-3 text-orange-500" />
-                                                <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
-                                            </div>
-                                        );
-                                    };
-
-                                    return (
-                                        <div
-                                            key={unit.id}
-                                            onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
-                                            style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                            className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
-                                        >
-                                            {/* ── Card Header ── */}
-                                            <div className="flex items-start justify-between mb-1.5">
-                                                <div className="min-w-0 flex-1 pr-2">
-                                                    <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
-                                                    {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>}
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[uStatus] || 'bg-slate-100 text-slate-600'}`}>
-                                                    {uStatus}
-                                                </span>
-                                            </div>
-
-                                            {/* ── Micro-Profile: Operational dynamics only ── */}
-                                            <div className="space-y-1 text-xs">
-                                                {d.tenantName && (
-                                                    <p className="text-slate-700 dark:text-zinc-200 truncate">
-                                                        <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
-                                                    </p>
-                                                )}
-
-                                                {/* Service Charge — always show if amount > 0 */}
-                                                {scAmount > 0 && (
-                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                        <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">SC</span>
-                                                        <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
-                                                        {renderScBadge()}
-                                                    </div>
-                                                )}
-
-                                                {/* Minimum Vend — if property has MV enabled */}
-                                                {minimumVendEnabled && uStatus === 'Occupied' && (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
-                                                        <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
-                                                        {d.serviceChargeStatus === 'PAID_FULLY' || d.serviceChargeStatus === 'PAID'
-                                                            ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
-                                                            : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
-                                                        }
-                                                    </div>
-                                                )}
-
-                                                {/* Statutory Timeline Milestone */}
-                                                {renderTermMilestone()}
-
-                                                {/* Lease end — compact */}
-                                                {d.leaseEnd && (
-                                                    <p className="text-slate-500 dark:text-zinc-400">
-                                                        <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Ends</span>
-                                                        {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* ── Card Footer: contextual badge + actions ── */}
-                                            <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
-                                                {statusBadge ? (
-                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`} title={statusBadge.tooltip}>
-                                                        {statusBadge.label}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
-                                                        Vacant
-                                                    </span>
-                                                )}
-                                                <div className="relative">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (menuOpen) {
-                                                                setOpenUnitMenuId(null);
-                                                                setOpenUnitMenuPos(null);
-                                                            } else {
-                                                                const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                                                const estimatedMenuHeight = 340;
-                                                                const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
-                                                                setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
-                                                                setOpenUnitMenuId(unit.id);
-                                                            }
-                                                        }}
-                                                        className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
-                                                        aria-expanded={menuOpen}
-                                                    >
-                                                        <CogIcon className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    
-                                                    {openUnitMenuPos && (
-                                                    <div
-                                                        style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
-                                                        className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[70vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
-                                                    >
-                                                        <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
-                                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
-                                                        </div>
-                                                        
-                                                        {!isFloor ? (
-                                                            <>
-                                                                {unit.status === 'Occupied' ? (
-                                                                    <>
-                                                                        {property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                            <>
-                                                                                <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
-                                                                                    <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
-                                                                                </button>
-                                                                                <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
-                                                                                    <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
-                                                                                </button>
-                                                                                <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
-                                                                                    <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                        <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
-                                                                            <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
-                                                                        </button>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                            <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
-                                                                        </button>
-                                                                        <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                            <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                                
-                                                                <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
-                                                                    <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
-                                                                </button>
-                                                                
-                                                                <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
-                                                                    <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
-                                                                </button>
-
-                                                                {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
-                                                                    <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
-                                                                        <p className="px-3 py-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
-                                                                        {coreState.documentTemplates.slice(0, 3).map((template: any) => (
-                                                                            <button 
-                                                                                key={template.id} 
-                                                                                onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
-                                                                                className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
-                                                                            >
-                                                                                <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                    <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
-                                                                </button>
-                                                                <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
-                                                                    <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
-                                                                </button>
-                                                            </>
-                                                        )}
-                                                        {/* Status toggle */}
-                                                        <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
-                                                            {uStatus !== 'Vacant' && (
-                                                                <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
-                                                                    <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
-                                                                </button>
-                                                            )}
-                                                            {uStatus === 'Vacant' && (
-                                                                <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
-                                                                    <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setOpenUnitMenuId(null);
-                                                                    try {
-                                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
-                                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
-                                                                    } catch (_) {}
-                                                                    navigateTo('atriumEngine');
-                                                                }}
-                                                                className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
-                                                            >
-                                                                <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
-                                                            </button>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setOpenUnitMenuId(null);
-                                                                    const details = [
-                                                                        `Unit: ${d.name}`,
-                                                                        `Property: ${property.address}`,
-                                                                        `Status: ${uStatus}`,
-                                                                        d.tenantName ? `Tenant: ${d.tenantName}` : '',
-                                                                        rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
-                                                                        rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
-                                                                        d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
-                                                                        d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
-                                                                    ].filter(Boolean).join('\n');
-                                                                    try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
-                                                                }}
-                                                                className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
-                                                            >
-                                                                <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
-                                                            </button>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setOpenUnitMenuId(null);
-                                                                setOpenUnitMenuPos(null);
-                                                                handleRemoveUnit(unit, d);
-                                                            }}
-                                                            className="px-3 py-2.5 text-[10px] font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
-                                                        >
-                                                            <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
-                                                        </button>
-                                                    </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* ── EXPANDED UNIT DETAIL PANEL ── Inline expansion below the selected card */}
-                            {selectedUnit && (() => {
-                                const sd = getUnitDisplay(selectedUnit);
-                                const tenantPhone: string = (selectedUnit as any).rentalDetails?.tenantPhone || (selectedUnit as any).tenantPhone || '';
-                                const tenantEmail: string = (selectedUnit as any).rentalDetails?.tenantEmail || (selectedUnit as any).tenantEmail || '';
-                                const hasContactInfo = !!(tenantPhone || tenantEmail);
-
-                                const handleWhatsApp = () => {
-                                    if (!tenantPhone) return;
-                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
-                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
-                                    const msg = encodeURIComponent(`Hello ${sd.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${sd.name} at ${property.address}.`);
-                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-                                };
-
-                                const handleEmailTenant = () => {
-                                    openModal('composeEmail', null, {
-                                        to: tenantEmail,
-                                        subject: `Re: ${sd.name} — ${property.address}`,
-                                    });
-                                };
-
-                                const handleOpenInbox = () => {
-                                    try {
-                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
-                                            unitId: selectedUnit.id,
-                                            unitName: sd.name,
-                                            tenantName: sd.tenantName,
-                                            tenantPhone,
-                                            tenantEmail,
-                                            rentAmount: sd.rentAmount,
-                                            propertyAddress: property.address,
-                                        }));
-                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
-                                    } catch (e) {}
-                                    navigateTo('atriumEngine');
-                                };
+                                // Find which row the selected unit is in
+                                const selectedRowIdx = selectedUnit
+                                    ? rows.findIndex(row => row.some(u => u.id === selectedUnit.id))
+                                    : -1;
 
                                 return (
-                                    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5 animate-fade-in">
-                                        {/* Header */}
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
-                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{sd.name}</h4>
-                                                {sd.floor && <p className="text-xs text-slate-400">Floor {sd.floor}</p>}
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {sd.remindersPaused && (
-                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
-                                                        Reminders Paused
-                                                    </span>
-                                                )}
-                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
-                                                    {String(selectedUnit.status || 'Vacant')}
-                                                </span>
-                                                <button onClick={() => { setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
-                                                    <XIcon className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                                        {rows.flatMap((row, rowIdx) => {
+                                            const cards = row.map((unit: Property) => {
+                                                const d = getUnitDisplay(unit);
+                                                const isFloor = d.name.toLowerCase().includes('floor');
+                                                const menuOpen = openUnitMenuId === unit.id;
+                                                const isSelected = selectedUnit?.id === unit.id;
+                                                const rental = (unit as any).rentalDetails || {};
+                                                const uStatus = String(unit.status || 'Vacant');
+                                                const uType = (unit as any).propertyType || (unit as any).unitType || '';
 
-                                        {/* Details grid — full metadata in expanded view */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-                                            {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
-                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
-                                                <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
-                                            )}
-                                            {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
-                                            {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
-                                            {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
-                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && (
-                                                <DetailItem label="Service Charge" value={
-                                                    <>
-                                                        ₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
-                                                        {(() => {
-                                                            const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
-                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
-                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                            if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
-                                                            return null;
-                                                        })()}
-                                                    </>
-                                                } />
-                                            )}
-                                            {(() => {
-                                                const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
-                                                const outstanding = sd.outstandingServiceChargeBalance || (selectedUnit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
-                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
-                                            })()}
-                                            {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
-                                            {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
-                                            {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
-                                            {/* Term Progress */}
-                                            {sd.termProgress !== null && (
-                                                <DetailItem label="Term Progress" value={
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
-                                                            <div className={`h-full rounded-full transition-all ${sd.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(sd.termProgress * 100)}%` }} />
+                                                // ── Visual status — contextual tooltips replace static labels ──
+                                                let statusBorder = '#94A3B8';
+                                                let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
+                                                if (uStatus === 'Occupied') {
+                                                    const hasTier1 = !!(d.tenantName && d.leaseEnd);
+                                                    const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
+                                                    if (hasTier1 && hasTier2) {
+                                                        statusBorder = '#22C55E';
+                                                        statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
+                                                    } else if (!hasTier1) {
+                                                        statusBorder = '#EF4444';
+                                                        statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
+                                                    } else {
+                                                        statusBorder = '#F59E0B';
+                                                        statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400', tooltip: d.statusTooltip };
+                                                    }
+                                                }
+
+                                                const typeBg = uType === 'Commercial'
+                                                    ? 'bg-amber-50/60 dark:bg-amber-950/20'
+                                                    : 'bg-blue-50/40 dark:bg-blue-950/10';
+
+                                                // ── SC status badge renderer ──
+                                                const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
+                                                const scAmount = d.serviceChargeAmount || Number((unit as any).serviceCharge || (rental as any).serviceCharge || 0);
+
+                                                const renderScBadge = () => {
+                                                    if (d.remindersPaused) {
+                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
+                                                    }
+                                                    if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
+                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
+                                                    }
+                                                    if (scStatus === 'PARTIALLY_PAID') {
+                                                        return <>
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
+                                                            {scOutstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
+                                                        </>;
+                                                    }
+                                                    if (scStatus === 'UNPAID') {
+                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                    }
+                                                    return null;
+                                                };
+
+                                                // ── Statutory timeline milestone ──
+                                                const renderTermMilestone = () => {
+                                                    if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
+                                                    const pct = Math.round((d.termProgress ?? 0) * 100);
+                                                    return (
+                                                        <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
+                                                            <Scale className="w-3 h-3 text-orange-500" />
+                                                            <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
                                                         </div>
-                                                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(sd.termProgress * 100)}%</span>
+                                                    );
+                                                };
+
+                                                return (
+                                                    <div
+                                                        key={unit.id}
+                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
+                                                        style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
+                                                        className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+                                                    >
+                                                        {/* ── Card Header ── */}
+                                                        <div className="flex items-start justify-between mb-1.5">
+                                                            <div className="min-w-0 flex-1 pr-2">
+                                                                <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
+                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>}
+                                                            </div>
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[uStatus] || 'bg-slate-100 text-slate-600'}`}>
+                                                                {uStatus}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* ── Micro-Profile: Operational dynamics only ── */}
+                                                        <div className="space-y-1 text-xs">
+                                                            {d.tenantName && (
+                                                                <p className="text-slate-700 dark:text-zinc-200 truncate">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
+                                                                </p>
+                                                            )}
+
+                                                            {/* Service Charge — always show if amount > 0 */}
+                                                            {scAmount > 0 && (
+                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">SC</span>
+                                                                    <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
+                                                                    {renderScBadge()}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Minimum Vend — if property has MV enabled */}
+                                                            {minimumVendEnabled && uStatus === 'Occupied' && (
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
+                                                                    <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
+                                                                    {d.serviceChargeStatus === 'PAID_FULLY' || d.serviceChargeStatus === 'PAID'
+                                                                        ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
+                                                                        : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
+                                                                    }
+                                                                </div>
+                                                            )}
+
+                                                            {/* Statutory Timeline Milestone */}
+                                                            {renderTermMilestone()}
+
+                                                            {/* Lease end — compact */}
+                                                            {d.leaseEnd && (
+                                                                <p className="text-slate-500 dark:text-zinc-400">
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Ends</span>
+                                                                    {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
+                                                                </p>
+                                                            )}
+                                                        </div>
+
+                                                        {/* ── Card Footer: contextual badge + actions ── */}
+                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
+                                                            {statusBadge ? (
+                                                                <Tooltip text={statusBadge.tooltip} allowWrap>
+                                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
+                                                                        {statusBadge.label}
+                                                                    </span>
+                                                                </Tooltip>
+                                                            ) : (
+                                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+                                                                    Vacant
+                                                                </span>
+                                                            )}
+                                                            <div className="relative">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (menuOpen) {
+                                                                            setOpenUnitMenuId(null);
+                                                                            setOpenUnitMenuPos(null);
+                                                                        } else {
+                                                                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+                                                                            const estimatedMenuHeight = 340;
+                                                                            const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
+                                                                            setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
+                                                                            setOpenUnitMenuId(unit.id);
+                                                                        }
+                                                                    }}
+                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                                                                    aria-expanded={menuOpen}
+                                                                >
+                                                                    <CogIcon className="w-3.5 h-3.5" />
+                                                                </button>
+                                                                
+                                                                {openUnitMenuPos && menuOpen && (
+                                                                <div
+                                                                    style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
+                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[70vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+                                                                >
+                                                                    <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
+                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
+                                                                    </div>
+                                                                    
+                                                                    {!isFloor ? (
+                                                                        <>
+                                                                            {unit.status === 'Occupied' ? (
+                                                                                <>
+                                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                                        <>
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
+                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
+                                                                                            </button>
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
+                                                                                                <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
+                                                                                            </button>
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
+                                                                                                <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
+                                                                                            </button>
+                                                                                        </>
+                                                                                    )}
+                                                                                    <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
+                                                                                        <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
+                                                                                    </button>
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                        <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
+                                                                                    </button>
+                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                        <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
+                                                                                    </button>
+                                                                                </>
+                                                                            )}
+                                                                            
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
+                                                                                <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
+                                                                            </button>
+                                                                            
+                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
+                                                                            </button>
+
+                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
+                                                                                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
+                                                                                    <p className="px-3 py-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
+                                                                                    {coreState.documentTemplates.slice(0, 3).map((template: any) => (
+                                                                                        <button 
+                                                                                            key={template.id} 
+                                                                                            onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
+                                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
+                                                                                        >
+                                                                                            <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                    <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
+                                                                            </button>
+                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+                                                                    {/* Status toggle */}
+                                                                    <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
+                                                                        {uStatus !== 'Vacant' && (
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
+                                                                            </button>
+                                                                        )}
+                                                                        {uStatus === 'Vacant' && (
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
+                                                                                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
+                                                                            </button>
+                                                                        )}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenUnitMenuId(null);
+                                                                                try {
+                                                                                    sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
+                                                                                    sessionStorage.setItem('atrium_open_tab', 'inbox');
+                                                                                } catch (_) {}
+                                                                                navigateTo('atriumEngine');
+                                                                            }}
+                                                                            className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
+                                                                        >
+                                                                            <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setOpenUnitMenuId(null);
+                                                                                const details = [
+                                                                                    `Unit: ${d.name}`,
+                                                                                    `Property: ${property.address}`,
+                                                                                    `Status: ${uStatus}`,
+                                                                                    d.tenantName ? `Tenant: ${d.tenantName}` : '',
+                                                                                    rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
+                                                                                    rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
+                                                                                    d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
+                                                                                    d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
+                                                                                ].filter(Boolean).join('\n');
+                                                                                try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
+                                                                            }}
+                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
+                                                                        >
+                                                                            <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setOpenUnitMenuId(null);
+                                                                            setOpenUnitMenuPos(null);
+                                                                            handleRemoveUnit(unit, d);
+                                                                        }}
+                                                                        className="px-3 py-2.5 text-[10px] font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
+                                                                    </button>
+                                                                </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                } />
-                                            )}
-                                        </div>
+                                                );
+                                            });
 
-                                        {/* Message Tenant panel */}
-                                        {showUnitMessaging && (
-                                            <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
-                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
-                                                    Contact {sd.tenantName || 'Tenant'}
-                                                </p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {tenantPhone && (
-                                                        <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                                            WhatsApp
-                                                        </button>
-                                                    )}
-                                                    {tenantEmail && (
-                                                        <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                            <Mail className="w-4 h-4" /> Email
-                                                        </button>
-                                                    )}
-                                                    {tenantPhone && (
-                                                        <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                            <Phone className="w-4 h-4" /> Call
-                                                        </a>
-                                                    )}
-                                                    <button onClick={handleOpenInbox} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm ml-auto">
-                                                        <MessageSquare className="w-4 h-4 text-emerald-500" /> Full Compose in Revenue Monitor →
-                                                    </button>
-                                                </div>
-                                                {!hasContactInfo && (
-                                                    <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
-                                                )}
-                                            </div>
-                                        )}
+                                            // After this row's cards, inject the expansion panel if selected unit is in this row
+                                            const expansionPanel = (selectedUnit && rowIdx === selectedRowIdx) ? (() => {
+                                                const sd = getUnitDisplay(selectedUnit);
+                                                const tenantPhone: string = (selectedUnit as any).rentalDetails?.tenantPhone || (selectedUnit as any).tenantPhone || '';
+                                                const tenantEmail: string = (selectedUnit as any).rentalDetails?.tenantEmail || (selectedUnit as any).tenantEmail || '';
+                                                const hasContactInfo = !!(tenantPhone || tenantEmail);
 
-                                        {/* Action buttons */}
-                                        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
-                                            <button
-                                                onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
-                                                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
-                                            >
-                                                <EditIcon className="w-3.5 h-3.5" /> Edit Unit
-                                            </button>
-                                            {selectedUnit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                <button onClick={() => openModal('collectRent', property.id, { unitName: sd.name, tenantName: sd.tenantName, rentAmount: sd.rentAmount, unitId: selectedUnit.id })} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                    <Receipt className="w-3.5 h-3.5" /> Record Payment
-                                                </button>
-                                            )}
-                                            <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
-                                            </button>
-                                            <button
-                                                onClick={() => setShowUnitMessaging(v => !v)}
-                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
-                                            >
-                                                <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
-                                            </button>
-                                            <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
-                                                <Trash2 className="w-3.5 h-3.5" /> Remove Unit
-                                            </button>
-                                        </div>
+                                                const handleWhatsApp = () => {
+                                                    if (!tenantPhone) return;
+                                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
+                                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
+                                                    const msg = encodeURIComponent(`Hello ${sd.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${sd.name} at ${property.address}.`);
+                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+                                                };
+
+                                                const handleEmailTenant = () => {
+                                                    openModal('composeEmail', null, {
+                                                        to: tenantEmail,
+                                                        subject: `Re: ${sd.name} — ${property.address}`,
+                                                    });
+                                                };
+
+                                                const handleOpenInbox = () => {
+                                                    try {
+                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
+                                                            unitId: selectedUnit.id,
+                                                            unitName: sd.name,
+                                                            tenantName: sd.tenantName,
+                                                            tenantPhone,
+                                                            tenantEmail,
+                                                            rentAmount: sd.rentAmount,
+                                                            propertyAddress: property.address,
+                                                        }));
+                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
+                                                    } catch (e) {}
+                                                    navigateTo('atriumEngine');
+                                                };
+
+                                                return (
+                                                    <div
+                                                        key={`expansion-${selectedUnit.id}`}
+                                                        className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5 animate-fade-in"
+                                                    >
+                                                        {/* Header */}
+                                                        <div className="flex items-start justify-between mb-4">
+                                                            <div>
+                                                                <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+                                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{sd.name}</h4>
+                                                                {sd.floor && <p className="text-xs text-slate-400">Floor {sd.floor}</p>}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {sd.remindersPaused && (
+                                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
+                                                                        Reminders Paused
+                                                                    </span>
+                                                                )}
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                                    {String(selectedUnit.status || 'Vacant')}
+                                                                </span>
+                                                                <button onClick={() => { setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                                                                    <XIcon className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Details grid — full metadata in expanded view */}
+                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                                                            {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
+                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
+                                                                <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+                                                            )}
+                                                            {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
+                                                            {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
+                                                            {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
+                                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+                                                                <DetailItem label="Service Charge" value={
+                                                                    <>
+                                                                        ₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                                        {(() => {
+                                                                            const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+                                                                            if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                                            return null;
+                                                                        })()}
+                                                                    </>
+                                                                } />
+                                                            )}
+                                                            {(() => {
+                                                                const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+                                                                const outstanding = sd.outstandingServiceChargeBalance || (selectedUnit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
+                                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+                                                            })()}
+                                                            {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
+                                                            {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
+                                                            {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
+                                                            {/* Term Progress */}
+                                                            {sd.termProgress !== null && (
+                                                                <DetailItem label="Term Progress" value={
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
+                                                                            <div className={`h-full rounded-full transition-all ${sd.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(sd.termProgress * 100)}%` }} />
+                                                                        </div>
+                                                                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(sd.termProgress * 100)}%</span>
+                                                                    </div>
+                                                                } />
+                                                            )}
+                                                        </div>
+
+                                                        {/* Message Tenant panel */}
+                                                        {showUnitMessaging && (
+                                                            <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
+                                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
+                                                                    Contact {sd.tenantName || 'Tenant'}
+                                                                </p>
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                    {tenantPhone && (
+                                                                        <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                            <MessageSquare className="w-4 h-4" /> WhatsApp
+                                                                        </button>
+                                                                    )}
+                                                                    {tenantEmail && (
+                                                                        <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                            <Mail className="w-4 h-4" /> Email
+                                                                        </button>
+                                                                    )}
+                                                                    {tenantPhone && (
+                                                                        <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                            <Phone className="w-4 h-4" /> Call
+                                                                        </a>
+                                                                    )}
+                                                                    <button onClick={handleOpenInbox} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm ml-auto">
+                                                                        <MessageSquare className="w-4 h-4 text-emerald-500" /> Full Compose in Revenue Monitor →
+                                                                    </button>
+                                                                </div>
+                                                                {!hasContactInfo && (
+                                                                    <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Action buttons */}
+                                                        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
+                                                            <button
+                                                                onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
+                                                                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+                                                            >
+                                                                <EditIcon className="w-3.5 h-3.5" /> Edit Unit
+                                                            </button>
+                                                            {selectedUnit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                <button onClick={() => openModal('collectRent', property.id, { unitName: sd.name, tenantName: sd.tenantName, rentAmount: sd.rentAmount, unitId: selectedUnit.id })} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                                    <Receipt className="w-3.5 h-3.5" /> Record Payment
+                                                                </button>
+                                                            )}
+                                                            <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                                <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setShowUnitMessaging(v => !v)}
+                                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+                                                            >
+                                                                <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
+                                                            </button>
+                                                            <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
+                                                                <Trash2 className="w-3.5 h-3.5" /> Remove Unit
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })() : null;
+
+                                            return [...cards, expansionPanel];
+                                        })}
                                     </div>
                                 );
                             })()}
                         </div>
                     );
                 })()}
-
                 {activeTab === 'revenue' && (() => {
                     const units = [...(allUnits || [])]
                         .map(u => u && u.id ? u : null)
@@ -1353,8 +1383,8 @@ const PropertyDetailViewContent: React.FC = () => {
 
                     return (
                     <div className="space-y-6 animate-fade-in">
-                        {/* Revenue Summary Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Revenue Summary Cards — fluid flex-grid for dark-mode containment */}
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             {(() => {
                                 const allRent = units.reduce((sum: number, u: Property) => {
                                     const rd = u.rentalDetails || {};
@@ -1495,7 +1525,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
 
                         {/* Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             <StatCard
                                 title={isSale ? "Target Sale Value" : "Collected YTD"}
                                 value={<><NairaSymbol />{formatNaira(isSale ? (property.saleDetails?.targetPrice || property.value || 0) : (allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0))}</>}
