@@ -379,12 +379,12 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
     return (
         <div className="space-y-6 animate-fade-in pb-20">
-            {/* Quick Stats Row */}
+            {/* Quick Stats Row — Platinum UI: uniform heights, anchored icons, fluid text */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {isLeased && (
                     <>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between relative overflow-hidden">
-                            {/* "Edit" button for lease terms overlay if not set */}
+                        {/* Next Rent Due */}
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 relative overflow-hidden min-h-[88px]">
                             {!property.rentalDetails?.leaseStart && (
                                 <button
                                     onClick={() => { 
@@ -400,23 +400,23 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                     Setup Lease Terms
                                 </button>
                             )}
-
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 max-w-[120px] uppercase tracking-wider">Next Rent Due</p>
-                                <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+                            <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 flex-shrink-0">
+                                <CurrencyDollarIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Rent Due</p>
+                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     {nextRentDueDate ? new Date(nextRentDueDate).toLocaleDateString('en-GB') : 'Not Set'}
                                 </p>
                                 {nextRentDueDate && daysLeft !== null && daysLeft <= 30 && (
-                                    <p className="text-xs text-orange-500 font-bold mt-1">Due Soon</p>
+                                    <p className="text-[10px] text-orange-500 font-bold mt-0.5">Due Soon</p>
                                 )}
-                            </div>
-                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600">
-                                <CurrencyDollarIcon className="w-6 h-6" />
                             </div>
                         </div>
 
+                        {/* Days Left */}
                         <div
-                            className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between cursor-pointer hover:border-blue-300 transition-colors"
+                            className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 cursor-pointer hover:border-blue-300 transition-colors min-h-[88px]"
                             onClick={() => { 
                                 setAddType('lease_setup'); 
                                 setLocalRentAmount(formatNumberWithCommas(property.rentalDetails?.rentAmount || 0));
@@ -426,32 +426,33 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 setShowAddModal(true); 
                             }}
                         >
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 flex-shrink-0">
+                                <CalendarIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     Days Left <PencilSquareIcon className="w-3 h-3" />
                                 </p>
-                                <p className={`text-lg font-bold mt-1 ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
-                                    {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Days Overdue` : `${daysLeft} Days`) : 'N/A'}
+                                <p className={`text-base sm:text-lg font-bold mt-0.5 ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
+                                    {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Overdue` : `${daysLeft} Days`) : 'N/A'}
                                 </p>
                                 {property.rentalDetails?.leaseEnd && (
-                                    <p className="text-[10px] text-slate-500 mt-1">Ends: {property.rentalDetails.leaseEnd}</p>
+                                    <p className="text-[10px] text-slate-500 mt-0.5">Ends: {property.rentalDetails.leaseEnd}</p>
                                 )}
-                            </div>
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
-                                <CalendarIcon className="w-6 h-6" />
                             </div>
                         </div>
 
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rent Review</p>
-                                <p className={`text-lg font-bold mt-1 ${isReviewUpcoming ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
+                        {/* Rent Review */}
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                            <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600 flex-shrink-0">
+                                <ClockIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rent Review</p>
+                                <p className={`text-base sm:text-lg font-bold mt-0.5 ${isReviewUpcoming ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                     {rentReviewDate ? new Date(rentReviewDate).toLocaleDateString('en-GB') : 'Not Set'}
                                 </p>
-                                {isReviewUpcoming && <p className="text-[10px] text-amber-500 font-black animate-pulse uppercase">Action Required</p>}
-                            </div>
-                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-600">
-                                <ClockIcon className="w-6 h-6" />
+                                {isReviewUpcoming && <p className="text-[10px] text-amber-500 font-black animate-pulse uppercase mt-0.5">Review Due</p>}
                             </div>
                         </div>
                     </>
@@ -459,40 +460,41 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
 
                 {isSale && (
                     <>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Target Price</p>
-                                <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                            <div className="p-2.5 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600 flex-shrink-0">
+                                <CurrencyDollarIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Price</p>
+                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     <NairaSymbol />{formatNaira(property.saleDetails?.targetPrice || property.value || 0)}
                                 </p>
                             </div>
-                            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-600">
-                                <CurrencyDollarIcon className="w-6 h-6" />
-                            </div>
                         </div>
-                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Listing Age</p>
-                                <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">
+                        <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                            <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 flex-shrink-0">
+                                <CalendarIcon className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Listing Age</p>
+                                <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     {property.saleDetails?.listingDate ? `${Math.ceil((new Date().getTime() - new Date(property.saleDetails.listingDate).getTime()) / (1000 * 3600 * 24))} Days` : 'N/A'}
                                 </p>
-                            </div>
-                            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600">
-                                <CalendarIcon className="w-6 h-6" />
                             </div>
                         </div>
                     </>
                 )}
 
-                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center justify-between">
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Maintenance</p>
-                        <p className="text-lg font-bold text-slate-900 dark:text-white mt-1">
-                            {activeMaintenanceCount} Tasks
-                        </p>
+                {/* Maintenance — always shown */}
+                <div className="bg-white dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm flex items-center gap-3 min-h-[88px]">
+                    <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600 flex-shrink-0">
+                        <WrenchIcon className="w-5 h-5" />
                     </div>
-                    <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg text-orange-600">
-                        <WrenchIcon className="w-6 h-6" />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Maintenance</p>
+                        <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
+                            {activeMaintenanceCount} {activeMaintenanceCount === 1 ? 'Task' : 'Tasks'}
+                        </p>
                     </div>
                 </div>
             </div>

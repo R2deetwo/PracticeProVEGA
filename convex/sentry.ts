@@ -240,6 +240,9 @@ export const markChargeAsPaid = mutation({
       serviceChargeStatus: newStatus,
       outstandingBalance: newStatus === "PAID_FULLY" ? 0 : outstandingBalance,
       amountPaidThisCycle: newStatus === "PAID_FULLY" ? 0 : newTotalPaid,
+      // Reset reminder tracking on any payment
+      consecutiveReminderCount: 0,
+      remindersPaused: false,
     });
 
     // Ledger entry
@@ -259,6 +262,53 @@ export const markChargeAsPaid = mutation({
         ? `${sc.category} service charge — full payment`
         : `${sc.category} service charge — partial payment (₦${newTotalPaid.toLocaleString()} of ₦${totalAmount.toLocaleString()})`,
     });
+
+    // ── PAID Confirmation WhatsApp Message ──
+    // When a tenant is marked as fully paid by the administrator,
+    // send a confirmation message acknowledging the payment.
+    if (newStatus === "PAID_FULLY") {
+      try {
+        // Resolve tenant contact from the property/unit
+        const unitDoc = await ctx.db
+          .query("properties")
+          .withIndex("by_custom_id", q => q.eq("id", sc.unitId))
+          .first();
+        const altDoc = !unitDoc ? await ctx.db
+          .query("properties")
+          .filter(q => q.eq(q.field("_id"), sc.unitId))
+          .first() : null;
+        const effectiveDoc = unitDoc || altDoc;
+
+        if (effectiveDoc) {
+          const rd = (effectiveDoc as any).rentalDetails || {};
+          const tenantPhone: string = rd.tenantPhone || '';
+          const tenantEmail: string = rd.tenantEmail || '';
+          const tenantName: string = rd.tenantName || 'Tenant';
+          const unitName: string = rd.unitName || 'Unit';
+          const chargeLabel = sc.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : sc.category;
+          const recipient = tenantPhone || tenantEmail;
+
+          if (recipient) {
+            const confirmMessage = `Dear ${tenantName}, we confirm receipt of your ${chargeLabel} service charge payment of ₦${totalAmount.toLocaleString()} for ${unitName}. Your account is now fully settled. Thank you for your prompt payment.`;
+            await ctx.db.insert("automation_logs", {
+              firmId,
+              unitId: sc.unitId,
+              tenantId: sc.tenantId,
+              messageType: "payment_receipt",
+              channel: tenantPhone ? "whatsapp" : "email",
+              recipient,
+              messagePreview: confirmMessage,
+              sentAt: Date.now(),
+              status: "simulated",
+              triggeredBy: "admin_mark_paid",
+            });
+          }
+        }
+      } catch (e) {
+        // Non-blocking — don't fail the payment recording if confirmation fails
+        console.warn("Failed to send PAID confirmation:", e);
+      }
+    }
   },
 });
 
@@ -462,6 +512,7 @@ export const sendServiceChargeReminders = internalMutation({
     const now = Date.now();
     let remindersSent = 0;
     let remindersSkipped = 0;
+    let remindersPausedCount = 0;
 
     // 1. Find all service_charges that are overdue or upcoming (nextDue within 7 days)
     const allCharges = await ctx.db.query("service_charges").collect();
@@ -473,33 +524,88 @@ export const sendServiceChargeReminders = internalMutation({
       return sc.isDefaulter || sc.serviceChargeStatus === "PARTIALLY_PAID" || daysUntilDue <= 7;
     });
 
+    // Pre-load all properties for property-level toggle checks
+    const allProperties = await ctx.db.query("properties").collect();
+    const propertyMap = new Map<string, any>();
+    for (const p of allProperties) {
+      if (p.id) propertyMap.set(p.id, p);
+      if ((p as any)._id) propertyMap.set((p as any)._id, p);
+      // Also index by unit IDs embedded in the property
+      const units: any[] = (p as any).units || [];
+      for (const u of units) {
+        if (u.id) propertyMap.set(u.id, p);
+      }
+    }
+
     for (const charge of actionableCharges) {
+      // ── GUARD 0: Per-unit mute toggle ──
+      if (charge.remindersMuted) {
+        remindersSkipped++;
+        continue;
+      }
+
+      // ── GUARD 1: Cool-off — if remindersPaused, skip entirely ──
+      if (charge.remindersPaused) {
+        remindersPausedCount++;
+        remindersSkipped++;
+        continue;
+      }
+
+      // ── GUARD 2: Property-level reminders toggle ──
+      const parentProperty = propertyMap.get(charge.unitId);
+      if (parentProperty && parentProperty.remindersEnabled === false) {
+        remindersSkipped++;
+        continue;
+      }
+
+      // Resolve cool-off threshold (property-level override or default 7)
+      const coolOffThreshold = parentProperty?.reminderCoolOffDays || 7;
+
+      // ── GUARD 3: Cool-off — check consecutive reminder count ──
+      const consecutiveCount = charge.consecutiveReminderCount ?? 0;
+      if (consecutiveCount >= coolOffThreshold) {
+        // Auto-pause: flag the unit so admin sees REMINDERS_PAUSED_MAX_EFFORT
+        await ctx.db.patch(charge._id, {
+          remindersPaused: true,
+        });
+        remindersPausedCount++;
+        remindersSkipped++;
+        continue;
+      }
+
       // 2. Resolve tenant phone from the properties table
-      const property = await ctx.db
+      const unitDoc = parentProperty || await ctx.db
         .query("properties")
         .withIndex("by_custom_id", q => q.eq("id", charge.unitId))
         .first();
 
-      // Also try by Convex _id match
-      const unitDoc = property || await ctx.db
-        .query("properties")
-        .filter(q => q.eq(q.field("_id"), charge.unitId))
-        .first();
-
       if (!unitDoc) {
+        // Also try by Convex _id match
+        const altDoc = await ctx.db
+          .query("properties")
+          .filter(q => q.eq(q.field("_id"), charge.unitId))
+          .first();
+        if (!altDoc) {
+          remindersSkipped++;
+          continue;
+        }
+      }
+
+      const effectiveDoc = unitDoc || propertyMap.get(charge.unitId);
+      if (!effectiveDoc) {
         remindersSkipped++;
         continue;
       }
 
       // Extract tenant contact info from rentalDetails
-      const rd = (unitDoc as any).rentalDetails || {};
+      const rd = (effectiveDoc as any).rentalDetails || {};
       const tenantPhone: string = rd.tenantPhone || '';
       const tenantEmail: string = rd.tenantEmail || '';
       const tenantName: string = rd.tenantName || 'Tenant';
       const unitName: string = rd.unitName || 'Unit';
       // Check if property has minimum vend enabled
-      const minimumVendEnabled = (unitDoc as any).minimumVendEnabled || false;
-      const vendLabel = charge.isMinimumVend ? ((unitDoc as any).minimumVendLabel || 'Minimum Vend') : null;
+      const minimumVendEnabled = (effectiveDoc as any).minimumVendEnabled || false;
+      const vendLabel = charge.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : null;
 
       if (!tenantPhone && !tenantEmail) {
         remindersSkipped++;
@@ -563,11 +669,17 @@ export const sendServiceChargeReminders = internalMutation({
         triggeredBy: "cron_service_charge_reminder",
       });
 
+      // 7. Increment consecutive reminder counter + record last reminder timestamp
+      await ctx.db.patch(charge._id, {
+        consecutiveReminderCount: (charge.consecutiveReminderCount ?? 0) + 1,
+        lastReminderSentAt: now,
+      });
+
       remindersSent++;
     }
 
-    console.log(`Service Charge Reminders: ${remindersSent} sent, ${remindersSkipped} skipped.`);
-    return { remindersSent, remindersSkipped };
+    console.log(`Service Charge Reminders: ${remindersSent} sent, ${remindersSkipped} skipped, ${remindersPausedCount} auto-paused.`);
+    return { remindersSent, remindersSkipped, remindersPausedCount };
   },
 });
 
@@ -726,6 +838,60 @@ export const resetMonthlyServiceCharges = internalMutation({
 
     console.log(`Monthly SC Reset: ${resetCount} reset, ${skippedCount} skipped.`);
     return { resetCount, skippedCount };
+  },
+});
+
+// ─── REMINDER TOGGLE MUTATIONS ──────────────────────────────────────────────
+
+/** Toggle property-level reminders on/off */
+export const setPropertyRemindersEnabled = mutation({
+  args: {
+    propertyId: v.string(),
+    remindersEnabled: v.boolean(),
+    reminderCoolOffDays: v.optional(v.number()),
+  },
+  handler: async (ctx, { propertyId, remindersEnabled, reminderCoolOffDays }) => {
+    // Find by custom id or Convex _id
+    let doc = await ctx.db
+      .query("properties")
+      .withIndex("by_custom_id", q => q.eq("id", propertyId))
+      .first();
+    if (!doc) {
+      const all = await ctx.db.query("properties").collect();
+      doc = all.find(p => p._id === propertyId as any) || null;
+    }
+    if (!doc) throw new Error("Property not found");
+    await ctx.db.patch(doc._id, {
+      remindersEnabled,
+      ...(reminderCoolOffDays !== undefined ? { reminderCoolOffDays } : {}),
+    });
+    return { success: true };
+  },
+});
+
+/** Toggle per-unit reminder mute */
+export const setUnitRemindersMuted = mutation({
+  args: {
+    serviceChargeId: v.id("service_charges"),
+    remindersMuted: v.boolean(),
+  },
+  handler: async (ctx, { serviceChargeId, remindersMuted }) => {
+    await ctx.db.patch(serviceChargeId, { remindersMuted });
+    return { success: true };
+  },
+});
+
+/** Unpause reminders for a unit (manual admin intervention after cool-off auto-pause) */
+export const unpauseReminders = mutation({
+  args: {
+    serviceChargeId: v.id("service_charges"),
+  },
+  handler: async (ctx, { serviceChargeId }) => {
+    await ctx.db.patch(serviceChargeId, {
+      remindersPaused: false,
+      consecutiveReminderCount: 0,
+    });
+    return { success: true };
   },
 });
 

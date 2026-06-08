@@ -691,6 +691,11 @@ export default defineSchema({
     minimumVendEnabled: nullableBoolean,
     minimumVendAmount: nullableNumber,
     minimumVendLabel: nullableString,
+    // ─── Notification Guardrails ─────────────────────────
+    // Property-level global toggle for morning utility reminders
+    remindersEnabled: nullableBoolean,
+    // Max consecutive reminders before auto-pause (default 7)
+    reminderCoolOffDays: nullableNumber,
     id: nullableString, // Legacy ID from frontend
     userId: nullableString, // Legacy ID from frontend
     createdAt: nullableString,
@@ -919,6 +924,15 @@ export default defineSchema({
     lastResetAt: v.optional(v.number()),
     // Whether this is a minimum vend charge
     isMinimumVend: v.optional(v.boolean()),
+    // ─── Reminder Guardrails ─────────────────────────────
+    // Consecutive days a reminder has been sent without engagement
+    consecutiveReminderCount: v.optional(v.number()),
+    // Timestamp of last reminder sent for this charge
+    lastReminderSentAt: v.optional(v.number()),
+    // Per-unit mute toggle — admin can silence reminders for this unit/tenant
+    remindersMuted: v.optional(v.boolean()),
+    // Auto-paused by cool-off mechanism after max consecutive reminders
+    remindersPaused: v.optional(v.boolean()),
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])
@@ -926,7 +940,8 @@ export default defineSchema({
     .index("by_next_due", ["nextDueDate"])
     .index("by_firm_defaulter", ["firmId", "isDefaulter"])
     .index("by_status", ["serviceChargeStatus"])
-    .index("by_firm_status", ["firmId", "serviceChargeStatus"]),
+    .index("by_firm_status", ["firmId", "serviceChargeStatus"])
+    .index("by_reminders_paused", ["remindersPaused"]),
 
   leads_pipeline: defineTable({
     firmId: v.string(),
