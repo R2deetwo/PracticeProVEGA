@@ -6,8 +6,10 @@ import { inputModern } from '../../utils/formStyles';
 import { formatNumberWithCommas, parseFormattedNumber, formatNaira } from '../../utils/formatting';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { useFinanceState } from '../../contexts/FinanceContext';
 import { calculateScaleIFees } from '../../utils/remunerationScale';
 import NairaSymbol from '../NairaSymbol';
+import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
 
 interface InvoiceFormProps {
   clients: Contact[];
@@ -21,15 +23,26 @@ interface InvoiceFormProps {
 
 export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bankAccounts, invoiceToEdit, onAddInvoice, onUpdateInvoice, onClose }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { financeState } = useFinanceState();
     const { openModal, navigateTo, addToast } = useUI();
 
   const vatRate = coreState.firmDetails.taxSettings?.vatRate || 0.075;
   const vatPercentage = (vatRate * 100).toFixed(1);
 
+  // Pre-fill with dynamic firm-branded invoice number
+  const suggestedInvoiceNumber = useMemo(() =>
+      generateInvoiceNumber({
+          firmName: coreState.firmDetails?.name,
+          users: coreState.users || [],
+          existingInvoiceCount: financeState.invoices?.length || 0,
+      }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [coreState.firmDetails?.name, coreState.users?.length, financeState.invoices?.length]);
+
   const [clientId, setClientId] = useState('');
   const [matterId, setMatterId] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([{ description: '', total: 0, hours: 0, rate: 0 }]);
-  const [invoiceNumber, setInvoiceNumber] = useState(`INV-MANUAL-${String(Date.now()).slice(-5)}`);
+  const [invoiceNumber, setInvoiceNumber] = useState(suggestedInvoiceNumber);
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]);
 

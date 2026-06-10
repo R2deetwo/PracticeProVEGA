@@ -5,6 +5,7 @@ import { InvoiceStatus, InvoiceStatus as Status, AppState } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
+import { generateInvoiceNumber } from '../utils/invoiceHelpers';
 
 /**
  * Hook for managing financial operations: Invoices, Ledgers, and Service Charges.
@@ -25,12 +26,12 @@ export const useFinance = (appState: AppState, actions: any) => {
         const taxRate = tax?.rate || appState.firmDetails?.taxSettings?.vatRate || 7.5;
         const taxAmount = tax?.applicable ? (subTotal * taxRate / 100) : 0;
 
-        // Generate sequential invoice number: INV-YYYYMM-XXX
-        const now = new Date();
-        const datePrefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-        const existingCount = (appState.invoices || []).length;
-        const sequenceNum = String(existingCount + 1).padStart(3, '0');
-        const invoiceNumber = `INV-${datePrefix}-${sequenceNum}`;
+        // Generate dynamic firm-branded invoice number (computed once, persisted as string)
+        const invoiceNumber = generateInvoiceNumber({
+            firmName: appState.firmDetails?.name,
+            users: appState.users || [],
+            existingInvoiceCount: (appState.invoices || []).length,
+        });
 
         const invoice: any = {
             id: uuidv4(),

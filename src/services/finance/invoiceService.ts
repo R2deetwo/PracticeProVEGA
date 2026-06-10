@@ -13,6 +13,6 @@ export const calculateTaxAmount = (subTotal: number, taxRate: number, isApplicab
     return isApplicable ? (subTotal * taxRate / 100) : 0;
 };
 
-export const generateInvoiceNumber = (): string => {
-    return `INV-${Math.floor(1000 + Math.random() * 9000)}`;
-};
+// NOTE: generateInvoiceNumber() has been replaced by src/utils/invoiceHelpers.ts
+// The new generator produces dynamic, firm-branded invoice numbers.
+// Import from '../../utils/invoiceHelpers' instead.

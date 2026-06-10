@@ -8,6 +8,7 @@ import NairaSymbol from '../NairaSymbol';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
 
 interface InvoiceGeneratorFormProps {
     matter: Matter;
@@ -22,9 +23,20 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
+
+    // Pre-fill with dynamic firm-branded invoice number
+    const suggestedInvoiceNumber = useMemo(() =>
+        generateInvoiceNumber({
+            firmName: coreState.firmDetails?.name,
+            users: coreState.users || [],
+            existingInvoiceCount: financeState.invoices?.length || 0,
+        }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [coreState.firmDetails?.name, coreState.users?.length, financeState.invoices?.length]);
+
     const [selectedTimeEntryIds, setSelectedTimeEntryIds] = useState<Set<string>>(new Set());
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
-    const [invoiceNumber, setInvoiceNumber] = useState(`INV-${String(Date.now()).slice(-5)}`);
+    const [invoiceNumber, setInvoiceNumber] = useState(suggestedInvoiceNumber);
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
     const [dueDate, setDueDate] = useState(new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]);
 

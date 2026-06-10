@@ -7,6 +7,8 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
+import { useFinanceState } from '../../contexts/FinanceContext';
+import { generateReceiptNumber } from '../../utils/invoiceHelpers';
 import { 
     BanknotesIcon, 
     CalendarIcon, 
@@ -30,6 +32,7 @@ interface CollectRentModalProps {
 const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }) => {
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
+    const { financeState } = useFinanceState();
     const { updateItem, handleGenerateInvoice, logActivity } = useDataActions();
     const { addToast, modalContext } = useUI();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
@@ -202,7 +205,11 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
             
             const receiptAmount = payment ? payment.amount : amountValue;
             const receiptDate = payment ? (payment.paidDate || payment.dueDate) : paymentDate;
-            const receiptNumber = payment ? (payment.receiptNumber || `REC-${Date.now().toString().slice(-6)}`) : `REC-${Date.now().toString().slice(-6)}`;
+            const receiptNumber = payment?.receiptNumber || generateReceiptNumber({
+                firmName: coreState.firmDetails?.name,
+                users: coreState.users || [],
+                existingInvoiceCount: financeState.invoices?.length || 0,
+            });
 
             // Find actual tenant contact for the receipt
             const tenantContact = matterState.contacts.find(c => 
