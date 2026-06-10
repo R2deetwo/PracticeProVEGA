@@ -206,10 +206,10 @@ function Hero() {
           {/* Stats row */}
           <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
             {[
-              { value: '2,400+', label: 'Legal Practitioners' },
               { value: '₦ Naira', label: 'Native Billing' },
+              { value: 'Court-Ready', label: 'Document Formatting' },
               { value: '99.9%', label: 'Platform Uptime' },
-              { value: '24/7', label: 'System Monitoring' },
+              { value: 'NDPA 2023', label: 'Data Compliant' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col">
                 <span className="text-2xl sm:text-3xl font-bold text-slate-900">{s.value}</span>
@@ -1292,8 +1292,8 @@ function Footer() {
     {
       title: 'Portals',
       links: [
-        { label: 'Client Portal', href: '/portal/client/login' },
-        { label: 'Tenant Portal', href: '/portal/tenant/login' },
+        { label: 'Client Portal (VEGA)', href: '/portal/client/login' },
+        { label: 'Tenant Portal (Atrium)', href: '/portal/tenant/login' },
       ],
     },
     {

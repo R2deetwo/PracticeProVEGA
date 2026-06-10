@@ -144,6 +144,93 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
+                        <AccordionItem title={isProperty ? "Tenant Portal Guide" : "Client Portal Guide"}>
+                            <div className="space-y-6">
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl">
+                                    <h4 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[10px] uppercase tracking-wider">Portal</span>
+                                        {isProperty ? 'Tenant Portal Overview' : 'Client Portal Overview'}
+                                    </h4>
+                                    <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 leading-relaxed">
+                                        The {isProperty ? 'Tenant' : 'Client'} Portal is a secure, self-service web interface that gives your {isProperty ? 'tenants' : 'clients'} controlled access to their {isProperty ? 'financial and maintenance' : 'matter and document'} information — without needing to contact your office for every update. Portals are available on <strong>Growth</strong> and <strong>Pro</strong> plans. Core tier users will see an upgrade prompt instead.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">What {isProperty ? 'Tenants' : 'Clients'} Can See</h4>
+                                    {isProperty ? (
+                                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                            <li><strong>SC/MV Payment Ledger:</strong> A real-time breakdown of Service Charge and Minimum Vend payments, outstanding balances, and payment history per unit.</li>
+                                            <li><strong>Automated Rent Receipts:</strong> Download PDF receipts for every confirmed rent payment, branded with your portfolio's letterhead.</li>
+                                            <li><strong>Maintenance Ticket System:</strong> Log maintenance issues (plumbing, electrical, structural, other) directly into your workflow. Tenants can see the status of their tickets from open to resolved.</li>
+                                        </ul>
+                                    ) : (
+                                        <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                            <li><strong>Milestone Progress Tracker:</strong> A visual timeline of their matter's progress through each stage (Intake → Active → Resolution → Closed), so they always know where things stand.</li>
+                                            <li><strong>Secure Document Vault:</strong> Access to all shared documents related to their matter — court filings, correspondence, contracts, and opinions. Documents are read-only and cannot be modified through the portal.</li>
+                                            <li><strong>KYC Upload Portal:</strong> A secure upload area for Know-Your-Client documentation (identification, proof of address, corporate registration documents) that flows directly into your firm's matter records.</li>
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">How to Activate the Portal</h4>
+                                    <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <li><strong>Check your plan:</strong> Portals are available on Growth and Pro plans only. If you're on Core, navigate to <code>Settings → Subscription</code> to upgrade.</li>
+                                        <li><strong>Ensure {isProperty ? 'tenant' : 'client'} records exist:</strong> {isProperty ? 'Each tenant must have a profile with an email address in your Atrium system before they can access the portal.' : 'Each client must have a contact record with an email address linked to at least one active matter before they can access the portal.'}</li>
+                                        <li><strong>Generate portal credentials:</strong> Navigate to the {isProperty ? 'tenant' : 'client'}'s detail page and click <strong>"Enable Portal Access"</strong>. The system will generate a unique, secure login for that {isProperty ? 'tenant' : 'client'}.</li>
+                                        <li><strong>Share login details:</strong> After generating credentials, you'll see a <strong>"Share Login Details"</strong> button. This allows you to send the portal URL and their login credentials directly to the {isProperty ? 'tenant' : 'client'} via their registered email address. You can also copy the details manually to share through your preferred secure channel.</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Sharing Login Details Securely</h4>
+                                    <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg text-sm text-amber-800 dark:text-amber-300 mb-3">
+                                        <strong>Important:</strong> {isProperty ? 'Tenant' : 'Client'} portal credentials provide access to sensitive {isProperty ? 'financial and property' : 'legal and personal'} information. Always share login details through secure, encrypted channels.
+                                    </div>
+                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <li><strong>Recommended:</strong> Use the built-in "Share Login Details" feature, which sends credentials directly to the {isProperty ? 'tenant' : 'client'}'s registered email address. This avoids manual handling of sensitive credentials.</li>
+                                        <li><strong>Alternative:</strong> Copy the portal URL and temporary password, then share via a secure messaging platform (e.g., encrypted email, secure WhatsApp). <strong>Never share credentials via unencrypted SMS or public channels.</strong></li>
+                                        <li><strong>First login:</strong> {isProperty ? 'Tenants' : 'Clients'} will be prompted to set their own password on first login. The temporary password you share will expire after 7 days for security.</li>
+                                        <li><strong>Legal consideration:</strong> {isVega && 'As a legal practitioner, you have a professional obligation to protect client data under NDPA 2023 and NBA professional standards. The client portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that privileged and confidential information remains protected at all times.'}{isProperty && 'The tenant portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that financial and personal data remains protected at all times in compliance with NDPA 2023.'}</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Portal URL</h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                        {isProperty ? 'Tenants' : 'Clients'} can access the portal at:
+                                    </p>
+                                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg font-mono text-sm text-primary-600 dark:text-primary-400 break-all">
+                                        {isProperty ? 'https://practicepro.ng/portal/tenant/login' : 'https://practicepro.ng/portal/client/login'}
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                        This URL is also available in the footer of your product landing page. {isProperty ? 'Tenants' : 'Clients'} can bookmark it for direct access.
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Managing Portal Access</h4>
+                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <li><strong>Revoking access:</strong> Navigate to the {isProperty ? 'tenant' : 'client'}'s detail page and click <strong>"Revoke Portal Access"</strong>. This immediately disables their login credentials. They will see a "Access Revoked" message when attempting to log in.</li>
+                                        <li><strong>Resetting a password:</strong> If a {isProperty ? 'tenant' : 'client'} forgets their password, click <strong>"Reset Portal Password"</strong> on their detail page. A new temporary password will be generated that you can share securely.</li>
+                                        <li><strong>Viewing access logs:</strong> The {isProperty ? 'tenant' : 'client'} detail page shows the last login timestamp and total number of portal sessions, helping you monitor engagement and detect unauthorized access.</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white">Security & Data Protection</h4>
+                                    <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <li><strong>Encryption:</strong> All portal data is encrypted at rest (AES-256) and in transit (TLS 1.3), matching the security standards of the main PracticePro workspace.</li>
+                                        <li><strong>Scope-limited access:</strong> {isProperty ? 'Tenants' : 'Clients'} can only see information specifically shared with them. They cannot access other {isProperty ? 'tenants\' records, portfolio-level data, or internal workflows' : 'clients\' matters, firm-level data, or internal workflows'}.</li>
+                                        <li><strong>Session management:</strong> Portal sessions expire after 30 minutes of inactivity. {isProperty ? 'Tenants' : 'Clients'} must re-authenticate to continue.</li>
+                                        <li><strong>Audit trail:</strong> Every portal access, document download, and action is logged with a timestamp and IP address, available in your compliance reporting module.</li>
+                                        <li><strong>NDPA 2023 compliance:</strong> Portal operations comply with the Nigeria Data Protection Act 2023. {isProperty ? 'Tenants' : 'Clients'} can request data access or deletion through you as the data controller.</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
                         <AccordionItem title={isProperty ? "Manager Guide" : "Lawyer Guide"}>
                             <div className="space-y-6">
                                 <div>

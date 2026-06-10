@@ -168,7 +168,7 @@ const NavBar: React.FC<{
 
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
-const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct }) => (
+const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
     <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-16">
         <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-4 gap-10 mb-12">
@@ -178,22 +178,26 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <Logo className="h-6 w-6 text-primary-500" aria-hidden="true" />
                         <span className="text-white font-bold text-lg flex items-center">
                             Practice<span className="text-primary-500">Pro</span>
-                            <span 
-                                className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-500'}`}
-                            >
-                                {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
-                            </span>
+                            {productChosen && (
+                                <span
+                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-500'}`}
+                                >
+                                    {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
+                                </span>
+                            )}
                         </span>
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed max-w-xs">Building systems for Nigerian Firms.</p>
-                    <div className="mt-4 flex items-center gap-3">
-                        <button 
-                            onClick={() => setActiveProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
-                            className="text-[10px] font-bold uppercase tracking-widest text-primary-500 hover:text-primary-400 flex items-center gap-1.5 py-1 px-2 rounded-lg border border-primary-500/20 hover:bg-primary-500/5 transition-all"
-                        >
-                            Switch to {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">→</span>
-                        </button>
-                    </div>
+                    {productChosen && (
+                        <div className="mt-4 flex items-center gap-3">
+                            <button
+                                onClick={() => setActiveProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
+                                className="text-[10px] font-bold uppercase tracking-widest text-primary-500 hover:text-primary-400 flex items-center gap-1.5 py-1 px-2 rounded-lg border border-primary-500/20 hover:bg-primary-500/5 transition-all"
+                            >
+                                Switch to {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">→</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
                 {/* Product */}
                 <div>
@@ -204,14 +208,20 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
                     </div>
                 </div>
-                {/* Portals */}
-                <div>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
-                    <div className="flex flex-col gap-2.5">
-                        <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
-                        <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Tenant Portal</a>
+                {/* Portals — only shown when a product is chosen; Vega→Client, Atrium→Tenant, Komplete→both */}
+                {productChosen && (
+                    <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
+                        <div className="flex flex-col gap-2.5">
+                            {activeProduct === 'vega' && (
+                                <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
+                            )}
+                            {activeProduct === 'atrium' && (
+                                <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Tenant Portal</a>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
                 {/* Company */}
                 <div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
@@ -368,17 +378,17 @@ const HubHero: React.FC<{
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
 const VEGA_STATS = [
-    { value: '10+', label: 'Active Matters' },
     { value: '₦ Naira', label: 'Native Billing' },
+    { value: 'Court-Ready', label: 'Document Formatting' },
     { value: '99.9%', label: 'Platform Uptime' },
-    { value: '24/7', label: 'System Monitoring' },
+    { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
 const ATRIUM_STATS = [
-    { value: 'Unlimited', label: 'Managed Units' },
     { value: '₦ Naira', label: 'Rent Collection' },
+    { value: 'SC/MV', label: 'Ledger Tracking' },
     { value: '99.9%', label: 'Platform Uptime' },
-    { value: '24/7', label: 'System Monitoring' },
+    { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
@@ -779,6 +789,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 onContactSales={() => openContactSales('Footer')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}
+                productChosen={productChosen}
             />
         </div>
     );
