@@ -77,3 +77,32 @@ Stage Summary:
 - 3 inconsistent invoice number patterns consolidated into 1 dynamic engine
 - Negative Rule (snapshot persistence) enforced — invoiceNumber is a plain string, never dynamically derived on read
 - Fallback to "ORG" prefix when firm profile incomplete creates visual friction encouraging profile completion
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Batch 6 — Portal login pages, Features page, duplicate NDPA fix, Custom pricing bug fix
+
+Work Log:
+- Created /portal/client/login route with ClientPortalLogin.tsx — branded Vega client portal login
+- Created /portal/tenant/login route with TenantPortalLogin.tsx — branded Atrium tenant portal login
+- Added both routes to App.tsx public paths (no auth required)
+- Added portal route rendering at top of renderAppContent() in App.tsx
+- Created dedicated /features page (src/app/features/page.tsx) with product-toggled deep-dive
+- Fixed duplicate NDPA/compliance entries in LandingPage.tsx hero stats (VEGA_STATS/ATRIUM_STATS)
+- Fixed duplicate NDPA entry in Next.js FeaturesOverview (replaced with "Client & Tenant Portals" card)
+- Fixed Next.js Hero stats row (replaced AES-256/NDPA duplicates with platform metrics)
+- Fixed critical pricing bug: SubscriptionSettings.tsx formatSettingsPrice() returned 'Custom' for ALL
+  Atrium tiers because monthlyPrice===null was incorrectly treated as custom pricing
+- Updated formatSettingsPrice() to only return 'Custom' when BOTH prices are null (Enterprise only)
+- Added portal links to LandingPage footer (4-column grid) and Next.js marketing page footer
+- Updated Next.js navbar to link Features to /features page instead of #features anchor
+- Removed codebase.zip from git history (was blocking pushes at 147MB)
+- Build passes, pushed to GitHub (commit f0cab5b)
+
+Stage Summary:
+- Client and Tenant portals now have dedicated external login pages at /portal/client/login and /portal/tenant/login
+- Features page restored at /features with full product feature deep-dive (VEGA/Atrium toggle)
+- Duplicate NDPA/compliance entries eliminated across LandingPage and Next.js marketing page
+- Critical pricing bug fixed: Atrium Core/Growth/Pro now show actual ₦ prices instead of "Custom"
+- Portal links added to all footer navigation
