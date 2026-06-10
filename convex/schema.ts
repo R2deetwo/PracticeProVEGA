@@ -41,6 +41,7 @@ export default defineSchema({
     product: nullableString,
     automationSettings: v.optional(v.any()),
     maxUnits: nullableNumber,
+    maxActiveTenants: nullableNumber,
     whatsappMessagesSent: nullableNumber,
     whatsappLimit: nullableNumber,
     setupFeePaid: nullableBoolean,

@@ -15,33 +15,31 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
 
     // Configuration for different upgrade targets
     const planConfig = useMemo(() => {
-        if (targetPlan === SubscriptionPlan.Ultimate) {
+        if (targetPlan === SubscriptionPlan.Komplete) {
             return {
-                title: "Ultimate Plan",
-                price: "₦80,000",
+                title: "Komplete",
+                price: "₦130,000",
                 features: [
-                    "Everything in Pro",
-                    "Property Management Suite",
-                    "Multi-Workspace Access (Admin Only)",
-                    "Priority Support",
-                    "Next 2 Seats @ Pro Rate",
-                    "Subsequent Seats @ Core Rate",
-                    "Unlimited Storage"
+                    "Unlimited Users",
+                    "Unlimited Matters & Units",
+                    "Unlimited Active Tenants",
+                    "ALOA® AI Copilot (Uncapped Priority)",
+                    "Full Legal + Property Suite"
                 ],
-                buttonText: "Upgrade to Ultimate",
-                headerColor: "from-yellow-500 to-orange-500"
+                buttonText: "Upgrade to Komplete",
+                headerColor: "from-indigo-500 to-violet-600"
             };
         } else {
-            // Default to Pro
+            // Default to Pro — aligned with tiers.ts VEGA_TIERS.Pro
             return {
                 title: "Pro Plan",
-                price: "₦45,000",
+                price: "₦80,000",
                 features: [
                     "ALOA® AI Assistant",
-                    "Team Collaboration",
+                    "Team Collaboration (Up to 10 Users)",
                     "Advanced Analytics",
-                    "Automation Rules",
-                    "Document Summaries"
+                    "Unlimited Matters",
+                    "Enterprise Jurisdiction Intake"
                 ],
                 buttonText: "Start 14-Day Free Trial",
                 headerColor: "from-emerald-600 to-teal-600"
@@ -85,7 +83,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                         <p className="text-sm font-medium text-slate-500 dark:text-zinc-400 mb-2">Upgrade to {planConfig.title}</p>
                         <div className="flex items-baseline gap-1 mb-6">
                             <span className="text-4xl font-bold text-slate-900 dark:text-white">{planConfig.price}</span>
-                            <span className="text-sm text-slate-500">{targetPlan === SubscriptionPlan.Ultimate ? '/mo (Admin)' : '/user/mo'}</span>
+                            <span className="text-sm text-slate-500">{targetPlan === SubscriptionPlan.Komplete ? '/mo' : '/mo'}</span>
                         </div>
                         <button
                             onClick={onUpgrade}

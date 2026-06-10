@@ -175,7 +175,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     };
 
     const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
-    const isUltimate = currentPlan === SubscriptionPlan.Ultimate || currentPlan === SubscriptionPlan.Enterprise;
+    const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
     // Allow all users to access the firm switcher to find their other offices or switch back to original offices 
     const canUseMultiFirm = true;
 
@@ -357,7 +357,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
-                    {isUltimate && showAloaX && (
+                    {isHighTier && showAloaX && (
                         <NavItemLink
                             item={{ view: 'indexer', text: 'ALOA-X', icon: <IndexerIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
@@ -399,12 +399,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 {!isSidebarRetracted ? (
                     <div className="bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 shadow-sm">
                         <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded-md ${isUltimate ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
+                            <div className={`p-1.5 rounded-md ${isHighTier ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
                                 <ShieldCheckIcon className="w-4 h-4" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Current Plan</p>
-                                <p className={`text-xs font-bold truncate ${isUltimate ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-800 dark:text-white'}`}>{currentPlan}</p>
+                                <p className={`text-xs font-bold truncate ${isHighTier ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-800 dark:text-white'}`}>{currentPlan}</p>
                             </div>
                         </div>
                     </div>

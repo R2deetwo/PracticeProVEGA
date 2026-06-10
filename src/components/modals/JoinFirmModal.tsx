@@ -26,7 +26,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
     const [error, setError] = useState<string | null>(null);
 
     const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
-    const isHighTier = currentPlan === SubscriptionPlan.Ultimate || currentPlan === SubscriptionPlan.Enterprise;
+    const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
 
     const handleValidate = async (e: React.FormEvent) => {
         e.preventDefault();

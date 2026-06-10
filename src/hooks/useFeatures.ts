@@ -1,7 +1,7 @@
 
 import { useDataState } from '../contexts/DataContext';
 import { SubscriptionPlan } from '../types';
-import { isPropertyCapable, isLegalCapable } from '../constants/tiers';
+import { isPropertyCapable, isLegalCapable, isKomplete } from '../constants/tiers';
 
 export const useFeatures = () => {
     const { appState } = useDataState();
@@ -11,39 +11,43 @@ export const useFeatures = () => {
     // ─── Product Mode ────────────────────────────────────────────────────
     const isPropertyFirm = isPropertyCapable(product);
     const isLegalFirm    = isLegalCapable(product);
+    const isKompleteFirm = isKomplete(product);
 
     // ─── Plan Hierarchy ──────────────────────────────────────────────────
+    // NOTE: "Ultimate" plan has been removed. Komplete is the unified product.
     const isCore       = plan === SubscriptionPlan.Core;
     const isGrowth     = plan === SubscriptionPlan.Growth;
     const isPro        = plan === SubscriptionPlan.Pro;
-    const isUltimate   = plan === SubscriptionPlan.Ultimate;
     const isEnterprise = plan === SubscriptionPlan.Enterprise;
+    const isKompletePlan = plan === SubscriptionPlan.Komplete;
 
-    const isGrowthOrAbove    = isGrowth || isPro || isUltimate || isEnterprise;
-    const isProOrAbove       = isPro || isUltimate || isEnterprise;
-    const isUltimateOrAbove  = isUltimate || isEnterprise;
+    const isGrowthOrAbove    = isGrowth || isPro || isEnterprise || isKompletePlan;
+    const isProOrAbove       = isPro || isEnterprise || isKompletePlan;
+    const isEnterpriseOrAbove = isEnterprise || isKompletePlan;
 
     // ─── Entitlements ─────────────────────────────────────────────────────
     //
-    // KEY RULE: For Atrium/Property firms, every paid plan (Core → Enterprise)
-    // unlocks the Property Management view. The old "Ultimate only" gate was
-    // a Vega-centric rule that must NOT apply to property-mode firms.
+    // KEY RULES:
+    // 1. For Atrium/Property firms, every paid plan unlocks Property Management.
+    // 2. Komplete has ALL features unlocked (single tier, unlimited).
     //
     const canUsePropertyManager =
         isPropertyFirm              // Atrium/Unified firm: any plan unlocks it
-        || isUltimateOrAbove;       // Vega firm: still requires Ultimate+
+        || isProOrAbove             // VEGA Pro+ unlocks property features
+        || isKompletePlan;          // Komplete: always unlocked
 
     return {
         currentPlan: plan,
         product,
         isPropertyFirm,
         isLegalFirm,
+        isKompleteFirm,
 
         // --- FEATURE GATES ---
 
         // AI Features (Growth+)
         canUseAI: isGrowthOrAbove,
-        canUseAutomation: isEnterprise,
+        canUseAutomation: isEnterpriseOrAbove,
 
         // Advanced Reporting (Pro+)
         canUseAdvancedReporting: isProOrAbove,
@@ -63,29 +67,29 @@ export const useFeatures = () => {
         canAddUsers: isGrowthOrAbove,
 
         // Enterprise Features
-        canUseAuditLogs: isEnterprise,
-        canUseExternalCounsel: isEnterprise,
-        canUseAdvancedSecurity: isEnterprise,
+        canUseAuditLogs: isEnterpriseOrAbove,
+        canUseExternalCounsel: isEnterpriseOrAbove,
+        canUseAdvancedSecurity: isEnterpriseOrAbove,
 
         // Limits
-        maxUsers: isEnterprise || isUltimate ? null : (isProOrAbove ? 10 : (isGrowth ? 3 : 1)),
+        maxUsers: isEnterpriseOrAbove || isKompletePlan ? null : (isProOrAbove ? 10 : (isGrowth ? 3 : 1)),
         supportLevel: isEnterprise
             ? 'Dedicated Account Manager'
-            : (isUltimateOrAbove ? 'Priority Phone & Email'
+            : (isKompletePlan ? 'Priority Phone & Email'
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
         checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property') => {
             switch (feature) {
                 case 'ai':         return isGrowthOrAbove;
-                case 'automation': return isEnterprise;
+                case 'automation': return isEnterpriseOrAbove;
                 case 'team':       return isGrowthOrAbove;
                 case 'bi':         return isProOrAbove;
                 case 'property':   return canUsePropertyManager;
                 case 'research':   return isLegalFirm;
                 case 'trust':      return true;
-                case 'audit':      return isEnterprise;
-                case 'security':   return isEnterprise;
+                case 'audit':      return isEnterpriseOrAbove;
+                case 'security':   return isEnterpriseOrAbove;
                 default:           return true;
             }
         }

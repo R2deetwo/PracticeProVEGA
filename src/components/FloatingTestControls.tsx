@@ -392,7 +392,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
                         <div>
                             <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Firm Plan</p>
                             <div className="grid grid-cols-2 gap-1">
-                                {[SubscriptionPlan.Core, SubscriptionPlan.Pro, SubscriptionPlan.Ultimate, SubscriptionPlan.Enterprise].map(plan => (
+                                {[SubscriptionPlan.Core, SubscriptionPlan.Growth, SubscriptionPlan.Pro, SubscriptionPlan.Enterprise, SubscriptionPlan.Komplete].map(plan => (
                                     <button 
                                         key={plan}
                                         onClick={() => handlePlanChange(plan)}

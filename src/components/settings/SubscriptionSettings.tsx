@@ -27,8 +27,8 @@ const getPlanLevel = (plan: SubscriptionPlan | undefined): number => {
         case SubscriptionPlan.Core: return 1;
         case SubscriptionPlan.Growth: return 2;
         case SubscriptionPlan.Pro: return 3;
-        case SubscriptionPlan.Ultimate: return 3;
         case SubscriptionPlan.Enterprise: return 4;
+        case SubscriptionPlan.Komplete: return 5;
         default: return 0;
     }
 };
@@ -89,12 +89,12 @@ const PlanCard: React.FC<{
     features: (string | React.ReactNode)[];
     onSelect: () => void;
     isPopular?: boolean;
-    isUltimate?: boolean;
+    isKomplete?: boolean;
     description: string;
     userLimit?: string;
     viewAsMonthlyCost: boolean;
     isAnnual: boolean;
-}> = ({ plan, currentPlan, price, features, onSelect, isPopular, isUltimate, description, userLimit, viewAsMonthlyCost, isAnnual }) => {
+}> = ({ plan, currentPlan, price, features, onSelect, isPopular, isKomplete, description, userLimit, viewAsMonthlyCost, isAnnual }) => {
     const isCurrent = plan === currentPlan;
     const currentLevel = getPlanLevel(currentPlan);
     const targetLevel = getPlanLevel(plan);
@@ -111,8 +111,8 @@ const PlanCard: React.FC<{
         buttonClass = 'bg-white dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-600';
     } else {
         buttonText = 'Upgrade';
-        if (isUltimate) {
-            buttonClass = 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:opacity-90 shadow-md';
+        if (isKomplete) {
+            buttonClass = 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white hover:opacity-90 shadow-md';
         } else if (isPopular) {
             buttonClass = 'bg-primary-600 text-white hover:bg-primary-700 shadow-md';
         } else {
@@ -121,7 +121,7 @@ const PlanCard: React.FC<{
     }
 
     return (
-        <div className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ${isCurrent ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg ring-1 ring-primary-500' : isUltimate ? 'border-yellow-500/50 bg-yellow-50/10 dark:bg-yellow-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-300 hover:shadow-md'}`}>
+        <div className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 ${isCurrent ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-lg ring-1 ring-primary-500' : isKomplete ? 'border-indigo-500/50 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:border-primary-300 hover:shadow-md'}`}>
             {isPopular && (
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-primary-600 text-white text-xs font-bold uppercase tracking-wide rounded-full shadow-sm">
                     Most Popular
@@ -131,15 +131,15 @@ const PlanCard: React.FC<{
             <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4 h-10">{description}</p>
 
             <div className="flex items-baseline gap-1 mb-2">
-                <span className={`text-3xl font-bold ${isUltimate ? 'text-yellow-600 dark:text-yellow-400' : 'text-slate-900 dark:text-white'}`}>{price}</span>
-                {price !== 'Free' && price !== 'Custom' && !isUltimate && (
+                <span className={`text-3xl font-bold ${isKomplete ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-white'}`}>{price}</span>
+                {price !== 'Free' && price !== 'Custom' && !isKomplete && (
                     <span className="text-sm text-slate-500 dark:text-zinc-400">
-                        {isAnnual && !viewAsMonthlyCost ? '/seat/yr' : '/seat/mo'}
+                        {isAnnual && !viewAsMonthlyCost ? '/yr' : '/mo'}
                     </span>
                 )}
-                {isUltimate && price !== 'Custom' && (
+                {isKomplete && price !== 'Custom' && (
                     <span className="text-sm text-slate-500 dark:text-zinc-400">
-                        {isAnnual && !viewAsMonthlyCost ? '/yr (Admin)' : '/mo (Admin)'}
+                        {isAnnual && !viewAsMonthlyCost ? '/yr' : '/mo'}
                     </span>
                 )}
             </div>
@@ -155,7 +155,7 @@ const PlanCard: React.FC<{
                 <ul className="space-y-3 mb-8">
                     {features.map((feat, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-zinc-300">
-                            <CheckIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isUltimate ? 'text-yellow-500' : isPopular ? 'text-primary-500' : 'text-slate-400'}`} />
+                            <CheckIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isKomplete ? 'text-indigo-500' : isPopular ? 'text-primary-500' : 'text-slate-400'}`} />
                             <span>{feat}</span>
                         </li>
                     ))}
@@ -254,7 +254,7 @@ const BillingCalculator: React.FC<{
     } else if (currentPlan === SubscriptionPlan.Growth) {
         const rate = seatRateForTier(VEGA_TIERS.Growth);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Growth Rate)";
-    } else if (currentPlan === SubscriptionPlan.Pro || currentPlan === SubscriptionPlan.Ultimate) {
+    } else if (currentPlan === SubscriptionPlan.Pro || currentPlan === SubscriptionPlan.Komplete) {
         const rate = seatRateForTier(VEGA_TIERS.Pro);
         baseCost = rate; addOnCost = additionalSeats * rate; addOnLabel = "Addt'l Seats (Pro Rate)";
     }
@@ -534,8 +534,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     const productMode = resolveProductMode(firmDetails.product);
     const tiers = getTiersForProduct(productMode);
     const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;
-    const normalizedCurrent =
-        currentPlan === SubscriptionPlan.Ultimate ? SubscriptionPlan.Pro : currentPlan;
+    const normalizedCurrent = currentPlan;
 
     return (
         <div className="space-y-8">
@@ -584,7 +583,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     isAnnual={isAnnual} 
                             features={tier.features}
                             isPopular={tier.recommended}
-                            isUltimate={tierId === 'Pro' && productMode === 'legal'}
+                            isKomplete={currentPlan === SubscriptionPlan.Komplete}
                             onSelect={() => processUpgrade(plan, upgradePrice)}
                         />
                     );

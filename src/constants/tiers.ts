@@ -5,18 +5,23 @@
  * for every product variant live here. UI components, backend
  * mutations, and entitlement gates must read from this file.
  *
+ * PRICING RULES:
+ *   VEGA   — Primary: Monthly. Annual optional (20% off).
+ *   ATRIUM — Annual only. NO monthly billing option.
+ *            SCE (Service Charge Equivalent) is a framing device
+ *            (annual ÷ 12 ÷ units), NOT a monthly payment option.
+ *   KOMPLETE — Single tier, all features. Monthly or Annual.
+ *
  * Convex mirror: convex/tierLimits.ts (keep in sync when changing limits/prices)
  */
 
 export type ProductMode = 'vega' | 'atrium' | 'unified' | 'legal' | 'property';
 export type TierId = 'Core' | 'Growth' | 'Pro' | 'Enterprise';
 
-/** Komplet bundle discount vs sum of Vega + Atrium at the same tier */
-const KOMPLET_BUNDLE_FACTOR: Record<Exclude<TierId, 'Enterprise'>, number> = {
-  Core: 0.85,
-  Growth: 0.75,
-  Pro: 0.7,
-};
+// Komplete is a SINGLE flat-rate tier — ₦130K/mo or ₦1.248M/yr.
+// All VEGA + Atrium features, unlimited capacity.
+const KOMPLETE_MONTHLY = 130000;
+const KOMPLETE_ANNUAL = 1248000;
 
 export interface TierDef {
   id: TierId;
@@ -47,14 +52,14 @@ export interface TierDef {
 
 const fmt = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
-/** SCE per tenant/month from annual price and unit cap */
+/** SCE per unit/month from annual price and unit cap */
 function calcSce(annualPrice: number, units: number): { scePer: string; scePer_annual: string } {
-  if (!units || units <= 0) return {};
-  const perMonthFromAnnual = Math.round(annualPrice / 12 / units);
-  const perMonthFromMonthly = Math.round((annualPrice / 10) / units);
+  if (!units || units <= 0) return { scePer: '', scePer_annual: '' };
+  // SCE = annual price ÷ 12 months ÷ units. This is a framing device, NOT a payment option.
+  const perUnitPerMonth = Math.round(annualPrice / 12 / units);
   return {
-    scePer: `${fmt(perMonthFromMonthly)}/mo`,
-    scePer_annual: `${fmt(perMonthFromAnnual)}/mo`,
+    scePer: `${fmt(perUnitPerMonth)}/mo`,
+    scePer_annual: `${fmt(perUnitPerMonth)}/mo`,   // Same calc — Atrium is annual-only
   };
 }
 
@@ -89,17 +94,7 @@ function buildVegaFeatures(t: Pick<TierDef, 'maxUsers' | 'maxActiveMatters' | 'm
   ];
 }
 
-function kompletPrice(vega: TierDef, atrium: TierDef, tierId: Exclude<TierId, 'Enterprise'>): { monthly: number; annual: number } {
-  const vm = vega.monthlyPrice ?? 0;
-  const va = vega.annualPrice ?? 0;
-  const am = atrium.monthlyPrice ?? 0;
-  const aa = atrium.annualPrice ?? 0;
-  const f = KOMPLET_BUNDLE_FACTOR[tierId];
-  return {
-    monthly: Math.round((vm + am) * f),
-    annual: Math.round((va + aa) * f),
-  };
-}
+// (kompletPrice function removed — Komplete is now a single flat-rate tier)
 
 // ─── VEGA (Legal / PracticePro) ───────────────────────────────────────────────
 export const VEGA_TIERS: Record<TierId, TierDef> = {
@@ -201,9 +196,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Core: {
     id: 'Core',
     label: 'Starter',
-    monthlyPrice: 19000,
+    monthlyPrice: null,              // Atrium is annual-only — NO monthly option
     annualPrice: 190000,
-    monthlyPriceDisplay: fmt(19000),
+    monthlyPriceDisplay: '—',        // No monthly option
     annualPriceDisplay: fmt(190000),
     features: buildAtriumFeatures({
       maxUsers: 1,
@@ -225,9 +220,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Growth: {
     id: 'Growth',
     label: 'Growth',
-    monthlyPrice: 40000,
+    monthlyPrice: null,              // Atrium is annual-only
     annualPrice: 360000,
-    monthlyPriceDisplay: fmt(40000),
+    monthlyPriceDisplay: '—',
     annualPriceDisplay: fmt(360000),
     features: buildAtriumFeatures({
       maxUsers: 3,
@@ -249,9 +244,9 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   Pro: {
     id: 'Pro',
     label: 'Pro',
-    monthlyPrice: 90000,
+    monthlyPrice: null,              // Atrium is annual-only
     annualPrice: 840000,
-    monthlyPriceDisplay: fmt(90000),
+    monthlyPriceDisplay: '—',
     annualPriceDisplay: fmt(840000),
     features: buildAtriumFeatures({
       maxUsers: 10,
@@ -292,100 +287,51 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
   },
 };
 
-// ─── UNIFIED (Komplet) — bundle discount vs Vega + Atrium ───────────────────
-const kompletCore = kompletPrice(VEGA_TIERS.Core, ATRIUM_TIERS.Core, 'Core');
-const kompletGrowth = kompletPrice(VEGA_TIERS.Growth, ATRIUM_TIERS.Growth, 'Growth');
-const kompletPro = kompletPrice(VEGA_TIERS.Pro, ATRIUM_TIERS.Pro, 'Pro');
+// ─── KOMPLETE (Unified) — single tier, all features ──────────────────────────
+// Only shown when user selects the Unified/Komplete product.
+// Flat rate: ₦130K/mo or ₦1.248M/yr. All VEGA + Atrium features, unlimited.
+export const KOMPLETE_TIER: TierDef = {
+  id: 'Core',                       // Uses Core as TierId for compatibility
+  label: 'Komplete',
+  monthlyPrice: KOMPLETE_MONTHLY,
+  annualPrice: KOMPLETE_ANNUAL,
+  monthlyPriceDisplay: fmt(KOMPLETE_MONTHLY),
+  annualPriceDisplay: fmt(KOMPLETE_ANNUAL),
+  features: [
+    'Unlimited Users',
+    'Unlimited Matters & Units',
+    'Unlimited Active Tenants',
+    'Unlimited WhatsApp Reminders',
+    'ALOA® AI Copilot (Uncapped Priority)',
+    'Full Legal + Property Suite',
+  ],
+  maxUsers: null,
+  maxUnits: null,
+  maxManagedProperties: null,
+  maxActiveTenants: null,
+  whatsappLimit: null,
+  maxCaseFileStorageGb: null,
+  maxActiveMatters: null,
+  recommended: true,
+};
 
+// UNIFIED_TIERS kept for backward compat — all keys map to the single Komplete tier.
 export const UNIFIED_TIERS: Record<TierId, TierDef> = {
-  Core: {
-    id: 'Core',
-    label: 'Komplet Starter',
-    monthlyPrice: kompletCore.monthly,
-    annualPrice: kompletCore.annual,
-    monthlyPriceDisplay: fmt(kompletCore.monthly),
-    annualPriceDisplay: fmt(kompletCore.annual),
-    features: [
-      '1 User · 10 matters + 15 units',
-      '1 GB case files + property revenue ledger',
-      '100 WhatsApp notices/mo',
-      'Lease & matter tracking',
-    ],
-    maxUsers: 1,
-    maxUnits: 15,
-    maxManagedProperties: 10,
-    maxActiveTenants: 20,
-    whatsappLimit: 100,
-    maxCaseFileStorageGb: 5,
-    maxActiveMatters: 10,
-  },
-  Growth: {
-    id: 'Growth',
-    label: 'Komplet Growth',
-    monthlyPrice: kompletGrowth.monthly,
-    annualPrice: kompletGrowth.annual,
-    monthlyPriceDisplay: fmt(kompletGrowth.monthly),
-    annualPriceDisplay: fmt(kompletGrowth.annual),
-    features: [
-      'Up to 3 Users · 50 matters + 35 units',
-      '20 GB court document archives',
-      '500 WhatsApp notices/mo',
-      'Legal billing + service charge tracking',
-    ],
-    maxUsers: 3,
-    maxUnits: 35,
-    maxManagedProperties: 25,
-    maxActiveTenants: 50,
-    whatsappLimit: 500,
-    maxCaseFileStorageGb: 25,
-    maxActiveMatters: 50,
-  },
-  Pro: {
-    id: 'Pro',
-    label: 'Komplet Pro',
-    monthlyPrice: kompletPro.monthly,
-    annualPrice: kompletPro.annual,
-    monthlyPriceDisplay: fmt(kompletPro.monthly),
-    annualPriceDisplay: fmt(kompletPro.annual),
-    features: [
-      'Up to 10 Users · unlimited matters + 100 units',
-      '100 GB secure matter archives',
-      'Unlimited WhatsApp notices',
-      'ALOA® AI + rent demand document generation',
-    ],
-    maxUsers: 10,
-    maxUnits: 100,
-    maxManagedProperties: 75,
-    maxActiveTenants: 200,
-    whatsappLimit: null,
-    maxCaseFileStorageGb: 100,
-    maxActiveMatters: null,
-    recommended: true,
-  },
-  Enterprise: {
-    id: 'Enterprise',
-    label: 'Komplet Enterprise',
-    monthlyPrice: null,
-    annualPrice: null,
-    monthlyPriceDisplay: 'Custom',
-    annualPriceDisplay: 'Custom',
-    features: ['Full legal + property suite', 'Custom limits', 'Contact sales'],
-    maxUsers: null,
-    maxUnits: null,
-    maxManagedProperties: null,
-    maxActiveTenants: null,
-    whatsappLimit: null,
-    maxCaseFileStorageGb: null,
-    maxActiveMatters: null,
-    requiresSetupFee: true,
-  },
+  Core: KOMPLETE_TIER,
+  Growth: KOMPLETE_TIER,
+  Pro: KOMPLETE_TIER,
+  Enterprise: KOMPLETE_TIER,
 };
 
 export const getTiersForProduct = (product: ProductMode): Record<TierId, TierDef> => {
   if (product === 'atrium' || product === 'property') return ATRIUM_TIERS;
-  if (product === 'unified') return UNIFIED_TIERS;
+  if (product === 'unified') return UNIFIED_TIERS;  // All keys → KOMPLETE_TIER
   return VEGA_TIERS;
 };
+
+/** Checks if a product mode is Komplete (unified single-tier). */
+export const isKomplete = (product?: string | null): boolean =>
+  product === 'unified';
 
 export const DISPLAY_TIER_IDS: TierId[] = ['Core', 'Growth', 'Pro'];
 
@@ -426,11 +372,11 @@ export function getTierLimits(tierId: TierId, product: ProductMode): {
 }
 
 /** Map SubscriptionPlan enum string to tier limits for property firms */
-export const ATRIUM_LIMITS_BY_PLAN: Record<string, { units: number; whatsapp: number }> = {
-  Core: { units: ATRIUM_TIERS.Core.maxUnits!, whatsapp: ATRIUM_TIERS.Core.whatsappLimit! },
-  Growth: { units: ATRIUM_TIERS.Growth.maxUnits!, whatsapp: ATRIUM_TIERS.Growth.whatsappLimit! },
-  Pro: { units: ATRIUM_TIERS.Pro.maxUnits!, whatsapp: 999999 },
-  Enterprise: { units: 999999, whatsapp: 999999 },
+export const ATRIUM_LIMITS_BY_PLAN: Record<string, { units: number; tenants: number; whatsapp: number }> = {
+  Core: { units: ATRIUM_TIERS.Core.maxUnits!, tenants: ATRIUM_TIERS.Core.maxActiveTenants!, whatsapp: ATRIUM_TIERS.Core.whatsappLimit! },
+  Growth: { units: ATRIUM_TIERS.Growth.maxUnits!, tenants: ATRIUM_TIERS.Growth.maxActiveTenants!, whatsapp: ATRIUM_TIERS.Growth.whatsappLimit! },
+  Pro: { units: ATRIUM_TIERS.Pro.maxUnits!, tenants: ATRIUM_TIERS.Pro.maxActiveTenants!, whatsapp: 999999 },
+  Enterprise: { units: 999999, tenants: 999999, whatsapp: 999999 },
 };
 
 export const isPropertyCapable = (product?: string | null): boolean =>

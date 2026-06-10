@@ -619,17 +619,17 @@ const TIER_CTAS: Record<TierId, string> = {
 };
 
 const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, activeProduct }) => {
-    const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
-    const cycle = isVega ? 'monthly' : billingCycle;
+    const cycle = isVega ? billingCycle : 'annual';  // Atrium: always annual
 
-    const dynamicPlans = DISPLAY_TIER_IDS.map((id) => {
-        const tier = tiers[id];
+    const dynamicPlans = DISPLAY_TIER_IDS.map((id: TierId) => {
+        const tier = tiers[id as keyof typeof tiers];
         const { price, per } = formatTierPrice(tier, cycle);
         const tenantContribution =
-            !isVega && (cycle === 'annual' ? tier.scePer_annual : tier.scePer) || '';
+            !isVega && tier.scePer || '';
         const description = TIER_DESCRIPTIONS[productMode][id];
         const features = tier.features.map((text) => ({
             text,
@@ -663,8 +663,8 @@ const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | '
                     {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your tenants.'}
                 </p>
 
-                {/* Billing Toggle (Atrium Only) */}
-                {!isVega && (
+                {/* Billing Toggle (VEGA Only — Atrium is annual-only) */}
+                {isVega && (
                     <div className="flex items-center justify-center gap-4 mb-8">
                         <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Monthly</span>
                         <button 
@@ -682,9 +682,9 @@ const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | '
                     </div>
                 )}
 
-                {isVega && (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-sm font-semibold border border-emerald-200 dark:border-emerald-800/50">
-                        Billed Monthly
+                {!isVega && (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-sm font-semibold border border-blue-200 dark:border-blue-800/50">
+                        Billed Annually · SCE shown per unit
                     </span>
                 )}
             </div>

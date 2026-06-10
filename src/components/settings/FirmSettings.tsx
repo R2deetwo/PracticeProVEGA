@@ -178,7 +178,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     };
 
     const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;
-    const isHighTier = currentPlan === SubscriptionPlan.Ultimate || currentPlan === SubscriptionPlan.Enterprise;
+    const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
     const bankAccounts = firmDetails.bankAccounts || [];
 
     return (

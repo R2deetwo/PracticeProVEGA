@@ -15,7 +15,7 @@ export enum ContactType { Individual = 'Individual', Company = 'Company', Court 
 export enum NoteScope { Private = 'private', Firm = 'firm' }
 export enum LeadStatus { New = 'New', IntakeSent = 'Intake Sent', IntakeSubmitted = 'Intake Submitted', Analyzing = 'Analyzing', Activated = 'Activated', Converted = 'Converted', Lost = 'Lost' }
 export enum CourtType { FederalHighCourt = 'Federal High Court', StateHighCourt = 'State High Court', NationalIndustrialCourt = 'National Industrial Court', MagistrateCourt = 'Magistrate Court', CustomaryCourt = 'Customary Court', CourtOfAppeal = 'Court of Appeal', SupremeCourt = 'Supreme Court' }
-export enum SubscriptionPlan { Core = 'Core', Growth = 'Growth', Pro = 'Pro', Ultimate = 'Ultimate', Enterprise = 'Enterprise' }
+export enum SubscriptionPlan { Core = 'Core', Growth = 'Growth', Pro = 'Pro', Enterprise = 'Enterprise', Komplete = 'Komplete' }
 export enum FirmSpecialty { Maritime = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Corporate = 'Corporate & Commercial', Tax = 'Tax Law', RealEstate = 'Real Estate & Property', Litigation = 'Civil Litigation', General = 'General Practice' }
 
 // Basic Types
