@@ -34,7 +34,7 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                 setTimeout(() => {
                     handlePayInvoice(id);
                     setProcessingId(null);
-                    addToast("Payment processed successfully.", { type: 'success' });
+                    addToast("Payment confirmation recorded. The firm will verify your transfer.", { type: 'success' });
                 }, 500);
             }
         });

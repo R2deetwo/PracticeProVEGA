@@ -173,7 +173,7 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'requestTrustDeposit': return 'Request Trust Deposit';
         case 'compareDocuments': return 'Compare Documents';
         case 'composeEmail': return 'Compose Email';
-        case 'paymentGateway': return 'Secure Payment';
+        case 'paymentGateway': return 'Complete Payment';
         case 'upgradePlan': return 'Upgrade Plan';
         case 'onboarding': return 'Setup Your Firm';
 

@@ -90,7 +90,7 @@ export const useMessaging = (appState: AppState, actions: any) => {
     }, [actions]);
 
     const retryMessage = useCallback((messageId: string, isClientMessage: boolean) => {
-        addToast("Retrying message...", { type: 'info' });
+        addToast("Message retry is not yet available. Please send a new message.", { type: 'info' });
     }, [addToast]);
 
     return {

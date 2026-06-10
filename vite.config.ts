@@ -21,8 +21,6 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        'jspdf': path.resolve(__dirname, './src/stubs/jspdf-stub.ts'),
-        'jspdf-autotable': path.resolve(__dirname, './src/stubs/jspdf-stub.ts'),
       },
     },
     build: {
@@ -41,7 +39,7 @@ export default defineConfig(({ mode }) => {
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }
-              if (id.includes('html2canvas') || id.includes('pdfjs')) {
+              if (id.includes('html2canvas') || id.includes('pdfjs') || id.includes('jspdf')) {
                 return 'vendor-pdf';
               }
               if (id.includes('date-fns') || id.includes('dayjs') || id.includes('moment')) {

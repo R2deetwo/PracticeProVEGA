@@ -25,10 +25,17 @@ export const useFinance = (appState: AppState, actions: any) => {
         const taxRate = tax?.rate || appState.firmDetails?.taxSettings?.vatRate || 7.5;
         const taxAmount = tax?.applicable ? (subTotal * taxRate / 100) : 0;
 
+        // Generate sequential invoice number: INV-YYYYMM-XXX
+        const now = new Date();
+        const datePrefix = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const existingCount = (appState.invoices || []).length;
+        const sequenceNum = String(existingCount + 1).padStart(3, '0');
+        const invoiceNumber = `INV-${datePrefix}-${sequenceNum}`;
+
         const invoice: any = {
             id: uuidv4(),
             firmId: currentUser?.firmId,
-            invoiceNumber: `INV-${Math.floor(1000 + Math.random() * 9000)}`,
+            invoiceNumber,
             client: { id: matter.clientId || 'unknown', name: clientName },
             matter: { id: matter.id || 'general', title: matter.title || 'General Management' },
             lineItems: items || [],
@@ -83,7 +90,7 @@ export const useFinance = (appState: AppState, actions: any) => {
     const handleSendInvoiceReminder = useCallback((id: string) => {
         const invoice = appState.invoices?.find((i: any) => i.id === id);
         const clientName = invoice?.client?.name || 'the client';
-        addToast(`Reminder sent to ${clientName} for invoice ${invoice?.invoiceNumber || id}.`, { type: 'success' });
+        addToast(`Reminder for ${clientName} (Invoice ${invoice?.invoiceNumber || id}) not sent — email integration not configured. Please contact the client directly.`, { type: 'info' });
     }, [appState.invoices, addToast]);
 
     /**

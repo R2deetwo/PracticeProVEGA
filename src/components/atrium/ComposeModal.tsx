@@ -267,7 +267,13 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       await logAuto({ firmId, unitId: unitId || undefined, messageType: msgType as any, channel, recipient: finalRecipient, messagePreview: customText, status, triggeredBy: currentUser?.id });
 
       if (sendResult.success) {
-        onToast(channel === 'whatsapp' ? 'WhatsApp message delivered successfully' : 'Email sent successfully');
+        if (sendResult.simulated) {
+          onToast(channel === 'whatsapp' 
+            ? 'WhatsApp not configured — message logged but not delivered.' 
+            : 'Email not configured — message logged but not delivered.');
+        } else {
+          onToast(channel === 'whatsapp' ? 'WhatsApp message delivered successfully' : 'Email sent successfully');
+        }
       } else {
         onToast(`Failed to send: ${sendResult.error || 'Unknown error'}`);
       }

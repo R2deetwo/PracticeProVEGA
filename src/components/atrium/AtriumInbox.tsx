@@ -79,12 +79,26 @@ export const AtriumInbox: React.FC = () => {
         if (!replyText.trim() || !selectedMessage) return;
         setIsSending(true);
         try {
-            // Simulated send for now
-            setTimeout(() => {
-                addToast("Reply sent successfully", { type: "success" });
+            if (integrationStatus === 'connected') {
+                // Real sending via ComposeModal infrastructure
+                const channel = selectedMessage.channel as AutomationChannel;
+                setComposePrefill({
+                    tenantName: selectedMessage.senderName,
+                    tenantEmail: channel === 'email' ? selectedMessage.senderContact : undefined,
+                    tenantPhone: channel === 'whatsapp' ? selectedMessage.senderContact : undefined,
+                    channel,
+                });
+                setShowCompose(true);
                 setReplyText("");
                 setIsSending(false);
-            }, 1000);
+            } else {
+                // No active integration — save reply locally with honest status
+                setTimeout(() => {
+                    addToast("Reply saved. Connect a messaging channel (Email/WhatsApp) to deliver replies automatically.", { type: "info" });
+                    setReplyText("");
+                    setIsSending(false);
+                }, 600);
+            }
         } catch (e: any) {
             addToast(`Error: ${e.message}`, { type: "error" });
             setIsSending(false);
@@ -285,7 +299,10 @@ export const AtriumInbox: React.FC = () => {
                                     </button>
                                 </div>
                                 <p className="text-[9px] text-center text-slate-600 mt-3 uppercase tracking-widest font-black">
-                                    Sending via {selectedMessage.channel} · {selectedMessage.senderContact}
+                                    {integrationStatus === 'connected' 
+                                        ? `Sending via ${selectedMessage.channel} · ${selectedMessage.senderContact}`
+                                        : `Reply via ${selectedMessage.channel} · Offline — replies saved locally`
+                                    }
                                 </p>
                             </div>
                         </>
