@@ -53,6 +53,7 @@ const vegaFeatures = [
         title: 'Client Portal',
         desc: 'Self-service portal for clients to view matter milestones, access documents from a secure vault, and submit KYC uploads. Available on Growth and Pro plans.',
         icon: DoorOpen,
+        badge: 'Growth+',
       },
       {
         title: 'Contacts & Parties',
@@ -75,6 +76,7 @@ const vegaFeatures = [
         title: 'ALOA AI Copilot',
         desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.',
         icon: Bot,
+        badge: 'Growth+',
       },
       {
         title: 'Document Vault',
@@ -85,6 +87,7 @@ const vegaFeatures = [
         title: 'Research Studio',
         desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis. Build research notebooks with source citations.',
         icon: Scale,
+        badge: 'Growth+',
       },
     ],
   },
@@ -102,6 +105,7 @@ const vegaFeatures = [
         title: 'Financial Dashboard',
         desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable, which clients are overdue, and where your firm stands financially.',
         icon: BarChart3,
+        badge: 'Pro',
       },
       {
         title: 'Bank Transfer Payments',
@@ -134,6 +138,7 @@ const atriumFeatures = [
         title: 'Tenant Portal',
         desc: 'Self-service portal where tenants view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.',
         icon: DoorOpen,
+        badge: 'Growth+',
       },
       {
         title: 'Revenue Monitor',
@@ -161,6 +166,7 @@ const atriumFeatures = [
         title: 'WhatsApp Automation',
         desc: 'Automated rent reminders and demand notices via WhatsApp. Tiered volume limits with morning notification throttles on Pro plans.',
         icon: MessageSquare,
+        badge: 'Pro',
       },
       {
         title: 'Lease Management',
@@ -188,6 +194,7 @@ const atriumFeatures = [
         title: 'Legal Document Generation',
         desc: 'Pro plan includes automated generation of notices, demands, and other legal documents tailored to Nigerian property law.',
         icon: FileText,
+        badge: 'Pro',
       },
     ],
   },
@@ -213,7 +220,7 @@ const colorMap: Record<string, { bg: string; icon: string; border: string; text:
   violet: { bg: 'bg-violet-50', icon: 'text-violet-600', border: 'border-violet-100', text: 'text-violet-700' },
 }
 
-function FeatureCard({ title, desc, icon: FeatureIcon, color }: { title: string; desc: string; icon: any; color: string }) {
+function FeatureCard({ title, desc, icon: FeatureIcon, color, badge }: { title: string; desc: string; icon: any; color: string; badge?: string }) {
   const c = colorMap[color] || colorMap.emerald
   return (
     <Card className={`border ${c.border} bg-white rounded-xl hover:shadow-lg transition-shadow`}>
@@ -221,7 +228,14 @@ function FeatureCard({ title, desc, icon: FeatureIcon, color }: { title: string;
         <div className={`w-11 h-11 rounded-xl ${c.bg} ${c.icon} flex items-center justify-center mb-4`}>
           <FeatureIcon className="w-5 h-5" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900 mb-2">{title}</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-2">
+          {title}
+          {badge && (
+            <span className="ml-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 border border-blue-200">
+              {badge}
+            </span>
+          )}
+        </h3>
         <p className="text-sm text-slate-500 leading-relaxed">{desc}</p>
       </CardContent>
     </Card>
@@ -320,7 +334,7 @@ export default function FeaturesPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {category.items.map((item) => (
+                  {category.items.map((item: any) => (
                     <FeatureCard key={item.title} {...item} color={category.color} />
                   ))}
                 </div>

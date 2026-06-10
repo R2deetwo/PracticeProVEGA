@@ -52,6 +52,7 @@ const Pill: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 // ─── NAVBAR ─────────────────────────────────────────────────────────────────
 
 const NAV_LINKS: { label: string; id: string; isPage?: boolean }[] = [
+    { label: 'Features', id: 'features' },
     { label: 'Pricing', id: 'pricing' },
     { label: 'Resources', id: 'resources', isPage: true },
 ];
@@ -116,6 +117,16 @@ const NavBar: React.FC<{
                     </div>
                     </div>
                 </div>
+                <button
+                    onClick={() => scrollTo('features')}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                        activeSection === 'features'
+                            ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                    }`}
+                >
+                    Features
+                </button>
                 <button
                     onClick={() => scrollTo('pricing')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -203,6 +214,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 <div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Product</p>
                     <div className="flex flex-col gap-2.5">
+                        <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
                         <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Resources</button>
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
@@ -423,9 +435,9 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
 
                 {/* Sub-copy */}
                 <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
-                    {isVega 
-                        ? 'Enterprise-grade infrastructure built to coordinate complex legal operations and manage high-density property portfolios seamlessly.'
-                        : 'Enterprise-grade infrastructure built to coordinate complex legal operations and manage high-density property portfolios seamlessly.'}
+                    {isVega
+                        ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
+                        : 'Revenue monitoring, rent collection, and defaulter management — purpose-built for Nigerian property portfolios and estate operations.'}
                 </p>
 
                 {/* CTAs */}
@@ -451,6 +463,134 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
 
             {/* Bottom fade into next section */}
             <div className={`absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none ${isVega ? 'from-slate-50 dark:from-slate-950' : 'from-slate-950'}`} />
+        </section>
+    );
+};
+
+// ─── FEATURES ────────────────────────────────────────────────────────────────
+
+const VEGA_FEATURE_CATEGORIES = [
+    {
+        category: 'Case Management',
+        Icon: ScalesIcon,
+        items: [
+            { title: 'Matter Management', desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.' },
+            { title: 'Task Board', desc: 'Kanban-style task management with assignments, due dates, priority levels, and matter linking. Track every deliverable from intake to resolution.' },
+            { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
+            { title: 'Contacts & Parties', desc: 'Structured contact management with party grouping, witness tracking, and counsel records. Link contacts to matters and documents automatically.' },
+        ],
+    },
+    {
+        category: 'Legal Drafting',
+        Icon: SparklesIcon,
+        items: [
+            { title: 'DraftPro Editor', desc: 'Rich-text legal editor with true A4 pagination, Nigerian legal fonts, and court-compliant formatting. What you see is what prints — no reformatting required.' },
+            { title: 'ALOA AI Copilot', desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.', badge: 'Growth+' },
+            { title: 'Document Vault', desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.' },
+            { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis. Build research notebooks with source citations.', badge: 'Growth+' },
+        ],
+    },
+    {
+        category: 'Billing & Finance',
+        Icon: DocumentIcon,
+        items: [
+            { title: 'Legal Billing', desc: 'Generate professional invoices with sequential numbering (INV-[Firm][Manager]-[Seq]). Track billable hours, apply court-aligned rates, and manage trust accounts.' },
+            { title: 'Financial Dashboard', desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable and which clients are overdue.', badge: 'Pro' },
+            { title: 'Bank Transfer Payments', desc: 'Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your firm\'s account.' },
+        ],
+    },
+];
+
+const ATRIUM_FEATURE_CATEGORIES = [
+    {
+        category: 'Property Management',
+        Icon: OfficeBuildingIcon,
+        items: [
+            { title: 'Property Portfolio', desc: 'Manage residential, commercial, and mixed-use properties from a single dashboard. Track occupancy, upload photos, organize by location, and link to tenancy records.' },
+            { title: 'Tenant Management', desc: 'Complete tenant profiles with KYC fields, lease agreements, and communication history. Manage tenant lifecycles from application through to departure.' },
+            { title: 'Tenant Portal', desc: 'Self-service portal where tenants view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.', badge: 'Growth+' },
+            { title: 'Revenue Monitor', desc: 'Real-time defaulter dashboard, rent collection tracking, and portfolio-level financial analytics. Know which tenants are overdue and which properties are underperforming.' },
+        ],
+    },
+    {
+        category: 'Rent & Collections',
+        Icon: MattersIcon,
+        items: [
+            { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
+            { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
+            { title: 'WhatsApp Automation', desc: 'Automated rent reminders and demand notices via WhatsApp. Tiered volume limits with morning notification throttles on Pro plans.', badge: 'Pro' },
+            { title: 'Lease Management', desc: 'Lease expiry alerts and calendar integration. Send renewal notices and rent review communications. Never miss a critical date again.' },
+        ],
+    },
+    {
+        category: 'Maintenance & Operations',
+        Icon: ShieldCheckIcon,
+        items: [
+            { title: 'Maintenance Tickets', desc: 'Tenants log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
+            { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
+            { title: 'Legal Document Generation', desc: 'Pro plan includes automated generation of notices, demands, and other legal documents tailored to Nigerian property law.', badge: 'Pro' },
+        ],
+    },
+];
+
+const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const isVega = activeProduct === 'vega';
+    const categories = isVega ? VEGA_FEATURE_CATEGORIES : ATRIUM_FEATURE_CATEGORIES;
+
+    return (
+        <section id="features" className={`py-20 lg:py-28 transition-colors duration-500 ${isVega ? 'bg-slate-50 dark:bg-slate-900/40' : 'bg-slate-950'}`}>
+            <div className="container mx-auto px-6 max-w-7xl">
+                {/* Header */}
+                <div className="text-center mb-16">
+                    <Pill className={`mb-5 ${isVega ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
+                        {isVega ? 'Vega Features' : 'Atrium Features'}
+                    </Pill>
+                    <h2 className={`text-4xl md:text-5xl font-bold tracking-tight mb-4 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
+                        {isVega ? <>Case Management &<br />Legal Intelligence</> : <>Property Management &<br />Revenue Operations</>}
+                    </h2>
+                    <p className={`text-lg max-w-2xl mx-auto leading-relaxed ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
+                        {isVega
+                            ? 'From intake to resolution, VEGA covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
+                            : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — tenants, maintenance, and financials.'}
+                    </p>
+                </div>
+
+                {/* Feature Categories */}
+                {categories.map((cat) => (
+                    <div key={cat.category} className="mb-14 last:mb-0">
+                        <div className="flex items-center gap-3 mb-8">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isVega ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                                <cat.Icon className="w-5 h-5" />
+                            </div>
+                            <h3 className={`text-2xl font-bold tracking-tight ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>{cat.category}</h3>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                            {cat.items.map((item) => (
+                                <div
+                                    key={item.title}
+                                    className={`group relative rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
+                                        isVega
+                                            ? 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-white/[0.06] hover:border-primary-300 dark:hover:border-primary-700/50 hover:shadow-primary-500/5'
+                                            : 'bg-white/[0.03] border-white/[0.06] hover:border-blue-500/30 hover:shadow-blue-500/5'
+                                    }`}
+                                >
+                                    <h4 className={`text-base font-bold mb-2 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
+                                        {item.title}
+                                        {item.badge && (
+                                            <span className="ml-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50">
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                    </h4>
+                                    <p className={`text-sm leading-relaxed ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
+                                        {item.desc}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
         </section>
     );
 };
@@ -688,7 +828,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     useEffect(() => {
         const handleScroll = () => {
             if (!scrollRef.current) return;
-            const sections = ['home', 'pricing'];
+            const sections = ['home', 'features', 'pricing'];
             const scrollPos = scrollRef.current.scrollTop + 100;
             for (const section of sections) {
                 const el = document.getElementById(section);
@@ -775,6 +915,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
             ) : (
                 <main key={activeProduct} className="animate-swap-in">
                     <HomeSection onSignup={openSignup} onDemo={() => onDemo(activeProduct)} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
+                    <FeaturesSection activeProduct={activeProduct} />
                     <TrustBadgesStrip />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} />
                 </main>

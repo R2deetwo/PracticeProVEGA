@@ -164,3 +164,27 @@ Stage Summary:
 - Hero stats now reflect accurate, compelling platform capabilities instead of tier-dependent claims
 - Footer portals are contextually correct per product view
 - Portal guide fully fleshed out in Help section with security, activation, and sharing instructions
+---
+Task ID: 2
+Agent: Main Agent
+Task: Bring back features page for both apps (Vega & Atrium) - accurate and true to what each app does
+
+Work Log:
+- Audited existing codebase: found LandingPage.tsx missing FeaturesOverview/VegaSection/AtriumSection (removed in prior session)
+- Found standalone /features/page.tsx still existed with accurate content
+- Added FeaturesSection component to LandingPage.tsx between HomeSection and PricingSection
+- Added "Features" nav button in NavBar (between Products dropdown and Pricing)
+- Added "Features" link in Footer Product column
+- Updated scroll tracking sections array to include 'features'
+- Created VEGA_FEATURE_CATEGORIES (3 categories, 11 features) and ATRIUM_FEATURE_CATEGORIES (3 categories, 11 features)
+- Added tier badges (Growth+, Pro) to features that are gated by subscription tier
+- Fixed duplicate Atrium sub-copy in HomeSection (was identical to Vega copy)
+- Updated standalone /features/page.tsx to include tier badges on gated features
+- Updated FeatureCard component in features page to render badge prop
+
+Stage Summary:
+- Features section restored in LandingPage with product-aware rendering
+- Both Vega and Atrium show accurate, app-specific feature descriptions
+- Tier badges clearly indicate which features require Growth+ or Pro plans
+- Standalone /features page updated to match with consistent badge display
+- Footer and NavBar both link to features section
