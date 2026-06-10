@@ -32,3 +32,4 @@ dist-ssr
 .vercel
 
 venv/codebase.zip
+codebase.zip
