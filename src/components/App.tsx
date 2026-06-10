@@ -76,6 +76,7 @@ import OnboardingTour from './OnboardingTour';
 import ClientDashboard from './client/ClientDashboard';
 import { ClientMatterDetailView } from './client/ClientMatterDetailView';
 import { ClientIntakePortal } from './client/ClientIntakePortal';
+import TenantPortal from './tenant/TenantPortal';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import RevenueEngine from './atrium/RevenueEngine';
@@ -118,6 +119,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const hasData = matterState.matters.length > 0 || matterState.contacts.length > 0 || executionState.tasks.length > 0;
     const showSkeleton = !isDataLoaded && !hasData;
     const isClient = currentUser?.role === UserRole.Client;
+    const isTenant = currentUser?.role === UserRole.Tenant;
 
     console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
 
@@ -164,6 +166,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                 return <ViewWrapper><ClientIntakePortal /></ViewWrapper>;
             }
             return <ViewWrapper><ClientDashboard /></ViewWrapper>;
+        }
+
+        if (isTenant) {
+            return <ViewWrapper><TenantPortal /></ViewWrapper>;
         }
 
         switch (view) {
@@ -307,6 +313,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     <FeatureGuard requiredProduct="property">
                         <RevenueEngine />
                     </FeatureGuard>
+                </ViewWrapper>
+            );
+
+            case 'tenantPortal': return (
+                <ViewWrapper>
+                    <TenantPortal />
                 </ViewWrapper>
             );
 

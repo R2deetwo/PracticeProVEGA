@@ -140,7 +140,7 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
       extras: [
         'Legal billing & ledger record-keeping',
         'Court rules & procedural intelligence',
-        'Client Portal Integration (up to 20 corporate clients)',
+        'Client Portal — milestone tracking, document vault, KYC uploads (up to 20 clients)',
         'ALOA® AI copilot (Standard)',
       ],
     }),
@@ -166,7 +166,7 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
       extras: [
         'Advanced legal billing & analytics',
         'Court rules & procedural intelligence',
-        'Uncapped Client Portal Deployments',
+        'Uncapped Client Portal — milestone tracking, document vault, KYC uploads',
         'ALOA® AI copilot (Uncapped Priority)',
       ],
     }),
@@ -237,7 +237,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: 75,
       maxActiveTenants: 200,
       whatsappLimit: 500,
-      extras: ['Service charge tracking', 'Rent demand notice templates', 'Tenant Portal (payment history, receipts, maintenance logs)'],
+      extras: ['Service charge tracking', 'Rent demand notice templates', 'Tenant Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets'],
     }),
     maxUsers: 5,
     maxUnits: 150,
@@ -261,7 +261,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: null,
       maxActiveTenants: null,
       whatsappLimit: null,
-      extras: ['Legal document generation (notices & demands)', 'Live defaulter dashboard', 'Uncapped Tenant Portal', 'Morning WhatsApp notification throttle system'],
+      extras: ['Legal document generation (notices & demands)', 'Live defaulter dashboard', 'Uncapped Tenant Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets', 'Morning WhatsApp notification throttle system'],
     }),
     maxUsers: null,
     maxUnits: null,
@@ -281,7 +281,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users, units & properties', 'Custom WhatsApp volume', 'Dedicated onboarding'],
+    features: ['Unlimited users, units & properties', 'Custom WhatsApp volume', 'Uncapped Tenant Portal (all features)', 'Dedicated onboarding'],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,
@@ -353,11 +353,15 @@ export function formatTierPrice(
   tier: TierDef,
   billingCycle: 'monthly' | 'annual'
 ): { price: string; per: string } {
-  if (tier.monthlyPrice === null) return { price: 'Custom', per: '' };
+  // Free tier: both prices are 0
   if (tier.monthlyPrice === 0 && tier.annualPrice === 0) return { price: 'Free', per: '' };
+  // Annual billing: check annualPrice for null (Enterprise = Custom)
   if (billingCycle === 'annual') {
+    if (tier.annualPrice === null) return { price: 'Custom', per: '' };
     return { price: tier.annualPriceDisplay, per: 'Per Annum' };
   }
+  // Monthly billing: check monthlyPrice for null (Atrium annual-only = no monthly)
+  if (tier.monthlyPrice === null) return { price: tier.annualPriceDisplay, per: 'Per Annum' };
   return { price: tier.monthlyPriceDisplay, per: '/mo' };
 }
 

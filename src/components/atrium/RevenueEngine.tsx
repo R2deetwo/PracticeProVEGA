@@ -71,7 +71,7 @@ const RevenueEngine: React.FC = () => {
   const tabs: Tab[] = [
     { id: 'defaulters', label: 'Service Charges', shortLabel: 'Charges', icon: <ShieldIcon />, badge: criticalCount || undefined },
     { id: 'ledger', label: 'Payments & Receipts', shortLabel: 'Payments', icon: <LedgerIcon />, badge: pendingLedger || undefined },
-    { id: 'inbox', label: 'Comms', shortLabel: 'Comms', icon: <InboxIcon /> },
+    { id: 'inbox', label: 'Messages', shortLabel: 'Messages', icon: <InboxIcon /> },
     { id: 'automations', label: 'Automation Center', shortLabel: 'Automations', icon: <BellIcon />, badge: todayLogs || undefined },
     { id: 'pipeline', label: 'Available Units', shortLabel: 'Vacancies', icon: <FunnelIcon />, badge: activePipeline || undefined },
   ];

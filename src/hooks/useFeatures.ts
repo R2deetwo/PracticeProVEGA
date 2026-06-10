@@ -61,6 +61,7 @@ export const useFeatures = () => {
 
         // Core Features (All plans)
         canUseClientPortal: isGrowthOrAbove,   // Client Portal gated to Growth+ (Core = no portal)
+        canUseTenantPortal: isGrowthOrAbove && isPropertyFirm,  // Tenant Portal: Atrium Growth+ only
         canUseTrustAccounting: true,
 
         // Team Features
@@ -79,7 +80,7 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal') => {
             switch (feature) {
                 case 'ai':         return isGrowthOrAbove;
                 case 'automation': return isEnterpriseOrAbove;
@@ -90,6 +91,8 @@ export const useFeatures = () => {
                 case 'trust':      return true;
                 case 'audit':      return isEnterpriseOrAbove;
                 case 'security':   return isEnterpriseOrAbove;
+                case 'clientPortal': return isGrowthOrAbove;
+                case 'tenantPortal': return isGrowthOrAbove && isPropertyFirm;
                 default:           return true;
             }
         }

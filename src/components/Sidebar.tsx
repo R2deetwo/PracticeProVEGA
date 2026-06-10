@@ -348,7 +348,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         />
                     )}
                     <NavItemLink
-                        item={{ view: 'messaging', text: 'Comms', icon: <MessagingIcon /> }}
+                        item={{ view: 'messaging', text: 'Messages', icon: <MessagingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
                     {isLegal && (
