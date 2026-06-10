@@ -18,6 +18,7 @@ import {
     type ProductMode,
     type TierId,
 } from '../constants/tiers';
+import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 
 // ─── SHARED PRIMITIVE COMPONENTS ────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ const NavBar: React.FC<{
 
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
-const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, activeProduct, setActiveProduct }) => (
+const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct }) => (
     <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-16">
         <div className="container mx-auto px-6">
             <div className="grid md:grid-cols-3 gap-10 mb-12">
@@ -208,7 +209,8 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Privacy Policy</span>
                         <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Terms of Service</span>
                         <span onClick={onCookieClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Cookie Policy</span>
-                        <a href="mailto:practiceprovega@gmail.com" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Contact</a>
+                        <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Contact Sales</span>
+                        <a href="mailto:practiceprovega@gmail.com" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Email Us</a>
                         <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Security</span>
                     </div>
                 </div>
@@ -618,7 +620,7 @@ const TIER_CTAS: Record<TierId, string> = {
     Enterprise: 'Contact Sales',
 };
 
-const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, activeProduct }) => {
+const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, onContactSales, activeProduct }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
@@ -747,7 +749,7 @@ const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | '
 
                         {/* CTA */}
                         <button 
-                            onClick={onSignup} 
+                            onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : onSignup} 
                             className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
                                 plan.highlighted 
                                 ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90' 
@@ -772,7 +774,7 @@ const PricingSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | '
                     </p>
                 </div>
                 <button 
-                    onClick={onSignup}
+                    onClick={() => onContactSales('Komplete Callout')}
                     className="whitespace-nowrap px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
                 >
                     Contact Sales
@@ -857,6 +859,9 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     };
 
     const openSignup = () => openModal('signup', null, { selectedProduct: activeProduct });
+    const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
+    const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
+    const openContactSales = (source: string) => { setContactDrawerSource(source); setIsContactDrawerOpen(true); };
 
     if (showPrivacy) return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />;
     if (showTerms) return <TermsOfService onBack={() => setShowTerms(false)} activeProduct={activeProduct} />;
@@ -895,15 +900,17 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                     <HomeSection onSignup={openSignup} onDemo={() => onDemo(activeProduct)} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <TrustBadgesStrip />
                     <FeaturesSection activeProduct={activeProduct} />
-                    <PricingSection onSignup={openSignup} activeProduct={activeProduct} />
+                    <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} />
                 </main>
             )}
 
+            <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={() => setIsContactDrawerOpen(false)} source={contactDrawerSource} />
             <Footer
                 onPrivacyClick={() => setShowPrivacy(true)}
                 onTermsClick={() => setShowTerms(true)}
                 onCookieClick={() => setShowCookiePolicy(true)}
                 onResources={() => setShowResources(true)}
+                onContactSales={() => openContactSales('Footer')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}
             />

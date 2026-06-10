@@ -1061,4 +1061,27 @@ export default defineSchema({
   .index("by_sessionId", ["sessionId"])
   .index("by_firmId", ["firmId"])
   .index("by_processedAt", ["processedAt"]),
+  // ─── Unauthenticated Sales Inquiries (public-facing Contact Sales drawer) ───
+  // NO firmId — these come from anonymous visitors on the marketing site
+  sales_inquiries: defineTable({
+    email: v.string(),
+    name: v.string(),
+    companyName: v.optional(v.string()),
+    message: v.string(),
+    source: v.optional(v.string()), // "Enterprise Pricing CTA", "Komplete Callout", "Footer", etc.
+    status: v.union(
+      v.literal("new"),
+      v.literal("contacted"),
+      v.literal("qualified"),
+      v.literal("closed"),
+      v.literal("spam"),
+    ),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_createdAt", ["createdAt"])
+    .index("by_email", ["email"]),
+
 }, { schemaValidation: false });
