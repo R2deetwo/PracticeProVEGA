@@ -352,10 +352,10 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     <div className="flex gap-2">
                         <button
                             onClick={() => openEditor()}
-                            className="p-1 px-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-[10px] font-bold"
+                            className="p-1 px-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1 text-[9px] font-bold whitespace-nowrap"
                             title="Open DraftPro Editor"
                         >
-                            <SparklesIcon className="w-3.5 h-3.5" /> DraftPro <span className="opacity-75 font-normal">Beta</span>
+                            <SparklesIcon className="w-3 h-3" /> DraftPro <span className="opacity-60 font-normal">β</span>
                         </button>
                         <button
                             onClick={() => openModal('newDocument')}

@@ -529,7 +529,7 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
                     {isVega ? 'Vega Plans' : 'Atrium Plans'}
                 </Pill>
                 <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white tracking-tight mb-4">
-                    {isVega ? 'Transparent Pricing. Professional Grade.' : 'Strictly Annual. Professionally Managed.'}
+                    {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto text-lg leading-relaxed mb-6">
                     {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your tenants.'}
