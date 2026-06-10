@@ -52,7 +52,6 @@ const Pill: React.FC<{ children: React.ReactNode; className?: string }> = ({ chi
 // ─── NAVBAR ─────────────────────────────────────────────────────────────────
 
 const NAV_LINKS: { label: string; id: string; isPage?: boolean }[] = [
-    { label: 'Features', id: 'features' },
     { label: 'Pricing', id: 'pricing' },
     { label: 'Resources', id: 'resources', isPage: true },
 ];
@@ -200,7 +199,6 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 <div>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Product</p>
                     <div className="flex flex-col gap-2.5">
-                        <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
                         <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Resources</button>
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
@@ -815,7 +813,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     useEffect(() => {
         const handleScroll = () => {
             if (!scrollRef.current) return;
-            const sections = ['home', 'features', 'pricing'];
+            const sections = ['home', 'pricing'];
             const scrollPos = scrollRef.current.scrollTop + 100;
             for (const section of sections) {
                 const el = document.getElementById(section);
@@ -903,7 +901,6 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 <main key={activeProduct} className="animate-swap-in">
                     <HomeSection onSignup={openSignup} onDemo={() => onDemo(activeProduct)} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <TrustBadgesStrip />
-                    <FeaturesSection activeProduct={activeProduct} />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} />
                 </main>
             )}

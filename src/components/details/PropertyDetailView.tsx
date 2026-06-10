@@ -492,7 +492,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                 <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-none max-w-[160px] sm:max-w-md">{property.address}</h2>
                             </div>
                             <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
-                                {property.propertyType || 'Property'} • {owner?.name?.replace(/LAKE\s+NURE\s+INVESTMENTS\s+LTD/gi, 'LAKE-NUWA Investment LTD')}
+                                {property.propertyType || 'Property'} • {owner?.name || 'Owner'}
                             </p>
                         </div>
                     </div>
