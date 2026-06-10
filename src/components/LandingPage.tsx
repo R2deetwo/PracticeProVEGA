@@ -102,7 +102,10 @@ const NavBar: React.FC<{
                         Products
                         <svg className="w-4 h-4 ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
-                    <div className="absolute top-full left-0 mt-1 w-[210px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
+                    {/* Invisible hover bridge: transparent padding fills the gap between
+                        trigger and dropdown so the cursor never leaves the hover boundary */}
+                    <div className="absolute top-full left-0 pt-1 w-[210px]">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
                         <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}>
                             <ScalesIcon className="w-4 h-4 opacity-70" />
                             Vega
@@ -111,6 +114,7 @@ const NavBar: React.FC<{
                             <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
                             Atrium
                         </button>
+                    </div>
                     </div>
                 </div>
                 <button
@@ -369,17 +373,17 @@ const HubHero: React.FC<{
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
 const VEGA_STATS = [
-    { value: '10,000+', label: 'Documents Automated' },
-    { value: '40 yrs', label: 'of Judgments Indexed*' },
-    { value: '99.9%', label: 'Platform Uptime' },
     { value: 'NDPA', label: 'Fully Compliant' },
+    { value: 'TLS 1.3', label: 'Encrypted Transit' },
+    { value: 'AES-256', label: 'Encrypted at Rest' },
+    { value: '99.9%', label: 'Platform Uptime' },
 ];
 
 const ATRIUM_STATS = [
-    { value: '5,000+', label: 'Properties Managed' },
-    { value: '₦1B+', label: 'Rent Processed' },
-    { value: '99.9%', label: 'Platform Uptime' },
     { value: 'NDPA', label: 'Fully Compliant' },
+    { value: 'TLS 1.3', label: 'Encrypted Transit' },
+    { value: 'AES-256', label: 'Encrypted at Rest' },
+    { value: '99.9%', label: 'Platform Uptime' },
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
@@ -415,8 +419,8 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
                 {/* Sub-copy */}
                 <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
                     {isVega 
-                        ? 'The operating system for Nigerian law firms. Manage cases, draft documents, and automate billing — all from one high-performance platform.'
-                        : 'The revenue monitor for modern portfolios. Centralize rent collection, tenant screening, and maintenance workflows in one seamless platform.'}
+                        ? 'Enterprise-grade infrastructure built to coordinate complex legal operations and manage high-density property portfolios seamlessly.'
+                        : 'Enterprise-grade infrastructure built to coordinate complex legal operations and manage high-density property portfolios seamlessly.'}
                 </p>
 
                 {/* CTAs */}
@@ -582,33 +586,33 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 
 const TIER_DESCRIPTIONS: Record<ProductMode, Record<TierId, string>> = {
     legal: {
-        Core: 'Perfect for solo practitioners or small legal teams.',
-        Growth: 'Scalable efficiency for growing law firms.',
-        Pro: 'The complete legal operating system.',
+        Core: 'For Solo Practitioners & Boutiques',
+        Growth: 'For Expanding Firms & Partnerships',
+        Pro: 'For Enterprise Operations',
         Enterprise: '',
     },
     property: {
-        Core: 'Perfect for small portfolios or private landlords.',
-        Growth: 'Scalable efficiency for growing agencies.',
-        Pro: 'The complete revenue monitor for estate surveyors.',
+        Core: 'For Individual Landlords & Micro-Agents',
+        Growth: 'For Professional Estate Managers',
+        Pro: 'For Institutional Developers & Commercial RE',
         Enterprise: '',
     },
     atrium: {
-        Core: 'Perfect for small portfolios or private landlords.',
-        Growth: 'Scalable efficiency for growing agencies.',
-        Pro: 'The complete revenue monitor for estate surveyors.',
+        Core: 'For Individual Landlords & Micro-Agents',
+        Growth: 'For Professional Estate Managers',
+        Pro: 'For Institutional Developers & Commercial RE',
         Enterprise: '',
     },
     vega: {
-        Core: 'Perfect for solo practitioners or small legal teams.',
-        Growth: 'Scalable efficiency for growing law firms.',
-        Pro: 'The complete legal operating system.',
+        Core: 'For Solo Practitioners & Boutiques',
+        Growth: 'For Expanding Firms & Partnerships',
+        Pro: 'For Enterprise Operations',
         Enterprise: '',
     },
     unified: {
         Core: 'Legal + property essentials in one workspace.',
         Growth: 'Growing firms managing matters and portfolios.',
-        Pro: 'Full Komplet suite for integrated practices.',
+        Pro: 'Full Komplete suite for integrated practices.',
         Enterprise: '',
     },
 };
@@ -770,7 +774,7 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
                         Need both Legal & Property tools?
                     </h4>
                     <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Get <strong className="text-indigo-600 dark:text-indigo-400">Komplet</strong> and manage your entire professional portfolio from a single unified workspace.
+                        Get <strong className="text-indigo-600 dark:text-indigo-400">Komplete</strong> and manage your entire professional portfolio from a single unified workspace.
                     </p>
                 </div>
                 <button 

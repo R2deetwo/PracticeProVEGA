@@ -245,18 +245,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                                 <div>
                                     <div className="font-black text-xl text-slate-900">Atrium <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Property</span></div>
                                     <div className="text-xs text-slate-500 mt-1 font-medium">For property managers and owners.</div>
-                                    <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-2">₦9.5k/mo Starter · ₦20k/mo Growth · ₦45k/mo Pro</div>
+                                    <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-2">₦190K/yr Core · ₦360K/yr Growth · ₦840K/yr Pro</div>
                                 </div>
                             </button>
 
-                            {/* Komplet Unified */}
+                            {/* Komplete Unified */}
                             <button onClick={() => setProduct('unified')} className={`p-6 text-left border-2 rounded-[32px] transition-all flex items-start gap-4 group relative ${product === 'unified' ? 'border-indigo-500 bg-indigo-50/50 shadow-xl shadow-indigo-500/10 scale-[1.02]' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
                                 <div className={`p-3 rounded-2xl transition-colors ${product === 'unified' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}><CheckIcon className="w-6 h-6" /></div>
                                 <div className="w-full relative">
                                     <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[9px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Premium Bundle</div>
-                                    <div className="font-black text-xl text-slate-900">Komplet <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Unified</span></div>
+                                    <div className="font-black text-xl text-slate-900">Komplete <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Unified</span></div>
                                     <div className="text-xs text-slate-500 mt-1 font-medium pr-24">Full Vega (Legal) + Atrium (Property) in one workspace.</div>
-                                    <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">From ₦25k/mo · ₦55k/mo Growth · ₦110k/mo Pro</div>
+                                    <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">₦130K/mo · ₦1.248M/yr — All features, unlimited</div>
                                 </div>
                             </button>
                         </div>

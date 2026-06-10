@@ -35,11 +35,11 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                 title: "Pro Plan",
                 price: "₦80,000",
                 features: [
-                    "ALOA® AI Assistant",
-                    "Team Collaboration (Up to 10 Users)",
-                    "Advanced Analytics",
-                    "Unlimited Matters",
-                    "Enterprise Jurisdiction Intake"
+                    "ALOA® AI Assistant (Uncapped Priority)",
+                    "Unlimited Team Users",
+                    "Advanced Legal Billing & Analytics",
+                    "Unlimited Active Matters",
+                    "Uncapped Client Portal Deployments"
                 ],
                 buttonText: "Start 14-Day Free Trial",
                 headerColor: "from-emerald-600 to-teal-600"

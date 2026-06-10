@@ -60,7 +60,7 @@ export const useFeatures = () => {
         canUseResearchStudio: isLegalFirm,
 
         // Core Features (All plans)
-        canUseClientPortal: true,
+        canUseClientPortal: isGrowthOrAbove,   // Client Portal gated to Growth+ (Core = no portal)
         canUseTrustAccounting: true,
 
         // Team Features
@@ -72,7 +72,7 @@ export const useFeatures = () => {
         canUseAdvancedSecurity: isEnterpriseOrAbove,
 
         // Limits
-        maxUsers: isEnterpriseOrAbove || isKompletePlan ? null : (isProOrAbove ? 10 : (isGrowth ? 3 : 1)),
+        maxUsers: isEnterpriseOrAbove || isKompletePlan ? null : (isProOrAbove ? null : (isGrowth ? 5 : 1)),
         supportLevel: isEnterprise
             ? 'Dedicated Account Manager'
             : (isKompletePlan ? 'Priority Phone & Email'
