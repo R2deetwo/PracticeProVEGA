@@ -24,3 +24,26 @@ Stage Summary:
 - Source tracking implemented for all 3 entry points
 - Backend operates independently of user authentication
 - Build passes clean
+---
+Task ID: 3
+Agent: Main Agent
+Task: Batch 3 — Fix partially-implemented features (jsPDF stub, mock payment gateway, simulated inbox, P&L/Invoices)
+
+Work Log:
+- Explored all 4 partially-implemented features via subagent research
+- jsPDF: Removed Vite alias stubs, installed real jspdf@latest + jspdf-autotable@latest, added jspdf to vendor-pdf chunk
+- PaymentGatewayModal: Rewrote from deceptive mock card form → honest bank transfer instructions with copy-to-clipboard, confirmation checkbox, manual verification disclaimer
+- AtriumInbox: Changed simulated reply from fake "sent successfully" → honest status based on Chakra integration; when connected, routes through ComposeModal
+- ComposeModal: Simulated email sends now honestly report "not configured — message logged but not delivered"
+- useFinance: Invoice numbers changed from random `INV-XXXX` to sequential `INV-YYYYMM-XXX`; invoice reminders now honestly state "not sent — email integration not configured"
+- useMessaging: retryMessage changed from fake "Retrying..." to honest "not yet available"
+- ClientBillingTab: Toast changed from "Payment processed" to "Payment confirmation recorded"
+- UIContext: Modal title changed from "Secure Payment" to "Complete Payment"
+- Build passes, pushed to GitHub
+
+Stage Summary:
+- All 4 Batch 3 features fixed and pushed (commit 2bc8f7a)
+- jsPDF now produces real PDFs (invoices, receipts, P&L, AR aging, rent review notices)
+- Payment gateway is now an honest manual bank transfer flow — no more collecting card data that goes nowhere
+- All simulated/fake behaviors replaced with honest messages
+- Invoice numbering is collision-free and sequential
