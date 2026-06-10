@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VEGA — Document Vault</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Courier+Prime&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-fixed": "#dde3eb", "surface-container-lowest": "#ffffff",
+            "surface-container-highest": "#dae2fd", "surface-dim": "#d2d9f4",
+            "on-surface": "#131b2e", "on-surface-variant": "#43474e",
+            "surface-variant": "#dae2fd", "error": "#ba1a1a", "outline": "#74777f",
+            "on-secondary": "#ffffff", "secondary": "#505f76", "on-primary": "#ffffff",
+            "surface-container": "#eaedff", "surface-bright": "#faf8ff",
+            "primary": "#000e24", "surface": "#faf8ff", "primary-fixed": "#d6e3ff",
+            "surface-container-high": "#e2e7ff", "on-error": "#ffffff",
+            "on-tertiary": "#ffffff", "on-background": "#131b2e",
+            "on-tertiary-fixed-variant": "#41474e", "secondary-fixed": "#d3e4fe",
+            "secondary-container": "#d0e1fb", "on-tertiary-container": "#858b92",
+            "inverse-primary": "#adc7f8", "outline-variant": "#c4c6d0",
+            "on-primary-fixed": "#001b3d", "on-secondary-fixed-variant": "#38485d",
+            "inverse-on-surface": "#eef0ff", "on-secondary-fixed": "#0b1c30",
+            "on-primary-fixed-variant": "#2c4771", "primary-fixed-dim": "#adc7f8",
+            "on-error-container": "#93000a", "surface-container-low": "#f2f3ff",
+            "surface-tint": "#455f8a", "on-secondary-container": "#54647a",
+            "primary-container": "#00234b", "inverse-surface": "#283044",
+            "tertiary-container": "#1e242a", "tertiary": "#080e14",
+            "on-tertiary-fixed": "#161c22", "tertiary-fixed-dim": "#c1c7cf",
+            "secondary-fixed-dim": "#b7c8e1", "error-container": "#ffdad6",
+            "background": "#faf8ff", "on-primary-container": "#718bb9"
+          },
+          "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+          "spacing": { "gutter": "24px", "container-max": "1280px", "margin-mobile": "16px", "margin-desktop": "40px", "base": "8px" },
+          "fontFamily": { "headline-md": ["Public Sans", "sans-serif"], "body-lg": ["Public Sans", "sans-serif"], "headline-sm": ["Public Sans", "sans-serif"], "headline-lg-mobile": ["Public Sans", "sans-serif"], "body-md": ["Public Sans", "sans-serif"], "body-sm": ["Public Sans", "sans-serif"], "label-md": ["Public Sans", "sans-serif"], "label-sm": ["Public Sans", "sans-serif"], "code": ["Courier Prime", "monospace"], "headline-lg": ["Public Sans", "sans-serif"] },
+          "fontSize": { "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}], "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}], "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}], "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "label-md": ["14px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}], "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}], "code": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}] }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .material-symbols-outlined {
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24;
+    }
+    .icon-fill {
+      font-variation-settings:
+        'FILL' 1,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c4c6d0; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #74777f; }
+
+    html { scroll-behavior: smooth; }
+
+    .doc-row {
+      transition: background-color 0.15s ease;
+    }
+    .doc-row:hover {
+      background-color: #eaedff;
+    }
+  </style>
+</head>
+
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col">
+
+  <!-- ============================================ -->
+  <!-- 1. TOP NAV BAR (sticky)                      -->
+  <!-- ============================================ -->
+  <nav class="sticky top-0 z-50 bg-surface border-b border-outline-variant">
+    <div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop flex items-center justify-between h-16">
+      <a href="index.html" class="font-headline-md text-primary tracking-tight select-none" style="font-weight:700;">VEGA</a>
+      <div class="hidden md:flex items-center gap-6">
+        <a href="matter-lifecycle.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-5">Matter Lifecycle</a>
+        <a href="#" class="font-body-sm text-on-surface font-semibold hover:text-on-surface transition-colors py-5 border-b-2 border-primary">Document Vault</a>
+        <a href="billing.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-5">Billing</a>
+        <a href="security.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-5">Security</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#" class="font-label-md bg-primary text-on-primary px-4 py-2 rounded hover:opacity-90 transition-opacity hidden sm:inline-flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-lg">add</span>
+          New Matter
+        </a>
+        <button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors" aria-label="Notifications">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <button class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded transition-colors" aria-label="Account">
+          <span class="material-symbols-outlined icon-fill text-2xl">account_circle</span>
+        </button>
+        <button class="md:hidden p-2 text-on-surface-variant" id="mobile-menu-btn" aria-label="Toggle menu">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+      </div>
+    </div>
+    <div class="md:hidden hidden border-t border-outline-variant bg-surface" id="mobile-menu">
+      <div class="px-margin-mobile py-4 flex flex-col gap-4">
+        <a href="matter-lifecycle.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-1">Matter Lifecycle</a>
+        <a href="#" class="font-body-sm text-on-surface font-semibold py-1 border-l-2 border-primary pl-2">Document Vault</a>
+        <a href="billing.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-1">Billing</a>
+        <a href="security.html" class="font-body-sm text-on-surface-variant hover:text-on-surface transition-colors py-1">Security</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================ -->
+  <!-- 2. MAIN CONTENT (2-column layout)            -->
+  <!-- ============================================ -->
+  <main class="flex-1">
+    <div class="max-w-container-max mx-auto flex">
+
+      <!-- ======================================== -->
+      <!-- LEFT SIDEBAR (hidden on mobile)          -->
+      <!-- ======================================== -->
+      <aside class="hidden md:flex md:w-2/12 flex-col border-r border-outline-variant bg-surface-container-lowest min-h-[calc(100vh-4rem)]">
+        <div class="flex-1 px-3 py-4 flex flex-col gap-6">
+
+          <!-- Vault Locations -->
+          <div class="flex flex-col gap-1">
+            <span class="font-label-sm text-on-surface-variant uppercase tracking-wider px-3 mb-1">Vault Locations</span>
+            <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded bg-surface-container-low text-on-surface font-medium">
+              <span class="material-symbols-outlined icon-fill text-xl text-primary">folder_open</span>
+              <span class="font-body-sm">All Files</span>
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container transition-colors">
+              <span class="material-symbols-outlined text-xl">group</span>
+              <span class="font-body-sm">Clients</span>
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container transition-colors">
+              <span class="material-symbols-outlined text-xl">gavel</span>
+              <span class="font-body-sm">Matters</span>
+            </a>
+          </div>
+
+          <!-- Divider -->
+          <div class="border-t border-outline-variant mx-3"></div>
+
+          <!-- Filters -->
+          <div class="flex flex-col gap-1">
+            <span class="font-label-sm text-on-surface-variant uppercase tracking-wider px-3 mb-1">Filters</span>
+            <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container transition-colors">
+              <span class="material-symbols-outlined text-xl">schedule</span>
+              <span class="font-body-sm">Recent</span>
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-3 py-2 rounded text-on-surface-variant hover:bg-surface-container transition-colors">
+              <span class="material-symbols-outlined text-xl">star</span>
+              <span class="font-body-sm">Starred</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Storage Indicator -->
+        <div class="px-4 py-4 border-t border-outline-variant">
+          <div class="flex items-center justify-between mb-2">
+            <span class="font-label-sm text-on-surface-variant">Storage</span>
+            <span class="font-code text-xs text-on-surface-variant">42.8 GB / 100 GB</span>
+          </div>
+          <div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+            <div class="h-full bg-secondary rounded-full" style="width: 42.8%;"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ======================================== -->
+      <!-- CENTER WORKSPACE (full width)            -->
+      <!-- ======================================== -->
+      <section class="w-full md:w-10/12 px-margin-mobile md:px-6 py-6 flex flex-col gap-6 overflow-x-hidden">
+
+        <!-- Header -->
+        <div>
+          <h1 class="font-headline-md text-primary">Document Vault</h1>
+          <p class="font-body-sm text-on-surface-variant mt-1">Secure file storage organized by matter</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <button class="font-label-md border border-outline text-on-surface px-4 py-2 rounded hover:bg-surface-container transition-colors inline-flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-lg">upload</span>
+            Upload
+          </button>
+          <button class="font-label-md bg-primary text-on-primary px-4 py-2 rounded hover:opacity-90 transition-opacity inline-flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-lg">create_new_folder</span>
+            New Folder
+          </button>
+        </div>
+
+        <!-- Security Badge Bar -->
+        <div class="flex flex-wrap items-center gap-3 bg-surface-container-lowest border border-outline-variant rounded px-4 py-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined icon-fill text-green-700 text-lg">verified_user</span>
+            <span class="font-label-sm text-green-800">Encrypted Storage Active</span>
+          </div>
+          <div class="w-px h-4 bg-outline-variant hidden sm:block"></div>
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined icon-fill text-primary text-lg">history</span>
+            <span class="font-label-sm text-on-surface-variant">7-year Retention Enforced</span>
+          </div>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-xl">search</span>
+          <input
+            type="text"
+            placeholder="Search by Client, Matter ID, or File Name..."
+            class="w-full pl-10 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded font-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+          />
+        </div>
+
+        <!-- Folder Grid -->
+        <div>
+          <h2 class="font-label-md text-on-surface-variant uppercase tracking-wider mb-3">Matter Folders</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <!-- Folder 1: Adebayo Holdings -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded p-4 hover:border-secondary hover:shadow-sm transition-all cursor-pointer group">
+              <div class="flex items-start justify-between mb-3">
+                <span class="material-symbols-outlined icon-fill text-primary text-2xl">folder_special</span>
+                <span class="font-label-sm text-on-surface-variant">2h ago</span>
+              </div>
+              <h3 class="font-body-sm font-medium text-on-surface mb-1 group-hover:text-primary transition-colors">Adebayo Holdings</h3>
+              <p class="font-code text-xs text-on-surface-variant mb-2">MTR-8832-A</p>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+                <span class="font-label-sm text-on-surface-variant">142 Files</span>
+              </div>
+            </div>
+
+            <!-- Folder 2: Nwachukwu Estate -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded p-4 hover:border-secondary hover:shadow-sm transition-all cursor-pointer group">
+              <div class="flex items-start justify-between mb-3">
+                <span class="material-symbols-outlined text-secondary text-2xl">folder</span>
+                <span class="font-label-sm text-on-surface-variant">1d ago</span>
+              </div>
+              <h3 class="font-body-sm font-medium text-on-surface mb-1 group-hover:text-primary transition-colors">Nwachukwu Estate</h3>
+              <p class="font-code text-xs text-on-surface-variant mb-2">MTR-9011-C</p>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+                <span class="font-label-sm text-on-surface-variant">56 Files</span>
+              </div>
+            </div>
+
+            <!-- Folder 3: TechCorp IP Dispute -->
+            <div class="bg-surface-container-lowest border border-outline-variant rounded p-4 hover:border-secondary hover:shadow-sm transition-all cursor-pointer group">
+              <div class="flex items-start justify-between mb-3">
+                <span class="material-symbols-outlined text-secondary text-2xl">folder</span>
+                <span class="font-label-sm text-on-surface-variant">3d ago</span>
+              </div>
+              <h3 class="font-body-sm font-medium text-on-surface mb-1 group-hover:text-primary transition-colors">TechCorp IP Dispute</h3>
+              <p class="font-code text-xs text-on-surface-variant mb-2">MTR-7740-T</p>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-on-surface-variant text-sm">description</span>
+                <span class="font-label-sm text-on-surface-variant">89 Files</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Recent Documents Table -->
+        <div>
+          <h2 class="font-label-md text-on-surface-variant uppercase tracking-wider mb-3">Recent Documents</h2>
+          <div class="bg-surface-container-lowest border border-outline-variant rounded overflow-hidden">
+            <!-- Table Header -->
+            <div class="grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-outline-variant bg-surface-container">
+              <div class="col-span-5 sm:col-span-5">
+                <span class="font-label-sm text-on-surface-variant uppercase tracking-wider">Document Name</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2 hidden sm:block">
+                <span class="font-label-sm text-on-surface-variant uppercase tracking-wider">Matter Ref</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2">
+                <span class="font-label-sm text-on-surface-variant uppercase tracking-wider">Size</span>
+              </div>
+              <div class="col-span-4 sm:col-span-3">
+                <span class="font-label-sm text-on-surface-variant uppercase tracking-wider">Status</span>
+              </div>
+            </div>
+
+            <!-- Row 1 - Highlighted (selected) -->
+            <div class="doc-row grid grid-cols-12 gap-2 items-center px-4 py-3 bg-secondary-container bg-opacity-40 border-l-2 border-primary cursor-pointer">
+              <div class="col-span-5 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+                <span class="material-symbols-outlined icon-fill text-error text-lg flex-shrink-0">picture_as_pdf</span>
+                <span class="font-body-sm text-on-surface font-medium truncate">Affidavit_of_Means_Final.pdf</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2 hidden sm:block">
+                <span class="font-code text-xs text-on-surface-variant">MTR-8832-A</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2">
+                <span class="font-body-sm text-on-surface-variant">2.4 MB</span>
+              </div>
+              <div class="col-span-4 sm:col-span-3">
+                <span class="font-label-sm text-green-800 bg-green-100 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined icon-fill text-green-700 text-xs">check_circle</span>
+                  FINAL
+                </span>
+              </div>
+            </div>
+
+            <!-- Row 2 -->
+            <div class="doc-row grid grid-cols-12 gap-2 items-center px-4 py-3 border-l-2 border-transparent cursor-pointer">
+              <div class="col-span-5 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+                <span class="material-symbols-outlined icon-fill text-primary text-lg flex-shrink-0">description</span>
+                <span class="font-body-sm text-on-surface truncate">Motion_Ex_Parte_v2.docx</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2 hidden sm:block">
+                <span class="font-code text-xs text-on-surface-variant">MTR-9011-C</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2">
+                <span class="font-body-sm text-on-surface-variant">184 KB</span>
+              </div>
+              <div class="col-span-4 sm:col-span-3">
+                <span class="font-label-sm text-amber-800 bg-amber-100 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined icon-fill text-amber-600 text-xs">edit_note</span>
+                  DRAFT
+                </span>
+              </div>
+            </div>
+
+            <!-- Row 3 -->
+            <div class="doc-row grid grid-cols-12 gap-2 items-center px-4 py-3 border-l-2 border-transparent cursor-pointer">
+              <div class="col-span-5 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+                <span class="material-symbols-outlined icon-fill text-error text-lg flex-shrink-0">picture_as_pdf</span>
+                <span class="font-body-sm text-on-surface truncate">Deed_of_Assignment_Signed.pdf</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2 hidden sm:block">
+                <span class="font-code text-xs text-on-surface-variant">MTR-8832-A</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2">
+                <span class="font-body-sm text-on-surface-variant">5.1 MB</span>
+              </div>
+              <div class="col-span-4 sm:col-span-3">
+                <span class="font-label-sm text-on-surface-variant bg-surface-container px-2 py-0.5 rounded inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined icon-fill text-on-surface-variant text-xs">archive</span>
+                  ARCHIVED
+                </span>
+              </div>
+            </div>
+
+            <!-- Row 4 -->
+            <div class="doc-row grid grid-cols-12 gap-2 items-center px-4 py-3 border-l-2 border-transparent cursor-pointer">
+              <div class="col-span-5 sm:col-span-5 flex items-center gap-2.5 min-w-0">
+                <span class="material-symbols-outlined icon-fill text-blue-700 text-lg flex-shrink-0">image</span>
+                <span class="font-body-sm text-on-surface truncate">Exhibit_B_Survey_Plan.png</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2 hidden sm:block">
+                <span class="font-code text-xs text-on-surface-variant">MTR-7740-T</span>
+              </div>
+              <div class="col-span-3 sm:col-span-2">
+                <span class="font-body-sm text-on-surface-variant">8.2 MB</span>
+              </div>
+              <div class="col-span-4 sm:col-span-3">
+                <span class="font-label-sm text-primary bg-primary-fixed px-2 py-0.5 rounded inline-flex items-center gap-1">
+                  <span class="material-symbols-outlined icon-fill text-primary text-xs">folder</span>
+                  FILED
+                </span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ============================================ -->
+  <!-- 3. FOOTER                                    -->
+  <!-- ============================================ -->
+  <footer class="bg-primary text-on-primary mt-auto">
+    <div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-6">
+      <div class="flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
+        <div class="flex flex-col items-center md:items-start gap-1">
+          <span class="font-headline-md tracking-tight" style="font-weight:700;">VEGA</span>
+          <span class="font-body-sm text-on-primary opacity-70">By PracticePro &middot; &copy; 2025 PracticePro Tech Ltd.</span>
+        </div>
+        <div class="flex flex-wrap items-center justify-center gap-4 md:gap-6">
+          <a href="#" class="font-body-sm text-on-primary opacity-70 hover:opacity-100 transition-opacity">NDPA Compliance</a>
+          <span class="text-on-primary opacity-30">|</span>
+          <a href="#" class="font-body-sm text-on-primary opacity-70 hover:opacity-100 transition-opacity">NBA Standards</a>
+          <span class="text-on-primary opacity-30">|</span>
+          <a href="#" class="font-body-sm text-on-primary opacity-70 hover:opacity-100 transition-opacity">Privacy Policy</a>
+          <span class="text-on-primary opacity-30">|</span>
+          <a href="#" class="font-body-sm text-on-primary opacity-70 hover:opacity-100 transition-opacity">Terms of Service</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const menuBtn = document.getElementById('mobile-menu-btn');
+    const mobileMenu = document.getElementById('mobile-menu');
+    if (menuBtn && mobileMenu) {
+      menuBtn.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+      });
+    }
+
+    document.querySelectorAll('.doc-row').forEach(row => {
+      row.addEventListener('click', function() {
+        document.querySelectorAll('.doc-row').forEach(r => {
+          r.classList.remove('bg-secondary-container', 'bg-opacity-40', 'border-primary');
+          r.classList.add('border-transparent');
+        });
+        this.classList.remove('border-transparent');
+        this.classList.add('bg-secondary-container', 'bg-opacity-40', 'border-primary');
+      });
+    });
+  </script>
+
+</body>
+</html>

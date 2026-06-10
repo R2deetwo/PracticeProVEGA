@@ -1,0 +1,1104 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Contact, Property, FileDetails, PropertyStatus, PropertyCategory } from '../../types';
+import { v4 as uuidv4 } from 'uuid';
+import { useCoreState } from '../../contexts/CoreContext';
+import { useDataState } from '../../contexts/DataContext';
+import { MapPinIcon, CurrencyDollarIcon, UserIcon, CalendarIcon, InfoIcon, XIcon, SaveIcon, SparklesIcon, ZapIcon, PlusIcon, TrashIcon, OfficeBuildingIcon, KeyIcon, GavelIconLarge, CalculatorIcon } from '../../constants';
+import { Home as HomeIcon, Briefcase as BriefcaseIcon, ExternalLink as ExternalLinkIcon, Upload as UploadIcon } from 'lucide-react';
+import { inputModern } from '../../utils/formStyles';
+import NairaSymbol from '../NairaSymbol';
+import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/formatting';
+import { useUI } from '../../contexts/UIContext';
+import { useDataActions } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+
+interface PropertyFormProps {
+    contact: Contact;
+    propertyToEdit?: Property;
+    onSave?: (contactId: string, properties: Property[]) => void; // Keeping for legacy support if needed
+    onClose: () => void;
+}
+
+const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, onSave, onClose }) => {
+    const { coreState, isDataLoaded } = useCoreState();
+    const { appState } = useDataState();
+    const { addItem, updateItem, deleteItem, onAddMatter } = useDataActions();
+    const { addToast, openModal, navigateTo } = useUI();
+    const { currentUser } = useAuth();
+    const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+
+    // Core Fields
+    const [address, setAddress] = useState(propertyToEdit?.address || '');
+    const [category, setCategory] = useState<Property['category']>(propertyToEdit?.category || PropertyCategory.Tenanted);
+    const [propertyType, setPropertyType] = useState<Property['propertyType']>(propertyToEdit?.propertyType || 'Residential');
+    const [description, setDescription] = useState(propertyToEdit?.description || '');
+    const [status, setStatus] = useState<Property['status']>(propertyToEdit?.status || PropertyStatus.Occupied);
+    const [ownershipType, setOwnershipType] = useState<Property['ownershipType']>(propertyToEdit?.ownershipType || 'managed');
+    const [rentCollectionMode, setRentCollectionMode] = useState<Property['rentCollectionMode']>(propertyToEdit?.rentCollectionMode || 'Full (Collect Rent)');
+    const [value, setValue] = useState<number>(propertyToEdit?.value || 0);
+    const [managementFee, setManagementFee] = useState<number>(propertyToEdit?.managementFeePercentage || 10);
+    const [numberOfUnits, setNumberOfUnits] = useState<number>(() => {
+        if (propertyToEdit) {
+            const count = (coreState.properties || []).filter(p => p.address === propertyToEdit.address).length;
+            return Math.max(1, count);
+        }
+        return 1;
+    });
+    const [unitsInputStr, setUnitsInputStr] = useState('1'); // string buffer so user can clear the field
+
+    // Automation
+    const [remindLeaseExpiry, setRemindLeaseExpiry] = useState(propertyToEdit?.automationSettings?.remindLeaseExpiry || false);
+    const [remindRentDue, setRemindRentDue] = useState(propertyToEdit?.automationSettings?.remindRentDue || false);
+    const [autoCreateMaintenanceTask, setAutoCreateMaintenanceTask] = useState(propertyToEdit?.automationSettings?.autoCreateMaintenanceTask || false);
+    const [activeUnitIndex, setActiveUnitIndex] = useState(0);
+    const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
+
+    // Rental Specifics
+    interface UnitRentalData {
+        id: string;
+        unitName: string;
+        rentAmount: number;
+        rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+        leaseStart: string;
+        leaseEnd: string;
+        tenantName: string;
+        occupantTitle?: string;
+        occupantFirstName?: string;
+        occupantLastName?: string;
+        tenantPhone: string;
+        nextRentReview: string;
+        isPeriodicReviewEnabled: boolean;
+        tenancyPeriod?: string;
+        serviceCharge?: number;
+        legalFee?: number;
+        isLegalNA?: boolean;
+        agencyFee?: number;
+        isAgencyNA?: boolean;
+        cautionDeposit?: number;
+        isCautionNA?: boolean;
+        status: Property['status'];
+        _id?: string;
+    }
+
+    const [unitsData, setUnitsData] = useState<UnitRentalData[]>(() => {
+        if (propertyToEdit) {
+            const allUnits = (coreState.properties || [])
+                .filter(p => p.address === propertyToEdit.address)
+                .map(p => ({ 
+                    ...(p.rentalDetails || {}), 
+                    id: p.id, 
+                    status: p.status || 'Occupied', 
+                    _id: (p as any)._id,
+                    unitName: p.rentalDetails?.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit"
+                })) as any[];
+            
+            if (allUnits.length > 0) return allUnits;
+            if (propertyToEdit.rentalDetails) return [{ ...propertyToEdit.rentalDetails, id: propertyToEdit.id, status: propertyToEdit.status, _id: (propertyToEdit as any)._id }];
+        }
+        return [{
+            id: uuidv4(),
+            unitName: 'Unit 1',
+            rentAmount: 0,
+            rentFrequency: 'Monthly',
+            leaseStart: '',
+            leaseEnd: '',
+            tenantName: '',
+            occupantTitle: '',
+            occupantFirstName: '',
+            occupantLastName: '',
+            tenantPhone: '',
+            nextRentReview: '',
+            isPeriodicReviewEnabled: false,
+            tenancyPeriod: '',
+            serviceCharge: 0,
+            legalFee: 0,
+            isLegalNA: false,
+            agencyFee: 0,
+            isAgencyNA: false,
+            cautionDeposit: 0,
+            isCautionNA: false,
+            status: 'Occupied' as PropertyStatus
+        }];
+    });
+
+    // Keep units array in sync with numberOfUnits
+    useEffect(() => {
+        setUnitsData(prev => {
+            if (prev.length === numberOfUnits) return prev;
+            if (numberOfUnits > prev.length) {
+                const added = [];
+                for (let i = prev.length; i < numberOfUnits; i++) {
+                    added.push({
+                        id: uuidv4(),
+                        unitName: `Unit ${i + 1}`,
+                        rentAmount: 0,
+                        rentFrequency: 'Monthly' as const,
+                        leaseStart: '',
+                        leaseEnd: '',
+                        tenantName: '',
+                        occupantTitle: '',
+                        occupantFirstName: '',
+                        occupantLastName: '',
+                        tenantPhone: '',
+                        nextRentReview: '',
+                        isPeriodicReviewEnabled: false,
+                        tenancyPeriod: '',
+                        serviceCharge: 0,
+                        legalFee: 0,
+                        isLegalNA: false,
+                        agencyFee: 0,
+                        isAgencyNA: false,
+                        cautionDeposit: 0,
+                        isCautionNA: false,
+                        status: 'Occupied' as PropertyStatus
+                    });
+                }
+                return [...prev, ...added];
+            } else {
+                return prev.slice(0, numberOfUnits);
+            }
+        });
+    }, [numberOfUnits]);
+
+    // Dispute Specifics
+    const [caseNumber, setCaseNumber] = useState(propertyToEdit?.disputeDetails?.caseNumber || '');
+    const [court, setCourt] = useState(propertyToEdit?.disputeDetails?.court || '');
+    const [opposingParty, setOpposingParty] = useState(propertyToEdit?.disputeDetails?.opposingParty || '');
+    const [disputeStatus, setDisputeStatus] = useState(propertyToEdit?.disputeDetails?.status || '');
+    const [linkedMatterId, setLinkedMatterId] = useState(propertyToEdit?.matterId || '');
+
+    // Sale Specifics
+    const [listingAgent, setListingAgent] = useState(propertyToEdit?.saleDetails?.listingAgent || '');
+    const [targetPrice, setTargetPrice] = useState<number>(propertyToEdit?.saleDetails?.targetPrice || 0);
+    const [listingDate, setListingDate] = useState(propertyToEdit?.saleDetails?.listingDate || '');
+
+    // Images
+    const [amenities, setAmenities] = useState<string[]>(propertyToEdit?.amenities || []);
+    const [newAmenity, setNewAmenity] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const isEditing = !!propertyToEdit;
+
+    // Generic unit update helper with auto lease-end calculation
+    const updateUnit = (index: number, field: keyof UnitRentalData, value: any) => {
+        setUnitsData(prev => {
+            const oldValue = prev[index][field];
+            const newUnits = [...prev];
+            newUnits[index] = { ...newUnits[index], [field]: value };
+            
+            // Auto-calculate Lease End Date
+            if (field === 'leaseStart' || field === 'rentFrequency' || field === 'tenancyPeriod') {
+                const ls = field === 'leaseStart' ? value : newUnits[index].leaseStart;
+                const rf = field === 'rentFrequency' ? value : newUnits[index].rentFrequency;
+                const tp = field === 'tenancyPeriod' ? value : newUnits[index].tenancyPeriod;
+
+                if (ls && (tp || rf)) {
+                    const startDate = new Date(ls);
+                    if (!isNaN(startDate.getTime())) {
+                        const endDate = new Date(startDate);
+                        if (tp) {
+                            if (tp === '1 Year') endDate.setFullYear(endDate.getFullYear() + 1);
+                            else if (tp === '2 Years') endDate.setFullYear(endDate.getFullYear() + 2);
+                            else if (tp === '3 Years') endDate.setFullYear(endDate.getFullYear() + 3);
+                            else if (tp === '6 Months') endDate.setMonth(endDate.getMonth() + 6);
+                            else if (tp === 'Monthly') endDate.setMonth(endDate.getMonth() + 1);
+                        } else {
+                            switch (rf) {
+                                case 'Annually': endDate.setFullYear(endDate.getFullYear() + 1); break;
+                                case 'Bi-Annually': endDate.setMonth(endDate.getMonth() + 6); break;
+                                case 'Quarterly': endDate.setMonth(endDate.getMonth() + 3); break;
+                                case 'Monthly': endDate.setMonth(endDate.getMonth() + 1); break;
+                            }
+                        }
+                        endDate.setDate(endDate.getDate() - 1);
+                        newUnits[index].leaseEnd = endDate.toISOString().split('T')[0];
+                    }
+                }
+            }
+
+            // Smart ripple: If editing Unit 1, copy general fields to other untouched units
+            if (index === 0) {
+                const generalFields = ['rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled'];
+                if (generalFields.includes(field)) {
+                    for (let i = 1; i < newUnits.length; i++) {
+                        const targetValue = prev[i][field];
+                        // If the other unit had the exact same old value as Unit 1, or was empty/default, it inherits the new value
+                        if (targetValue === oldValue || !targetValue || targetValue === 'Annually' || targetValue === (false as any) || targetValue === 0) {
+                            newUnits[i] = { ...newUnits[i], [field]: newUnits[index][field] };
+                        }
+                    }
+                }
+            }
+
+            return newUnits;
+        });
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = () => {
+                const newImage: FileDetails = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    filePath: `property/${uuidv4()}/${file.name}`,
+                    dataUrl: reader.result as string
+                };
+                setImages(prev => [...prev, newImage]);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveImage = (index: number) => {
+        setImages(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleAddAmenity = () => {
+        if (newAmenity.trim() && !amenities.includes(newAmenity.trim())) {
+            setAmenities(prev => [...prev, newAmenity.trim()]);
+            setNewAmenity('');
+        }
+    };
+
+    const handleRemoveAmenity = (amenity: string) => {
+        setAmenities(prev => prev.filter(a => a !== amenity));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!address.trim()) {
+            addToast('Address is required.', { type: 'info' });
+            return;
+        }
+
+        const firmId = coreState?.firmDetails?.id || currentUser?.firmId;
+        if (!firmId) {
+            addToast('Error: Firm identity not established. Please ensure you have completed onboarding.', { type: 'error' });
+            return;
+        }
+
+        if (!contact?.id) {
+            addToast('Error: Owner ID missing.', { type: 'error' });
+            return;
+        }
+
+        // Base Object
+        const propertyData: Partial<Property> = {
+            firmId,
+            contactId: contact.id,
+            matterId: linkedMatterId,
+            address,
+            category,
+            propertyType,
+            ownershipType,
+            description,
+            // status: status, // Moved to unit level
+            rentCollectionMode,
+            value,
+            managementFeePercentage: managementFee,
+            images,
+            amenities,
+            automationSettings: {
+                remindLeaseExpiry,
+                remindRentDue,
+                autoCreateMaintenanceTask
+            }
+        };
+
+        // Rental Check
+        const hasRentalData = (unit: UnitRentalData) => 
+            unit.rentAmount > 0 || 
+            unit.leaseStart || 
+            unit.leaseEnd || 
+            unit.tenantName || 
+            (unit.serviceCharge && unit.serviceCharge > 0) ||
+            (unit.legalFee && unit.legalFee > 0) ||
+            (unit.agencyFee && unit.agencyFee > 0) ||
+            (unit.cautionDeposit && unit.cautionDeposit > 0);
+
+        // Dispute Logic
+        if (category === 'Disputed Property') {
+            propertyData.disputeDetails = {
+                caseNumber,
+                court,
+                opposingParty,
+                status: disputeStatus
+            };
+        }
+
+        // Sale Logic
+        if (category === 'Property For Sale') {
+            propertyData.saleDetails = {
+                listingAgent,
+                listingDate,
+                targetPrice: targetPrice || value // Fallback to main value if target not set
+            };
+        }
+
+        try {
+            const isEditing = !!propertyToEdit;
+            const currentUnits = unitsData.slice(0, numberOfUnits);
+            
+            // 1. Process all units in the current form state
+            for (let i = 0; i < currentUnits.length; i++) {
+                const unit = currentUnits[i];
+                const unitId = unit.id || `prop_${uuidv4()}`;
+                
+                let pd = { 
+                    ...propertyData, 
+                    id: unitId,
+                    status: unit.status || 'Occupied'
+                } as Property;
+                if (unit._id) (pd as any)._id = unit._id;
+
+                // Set unit-specific description
+                pd.description = unit.unitName || (propertyData.description ? `${propertyData.description} (${unit.unitName})` : unit.unitName);
+                
+                if (category === 'Tenanted Property' || category === 'Personal Residence' || category === 'Other' || hasRentalData(unit)) {
+                    pd.rentalDetails = { ...unit };
+                }
+
+                // Persist unit
+                if ((pd as any)._id) {
+                    await updateItem('properties', pd, 'Property');
+                } else {
+                    await addItem('properties', pd, 'Property');
+                }
+
+                // Route Caution Deposit to Ledger if applicable
+                if (!unit.isCautionNA && unit.cautionDeposit && unit.cautionDeposit > 0) {
+                    try {
+                        await addLedgerEntry({
+                            firmId,
+                            unitId,
+                            amount: unit.cautionDeposit || 0,
+                            type: 'deposit',
+                            status: 'cleared',
+                            description: `Initial Caution Deposit - ${unit.unitName || 'Unit'}`,
+                            channel: 'Internal Transfer'
+                        });
+                    } catch (e) {
+                        console.warn('Failed to route caution deposit to ledger:', e);
+                    }
+                }
+            }
+
+            // 2. Handle unit deletions (if numberOfUnits was decreased)
+            if (isEditing && propertyToEdit) {
+                const keptIds = new Set(currentUnits.map(u => u.id).filter(Boolean));
+                const siblingsToRemove = (coreState.properties || [])
+                    .filter(p => p.address === propertyToEdit.address && !keptIds.has(p.id));
+                
+                for (const p of siblingsToRemove) {
+                    await deleteItem('properties', p.id, 'Property');
+                }
+            }
+
+            if (onSave) onSave(contact.id, []); // Still trigger re-render in legacy views if any
+            onClose();
+        } catch (error) {
+            console.error("Failed to save property", error);
+            addToast("Failed to save property. Please try again.", { type: 'error' });
+        }
+    };
+
+    const handleConvertToMatter = async () => {
+        if (!address) {
+            addToast("Please enter an address first.", { type: 'info' });
+            return;
+        }
+
+        try {
+            const matterData = {
+                title: `Property Dispute: ${address.split('\n')[0]}`,
+                type: 'Real Estate',
+                subCategory: 'Property Dispute',
+                status: 'Active',
+                stage: 'Intake',
+                description: `Matter created from property portfolio: ${address}\n\nNotes: ${description}`,
+                firmId: coreState.firmDetails.id,
+                clientId: contact.id,
+                specialtyData: {
+                    realEstate: {
+                        propertyAddress: address,
+                        propertyType: propertyType,
+                        currentStatus: status,
+                        disputeDetails: {
+                            caseNumber,
+                            court,
+                            opposingParty,
+                            status: disputeStatus
+                        }
+                    }
+                }
+            };
+
+            const newMatter = await onAddMatter(matterData, { data: contact, createPortal: false });
+            if (newMatter) {
+                setLinkedMatterId(newMatter.id);
+                addToast("Matter created successfully.", { type: 'success' });
+                // Optional: navigate to matter detail
+                // navigateTo('matterDetail', newMatter.id);
+            }
+        } catch (e) {
+            console.error("Conversion failed:", e);
+            addToast("Failed to convert property to matter.", { type: 'error' });
+        }
+    };
+
+    const commonInputClass = inputModern;
+    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+
+    const isRental = category === 'Tenanted Property';
+    const isSale = category === 'Property For Sale';
+    const isDisputed = category === 'Disputed Property';
+
+    return (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 relative">
+            <div className="space-y-3 pb-6">
+                {/* Core Profile Section */}
+                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                    <div className="flex items-center gap-4 mb-2 px-1">
+                        <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
+                            <OfficeBuildingIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Address & Category</h3>
+                        </div>
+                    </div>
+
+                    {/* Core Info */}
+                    <div className="space-y-3">
+                        <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-4`}>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Address</label>
+                                <textarea
+                                    rows={2}
+                                    value={address}
+                                    onChange={e => setAddress(e.target.value)}
+                                    className={`${commonInputClass} resize-none`}
+                                    placeholder="Enter the full property address..."
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>{isEditing ? 'Add Units' : 'Total Units'}</label>
+                                <input autoComplete="off" data-lpignore="true" 
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={unitsInputStr}
+                                    onChange={e => {
+                                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                                        setUnitsInputStr(raw);
+                                        const parsed = parseInt(raw, 10);
+                                        if (!isNaN(parsed) && parsed >= 1) {
+                                            setNumberOfUnits(parsed);
+                                        }
+                                    }}
+                                    onBlur={() => {
+                                        // Enforce minimum of 1 when field loses focus
+                                        const parsed = parseInt(unitsInputStr, 10);
+                                        const safeVal = isNaN(parsed) || parsed < 1 ? 1 : parsed;
+                                        setUnitsInputStr(String(safeVal));
+                                        setNumberOfUnits(safeVal);
+                                    }}
+                                    className={commonInputClass}
+                                    placeholder="1"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Category</label>
+                                <select value={category} onChange={e => setCategory(e.target.value as Property['category'])} className={commonInputClass}>
+                                    <option value="Tenanted Property">Tenanted / Rental</option>
+                                    <option value="Property For Sale">For Sale</option>
+                                    <option value="Personal Residence">Personal Residence</option>
+                                    <option value="Disputed Property">Disputed Land</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Portfolio Type</label>
+                                <select value={ownershipType} onChange={e => setOwnershipType(e.target.value as Property['ownershipType'])} className={commonInputClass}>
+                                    <option value="managed">Managed for Client</option>
+                                    <option value="owned">Personal Portfolio</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Collection Mode</label>
+                                <select value={rentCollectionMode} onChange={e => setRentCollectionMode(e.target.value as any)} className={commonInputClass}>
+                                    <option value="Full (Collect Rent)">Full (Collect Rent)</option>
+                                    <option value="Management Only (No Rent)">Management Only (No Rent)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Property Type</label>
+                                <select value={propertyType} onChange={e => setPropertyType(e.target.value as any)} className={commonInputClass}>
+                                    <option value="Residential">Residential</option>
+                                    <option value="Commercial">Commercial</option>
+                                    <option value="Industrial">Industrial</option>
+                                    <option value="Land">Land</option>
+                                    <option value="Mixed Use">Mixed Use</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Status moved to unit level */}
+                        {!isRental && (
+                            <div className="space-y-2 group animate-fade-in">
+                                <label className={labelClass}>Valuation (<NairaSymbol />)</label>
+                                <input autoComplete="off" data-lpignore="true" 
+                                    type="text"
+                                    value={formatNumberWithCommas(value)}
+                                    onChange={e => setValue(parseFormattedNumber(e.target.value))}
+                                    className={commonInputClass}
+                                    placeholder="0.00"
+                                />
+                            </div>
+                        )}
+                        </div>
+
+                        <div className="space-y-2 group">
+                            <label className={labelClass}>Description</label>
+                            <input autoComplete="off" data-lpignore="true" 
+                                type="text"
+                                value={description}
+                                onChange={e => setDescription(e.target.value)}
+                                className={commonInputClass}
+                                placeholder="e.g. 4-Bedroom Maisonette with BQ"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Amenities Section --- */}
+                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                    <div className="flex items-center gap-4 mb-2 px-1">
+                        <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
+                            <SparklesIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amenities</h3>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex gap-2">
+                            <input autoComplete="off" data-lpignore="true" 
+                                type="text"
+                                value={newAmenity}
+                                onChange={e => setNewAmenity(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddAmenity())}
+                                className={commonInputClass}
+                                placeholder="Add amenity (e.g. Swimming Pool, 24/7 Power)..."
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddAmenity}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors"
+                            >
+                                <PlusIcon className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                            {amenities.map(amenity => (
+                                <div key={amenity} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-lg border border-emerald-100 dark:border-emerald-900/40 text-xs font-bold">
+                                    {amenity}
+                                    <button type="button" onClick={() => handleRemoveAmenity(amenity)} className="hover:text-rose-500 transition-colors">
+                                        <XIcon className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {amenities.length === 0 && (
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 italic">No amenities listed yet.</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Automation Settings --- */}
+                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                    <div className="flex items-center gap-4 px-1">
+                        <div className="p-1.5 bg-amber-500 text-white rounded-lg shadow-sm ring-2 ring-amber-400/10">
+                            <ZapIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-bold text-amber-600/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Automation</h3>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Lease Expiry Alerts</span>
+                        </label>
+                        {rentCollectionMode === 'Full (Collect Rent)' && (
+                            <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindRentDue} onChange={e => setRemindRentDue(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                                <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Rent Due Alerts</span>
+                            </label>
+                        )}
+                        <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
+                            <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
+                        </label>
+                    </div>
+                </div>
+
+                {/* --- Conditional Sections --- */}
+
+                {/* 1. Dispute Details */}
+                {isDisputed && (
+                    <div className="p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900 shadow-sm space-y-3 animate-fade-in">
+                        <div className="flex items-center gap-4 px-1">
+                            <div className="p-1.5 bg-rose-600 text-white rounded-lg shadow-sm ring-2 ring-rose-500/10">
+                                <GavelIconLarge className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">Legal</p>
+                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Dispute Details</h3>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Court</label>
+                                <input autoComplete="off" data-lpignore="true"  type="text" value={court} onChange={e => setCourt(e.target.value)} className={commonInputClass} placeholder="e.g. Lagos High Court" />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Suit Number</label>
+                                <input autoComplete="off" data-lpignore="true"  type="text" value={caseNumber} onChange={e => setCaseNumber(e.target.value)} className={commonInputClass} placeholder="LD/..." />
+                            </div>
+                        </div>
+                        <div className="space-y-2 group">
+                            <label className={labelClass}>Adverse Party</label>
+                            <input autoComplete="off" data-lpignore="true"  type="text" value={opposingParty} onChange={e => setOpposingParty(e.target.value)} className={commonInputClass} placeholder="Full Name / Legal Entity" />
+                        </div>
+
+                        {/* Matter Link Section */}
+                        <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-3">
+                            <label className={labelClass}>Linked Matter (Dispute)</label>
+                            {linkedMatterId ? (
+                                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+                                            <BriefcaseIcon className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">
+                                                {(appState.matters || []).find(m => m.id === linkedMatterId)?.title || 'Matter Not Found'}
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Connected for Legal Management</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="button"
+                                        onClick={() => navigateTo('matterDetail', linkedMatterId)}
+                                        className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                    >
+                                        <ExternalLinkIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <select 
+                                        value={linkedMatterId} 
+                                        onChange={e => setLinkedMatterId(e.target.value)}
+                                        className={`${commonInputClass} flex-1`}
+                                    >
+                                        <option value="">-- Link to Existing Matter --</option>
+                                        {(appState.matters || []).filter((m: any) => m.clientId === contact.id).map((m: any) => (
+                                            <option key={m.id} value={m.id}>{m.title}</option>
+                                        ))}
+                                    </select>
+                                    <button 
+                                        type="button"
+                                        onClick={handleConvertToMatter}
+                                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-700 transition-all whitespace-nowrap shadow-sm shadow-rose-500/20"
+                                    >
+                                        <BriefcaseIcon className="w-3.5 h-3.5" />
+                                        Convert to Matter
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Sale Details */}
+                {isSale && (
+                    <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-3 animate-fade-in">
+                        <div className="flex items-center gap-4 px-1">
+                            <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-sm ring-2 ring-blue-500/10">
+                                <CalculatorIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest leading-none mb-0.5">Sale Details</p>
+                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Listing Info</h3>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Target Price (<NairaSymbol />)</label>
+                                <input autoComplete="off" data-lpignore="true" 
+                                    type="text"
+                                    value={formatNumberWithCommas(targetPrice)}
+                                    onChange={e => setTargetPrice(parseFormattedNumber(e.target.value))}
+                                    className={commonInputClass}
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Listing Date</label>
+                                <input autoComplete="off" data-lpignore="true"  type="date" value={listingDate} onChange={e => setListingDate(e.target.value)} className={commonInputClass} />
+                            </div>
+                        </div>
+                        <div className="space-y-2 group">
+                            <label className={labelClass}>Listing Agent</label>
+                            <input autoComplete="off" data-lpignore="true"  type="text" value={listingAgent} onChange={e => setListingAgent(e.target.value)} className={commonInputClass} placeholder="Agent Name / Firm" />
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. Rental Details */}
+                {(isRental || category === 'Personal Residence' || category === 'Other') && (
+                    <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-4 animate-fade-in">
+                         <div className="flex items-center gap-4 px-1">
+                            <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
+                                <CalendarIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
+                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lease & Rent Configuration</h3>
+                            </div>
+                        </div>
+
+                        {unitsData.length > 1 && (
+                            <div className="flex flex-wrap gap-2 px-1 mb-2">
+                                {unitsData.map((unit, index) => (
+                                    <button
+                                        key={unit.id}
+                                        type="button"
+                                        onClick={() => setActiveUnitIndex(index)}
+                                        className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm border ${
+                                            activeUnitIndex === index 
+                                            ? 'bg-primary-600 text-white border-primary-600 shadow-primary-500/20' 
+                                            : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-primary-300 dark:hover:border-primary-700/50 hover:bg-primary-50/50 dark:hover:bg-primary-900/10'
+                                        }`}
+                                    >
+                                        {unit.unitName}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="text"
+                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))}
+                                        className={commonInputClass}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Rent Frequency</label>
+                                    <select value={unitsData[activeUnitIndex].rentFrequency} onChange={e => updateUnit(activeUnitIndex, 'rentFrequency', e.target.value)} className={commonInputClass}>
+                                        <option value="Monthly">Monthly</option>
+                                        <option value="Annually">Per Annum</option>
+                                        <option value="Bi-Annually">Bi-Annually</option>
+                                        <option value="Quarterly">Quarterly</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Unit Status</label>
+                                    <select value={unitsData[activeUnitIndex].status} onChange={e => updateUnit(activeUnitIndex, 'status', e.target.value)} className={commonInputClass}>
+                                        <option value="Occupied">Occupied</option>
+                                        <option value="Vacant">Vacant</option>
+                                        <option value="Listed">Listed on Market</option>
+                                        <option value="Maintenance">Under Maintenance</option>
+                                        <option value="Sold">Sold</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Service Charge (Monthly <NairaSymbol />)</label>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="text"
+                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].serviceCharge || 0)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'serviceCharge', parseFormattedNumber(e.target.value))}
+                                        className={commonInputClass}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer group/na">
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                        </label>
+                                    </div>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="text"
+                                        disabled={unitsData[activeUnitIndex].isLegalNA}
+                                        value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].legalFee || 0)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'legalFee', parseFormattedNumber(e.target.value))}
+                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 group">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className={labelClass}>Agency Fee (<NairaSymbol />)</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer group/na">
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                        </label>
+                                    </div>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="text"
+                                        disabled={unitsData[activeUnitIndex].isAgencyNA}
+                                        value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].agencyFee || 0)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'agencyFee', parseFormattedNumber(e.target.value))}
+                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className={labelClass}>Caution Deposit (<NairaSymbol />)</label>
+                                        <label className="flex items-center gap-1.5 cursor-pointer group/na">
+                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isCautionNA} onChange={e => updateUnit(activeUnitIndex, 'isCautionNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
+                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                        </label>
+                                    </div>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="text"
+                                        disabled={unitsData[activeUnitIndex].isCautionNA}
+                                        value={unitsData[activeUnitIndex].isCautionNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].cautionDeposit || 0)}
+                                        onChange={e => updateUnit(activeUnitIndex, 'cautionDeposit', parseFormattedNumber(e.target.value))}
+                                        className={`${commonInputClass} ${unitsData[activeUnitIndex].isCautionNA ? 'bg-slate-50 text-slate-400 border-dashed opacity-70' : ''}`}
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2 group col-span-1 md:col-span-2">
+                                    <label className={labelClass}>Tenant Name</label>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            value={unitsData[activeUnitIndex].occupantTitle || ''} 
+                                            onChange={e => {
+                                                const title = e.target.value;
+                                                updateUnit(activeUnitIndex, 'occupantTitle', title);
+                                                const u = unitsData[activeUnitIndex];
+                                                updateUnit(activeUnitIndex, 'tenantName', [title, u.occupantFirstName, u.occupantLastName].filter(Boolean).join(' '));
+                                            }} 
+                                            className={`${commonInputClass} w-24`}
+                                        >
+                                            <option value="">Title</option>
+                                            <option value="Mr.">Mr.</option>
+                                            <option value="Mrs.">Mrs.</option>
+                                            <option value="Miss">Miss</option>
+                                            <option value="Ms.">Ms.</option>
+                                            <option value="Dr.">Dr.</option>
+                                            <option value="Chief">Chief</option>
+                                            <option value="Barr.">Barr.</option>
+                                            <option value="Engr.">Engr.</option>
+                                            <option value="Pastor">Pastor</option>
+                                            <option value="Rev.">Rev.</option>
+                                            <option value="Alhaji">Alhaji</option>
+                                            <option value="Alhaja">Alhaja</option>
+                                        </select>
+                                        <input autoComplete="off" data-lpignore="true"  
+                                            type="text" 
+                                            value={unitsData[activeUnitIndex].occupantFirstName || ''} 
+                                            onChange={e => {
+                                                const firstName = e.target.value;
+                                                updateUnit(activeUnitIndex, 'occupantFirstName', firstName);
+                                                const u = unitsData[activeUnitIndex];
+                                                updateUnit(activeUnitIndex, 'tenantName', [u.occupantTitle, firstName, u.occupantLastName].filter(Boolean).join(' '));
+                                            }} 
+                                            className={`${commonInputClass} flex-1`} 
+                                            placeholder="First Name" 
+                                        />
+                                        <input autoComplete="off" data-lpignore="true"  
+                                            type="text" 
+                                            value={unitsData[activeUnitIndex].occupantLastName || ''} 
+                                            onChange={e => {
+                                                const lastName = e.target.value;
+                                                updateUnit(activeUnitIndex, 'occupantLastName', lastName);
+                                                const u = unitsData[activeUnitIndex];
+                                                updateUnit(activeUnitIndex, 'tenantName', [u.occupantTitle, u.occupantFirstName, lastName].filter(Boolean).join(' '));
+                                            }} 
+                                            className={`${commonInputClass} flex-1`} 
+                                            placeholder="Last Name" 
+                                        />
+                                    </div>
+                                    {!unitsData[activeUnitIndex].occupantFirstName && !unitsData[activeUnitIndex].occupantLastName && unitsData[activeUnitIndex].tenantName && (
+                                        <p className="text-[10px] text-amber-600 mt-1">Current legacy name: {unitsData[activeUnitIndex].tenantName} (Please fill first/last name to update)</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Tenant Phone</label>
+                                    <input autoComplete="off" data-lpignore="true"  type="tel" value={unitsData[activeUnitIndex].tenantPhone} onChange={e => updateUnit(activeUnitIndex, 'tenantPhone', e.target.value)} className={commonInputClass} placeholder="+234..." />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Lease Start</label>
+                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].leaseStart} onChange={e => updateUnit(activeUnitIndex, 'leaseStart', e.target.value)} className={commonInputClass} />
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Tenancy Period</label>
+                                    <select 
+                                        className={commonInputClass} 
+                                        value={unitsData[activeUnitIndex].tenancyPeriod || ''} 
+                                        onChange={e => updateUnit(activeUnitIndex, 'tenancyPeriod', e.target.value)}
+                                    >
+                                        <option value="">Manual Entry</option>
+                                        <option value="1 Year">1 Year</option>
+                                        <option value="2 Years">2 Years</option>
+                                        <option value="3 Years">3 Years</option>
+                                        <option value="6 Months">6 Months</option>
+                                        <option value="Monthly">Monthly / Rolling</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-2 group">
+                                    <label className={labelClass}>Lease End</label>
+                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].leaseEnd} onChange={e => updateUnit(activeUnitIndex, 'leaseEnd', e.target.value)} className={commonInputClass} />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                {activeUnitIndex === 0 && ownershipType !== 'owned' && ( // Management fee is property-level, only show it once
+                                    <div className="space-y-2 group">
+                                        <label className={labelClass}>Management Fee (%)</label>
+                                        <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
+                                            <input autoComplete="off" data-lpignore="true" 
+                                                type="number"
+                                                value={managementFee}
+                                                onChange={e => setManagementFee(parseFloat(e.target.value) || 0)}
+                                                className="flex-grow bg-transparent border-none text-sm font-bold text-primary-600 focus:ring-0 placeholder:text-slate-300"
+                                                max={100}
+                                                placeholder="0"
+                                            />
+                                            <span className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l border-slate-100 dark:border-zinc-700 flex items-center">%</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <label className={`flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-primary-500/20 transition-all ${activeUnitIndex !== 0 ? 'md:col-start-2' : ''}`}>
+                                    <input autoComplete="off" data-lpignore="true" 
+                                        type="checkbox"
+                                        checked={unitsData[activeUnitIndex].isPeriodicReviewEnabled}
+                                        onChange={e => updateUnit(activeUnitIndex, 'isPeriodicReviewEnabled', e.target.checked)}
+                                        className="rounded border-slate-200 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest">Enable Periodic Review</span>
+                                </label>
+                            </div>
+
+                            {unitsData[activeUnitIndex].isPeriodicReviewEnabled && (
+                                <div className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm animate-fade-in space-y-2 group">
+                                    <label className={labelClass}>Next Rent Review</label>
+                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].nextRentReview} onChange={e => updateUnit(activeUnitIndex, 'nextRentReview', e.target.value)} className={commonInputClass} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Image Upload Section */}
+                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                    <div className="flex justify-between items-center px-1">
+                        <div className="flex items-center gap-4">
+                            <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
+                                <UploadIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-slate-600/70 uppercase tracking-widest leading-none mb-0.5">Media</p>
+                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Photos & Documents</h3>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2"
+                        >
+                            Upload Files
+                        </button>
+                        <input autoComplete="off" data-lpignore="true" 
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            className="hidden"
+                            accept="image/*,application/pdf"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                        {images.length > 0 ? images.map((img, idx) => (
+                            <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-900 shadow-sm">
+                                {img.type.startsWith('image/') ? (
+                                    <img src={img.dataUrl} alt="Prop" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        <OfficeBuildingIcon className="w-6 h-6 mb-1 opacity-20" />
+                                        PDF DOC
+                                    </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveImage(idx)}
+                                    className="absolute top-2 right-2 p-1.5 bg-rose-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                    <TrashIcon className="w-3 h-3" />
+                                </button>
+                            </div>
+                        )) : (
+                            <div className="col-span-full py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-3xl text-center">
+                                <OfficeBuildingIcon className="w-8 h-8 mx-auto text-slate-200 dark:text-zinc-800 mb-2" />
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No photos yet</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-50 mt-4 rounded-b-2xl">
+                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                    <XIcon className="w-4 h-4" /> Cancel
+                </button>
+                <button type="submit" className="flex-1 sm:flex-none px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <SaveIcon className="w-4 h-4" /> Save Property
+                </button>
+            </div>
+        </form>
+    );
+};
+
+export default PropertyForm;

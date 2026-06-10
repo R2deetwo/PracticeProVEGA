@@ -1,0 +1,411 @@
+
+import React, { useState, useMemo, useEffect } from 'react';
+import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType } from '../../types';
+import { ChevronRightIcon, SparklesIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon } from '../../constants';
+import { useUI } from '../../contexts/UIContext';
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { usePermissions } from '../../hooks/usePermissions';
+import MatterStageTracker from '../MatterStageTracker';
+import BillingSummaryWidget from './BillingSummaryWidget';
+import { DocumentsTab } from './DocumentsTab';
+import { TasksAndEventsTab } from './TasksAndEventsTab';
+
+// Matter types that involve court proceedings, judgements, or formal endorsements.
+// All other types are considered transactional/non-contentious.
+const CONTENTIOUS_MATTER_TYPES: string[] = [
+    MatterType.CivilLitigation,
+    MatterType.CriminalDefense,
+    MatterType.FamilyLaw,
+    MatterType.EmploymentLabor,
+];
+import TeamDiscussionTab from './TeamDiscussionTab';
+// import ActivityLogTab from './ActivityLogTab'; // Removed
+// import { AiIntakeAnalysis } from './AiIntakeAnalysis'; // Removed
+// import FilingDeadlineNotice from './FilingDeadlineNotice'; // Removed
+import { useCoreState } from '../../contexts/CoreContext';
+import { useDataActions } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMatterState } from '../../contexts/MatterContext';
+import { useDocumentState } from '../../contexts/DocumentContext';
+import { useExecutionState } from '../../contexts/ExecutionContext';
+import { useFinanceState } from '../../contexts/FinanceContext';
+import { MatterBrief } from './MatterBrief';
+const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number }> = ({ label, isActive, onClick, badgeCount }) => (
+    <button
+        onClick={onClick}
+        className={`flex-none text-center relative whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors ${isActive
+            ? 'border-primary-500 text-primary-600 dark:text-primary-400 bg-primary-50/50 dark:bg-primary-900/10'
+            : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+            }`}
+    >
+        {label}
+        {badgeCount !== undefined && badgeCount > 0 && (
+            <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                {badgeCount}
+            </span>
+        )}
+    </button>
+);
+
+const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: React.ReactNode }> = ({ label, value, icon }) => (
+    <div className="flex flex-col justify-center min-w-0">
+        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest truncate mb-0.5 leading-none">{label}</span>
+        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate w-full leading-tight">
+            {icon && <span className="opacity-60 flex-shrink-0 -mt-0.5 scale-90">{icon}</span>}
+            <span className="truncate">{value}</span>
+        </div>
+    </div>
+);
+
+type MatterTab = 'overview' | 'notes' | 'schedule_tasks' | 'billing';
+
+export const MatterDetailView: React.FC = () => {
+    const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
+    const { matterState, matterActions } = useMatterState();
+    const { coreState, coreActions } = useCoreState();
+    const { documentState, documentActions } = useDocumentState();
+    const { executionState, executionActions } = useExecutionState();
+    const { financeState, financeActions } = useFinanceState();
+    const { currentUser } = useAuth();
+    const { canViewBilling } = usePermissions();
+    
+    // On-demand fetch for deep-linking/refresh scenarios
+    const onDemandMatter = useQuery(
+        api.myFunctions.getMatterDetails, 
+        (!matterState.matters.find(m => m.id === selectedId) && selectedId && currentUser?.firmId) 
+            ? { matterId: selectedId, firmId: currentUser.firmId } 
+            : 'skip'
+    );
+
+    // ── Derived helpers wired to contexts ──────────────────────────────────────
+    const users = coreState.users;
+    const onGoBack = () => navigateTo('matters');
+    const onUpdateStage = (id: string, stage: string) => matterActions.updateMatter({ id, stage, stageLastUpdated: new Date().toISOString() });
+    const onUpdateMatter = (m: any) => matterActions.updateMatter(m);
+    const handleUpdateTaskStatus = (taskId: string, status: any) => executionActions.handleUpdateTaskStatus(taskId, status);
+    const onDeleteTimeEntry = (id: string) => financeActions.deleteTimeEntry(id, 'Time Entry');
+    const onDeleteExpense = (id: string) => financeActions.deleteExpense(id, 'Expense');
+    const onViewDocumentDetails = (id: string) => navigateTo('documentDetail', id);
+    
+    const matterData = useMemo(() => {
+        const inState = matterState.matters.find(m => m.id === selectedId);
+        if (inState) return inState;
+        return onDemandMatter ? onDemandMatter : null;
+    }, [matterState.matters, selectedId, onDemandMatter]);
+    
+    // Filtered data for this matter — all computed unconditionally so hooks always fire in same order
+    const documents = useMemo(() => {
+        if (onDemandMatter?.documents) return onDemandMatter.documents;
+        return documentState.documents.filter(d => d.matterId === selectedId);
+    }, [documentState.documents, selectedId, onDemandMatter]);
+
+    const tasks = useMemo(() => {
+        if (onDemandMatter?.tasks) return onDemandMatter.tasks;
+        return executionState.tasks.filter(t => t.matterId === selectedId);
+    }, [executionState.tasks, selectedId, onDemandMatter]);
+
+    const timeEntries = useMemo(() => {
+        if (onDemandMatter?.timeEntries) return onDemandMatter.timeEntries;
+        return financeState.timeEntries.filter(t => t.matterId === selectedId);
+    }, [financeState.timeEntries, selectedId, onDemandMatter]);
+
+    const expenses = useMemo(() => {
+        if (onDemandMatter?.expenses) return onDemandMatter.expenses;
+        return financeState.expenses.filter(e => e.matterId === selectedId);
+    }, [financeState.expenses, selectedId, onDemandMatter]);
+
+    const events = useMemo(() => {
+        if (onDemandMatter?.events) return onDemandMatter.events;
+        return executionState.events.filter(e => e.matterId === selectedId);
+    }, [executionState.events, selectedId, onDemandMatter]);
+
+    const invoices = useMemo(() => {
+        // Invoices aren't part of getMatterDetails yet, stick to filter or add later
+        return financeState.invoices.filter(i => i.matter && i.matter.id === selectedId);
+    }, [financeState.invoices, selectedId]);
+
+    const notePages = useMemo(() => {
+        if (onDemandMatter?.notes) return onDemandMatter.notes;
+        return documentState.notePages.filter(n => n.matterId === selectedId);
+    }, [documentState.notePages, selectedId, onDemandMatter]);
+
+    const resolveTab = (t?: string): MatterTab => {
+        if (t === 'endorsements_logs' || t === 'endorsements') return 'notes';
+        if (t === 'processes') return 'overview';
+        const validTabs: MatterTab[] = ['overview', 'notes', 'schedule_tasks', 'billing'];
+        return validTabs.includes(t as MatterTab) ? (t as MatterTab) : 'overview';
+    };
+
+    const initialTab = currentHistoryEntry.initialTab || currentHistoryEntry.context?.initialTab;
+    const [activeTab, setActiveTab] = useState<MatterTab>(resolveTab(initialTab));
+    const [showWorkflow, setShowWorkflow] = useState(false);
+    const [updatingStage, setUpdatingStage] = useState<string | null>(null);
+
+    // Robust persistent baseline logic per tab
+    const getTabBaseline = (tab: MatterTab) => {
+        const matterId = matterData?.id || selectedId || '';
+        const key = `matter_v3_${matterId}_${currentUser?.id}_${tab}`;
+        const stored = localStorage.getItem(key);
+        return stored ? parseInt(stored, 10) : 0;
+    };
+
+    const updateTabBaseline = (tab: MatterTab) => {
+        const matterId = matterData?.id || selectedId || '';
+        const key = `matter_v3_${matterId}_${currentUser?.id}_${tab}`;
+        localStorage.setItem(key, Date.now().toString());
+    };
+
+    // When entering the view or changing tabs, mark the CURRENT active tab as read
+    useEffect(() => {
+        if (!matterData) return;
+        updateTabBaseline(activeTab);
+        return () => { updateTabBaseline(activeTab); };
+    }, [activeTab, matterData?.id]);
+
+    // Auto-initialize baseline for new matters to avoid "everything is unread" shock
+    useEffect(() => {
+        if (!matterData) return;
+        const isNewMatter = matterData.createdAt && (Date.now() - new Date(matterData.createdAt).getTime() < 60000);
+        if (isNewMatter) {
+            ['overview', 'notes', 'schedule_tasks', 'billing'].forEach(t => {
+                if (getTabBaseline(t as MatterTab) === 0) {
+                    updateTabBaseline(t as MatterTab);
+                }
+            });
+        }
+    }, [matterData?.id, matterData?.createdAt]);
+
+    // Is this a contentious matter type that requires formal court endorsements?
+    const isContentious = matterData ? CONTENTIOUS_MATTER_TYPES.includes(matterData.type) : false;
+
+    const tabBadges = useMemo(() => {
+        const checkUnread = (tab: MatterTab, items: any[], dateField: string, authorField: string = 'authorId') => {
+            if (activeTab === tab) return 0;
+            const baseline = getTabBaseline(tab);
+            return items.filter(item => {
+                const date = item[dateField];
+                const authorId = String(item[authorField] || item.creatorId || item.uploadedBy || '');
+                const currentUserId = String(currentUser?.id);
+                if (!date || authorId === currentUserId) return false;
+                return new Date(date).getTime() > baseline;
+            }).length;
+        };
+
+        // Note badge counts both plain notes AND endorsements
+        const noteItems = notePages.filter((n: any) => n.matterId === matterData?.id && (n.type === 'user' || n.type === 'endorsement'));
+
+        return {
+            docs: checkUnread('overview', documents, 'dateFiled'),
+            tasks: checkUnread('schedule_tasks', tasks, 'createdAt') + checkUnread('schedule_tasks', events, 'created_at'),
+            notes: checkUnread('notes', noteItems, 'createdAt'),
+            finance: canViewBilling ? checkUnread('billing', invoices, 'issueDate') : 0
+        };
+    }, [documents, tasks, events, notePages, invoices, currentUser?.id, matterData?.id, activeTab, canViewBilling]);
+
+    const client = matterState.contacts.find(c => c.id === matterData?.clientId);
+    const workflow = executionState.workflows.find(w => w.type === matterData?.type);
+
+    const stages = useMemo(() => {
+        if (!workflow) return [];
+        if (matterData?.subCategory && workflow.subCategories && workflow.subCategories[matterData.subCategory]) {
+            return workflow.subCategories[matterData.subCategory].stages || [];
+        }
+        return workflow.default?.stages || [];
+    }, [workflow, matterData?.subCategory]);
+
+    const handleTabClick = (tab: MatterTab) => {
+        setActiveTab(tab);
+        // Persist tab state in history context so it's remembered when navigating back
+        if (updateCurrentHistoryEntry) {
+            updateCurrentHistoryEntry({ context: { ...currentHistoryEntry?.context, initialTab: tab } });
+        }
+    };
+
+
+
+    const handleStageUpdate = async (newStage: string) => {
+        setUpdatingStage(newStage);
+        // Simulate a brief delay to show the spinner/proactive feedback as requested by user
+        // This makes the interaction feel more substantial before the optimistic update takes over
+        await new Promise(resolve => setTimeout(resolve, 800));
+
+        onUpdateStage(matterData!.id, newStage);
+        addToast(`Matter moved to ${newStage}`, { type: 'success' });
+        setUpdatingStage(null);
+    };
+
+    const confirmDelete = () => {
+        const associatedTaskCount = tasks.length;
+        const associatedDocCount = documents.length;
+        const associatedNoteCount = notePages.filter((n: any) => n.matterId === matterData!.id).length;
+        const associatedEventCount = events.length;
+
+        openModal('deleteConfirmation', matterData!.id, {
+            title: `Delete Matter "${matterData!.title}"?`,
+            message: (
+                <div className="space-y-3">
+                    <p>Are you sure you want to <strong>permanently delete</strong> this matter?</p>
+                    
+                    <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl space-y-2">
+                        <p className="text-red-700 dark:text-red-400 font-bold text-xs uppercase tracking-wider">Associated Data Blast Radius:</p>
+                        <ul className="text-xs text-red-600 dark:text-red-400 space-y-1 font-medium">
+                            {associatedTaskCount > 0 && <li>• {associatedTaskCount} Tasks will be deleted</li>}
+                            {associatedDocCount > 0 && <li>• {associatedDocCount} Documents will be deleted</li>}
+                            {associatedNoteCount > 0 && <li>• {associatedNoteCount} Endorsements/Notes will be deleted</li>}
+                            {associatedEventCount > 0 && <li>• {associatedEventCount} Calendar Events will be removed</li>}
+                        </ul>
+                    </div>
+
+                    <p className="text-slate-500 dark:text-zinc-400 text-xs italic">
+                        Warning: This action cannot be undone. All private matter data will be permanently wiped.
+                    </p>
+                </div>
+            ),
+            onConfirm: async () => {
+                if (!matterData) return;
+                await matterActions.deleteMatter(matterData.id, matterData.title);
+                closeModal();
+                onGoBack();
+            },
+            confirmText: 'Delete Everything',
+            confirmButtonClass: 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
+        });
+    };
+
+    const handleDraftDocument = () => { if (matterData) navigateTo('editor', null, { matterId: matterData.id }); };
+
+    const formattedDate = useMemo(() => {
+        if (!matterData?.createdAt && !matterData?.stageLastUpdated) return 'Unknown';
+        try { return new Date(matterData.createdAt || matterData.stageLastUpdated || '').toLocaleDateString('en-GB'); } catch (e) { return 'Invalid Date'; }
+    }, [matterData?.createdAt, matterData?.stageLastUpdated]);
+
+    // All hooks have now been called; safe to execute early return if matter was not found.
+    if (!matterData) {
+        return <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8"><p className="text-lg font-medium">Matter not found</p></div>;
+    }
+
+    return (
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900">
+            <header className="sticky top-0 z-10 glass flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 shadow-sm">
+                <div className="px-4 pt-3 sm:px-6">
+                    <div className="flex items-center justify-between mb-2">
+                        <button onClick={onGoBack} className="flex items-center text-[10px] font-bold uppercase text-slate-400 hover:text-primary-600 transition-colors">
+                            <ChevronRightIcon className="w-3 h-3 rotate-180 mr-1" /> Back
+                        </button>
+                        <div className="flex items-center gap-2">
+                            {currentUser?.role === 'Admin' && (
+                                <button
+                                    onClick={() => openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory })}
+                                    className="p-1.5 text-slate-400 hover:text-primary-600 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                    title="Edit Matter Workflow"
+                                >
+                                    <CogIcon className="w-4 h-4" />
+                                </button>
+                            )}
+                            <button onClick={confirmDelete} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" title="Delete Matter">
+                                <TrashIcon className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => openModal('editMatter', matterData.id)} className="text-xs font-bold text-primary-600 hover:underline">Edit</button>
+                        </div>
+                    </div>
+                    <div className="mb-1">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight truncate">{matterData.title}</h2>
+                        <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-mono text-slate-400">{matterData.referenceNumber}</span>
+                        </div>
+                    </div>
+                    <div className="mb-2 relative group overflow-visible">
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Workflow Progress</p>
+                            <button
+                                onClick={() => setShowWorkflow(!showWorkflow)}
+                                className="text-[10px] font-bold text-primary-600 hover:underline"
+                            >
+                                {showWorkflow ? 'Hide' : 'Show'}
+                            </button>
+                        </div>
+                        {showWorkflow && (
+                            stages && stages.length > 0 ? (
+                                <MatterStageTracker currentStage={matterData.stage} stages={stages} onStageChange={handleStageUpdate} updatingStage={updatingStage} />
+                            ) : (
+                                <div className="p-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-xs rounded border border-amber-200 dark:border-amber-800 flex items-center justify-between">
+                                    <span><strong>Safe Mode:</strong> Workflow definition missing.</span>
+                                    <button onClick={() => openModal('editMatter', matterData.id)} className="underline font-bold">Edit Matter Type</button>
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
+
+
+
+                <nav className="flex w-full overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                    <TabButton label="Brief" isActive={activeTab === 'overview'} onClick={() => handleTabClick('overview')} badgeCount={tabBadges.docs} />
+                    <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
+                    <TabButton label="Tasks" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} />
+                    {canViewBilling && <TabButton label="Finance" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
+
+                </nav>
+            </header>
+
+            <main className="flex-grow overflow-y-auto custom-scrollbar p-4 bg-slate-50 dark:bg-zinc-900">
+                <div className="max-w-5xl mx-auto">
+
+                    {activeTab === 'notes' ? (
+                        <div className="space-y-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                                    <div className="w-1 h-5 bg-primary-500 rounded-full" />
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Endorsements</h3>
+                                </div>
+                                <TeamDiscussionTab
+                                    matterId={matterData.id}
+                                    notes={notePages}
+                                    users={users}
+                                    currentUser={currentUser || {} as User}
+                                    onAddNote={(matterId, title, content, type) => documentActions.handleAddMatterNote(matterId, title, content)}
+                                    onUpdateNote={(note) => documentActions.handleUpdatePageContent(note.id, note.title, note.content)}
+                                    onDeleteNote={(id, title) => documentActions.onDeletePage(id)}
+                                    openModal={openModal}
+                                    lastViewedAt={getTabBaseline('notes')}
+                                    filterType="all"
+                                />
+                            </div>
+                        </div>
+                    ) : activeTab === 'schedule_tasks' ? (
+                        <TasksAndEventsTab
+                            tasks={tasks}
+                            events={events}
+                            matterId={matterData.id}
+                            matter={matterData}
+                            documents={documents}
+                            openModal={openModal}
+                            onUpdateTaskStatus={handleUpdateTaskStatus}
+                            lastViewedAt={getTabBaseline('schedule_tasks')}
+                            currentUser={currentUser || {} as User}
+                            navigateTo={navigateTo}
+                        />
+                    ) : activeTab === 'billing' ? (
+                        !canViewBilling ? null : <BillingSummaryWidget matter={matterData} timeEntries={timeEntries} expenses={expenses} invoices={invoices} openModal={openModal} onDeleteTimeEntry={onDeleteTimeEntry} onDeleteExpense={onDeleteExpense} navigateTo={navigateTo} />
+                    ) : (
+                        // Default: Brief (Overview)
+                        <MatterBrief
+                            matter={matterData}
+                            client={client}
+                            users={users}
+                            currentUser={currentUser || {} as User}
+                            documents={documents}
+                            tasks={tasks}
+                            openModal={openModal}
+                            onViewDocumentDetails={onViewDocumentDetails}
+                            handleDraftDocument={handleDraftDocument}
+                            onUpdateMatter={onUpdateMatter}
+                            lastViewedAt={getTabBaseline('overview')}
+                        />
+                    )}
+                </div>
+            </main>
+        </div>
+    );
+};

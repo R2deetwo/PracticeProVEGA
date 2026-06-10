@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replit Prompt - Unit Fix & UX</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+.header { text-align: center; margin-bottom: 24px; max-width: 800px; width: 100%; }
+.header h1 { font-size: 26px; color: #38bdf8; margin-bottom: 8px; }
+.header p { font-size: 15px; color: #94a3b8; }
+.copy-btn { display: block; margin: 0 auto 20px; padding: 16px 48px; font-size: 20px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #7c3aed, #2563eb); border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+.copy-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(124, 58, 237, 0.5); }
+.copy-btn:active { transform: scale(0.98); }
+.copy-btn.copied { background: linear-gradient(135deg, #059669, #10b981); }
+.prompt-box { width: 100%; max-width: 800px; background: #1e293b; border: 2px solid #334155; border-radius: 12px; padding: 24px; position: relative; }
+.prompt-text { width: 100%; min-height: 400px; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 8px; padding: 16px; font-family: 'Fira Code', 'Consolas', monospace; font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; resize: vertical; outline: none; }
+.prompt-text:focus { border-color: #38bdf8; }
+.instructions { margin-top: 16px; padding: 16px; background: #1e293b; border-radius: 8px; border-left: 4px solid #f59e0b; max-width: 800px; width: 100%; }
+.instructions h3 { color: #f59e0b; margin-bottom: 8px; font-size: 16px; }
+.instructions ol { padding-left: 24px; color: #cbd5e1; }
+.instructions li { margin-bottom: 8px; font-size: 14px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>UNIT EDIT BUG FIX + UX IMPROVEMENT PROMPT</h1>
+  <p>One-click copy for Replit AI Assistant</p>
+</div>
+
+<button class="copy-btn" id="copyBtn" onclick="copyPrompt()">CLICK TO COPY ENTIRE PROMPT</button>
+
+<div class="prompt-box">
+  <textarea class="prompt-text" id="promptText" readonly>You are an expert full-stack developer working on a React + Convex app called PracticePro (property management for Nigerian law firms). I need you to fix a critical unit-editing bug and improve the unit UX. Read every section carefully before writing any code.
+
+## CRITICAL: Vercel Build Rules
+When installing ANY npm package, you MUST use: `npm install <package> --registry=https://registry.npmjs.org/`
+NEVER run bare `npm install` — Replit's proxy bakes internal URLs into package-lock.json that crash Vercel builds. After any install, verify: `grep -c "package-firewall.replit.local" package-lock.json` must return 0.
+
+---
+
+## BUG 1: Units Disappear After Editing (HIGHEST PRIORITY)
+
+### What Happens
+When I edit ONE unit in a multi-unit property, all other units vanish from the Units tab. Only the edited unit remains visible. After a full page refresh, all units reappear and the edit is saved correctly.
+
+### Root Cause (Confirmed from codebase audit)
+
+The bug is in `src/components/details/PropertyDetailView.tsx` lines 141-158. Units are discovered by **address matching**:
+
+```typescript
+const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+const addr = normalize(selectedProperty.address);
+const standaloneUnits = (coreState.properties || []).filter(p => normalize(p.address) === addr);
+```
+
+When PropertyForm saves a unit edit (line 458 of PropertyForm.tsx), it calls `updateItem('properties', pd, 'Property')`. The `updateItem` in DataProvider.tsx (line 76) does an optimistic update that SPREADS the new data over the old:
+
+```typescript
+(prev[tableKey] as any[]).map((i: any) => (matchesItem(i) ? { ...i, ...item } : i))
+```
+
+The problem: `buildPropertyRecord()` in `src/utils/propertyPayload.ts` sets `pd.description` to the unit name (e.g. "Unit 3") and may change the address format. When the address on the edited unit changes even slightly (or the description field overwrites something that affects address matching), the normalized address comparison FAILS for the other units. More critically: when editing unit N of 10, the form loops through ALL units and calls `updateItem` for EACH one. Each call triggers an optimistic state update. But each optimistic update replaces the FULL property record — and since units are stored as SEPARATE property documents (not nested), each `updateItem` call replaces one unit's data while the others remain in state. The visual disappearance happens because `allUnits` in PropertyDetailView is recalculated after each state change, and the address normalization breaks during the intermediate states.
+
+Additionally, the `description` field is being SET to the unitName during save:
+```typescript
+pd.description = normalized.unitName || (propertyData.description ? `${propertyData.description} (${normalized.unitName})` : normalized.unitName);
+```
+This can change the description field in a way that breaks the address-matching logic for sibling unit discovery.
+
+### The Fix
+
+**In `src/components/details/PropertyDetailView.tsx`:**
+1. Stop relying solely on address matching to find sibling units. Add a `parentPropertyId` or `groupAddress` field to the Property type that remains stable across edits.
+2. As a quicker fix: match units by the ORIGINAL address stored at creation time, not the current (potentially modified) address. Store `canonicalAddress` on each unit that never changes after creation.
+3. At minimum: make the `normalize()` function more forgiving — strip unit names from addresses before comparing (e.g. remove anything in parentheses like "(Unit 3)").
+
+**In `src/components/forms/PropertyForm.tsx`:**
+4. When editing a single unit (when `activeUnitId` is set), ONLY call `updateItem` for THAT specific unit. Do NOT loop through all units and update each one. Currently line 447-461 loops through ALL units even if only one changed.
+5. Add a `dirtyUnits` tracker so you only save units that were actually modified.
+
+**In `src/contexts/DataProvider.tsx`:**
+6. The optimistic update on line 76 does `{ ...i, ...item }` which is a SHALLOW merge. If `item` contains `undefined` values (from Convex field deletion), those will override existing fields. Ensure the merge does not accidentally null out fields that weren't part of the edit.
+
+---
+
+## BUG 2: Unit Modal Shows Property-Level Info Instead of Unit-Specific Info
+
+### What Happens
+When I click on a unit in the Units tab, the detail modal opens showing property-level information (like total number of units in the property). The user expects to see ONLY information relevant to THAT specific unit.
+
+### The Fix
+
+**In `src/components/details/PropertyDetailView.tsx`:**
+1. When opened from a unit card click (detectable via `activeUnitId` or the URL), hide the "X units" summary on the right side panel
+2. The right-side info panel should show: Unit name, Tenant, Rent amount, Lease dates, Status — NOT property-wide stats
+3. Add a visual indicator at the top that makes it clear this is a UNIT view, not the whole property view (e.g. a breadcrumb: "12 Marina Street > Unit 3")
+4. Hide or collapse the "Quick Actions" that apply to the whole property, and show unit-specific actions instead (Collect Rent, Issue Notice, Mark Vacant, etc.)
+
+---
+
+## FEATURE: Add/Remove Units After Property Creation
+
+### Current Problem
+There is no way to add or remove units from a property after initial creation. The user must recreate the property to change the unit count.
+
+### The Fix
+
+**In `src/components/details/PropertyDetailView.tsx` Units tab:**
+1. Add an "Add Unit" button at the bottom of the units list. When clicked, it should:
+   - Create a new property record with the same address, firmId, contactId, and property-level fields
+   - Assign it a new UUID and unit name "Unit N+1"
+   - Call `addItem('properties', newUnitRecord, 'Property')`
+   - Immediately show the new unit card in the list
+2. Add a "Remove Unit" option in the unit's context menu (the three-dot menu that already exists on each unit card). When clicked:
+   - Show a confirmation dialog: "Remove Unit 3? This will delete the unit and all its rental data."
+   - On confirm, call `deleteItem('properties', unitId, 'Property')`
+   - Remove the unit card from the list
+3. Do NOT change the `numberOfUnits` field on the parent property — it should auto-calculate from the actual unit count found by address matching
+
+**In `src/components/forms/PropertyForm.tsx`:**
+4. After the initial property creation, the "Number of Units" input should become read-only or be removed. Units should be managed via the Add/Remove buttons in the detail view, not by changing a number field.
+
+---
+
+## FILES TO MODIFY
+
+| File | Changes |
+|------|---------|
+| `src/components/details/PropertyDetailView.tsx` | Fix unit discovery logic; hide property-level info when viewing a unit; add Add/Remove unit buttons |
+| `src/components/forms/PropertyForm.tsx` | Only save the unit that was actually edited (not all units); add dirtyUnits tracker |
+| `src/contexts/DataProvider.tsx` | Fix shallow merge in optimistic update to not null out existing fields |
+| `src/utils/propertyPayload.ts` | Preserve description field properly; don't overwrite with unitName on edit |
+| `src/types.ts` | Add `canonicalAddress` or `parentPropertyId` field to Property type if needed |
+
+---
+
+## TESTING CHECKLIST
+
+After all fixes, verify:
+
+- [ ] Edit Unit 3 of a 10-unit property → all 10 units remain visible in Units tab
+- [ ] Edit a unit → only that unit's data changes, other units are untouched
+- [ ] Click a unit card → modal shows unit-specific info, NOT property-level stats
+- [ ] "Add Unit" button works → new unit appears in list and persists after refresh
+- [ ] "Remove Unit" button works → unit is deleted, list updates, persists after refresh
+- [ ] Rapid editing of multiple units does not cause any to disappear
+- [ ] After editing, Vercel build succeeds (verify lockfile is clean before pushing)
+
+---
+
+## ABSOLUTE RULES
+
+1. **NEVER loop-update all units when only one was edited** — track dirty state and save only what changed
+2. **NEVER rely on address string matching alone** for unit grouping — addresses can change during edits
+3. **NEVER show property-level stats in a unit-specific modal view**
+4. **ALWAYS use `--registry=https://registry.npmjs.org/`** when installing packages
+5. **After any npm install, verify** `grep -c "package-firewall.replit.local" package-lock.json` returns 0 before pushing
+6. **Test the fix** by creating a property with 5+ units, editing unit 3, and confirming all units remain visible
+
+END OF PROMPT</textarea>
+</div>
+
+<div class="instructions">
+  <h3>How to use:</h3>
+  <ol>
+    <li>Click the big purple <b>"CLICK TO COPY ENTIRE PROMPT"</b> button above</li>
+    <li>Go to Replit and open the AI Assistant</li>
+    <li>Paste (Ctrl+V or Cmd+V) into the chat</li>
+    <li>Hit Enter — Replit will start fixing!</li>
+  </ol>
+</div>
+
+<script>
+function copyPrompt() {
+  const textarea = document.getElementById('promptText');
+  textarea.select();
+  textarea.setSelectionRange(0, 99999999);
+  navigator.clipboard.writeText(textarea.value).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'COPIED! Now paste it into Replit';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'CLICK TO COPY ENTIRE PROMPT';
+      btn.classList.remove('copied');
+    }, 5000);
+  }).catch(() => {
+    document.execCommand('copy');
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'COPIED! Now paste it into Replit';
+    btn.classList.add('copied');
+  });
+}
+</script>
+
+</body>
+</html>
