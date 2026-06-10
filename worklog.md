@@ -188,3 +188,25 @@ Stage Summary:
 - Tier badges clearly indicate which features require Growth+ or Pro plans
 - Standalone /features page updated to match with consistent badge display
 - Footer and NavBar both link to features section
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix Vercel deployment failure — features page not visible
+
+Work Log:
+- Discovered git was 1 commit ahead of origin (unpushed)
+- Pushed to GitHub successfully
+- Discovered root cause: `next.config.ts` was causing Vercel to misdetect framework as Next.js instead of Vite
+- The `src/app/` directory contained dead Next.js pages (page.tsx, features/page.tsx, layout.tsx, globals.css, api/route.ts) that were never built or served
+- Deleted `next.config.ts` to stop Vercel framework misdetection
+- Deleted `src/app/` directory (all Next.js dead code)
+- Added `.next/` to `.gitignore`
+- Verified Vite build succeeds (12.65s)
+- Committed and pushed fix to GitHub
+- Features page content lives in LandingPage.tsx FeaturesSection (Vite/React Router) — already accurate for both Vega and Atrium
+
+Stage Summary:
+- Root cause identified: Vercel was using Next.js builder because next.config.ts existed, but project is Vite SPA
+- Fix: Removed all Next.js artifacts (next.config.ts, src/app/)
+- FeaturesSection in LandingPage.tsx is the live features page with accurate content for both apps
+- Vercel should now correctly detect and build with Vite framework
