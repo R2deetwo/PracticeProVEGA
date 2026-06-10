@@ -60,8 +60,17 @@ const formatSettingsPrice = (
     isAnnual: boolean,
     viewAsMonthlyCost: boolean
 ): string => {
-    if (tier.monthlyPrice === null) return 'Custom';
     if (tier.monthlyPrice === 0 && (tier.annualPrice ?? 0) === 0) return 'Free';
+    // Only show "Custom" when BOTH prices are null (Enterprise tier)
+    if (tier.monthlyPrice === null && tier.annualPrice === null) return 'Custom';
+    // Atrium tiers have monthlyPrice=null but valid annualPrice — show annual price
+    if (tier.monthlyPrice === null && tier.annualPrice !== null) {
+        if (viewAsMonthlyCost) {
+            const monthlyFromAnnual = Math.round(tier.annualPrice / 12);
+            return `₦${monthlyFromAnnual.toLocaleString('en-NG')}`;
+        }
+        return tier.annualPriceDisplay;
+    }
     if (!isAnnual) return tier.monthlyPriceDisplay;
     if (viewAsMonthlyCost) {
         const monthlyFromAnnual = Math.round((tier.annualPrice ?? 0) / 12);

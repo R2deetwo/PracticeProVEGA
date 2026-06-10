@@ -171,7 +171,7 @@ const NavBar: React.FC<{
 const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct }) => (
     <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-16">
         <div className="container mx-auto px-6">
-            <div className="grid md:grid-cols-3 gap-10 mb-12">
+            <div className="grid md:grid-cols-4 gap-10 mb-12">
                 {/* Brand */}
                 <div>
                     <div className="flex items-center gap-2.5 mb-4">
@@ -202,6 +202,14 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
                         <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Resources</button>
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
+                    </div>
+                </div>
+                {/* Portals */}
+                <div>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
+                    <div className="flex flex-col gap-2.5">
+                        <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
+                        <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Tenant Portal</a>
                     </div>
                 </div>
                 {/* Company */}
@@ -371,17 +379,17 @@ const HubHero: React.FC<{
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
 const VEGA_STATS = [
-    { value: 'NDPA', label: 'Fully Compliant' },
-    { value: 'TLS 1.3', label: 'Encrypted Transit' },
-    { value: 'AES-256', label: 'Encrypted at Rest' },
+    { value: '10+', label: 'Active Matters' },
+    { value: '₦ Naira', label: 'Native Billing' },
     { value: '99.9%', label: 'Platform Uptime' },
+    { value: 'NDPA', label: '2023 Compliant' },
 ];
 
 const ATRIUM_STATS = [
-    { value: 'NDPA', label: 'Fully Compliant' },
-    { value: 'TLS 1.3', label: 'Encrypted Transit' },
-    { value: 'AES-256', label: 'Encrypted at Rest' },
+    { value: 'Unlimited', label: 'Managed Units' },
+    { value: '₦ Naira', label: 'Rent Collection' },
     { value: '99.9%', label: 'Platform Uptime' },
+    { value: 'NDPA', label: '2023 Compliant' },
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {

@@ -48,7 +48,7 @@ function Navbar() {
   }, [])
 
   const links = [
-    { label: 'Features', href: '#features' },
+    { label: 'Features', href: '/features' },
     { label: 'VEGA', href: '#vega' },
     { label: 'Atrium', href: '#atrium' },
     { label: 'Pricing', href: '#pricing' },
@@ -206,10 +206,10 @@ function Hero() {
           {/* Stats row */}
           <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
             {[
-              { value: 'NDPA', label: '2023 Compliant' },
+              { value: '2,400+', label: 'Legal Practitioners' },
               { value: '₦ Naira', label: 'Native Billing' },
-              { value: 'AES-256', label: 'Encrypted at Rest' },
-              { value: 'Convex', label: 'Real-time Backend' },
+              { value: '99.9%', label: 'Platform Uptime' },
+              { value: 'NDPA', label: '2023 Compliant' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col">
                 <span className="text-2xl sm:text-3xl font-bold text-slate-900">{s.value}</span>
@@ -378,10 +378,10 @@ function FeaturesOverview() {
       color: 'amber',
     },
     {
-      icon: Shield,
-      title: 'NDPA 2023 Compliant',
+      icon: DoorOpen,
+      title: 'Client & Tenant Portals',
       description:
-        'Built from the ground up for Nigeria\'s data protection regime. Consent management, data export, and account deletion come standard.',
+        'Give clients real-time matter milestones and document vaults. Tenants get SC/MV ledgers, automated receipts, and maintenance ticket logging — all self-service.',
       color: 'emerald',
     },
     {
@@ -1284,9 +1284,16 @@ function Footer() {
       links: [
         { label: 'VEGA', href: '#vega' },
         { label: 'Atrium', href: '#atrium' },
+        { label: 'Features', href: '/features' },
         { label: 'Pricing', href: '#pricing' },
         { label: 'Changelog', href: '#' },
-        { label: 'Integrations', href: '#' },
+      ],
+    },
+    {
+      title: 'Portals',
+      links: [
+        { label: 'Client Portal', href: '/portal/client/login' },
+        { label: 'Tenant Portal', href: '/portal/tenant/login' },
       ],
     },
     {
@@ -1324,7 +1331,7 @@ function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8">
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 mb-4">
