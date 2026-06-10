@@ -34,7 +34,7 @@ Today's Nigerian property manager is not just collecting rent; they are managing
 Late payments and reconciliation errors are the silent killers of property management profitability. When rent collection relies on bank transfers followed by WhatsApp messages with screenshots of payment receipts, the reconciliation process becomes a full-time job.
 
 **The Automation Solution:**
-By integrating automated payment gateways and automatic invoicing, property managers eliminate the "I sent it" vs "I haven't seen it" debate. Systems like PracticePro Atrium automatically map incoming payments to specific units, instantly update the tenant's ledger, generate a digital receipt, and trigger an alert to the property manager. This reduces reconciliation time from days to seconds.
+By integrating automated payment gateways and automatic invoicing, property managers eliminate the "I sent it" vs "I haven't seen it" debate. Systems like PracticePro Atrium automatically map incoming payments to specific units, instantly update the tenant's ledger, generate a digital receipt, and trigger an alert to the property manager. This can significantly reduce reconciliation time compared to manual methods.
 
 ## 2. Transforming the Maintenance Lifecycle
 
@@ -47,7 +47,7 @@ A digital system transforms this into a transparent lifecycle:
 3. **Execution:** Vendor updates status; Manager tracks progress.
 4. **Resolution & Billing:** Work is completed, tenant signs off, and the cost is automatically logged against the property's operational expenses.
 
-This creates an irrefutable audit trail, which is invaluable when providing financial accounts to property owners.
+This creates a verifiable audit trail, which is invaluable when providing financial accounts to property owners.
 
 ## 3. Financial Transparency for Portfolio Owners
 
@@ -70,7 +70,7 @@ The transition to a unified property management system is no longer a luxury; it
         content: `
 ## The Turnover Problem
 
-In high-demand Nigerian real estate markets, tenant turnover is incredibly expensive. Beyond the obvious loss of rental income during vacancy periods, property managers incur costs for unit refurbishment, marketing, agency fees, and the administrative burden of new lease agreements. Retaining a reliable tenant is always more profitable than finding a new one.
+In high-demand Nigerian real estate markets, tenant turnover is incredibly expensive. Beyond the obvious loss of rental income during vacancy periods, property managers incur costs for unit refurbishment, marketing, agency fees, and the administrative burden of new lease agreements. Retaining a reliable tenant is generally more profitable than finding a new one.
 
 ## The Role of Tenant Experience
 
@@ -89,7 +89,7 @@ Empowering tenants to log maintenance requests digitally, track their status, an
 
 ## Conclusion
 
-Investing in a digital property management system is not just about making the manager's life easier; it is fundamentally about improving the product offered to the tenant. A superior tenant experience directly correlates with lease renewals, ensuring stable, long-term yields for property owners.
+Investing in a digital property management system is not just about making the manager's life easier; it is fundamentally about improving the product offered to the tenant. A superior tenant experience can contribute to higher lease renewal rates and more stable, long-term yields for property owners.
         `
     }
 ];
@@ -359,7 +359,7 @@ The starting point for most Nigerian firms is the physical archive. Years of pre
 - Digital file cabinet structure mirroring existing physical organization
 - Secure cloud storage with access controls by role and matter
 
-**Success metric:** 100% of active matters accessible digitally; zero paper required for day-to-day management.
+**Success metric:** Active matters accessible digitally, with reduced reliance on paper for day-to-day management.
 
 ## Stage 2: Process Standardization
 
@@ -383,7 +383,7 @@ With standardized processes, a practice management platform amplifies efficiency
 - Document management with version control
 - Time tracking and invoicing
 
-**Success metric:** Firm administration (diary management, invoicing, file retrieval) requires 50% less time than before.
+**Success metric:** Firm administration (diary management, invoicing, file retrieval) requires measurably less time than before.
 
 ## Stage 4: AI Augmentation
 
@@ -400,7 +400,7 @@ With data organized and processes structured, AI tools can now deliver meaningfu
 - Client relationship management
 - Judgment in the face of novel circumstances
 
-**Success metric:** Each lawyer produces 20-30% more billable output without increasing working hours.
+**Success metric:** Lawyers can produce more billable output without increasing working hours.
 
 ## Stage 5: Data and Intelligence
 
@@ -417,15 +417,15 @@ The final stage extracts business intelligence from the data now flowing through
 
 The return on technology investment for law firms can be quantified across three dimensions:
 
-**Time savings:** A single lawyer saving 2 hours per day on administrative tasks = approximately 500 recoverable hours per year at their billing rate.
+**Time savings:** Reducing time spent on administrative tasks can free up significant hours per year for billable work, depending on the firm's existing workflows.
 
-**Error reduction:** Missed deadlines, lost documents, and billing errors each carry direct financial and reputational costs that disappear with proper systems.
+**Error reduction:** Missed deadlines, lost documents, and billing errors each carry direct financial and reputational costs that can be reduced with proper systems.
 
-**Growth capacity:** Digitized, automated firms scale without proportional increases in headcount. A 10-person firm with good systems delivers the output of a 15-person firm with poor ones.
+**Growth capacity:** Digitized, automated firms can scale more easily without proportional increases in headcount, allowing smaller firms to operate more efficiently.
 
 ## Conclusion
 
-The digital transformation of a law firm is a journey measured in years, not months. The firms that begin now — methodically, stage by stage — will hold decisive competitive advantages over those who delay. PracticePro is designed to support firms at every stage of this journey.
+The digital transformation of a law firm is a journey measured in years, not months. The firms that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. PracticePro is designed to support firms at every stage of this journey.
         `
     }
 ];
@@ -451,7 +451,7 @@ const GUIDES = [
     {
         id: 'getting-started',
         title: 'Getting Started with PracticePro', 
-        description: 'Set up your firm workspace, invite team members, and create your first matter in under 30 minutes.', 
+        description: 'Set up your firm workspace, invite team members, and create your first matter in a few simple steps.', 
         tag: 'Beginner',
         readTime: '4 min read',
         content: `
@@ -492,7 +492,7 @@ A "Matter" is the central hub for any case or transaction.
         content: `
 ## Working with ALOA®
 
-ALOA is your dedicated Legal AI Copilot, trained on legal reasoning and your firm's specific datasets. Getting the best results from ALOA requires effective prompting.
+ALOA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Getting the best results from ALOA requires effective prompting.
 
 ### Principles of Good Prompting
 The way you ask a question determines the quality of the answer. Use the "Context + Task + Format" framework:

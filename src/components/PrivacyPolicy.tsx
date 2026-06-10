@@ -85,7 +85,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <strong>Company Name:</strong> PracticePro Legal Technologies Limited<br />
                                     <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway. Lagos State<br />
                                     <strong>Email:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprovega@gmail.com</a><br />
-                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:practiceproindex@gmail.com" className="text-primary-600 no-underline hover:underline">practiceproindex@gmail.com</a>
+                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprovega@gmail.com</a>
                                 </p>
                                 <p>
                                     For matters related to User account information, billing, and platform usage, PracticePro is the Data Controller. For {isVega ? 'client' : 'tenant'} data entered into the Platform by {isVega ? 'legal practitioners' : 'property managers'}, the individual {isVega ? 'lawyer or law firm' : 'manager or firm'} is the Data Controller, and PracticePro is the Data Processor.
@@ -133,7 +133,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <h3 className="text-xl font-bold">3.4 Local File Linking and Aggregation</h3>
                                     <p><strong>Important Clarification:</strong> PracticePro includes features that allow you to link local folders or files from your desktop or device to the Platform for easier access and organization. When you use these features:</p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>We do <strong>NOT</strong> automatically upload your entire hard drive or any files without your explicit action.</li>
+                                        <li>We do not automatically upload your entire hard drive. Files are uploaded only when you specifically select, import, or instruct the Platform to process them.</li>
                                         <li>Only files you specifically select, import, or instruct the Platform to process are uploaded or analyzed.</li>
                                         <li>File linking features require your explicit permission and configuration.</li>
                                         <li>You maintain full control over which local files are accessed by PracticePro.</li>
@@ -254,7 +254,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <li><strong>AI Service Provider:</strong> We use Google's Gemini API (via Google Cloud Vertex AI) to power ALOA™'s natural language processing and generation capabilities.</li>
                                         <li><strong>Data Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, that data is securely transmitted to Google's API for processing.</li>
                                         <li><strong>Processing Purpose:</strong> The data is processed solely to generate the requested output and is returned to you through the Platform.</li>
-                                        <li><strong>No Model Training:</strong> Your data is <strong>NOT</strong> used by Google or any third-party AI provider to train their public AI models. We have contractual agreements in place that prohibit the use of your data for model training purposes.</li>
+                                        <li><strong>No Model Training:</strong> Under our agreements with Google, your data is not used to train Google's public AI models. We have configured our API usage and contractual arrangements to prohibit the use of your data for model training purposes.</li>
                                         <li><strong>Transient Processing:</strong> AI processing is transient—data is processed in real-time and not permanently stored by the AI provider beyond what is necessary for service delivery.</li>
                                         <li><strong>Privacy Shield Agent:</strong> Before processing data through AI, our Privacy Shield Agent identifies and flags Personally Identifiable Information (PII), giving you the option to redact sensitive information before submission.</li>
                                     </ul>
@@ -270,7 +270,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                             <ul className="list-disc pl-8 space-y-2">
                                                 <li><strong>Provider:</strong> Google Cloud Platform</li>
                                                 <li><strong>Purpose:</strong> Hosting the Platform, storing data, providing computing resources</li>
-                                                <li><strong>Security:</strong> Google Cloud provides enterprise-grade security, encryption, and compliance certifications</li>
+                                                <li><strong>Security:</strong> Google Cloud provides robust infrastructure security, encryption, and maintains its own compliance certifications (see cloud.google.com/security/compliance for details)</li>
                                             </ul>
                                         </div>
 
@@ -296,12 +296,12 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.3 Data Protection Safeguards for Third Parties</h3>
-                                    <p>All third-party service providers are required to process data only as instructed by us, implement appropriate technical measures, comply with NDPA and NDPR, and ensure confidentiality.</p>
+                                    <p>All third-party service providers are contractually required to process data only as instructed by us, implement appropriate technical measures, maintain confidentiality, and operate under data processing agreements that address applicable data protection requirements.</p>
                                 </div>
 
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.4 International Data Transfers</h3>
-                                    <p>Some of our service providers may process data outside Nigeria. When data is transferred internationally, we ensure adequate protection through Standard Contractual Clauses and by ensuring service providers maintain adequate levels of data protection as required by the NDPA.</p>
+                                    <p>Some of our service providers may process data outside Nigeria. When data is transferred internationally, we take steps to ensure adequate protection through appropriate contractual safeguards and by requiring service providers to maintain adequate levels of data protection as required by the NDPA.</p>
                                 </div>
                             </div>
                         </section>
@@ -310,7 +310,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">6. Data Security</h2>
                             <div className="space-y-12">
                                 <p>
-                                    We implement comprehensive technical and organizational security measures to protect your personal data, including Data Encryption at rest (AES-256) and in transit (TLS 1.3), rigorous access controls, automated encrypted backups, continuous network monitoring, and security incident response plans.
+                                    We implement technical and organizational security measures to protect your personal data, including data encryption at rest and in transit, access controls, regular backups, network monitoring, and security incident response procedures.
                                 </p>
                             </div>
                         </section>
@@ -328,7 +328,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">8. Your Rights Under NDPR and NDPA</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Under the Nigerian data protection framework, you have the right to access, rectify, or request erasure of your data. You may object to or restrict processing, request your data in a portable format, and withdraw consent. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC). To exercise these rights, please contact our Data Protection Officer at dpo@practicepro.com.
+                                    Under the Nigerian data protection framework, you have the right to access, rectify, or request erasure of your data. You may object to or restrict processing, request your data in a portable format, and withdraw consent. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC). To exercise these rights, please contact our Data Protection Officer at practiceprovega@gmail.com.
                                 </p>
                             </div>
                         </section>
@@ -379,7 +379,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-6">
                                     <p>
                                         <strong>PracticePro Legal Technologies Limited</strong><br />
-                                        <strong>Data Protection Officer:</strong> dpo@practicepro.com<br />
+                                        <strong>Data Protection Officer:</strong> practiceprovega@gmail.com<br />
                                         <strong>General Inquiries:</strong> privacy@practicepro.com
                                     </p>
                                 </div>
