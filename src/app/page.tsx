@@ -209,7 +209,7 @@ function Hero() {
               { value: '2,400+', label: 'Legal Practitioners' },
               { value: '₦ Naira', label: 'Native Billing' },
               { value: '99.9%', label: 'Platform Uptime' },
-              { value: 'NDPA', label: '2023 Compliant' },
+              { value: '24/7', label: 'System Monitoring' },
             ].map((s) => (
               <div key={s.label} className="flex flex-col">
                 <span className="text-2xl sm:text-3xl font-bold text-slate-900">{s.value}</span>
@@ -328,9 +328,9 @@ function Hero() {
 function TrustBar() {
   const badges = [
     { icon: Shield, label: 'NDPA 2023 Compliant' },
-    { icon: Lock, label: 'AES-256 Encrypted' },
     { icon: Scale, label: 'NBA Rules Aligned' },
-    { icon: Globe, label: 'Convex Cloud Infrastructure' },
+    { icon: Globe, label: 'African Data Centers' },
+    { icon: Zap, label: '99.9% Uptime SLA' },
   ]
 
   return (
@@ -1390,13 +1390,13 @@ function Footer() {
             </span>
             <span>·</span>
             <span className="flex items-center gap-1">
-              <Lock className="w-3 h-3 text-emerald-500" />
-              AES-256 Encrypted
+              <Globe className="w-3 h-3 text-emerald-500" />
+              African Data Centers
             </span>
             <span>·</span>
             <span className="flex items-center gap-1">
-              <Globe className="w-3 h-3 text-emerald-500" />
-              African Data Centers
+              <Scale className="w-3 h-3 text-emerald-500" />
+              NBA Rules Aligned
             </span>
           </div>
         </div>

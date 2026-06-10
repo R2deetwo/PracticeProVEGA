@@ -358,19 +358,8 @@ const HubHero: React.FC<{
                     <span className="text-primary-400 font-semibold hover:text-primary-300">Sign in →</span>
                 </button>
 
-                {/* Micro trust strip */}
-                <div className="flex flex-wrap items-center justify-center gap-6 mt-12 opacity-35">
-                    {[
-                        { Icon: ShieldCheckIcon, label: 'NDPA 2023 Compliant' },
-                        { Icon: LockClosedIcon, label: 'TLS 1.3 Encrypted' },
-                        { Icon: KeyIcon, label: 'AES-256 at Rest' },
-                    ].map((b, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                            <b.Icon className="w-3.5 h-3.5 text-slate-500" />
-                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{b.label}</span>
-                        </div>
-                    ))}
-                </div>
+                {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
+                <p className="text-[10px] text-slate-600 mt-12 tracking-wide">NDPA 2023 Compliant · TLS 1.3 · AES-256</p>
             </div>
         </section>
     );
@@ -382,14 +371,14 @@ const VEGA_STATS = [
     { value: '10+', label: 'Active Matters' },
     { value: '₦ Naira', label: 'Native Billing' },
     { value: '99.9%', label: 'Platform Uptime' },
-    { value: 'NDPA', label: '2023 Compliant' },
+    { value: '24/7', label: 'System Monitoring' },
 ];
 
 const ATRIUM_STATS = [
     { value: 'Unlimited', label: 'Managed Units' },
     { value: '₦ Naira', label: 'Rent Collection' },
     { value: '99.9%', label: 'Platform Uptime' },
-    { value: 'NDPA', label: '2023 Compliant' },
+    { value: '24/7', label: 'System Monitoring' },
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {

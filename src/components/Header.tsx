@@ -35,7 +35,7 @@ const Header: React.FC = React.memo(() => {
     const { handleMarkNotificationsRead, handleClearAllNotifications } = actions;
     const { notifications } = coreState;
     const { clientMessages } = matterState;
-    const chatMessages: any[] = []; // chat messages loaded per-conversation in CommsView
+    const chatMessages: any[] = []; // chat messages loaded per-conversation in MessagesView
     const permissions = usePermissions();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);

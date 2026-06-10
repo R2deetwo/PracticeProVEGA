@@ -25,7 +25,7 @@ import { BillingView } from './BillingView';
 import ReportingView from './ReportingView';
 import ComplianceView from './ComplianceView';
 import SettingsView from './settings/SettingsView';
-import CommsView from './CommsView';
+import MessagesView from './MessagesView';
 import { WordProcessor } from './documents/WordProcessor';
 import ResearchView from './ResearchView';
 import { AloaXView } from './indexer/AloaXView';
@@ -330,7 +330,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'reporting': return <ViewWrapper><ReportingView /></ViewWrapper>;
             case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
 
-            case 'messaging': return <ViewWrapper><CommsView /></ViewWrapper>;
+            case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
             case 'notes': return <ViewWrapper><NotesView /></ViewWrapper>;
             case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
