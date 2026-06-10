@@ -47,3 +47,33 @@ Stage Summary:
 - Payment gateway is now an honest manual bank transfer flow — no more collecting card data that goes nowhere
 - All simulated/fake behaviors replaced with honest messages
 - Invoice numbering is collision-free and sequential
+---
+Task ID: 4
+Agent: Main Agent
+Task: Batch 4 — Dynamic Custom Invoice Numbering & Data Persistence
+
+Work Log:
+- Created src/utils/invoiceHelpers.ts with complete prefix generation engine
+- extractFirmInitials(): Regex-based word extraction stripping &, commas, dots, hyphens
+- extractPersonInitials(): First+Last name initials extraction
+- isMultiUserFirm(): Detects solo vs multi-user from active User[] array
+- findLeadProfessional(): Locates Admin (Lead Attorney / Portfolio Manager)
+- generateInvoiceNumber(): INV-[FirmInitials][ManagerInitials]-[Seq4digit]
+- generateReceiptNumber(): Same convention with REC- prefix
+- Profile-incomplete fallback: "ORG" when firm name not set
+- Solo firms omit manager segment entirely (INV-AJ-0001)
+- Multi-user firms include lead professional initials (INV-AJMA-0001)
+- Updated useFinance hook to use generateInvoiceNumber() — computes once at creation
+- Updated InvoiceGeneratorForm to pre-fill with dynamic number via useMemo
+- Updated InvoiceForm to pre-fill with dynamic number, added useFinanceState import
+- Updated CollectRentModal to use generateReceiptNumber() for receipt numbers
+- Removed legacy random generateInvoiceNumber() from invoiceService.ts
+- Negative Rule enforced: invoice number computed once, persisted as string, never recomputed
+- Regression check: No landing page, property, or navigation files modified
+- Build passes, pushed to GitHub (commit 1138c55)
+
+Stage Summary:
+- New utility: src/utils/invoiceHelpers.ts (158 lines)
+- 3 inconsistent invoice number patterns consolidated into 1 dynamic engine
+- Negative Rule (snapshot persistence) enforced — invoiceNumber is a plain string, never dynamically derived on read
+- Fallback to "ORG" prefix when firm profile incomplete creates visual friction encouraging profile completion
