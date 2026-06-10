@@ -133,3 +133,34 @@ Stage Summary:
 - NDPA/TLS/AES no longer appear twice on any single page surface
 - CommsView fully renamed to MessagesView — code matches UI labeling
 - All anti-regression checks pass
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: Fix inaccurate hero stats, product-aware portal footers, build portal help guide
+
+Work Log:
+- Replaced weak/inaccurate hero stats across both marketing surfaces:
+  - "10+ Active Matters" → "Court-Ready Document Formatting" (Vega) / "SC/MV Ledger Tracking" (Atrium)
+  - "Unlimited Managed Units" → removed (tier-dependent, misleading)
+  - Stats now show platform-wide truths: ₦ Naira, Court-Ready/SC/MV, 99.9% Uptime, NDPA 2023
+- Made LandingPage footer product-aware:
+  - Hub page (no product chosen) → Portals section hidden entirely, brand badge hidden
+  - Vega page → only Client Portal link shown
+  - Atrium page → only Tenant Portal link shown
+  - Added productChosen prop to Footer component
+- Next.js marketing page: Portal links now labeled with product association
+- Built comprehensive Portal Guide in HelpSettings.tsx:
+  - Tenant/Client Portal Overview with plan availability note
+  - What tenants/clients can see (SC/MV ledger, receipts, tickets / milestones, vault, KYC)
+  - Step-by-step portal activation (plan check → record → credentials → share)
+  - Secure credential sharing guidelines with legal/NDPA considerations
+  - Portal URL reference
+  - Access management (revoke, reset, audit logs)
+  - Security & data protection details (encryption, scope-limited access, session management, NDPA compliance)
+- Pushed to GitHub (commit aa4afa6)
+
+Stage Summary:
+- Hero stats now reflect accurate, compelling platform capabilities instead of tier-dependent claims
+- Footer portals are contextually correct per product view
+- Portal guide fully fleshed out in Help section with security, activation, and sharing instructions
