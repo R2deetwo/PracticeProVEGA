@@ -227,7 +227,7 @@ const ReportingView: React.FC = () => {
 
     const [activeMainTab, setActiveMainTab] = useState<MainTab>(context.activeMainTab || 'dashboard');
     const [activeDashboardTab, setActiveDashboardTab] = useState<DashboardTab>(context.activeDashboardTab || 'financial');
-    const { canUseAdvancedReporting } = useFeatures();
+    const { canUseAdvancedReporting, canUseReportGenerator } = useFeatures();
 
     React.useEffect(() => {
         if (context.activeMainTab) setActiveMainTab(context.activeMainTab);
@@ -245,13 +245,13 @@ const ReportingView: React.FC = () => {
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Advanced Analytics Locked</h3>
                             <p className="text-slate-500 dark:text-zinc-400 max-w-md mb-6">
-                                Business Intelligence reports including Case Velocity, Utilization Rates, and Client Acquisition data are available on the Ultimate plan.
+                                Business Intelligence reports including Case Velocity, Utilization Rates, and Client Acquisition data are available on the Pro plan and above.
                             </p>
                             <button
                                 onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
                                 className="px-6 py-3 bg-purple-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors shadow-lg"
                             >
-                                Upgrade to Ultimate
+                                Upgrade to Pro
                             </button>
                         </div>
                     );
@@ -310,7 +310,25 @@ const ReportingView: React.FC = () => {
                 )}
 
                 {activeMainTab === 'generator' && (
-                    <ReportGenerator />
+                    canUseReportGenerator ? (
+                        <ReportGenerator />
+                    ) : (
+                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-12 flex flex-col items-center justify-center text-center border border-slate-200 dark:border-zinc-700 animate-fade-in">
+                            <div className="p-4 bg-amber-100 dark:bg-amber-900/30 rounded-full mb-4">
+                                <LockClosedIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Report Generator Locked</h3>
+                            <p className="text-slate-500 dark:text-zinc-400 max-w-md mb-6">
+                                Generate professional PDF reports including Timesheets, P&L, A/R Aging, and Matter Status when you upgrade to Growth or above.
+                            </p>
+                            <button
+                                onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
+                                className="px-6 py-3 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 transition-colors shadow-lg"
+                            >
+                                Upgrade to Growth
+                            </button>
+                        </div>
+                    )
                 )}
             </div>
         </div>

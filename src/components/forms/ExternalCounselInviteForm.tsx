@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { UserIcon, MailIcon, GavelIconLarge, InfoIcon, XIcon, SaveIcon, SendIcon, BriefcaseIcon } from '../../constants';
+import { UserIcon, MailIcon, GavelIconLarge, InfoIcon, XIcon, SaveIcon, SendIcon, BriefcaseIcon, LockClosedIcon } from '../../constants';
 import { inputClassic } from '../../utils/formStyles';
 import { ExternalCounselInvite, AccessLevel } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { useFeatures } from '../../hooks/useFeatures';
 
 interface ExternalCounselInviteFormProps {
     matterId: string;
@@ -15,7 +16,8 @@ interface ExternalCounselInviteFormProps {
 const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ matterId, onInvite, onClose }) => {
     const { currentUser } = useAuth();
     const { coreState, isDataLoaded } = useCoreState();
-    const { addToast } = useUI();
+    const { addToast, navigateTo } = useUI();
+    const { canUseExternalCounsel } = useFeatures();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [firmName, setFirmName] = useState('');
@@ -53,6 +55,23 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
     const commonInputClass = inputClassic;
 
     return (
+        !canUseExternalCounsel ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="w-14 h-14 bg-rose-50 dark:bg-rose-900/20 rounded-full flex items-center justify-center mb-4">
+                    <LockClosedIcon className="w-7 h-7 text-rose-500" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Enterprise Feature</h3>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-sm mb-4">
+                    Inviting external counsel is available on the Enterprise plan. Upgrade to collaborate with external legal professionals.
+                </p>
+                <button
+                    onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
+                    className="px-4 py-2 bg-rose-600 text-white rounded-lg font-bold hover:bg-rose-700 transition-colors text-sm"
+                >
+                    Upgrade to Enterprise
+                </button>
+            </div>
+        ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
             <p className="text-sm text-slate-600 dark:text-zinc-400">
                 You are inviting an external legal professional to collaborate on this matter. They will only have access to the information you specify.
@@ -99,6 +118,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700">Send Invitation</button>
             </div>
         </form>
+        )
     );
 };
 

@@ -14,7 +14,8 @@ import { ResearchChat } from './research/ResearchChat';
 import { ResearchStudio } from './research/ResearchStudio';
 import LawReportsView from './research/LawReportsView';
 import NotesView from './NotesView';
-import { ChevronRightIcon } from '../constants';
+import { ChevronRightIcon, LockClosedIcon } from '../constants';
+import { useFeatures } from '../hooks/useFeatures';
 
 const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 dark:text-zinc-500 p-8">
@@ -42,6 +43,7 @@ const ResearchView: React.FC = () => {
     const dataHandlers = useDataActions();
     const { openModal, closeModal, currentHistoryEntry, updateCurrentHistoryEntry, navigateTo } = useUI();
     const { currentUser } = useAuth();
+    const { canUseResearchStudio } = useFeatures();
 
     const [activeTab, setActiveTab] = useState<ResearchTab>('research_notes');
     const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
@@ -109,6 +111,29 @@ const ResearchView: React.FC = () => {
     }, [sourcesForNotebook]);
 
     const renderMyResearch = () => {
+        // AI Notebooks (Research Studio) requires Growth+ plan
+        if (!canUseResearchStudio) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                    <div className="max-w-md bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-xl border border-slate-100 dark:border-zinc-800 flex flex-col items-center">
+                        <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-6">
+                            <LockClosedIcon className="w-8 h-8 text-indigo-500" />
+                        </div>
+                        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">AI Research Studio Locked</h2>
+                        <p className="text-slate-500 dark:text-zinc-400 leading-relaxed mb-6">
+                            AI-powered legal analysis, notebook workspaces, and source synthesis are available on the Growth plan and above. Upgrade to unlock the full Research Studio.
+                        </p>
+                        <button
+                            onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
+                            className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg"
+                        >
+                            Upgrade to Growth
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
         if (userNotebooks.length === 0 && !selectedNotebookId) {
             return <ResearchPlaceholder onClick={() => openModal('newResearchNotebook')} />;
         }
@@ -211,8 +236,8 @@ const ResearchView: React.FC = () => {
         );
     };
 
-    const tabDef: { id: ResearchTab; label: string }[] = [
-        { id: 'research_notes', label: 'AI Notebooks' },
+    const tabDef: { id: ResearchTab; label: string; locked?: boolean }[] = [
+        { id: 'research_notes', label: 'AI Notebooks', locked: !canUseResearchStudio },
         { id: 'case_law', label: 'Case Law' },
         { id: 'notes', label: 'Practice Notes' },
     ];
@@ -226,9 +251,10 @@ const ResearchView: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md transition-all ${activeTab === tab.id ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'}`}
+                            className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 ${activeTab === tab.id ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'}`}
                         >
                             {tab.label}
+                            {tab.locked && <LockClosedIcon className="w-3 h-3 text-slate-400" />}
                         </button>
                     ))}
                 </div>

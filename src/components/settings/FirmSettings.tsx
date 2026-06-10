@@ -89,7 +89,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     const { addToast, navigateTo, closeModal, activePeers } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
     const { handleClearMatterLogs, handleDeleteAllChats, handleUpdateUser, regenerateInviteCode } = useDataActions();
-    const { maxUsers } = useFeatures();
+    const { maxUsers, canAddUsers } = useFeatures();
     const [clickCount, setClickCount] = useState(0);
     const [isRotating, setIsRotating] = useState(false);
 
@@ -257,7 +257,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                         </p>
                         {!isHighTier && (
                             <p className="mt-2 text-xs text-blue-600 dark:text-blue-400 flex items-center cursor-pointer hover:underline" onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}>
-                                <ShieldCheckIcon className="w-3 h-3 mr-1" /> Upgrade to Ultimate to enable Multi-Workspace Retention.
+                                <ShieldCheckIcon className="w-3 h-3 mr-1" /> Upgrade to Pro to enable Multi-Workspace Retention.
                             </p>
                         )}
                     </div>

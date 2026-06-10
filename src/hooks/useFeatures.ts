@@ -55,14 +55,21 @@ export const useFeatures = () => {
         // Property Management — see rule above
         canUsePropertyManager,
 
-        // Research (All plans)
-        canAccessLawReports: isLegalFirm,
-        canUseResearchStudio: isLegalFirm,
-
-        // Core Features (All plans)
+        // Portal Features (Growth+)
         canUseClientPortal: isGrowthOrAbove,   // Client Portal gated to Growth+ (Core = no portal)
         canUseTenantPortal: isGrowthOrAbove && isPropertyFirm,  // Tenant Portal: Atrium Growth+ only
+
+        // Legal Intelligence (Growth+)
+        canUseCourtIntelligence: isGrowthOrAbove && isLegalFirm,  // Court rules & procedural intelligence
+
+        // Billing & Financials
         canUseTrustAccounting: true,
+        canUseAdvancedBilling: isProOrAbove,           // Advanced billing & analytics (Pro+)
+        canUseReportGenerator: isGrowthOrAbove,        // Report Generator (Growth+) — Core gets basic billing only
+
+        // Research
+        canUseResearchStudio: isLegalFirm && isGrowthOrAbove,  // AI research studio (Growth+ legal)
+        canAccessLawReports: isLegalFirm,                       // Basic law reports (all legal plans)
 
         // Team Features
         canAddUsers: isGrowthOrAbove,
@@ -80,20 +87,25 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel') => {
             switch (feature) {
-                case 'ai':         return isGrowthOrAbove;
-                case 'automation': return isEnterpriseOrAbove;
-                case 'team':       return isGrowthOrAbove;
-                case 'bi':         return isProOrAbove;
-                case 'property':   return canUsePropertyManager;
-                case 'research':   return isLegalFirm;
-                case 'trust':      return true;
-                case 'audit':      return isEnterpriseOrAbove;
-                case 'security':   return isEnterpriseOrAbove;
-                case 'clientPortal': return isGrowthOrAbove;
-                case 'tenantPortal': return isGrowthOrAbove && isPropertyFirm;
-                default:           return true;
+                case 'ai':                return isGrowthOrAbove;
+                case 'automation':        return isEnterpriseOrAbove;
+                case 'team':              return isGrowthOrAbove;
+                case 'bi':                return isProOrAbove;
+                case 'property':          return canUsePropertyManager;
+                case 'research':          return isLegalFirm;
+                case 'researchStudio':    return isLegalFirm && isGrowthOrAbove;
+                case 'trust':             return true;
+                case 'audit':             return isEnterpriseOrAbove;
+                case 'security':          return isEnterpriseOrAbove;
+                case 'clientPortal':      return isGrowthOrAbove;
+                case 'tenantPortal':      return isGrowthOrAbove && isPropertyFirm;
+                case 'courtIntelligence': return isGrowthOrAbove && isLegalFirm;
+                case 'advancedBilling':   return isProOrAbove;
+                case 'reportGenerator':   return isGrowthOrAbove;
+                case 'externalCounsel':   return isEnterpriseOrAbove;
+                default:                  return true;
             }
         }
     };

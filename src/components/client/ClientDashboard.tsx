@@ -2,16 +2,35 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useUI } from '../../contexts/UIContext';
-import { MattersIcon, PlusIcon } from '../../constants';
+import { useFeatures } from '../../hooks/useFeatures';
+import { MattersIcon, PlusIcon, LockClosedIcon } from '../../constants';
 import { timeAgo } from '../../utils/colorUtils';
 
 const ClientDashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { matterState } = useMatterState();
     const { navigateTo, openModal } = useUI();
+    const { canUseClientPortal } = useFeatures();
 
     if (!currentUser || currentUser.role !== 'Client') {
         return <div>Access Denied.</div>;
+    }
+
+    // Firm must be on Growth+ to offer the Client Portal
+    if (!canUseClientPortal) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <div className="max-w-md bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-xl border border-slate-100 dark:border-zinc-800 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6">
+                        <LockClosedIcon className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Portal Unavailable</h2>
+                    <p className="text-slate-500 dark:text-zinc-400 leading-relaxed">
+                        The Client Portal is not available on your firm's current plan. Please contact your firm administrator.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     const clientContact = matterState.contacts.find(c => c.userId === currentUser.id);

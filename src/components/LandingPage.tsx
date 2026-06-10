@@ -378,15 +378,15 @@ const HubHero: React.FC<{
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
 const VEGA_STATS = [
-    { value: '₦ Naira', label: 'Native Billing' },
-    { value: 'Court-Ready', label: 'Document Formatting' },
+    { value: '3-Tier', label: 'Flexible Pricing' },
+    { value: 'End-to-End', label: 'Case Lifecycle' },
     { value: '99.9%', label: 'Platform Uptime' },
     { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
 const ATRIUM_STATS = [
-    { value: '₦ Naira', label: 'Rent Collection' },
-    { value: 'SC/MV', label: 'Ledger Tracking' },
+    { value: '20–∞', label: 'Managed Units' },
+    { value: 'End-to-End', label: 'Rent Collection' },
     { value: '99.9%', label: 'Platform Uptime' },
     { value: 'NDPA 2023', label: 'Data Compliant' },
 ];

@@ -12,7 +12,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon
+    ShieldCheckIcon, LockClosedIcon
 } from '../constants';
 
 // ALOA-X inline icon
@@ -24,6 +24,7 @@ const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 import { View, SubscriptionPlan } from '../types';
+import { useFeatures } from '../hooks/useFeatures';
 
 interface SidebarProps {
     currentView: View;
@@ -55,7 +56,8 @@ const NavItemLink: React.FC<{
     isSidebarRetracted: boolean;
     counts: any;
     id?: string;
-}> = ({ item, setView, currentView, isSidebarRetracted, counts, id }) => {
+    locked?: boolean;
+}> = ({ item, setView, currentView, isSidebarRetracted, counts, id, locked }) => {
     const isActive = currentView === item.view || (item.view === 'matters' && currentView === 'matterDetail') || (item.view === 'contacts' && currentView === 'contactDetail');
 
     // Badge Logic
@@ -94,7 +96,7 @@ const NavItemLink: React.FC<{
 
             {!isSidebarRetracted && (
                 <div className="flex-1 flex items-center justify-between min-w-0">
-                    <span className="text-sm truncate">{item.text}</span>
+                    <span className="text-sm truncate flex items-center gap-1.5">{item.text}{locked && <LockClosedIcon className="w-3 h-3 text-slate-400 dark:text-zinc-500" />}</span>
                     {badgeCount > 0 && (
                         <span className={`ml-2 ${badgeColor} text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm relative z-10`}>
                             {badgeCount}
@@ -176,6 +178,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
     const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
     const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
+    const features = useFeatures();
     // Allow all users to access the firm switcher to find their other offices or switch back to original offices 
     const canUseMultiFirm = true;
 
@@ -355,6 +358,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         <NavItemLink
                             item={{ view: 'research', text: 'Research', icon: <ResearchIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                            locked={!features.canUseResearchStudio}
                         />
                     )}
                     {isHighTier && showAloaX && (
@@ -380,10 +384,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     <NavItemLink
                         item={{ view: 'billing', text: 'Financials', icon: <BillingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        locked={!features.canUseAdvancedBilling}
                     />
                     <NavItemLink
                         item={{ view: 'reporting', text: 'Analytics', icon: <ReportingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        locked={!features.canUseReportGenerator}
                     />
                     <NavItemLink
                         id="nav-settings-sidebar"
