@@ -335,6 +335,7 @@ export const PortalAccessSettings: React.FC = () => {
   );
 
   const revokeInvite = useMutation(api.portals.revokePortalInvite);
+  const deleteInvite = useMutation(api.portals.deletePortalInvite);
   const resendInvite = useAction(api.portals.resendPortalInvite);
 
   const filteredInvites = useMemo(() => {
@@ -364,14 +365,25 @@ export const PortalAccessSettings: React.FC = () => {
     }
   };
 
+  const handleDelete = async (inviteId: string) => {
+    try {
+      await deleteInvite({ inviteId: inviteId as any });
+      addToast('Invitation deleted permanently.', { type: 'success' });
+    } catch (err: any) {
+      addToast(err.message || 'Failed to delete invitation.', { type: 'error' });
+    }
+  };
+
   const handleResend = async (invite: any) => {
     setResendingId(String(invite._id));
     try {
       const result = await resendInvite({ inviteId: invite._id });
       const parts: string[] = [];
-      if (result.emailSent) parts.push('email sent');
-      if (result.whatsappSent) parts.push('WhatsApp sent');
-      addToast(`Invitation resent — ${parts.join(' & ') || 'refreshed'}`, { type: 'success' });
+      if (result.emailSent) parts.push('email delivered');
+      else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+      if (result.whatsappSent) parts.push('WhatsApp delivered');
+      else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
+      addToast(`Invitation resent — ${parts.join(', ') || 'refreshed'}`, { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to resend invitation.', { type: 'error' });
     } finally {
@@ -578,7 +590,7 @@ export const PortalAccessSettings: React.FC = () => {
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                         title="Revoke invitation"
                       >
-                        <TrashIcon className="w-4 h-4" />
+                        <LockClosedIcon className="w-4 h-4" />
                       </button>
                     </>
                   )}
@@ -591,6 +603,14 @@ export const PortalAccessSettings: React.FC = () => {
                       <LockClosedIcon className="w-4 h-4" />
                     </button>
                   )}
+                  {/* Delete permanently — available on all statuses */}
+                  <button
+                    onClick={() => handleDelete(String(invite._id))}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    title="Delete permanently"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );

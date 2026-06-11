@@ -385,7 +385,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                 <>
                     <ContextMenu />
                     <DockedModal />
-                    {import.meta.env.DEV && <AloaFAB />}
+                    <AloaFAB />
                     <AloaPanel />
                     <CommandPalette />
                     <FullScreenSearch />

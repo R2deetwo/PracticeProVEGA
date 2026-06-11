@@ -305,7 +305,9 @@ export const resendPortalInvite = action({
     return {
       token: newToken,
       emailSent: emailResult.success && !emailResult.simulated,
+      emailSimulated: emailResult.simulated || false,
       whatsappSent: waResult.success && !waResult.simulated,
+      whatsappSimulated: waResult.simulated || false,
     };
   },
 });
@@ -358,6 +360,14 @@ export const revokePortalInvite = mutation({
       status: "revoked",
       updatedAt: Date.now(),
     });
+  },
+});
+
+/** Permanently delete a portal invite record (removes it from the list entirely) */
+export const deletePortalInvite = mutation({
+  args: { inviteId: v.id("portal_invites") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.inviteId);
   },
 });
 
