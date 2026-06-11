@@ -6,7 +6,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
 import { formatNaira, formatLargeNumber } from '../../utils/formatting';
 import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
-import { useUnitDropdownOptions } from '../../hooks/usePropertyGroups';
+import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -237,6 +237,29 @@ const LedgerManager: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch] = useState('');
 
+  const { unitById } = usePropertyGroups(coreState.properties || []);
+
+  const getUnitLabel = (unitId: string): string => {
+    const unitOpt = unitById.get(unitId);
+    if (unitOpt) {
+      return unitOpt.unitName
+        ? `${unitOpt.unitName} · ${unitOpt.shortAddress}`
+        : unitOpt.shortAddress;
+    }
+    const p = (coreState.properties || []).find(p => p.id === unitId);
+    if (p?.address) return p.address;
+    for (const prop of (coreState.properties || [])) {
+      const embedded: any[] = (prop as any).units || [];
+      const match = embedded.find((u: any) => u.id === unitId);
+      if (match) {
+        const uName = match.unitName || match.name || '';
+        const shortAddr = (prop.address || '').split(',')[0] || 'Property';
+        return uName ? `${uName} · ${shortAddr}` : shortAddr;
+      }
+    }
+    return 'Unknown Property';
+  };
+
   const filtered = useMemo(() => {
     const propMap = new Map((coreState.properties || []).map(p => [p.id, p.address.toLowerCase()]));
     return entries.filter(e => {
@@ -375,7 +398,7 @@ const LedgerManager: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <p className="text-sm font-bold text-white truncate">
-                          {coreState.properties?.find(p => p.id === entry.unitId)?.address || 'Unknown Property'} - {entry.description || TYPE_LABELS[entry.type]}
+                          {getUnitLabel(entry.unitId)} — {entry.description || TYPE_LABELS[entry.type]}
                         </p>
                         <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${TYPE_COLORS[entry.type]}`}>
                           {TYPE_LABELS[entry.type]}

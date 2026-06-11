@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
-import { useUnitDropdownOptions } from '../../hooks/usePropertyGroups';
+import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const AlertIcon = ({ className = "w-4 h-4" }) => (
@@ -63,6 +63,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ fir
   const [loading, setLoading] = useState(false);
 
   const units = useUnitDropdownOptions(coreState.properties || []);
+  const { unitById } = usePropertyGroups(coreState.properties || []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,9 +269,31 @@ const ServiceChargeMonitor: React.FC = () => {
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const getUnitLabel = (unitId: string) => {
+  const { unitById } = usePropertyGroups(coreState.properties || []);
+
+  const getUnitLabel = (unitId: string): string => {
+    // 1. Try the smart label from usePropertyGroups (includes unit name + property address)
+    const unitOpt = unitById.get(unitId);
+    if (unitOpt) {
+      return unitOpt.unitName
+        ? `${unitOpt.unitName} · ${unitOpt.shortAddress}`
+        : unitOpt.shortAddress;
+    }
+    // 2. Fallback: try matching by property id directly
     const p = (coreState.properties || []).find(p => p.id === unitId);
-    return p?.address || unitId;
+    if (p?.address) return p.address;
+    // 3. Try matching embedded units by scanning property.units arrays
+    for (const prop of (coreState.properties || [])) {
+      const embedded: any[] = (prop as any).units || [];
+      const match = embedded.find((u: any) => u.id === unitId);
+      if (match) {
+        const uName = match.unitName || match.name || '';
+        const shortAddr = (prop.address || '').split(',')[0] || 'Property';
+        return uName ? `${uName} · ${shortAddr}` : shortAddr;
+      }
+    }
+    // 4. Last resort
+    return unitId;
   };
 
   const charges = useMemo(() => {

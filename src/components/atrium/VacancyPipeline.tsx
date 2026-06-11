@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { LeadPipelineEntry, LeadPipelineStage } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
-import { usePropertyGroups } from '../../hooks/usePropertyGroups';
+import { usePropertyGroups, useUnitDropdownOptions } from '../../hooks/usePropertyGroups';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const UserPlusIcon = ({ className = "w-4 h-4" }) => (
@@ -191,7 +191,32 @@ const VacancyPipeline: React.FC = () => {
   const advanceStage = useMutation(api.sentry.advanceLeadStage);
   const [showAdd, setShowAdd] = useState(false);
 
-  const getUnitLabel = (unitId: string) => (coreState.properties || []).find(p => p.id === unitId)?.address || unitId;
+  const { unitById } = usePropertyGroups(coreState.properties || []);
+
+  const getUnitLabel = (unitId: string): string => {
+    // 1. Try the smart label from usePropertyGroups (includes unit name + property address)
+    const unitOpt = unitById.get(unitId);
+    if (unitOpt) {
+      return unitOpt.unitName
+        ? `${unitOpt.unitName} · ${unitOpt.shortAddress}`
+        : unitOpt.shortAddress;
+    }
+    // 2. Fallback: try matching by property id directly
+    const p = (coreState.properties || []).find(p => p.id === unitId);
+    if (p?.address) return p.address;
+    // 3. Try matching embedded units by scanning property.units arrays
+    for (const prop of (coreState.properties || [])) {
+      const embedded: any[] = (prop as any).units || [];
+      const match = embedded.find((u: any) => u.id === unitId);
+      if (match) {
+        const uName = match.unitName || match.name || '';
+        const shortAddr = (prop.address || '').split(',')[0] || 'Property';
+        return uName ? `${uName} · ${shortAddr}` : shortAddr;
+      }
+    }
+    // 4. Last resort
+    return unitId;
+  };
 
   const byStage = useMemo(() => {
     const map: Record<LeadPipelineStage, LeadPipelineEntry[]> = { Inquiry: [], Vetted: [], Lease_Generated: [], Closed: [] };

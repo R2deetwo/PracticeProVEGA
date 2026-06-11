@@ -83,13 +83,18 @@ const NavItemLink: React.FC<{
                     onLockedClick();
                     return;
                 }
+                if (locked) return; // Guard: locked items without handler should not navigate
                 setView(item.view, null);
             }}
             data-tour-id={`nav-${item.view}`}
+            aria-disabled={locked ? 'true' : undefined}
             className={`
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-xl transition-all duration-200 relative
+                ${locked ? 'opacity-60 cursor-not-allowed' : ''}
                 ${isActive
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-bold shadow-md shadow-slate-900/10 dark:shadow-white/10'
+                    : locked
+                    ? 'text-slate-400 dark:text-zinc-500'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
                 }
             `}
@@ -401,6 +406,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         locked={!features.canUseReportGenerator}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
+                    {isLegal && (
+                        <NavItemLink
+                            item={{ view: 'compliance', text: 'Compliance', icon: <ShieldCheckIcon /> }}
+                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        />
+                    )}
                     <NavItemLink
                         id="nav-settings-sidebar"
                         item={{ view: 'settings', text: 'Settings', icon: <CogIcon /> }}

@@ -536,11 +536,9 @@ export const AloaXView: React.FC = () => {
   const firmId = (currentUser as any)?.firmId as string | undefined;
 
   // Convex save — purely optional background sync
-  let saveAloaDocument: any = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    saveAloaDocument = useMutation(api.indexer.saveAloaDocument);
-  } catch { /* Convex not available — that's fine */ }
+  // Note: useMutation must be called unconditionally per React rules of hooks.
+  // If Convex is unavailable at runtime, the mutation will simply fail when invoked.
+  const saveAloaDocument = useMutation(api.indexer.saveAloaDocument);
 
   // ── Local library (localStorage-first) ────────────────────────
   const [library, setLibrary] = useState<StoredDoc[]>([]);

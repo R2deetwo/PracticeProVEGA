@@ -57,3 +57,26 @@ Stage Summary:
 - Full audit complete with findings categorized by severity
 - Created comprehensive improvement plan organized into 8 phases
 - Plan covers: security fixes, dead ends, navigation, product gaps, portal completeness, UX polish, performance, accessibility
+---
+Task ID: 1
+Agent: Main
+Task: Fix units list to show which property each unit belongs to + Fix ALOA-X indexer + Fix Phase 2 dead ends
+
+Work Log:
+- Investigated the units display issue across all Atrium Revenue Engine views
+- Found `getUnitLabel()` in ServiceChargeMonitor, VacancyPipeline, and LedgerManager only showed property address or raw UUID
+- Updated all three components to use `usePropertyGroups` hook for smart labels showing "UnitName · PropertyAddress"
+- Added fallback logic for embedded units (scanning property.units arrays)
+- Fixed ALOA-X GeminiStructurer model chain: removed duplicate `gemini-2.5-flash` and non-existent `gemini-3.0-flash`, added `gemini-2.0-flash` and `gemini-2.0-flash-lite`
+- Fixed ALOA-X conditional hook violation: moved `useMutation(api.indexer.saveAloaDocument)` out of try-catch
+- Added Compliance nav item in Sidebar (OPERATIONS section, visible for legal/unified firms)
+- Fixed locked sidebar items: added `if (locked) return` guard, `aria-disabled`, `opacity-60 cursor-not-allowed` styling
+- Created NotFoundView component and replaced inline 404 in App.tsx default case
+- Started Vite dev server at localhost:5173 for user testing
+
+Stage Summary:
+- Units now display as "Flat 2A · 12 Marina" instead of just "12 Marina" or a UUID
+- ALOA-X model chain is updated and the conditional hook is fixed
+- Compliance view is now accessible from the sidebar for legal/unified firms
+- Locked nav items have proper visual and behavioral guards
+- 404 page is now a proper reusable component

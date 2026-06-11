@@ -10,9 +10,9 @@ import { LegalDocType } from './indexerTypes';
 
 const GEMINI_MODEL_CHAIN = [
   'gemini-2.5-flash',
-  'gemini-2.5-flash',
+  'gemini-2.0-flash',
   'gemini-2.5-pro',
-  'gemini-3.0-flash',
+  'gemini-2.0-flash-lite',
 ];
 const TIMEOUT_MS = 90000;
 
