@@ -86,6 +86,7 @@ import DataProcessingAgreement from './DataProcessingAgreement';
 import CookiePolicy from './CookiePolicy';
 import ClientPortalLogin from './portal/ClientPortalLogin';
 import TenantPortalLogin from './portal/TenantPortalLogin';
+import SetupPassword from './portal/SetupPassword';
 import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
@@ -448,7 +449,7 @@ export const App: React.FC = () => {
     // stored session, abandon the splash and show the landing page immediately.
     // #4 — Redirect unauthenticated users away from protected routes to keep URL clean
     useEffect(() => {
-        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login'];
+        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/setup-password'];
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
             console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
             navigate('/', { replace: true });
@@ -542,6 +543,7 @@ export const App: React.FC = () => {
         // Portal login routes — accessible without authentication
         if (location.pathname === '/portal/client/login') return <ClientPortalLogin />;
         if (location.pathname === '/portal/tenant/login') return <TenantPortalLogin />;
+        if (location.pathname === '/setup-password') return <SetupPassword />;
 
         if (!currentUser && !isLoadingSession) {
             if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;

@@ -83,3 +83,39 @@ Stage Summary:
 - 5 components fixed: ComposeModal, ServiceChargeMonitor, VacancyPipeline, LedgerManager, PortalAccessSettings
 - Shared hook ensures consistent behavior across all dropdowns
 - Email env vars confirmed working on Convex deployment
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Onboarding hardening — setup-password flow, secure token verification, branded email templates
+
+Work Log:
+- Created `verifyInviteToken` query in portals.ts — validates token, checks expiry/revoked/accepted status, returns invite details + whether user already has an account
+- Created `setupPortalPassword` action in portals.ts — validates token, hashes password via PBKDF2, creates or updates user record, marks invite accepted, clears token to prevent replay
+- Overhauled both invite and reminder email templates with professional branded design:
+  - Proper HTML5 email template with table-based layout for maximum client compatibility
+  - PracticePro + VEGA/ATRIUM product badge header
+  - Gradient amber CTA button "Set Up Your Password"
+  - Expiry warning box with amber styling
+  - "PracticePro Legal Technologies" footer with NDPA 2023 / ISO 27001 / AES-256 badges
+- Updated invite email URLs from /portal/{client|tenant}/login to /setup-password?token=TOKEN
+- Updated sender name from "PracticePro" to "PracticePro Legal Technologies" in communications.ts
+- Created `/home/z/my-project/src/components/portal/SetupPassword.tsx` — dedicated setup-password page:
+  - Loading state while verifying token
+  - Invalid token screen with specific error messages (expired/revoked/already accepted/not found)
+  - Form with disabled/pre-filled email, name field (for new accounts), password with strength meter, confirm password
+  - Success screen with auto-login redirect
+  - Product-aware branding (VEGA vs ATRIUM badge, appropriate color scheme)
+  - Trust badges: NDPA 2023, AES-256, PBKDF2
+- Added /setup-password route to App.tsx (both public paths list and route rendering)
+- Added `internal` import to portals.ts for authUtils.hashPassword access
+- Fixed verifyInviteToken to be read-only (removed ctx.db.patch from query)
+- Deployed Convex backend and built frontend successfully
+
+Stage Summary:
+- Complete end-to-end invite-to-password-setup flow is now functional
+- Portal invitees click "Set Up Your Password" in branded email → land on /setup-password?token=TOKEN → create password → auto-login → portal access
+- Email templates are professionally branded with table-based responsive layout
+- Replay attacks prevented: token is cleared after successful password setup
+- Both new user creation and existing user password-setting are handled
+- Build passes, Convex deployed, verifyInviteToken query tested and working
