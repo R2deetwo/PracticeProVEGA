@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { OfficeBuildingIcon, LockClosedIcon, ShieldCheckIcon } from '../../constants';
+import { Logo, LockClosedIcon, ShieldCheckIcon } from '../../constants';
 
 const TenantPortalLogin: React.FC = () => {
     const { openModal } = useUI();
@@ -26,18 +26,22 @@ const TenantPortalLogin: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center p-6">
             {/* Ambient glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[120px] bg-emerald-500/10 pointer-events-none" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
 
             <div className="relative z-10 w-full max-w-md">
-                {/* Brand header */}
+                {/* Brand header — matches footer layout */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center gap-2.5 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                            <OfficeBuildingIcon className="w-5 h-5 text-white" />
+                    <div className="inline-flex flex-col items-center gap-3 mb-4">
+                        <div className="flex items-center gap-2.5">
+                            <Logo className="h-6 w-6 text-amber-500" />
+                            <span className="text-xl font-bold text-white tracking-tight flex items-center">
+                                Practice<span className="text-amber-500">Pro</span>
+                                <span className="ml-2 text-[11px] font-black uppercase tracking-tight text-amber-500">
+                                    ATRIUM
+                                </span>
+                            </span>
                         </div>
-                        <span className="text-xl font-bold text-white tracking-tight">
-                            Practice<span className="text-emerald-400">Pro</span>
-                        </span>
+                        <p className="text-[11px] text-slate-500 tracking-wide">Building systems for Nigerian Firms.</p>
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-2">Tenant Portal</h1>
                     <p className="text-sm text-slate-400 leading-relaxed">
@@ -55,7 +59,7 @@ const TenantPortalLogin: React.FC = () => {
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 placeholder="your@email.com"
-                                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
                             />
                         </div>
                         <div>
@@ -66,14 +70,14 @@ const TenantPortalLogin: React.FC = () => {
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
+                                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
                                 />
                             </div>
                         </div>
 
                         <button
                             onClick={() => openModal('login')}
-                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-sm hover:from-emerald-400 hover:to-emerald-500 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
+                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
                         >
                             Sign In to Tenant Portal
                         </button>

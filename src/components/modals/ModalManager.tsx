@@ -262,10 +262,10 @@ const ModalManager: React.FC = () => {
 
     switch (modal) {
         case 'login':
-            content = <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup'), 100); }} forClient={modalContext?.forClient} />;
+            content = <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup'), 10); }} forClient={modalContext?.forClient} />;
             break;
         case 'signup':
-            content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login'), 100); }} />;
+            content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login'), 10); }} />;
             break;
         case 'newMatter': {
             // Enterprise firms: render the intake wizard as its own full-screen overlay

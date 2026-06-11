@@ -649,7 +649,7 @@ export const App: React.FC = () => {
             ) : (
                 renderAppContent()
             )}
-            {((!currentUser && hasInitialSplashFinished) || (currentUser && flowState !== 'splash')) && (
+            {((!currentUser) || (currentUser && flowState !== 'splash')) && (
                 <>
                     <ModalManager />
                     <ToastContainer />
