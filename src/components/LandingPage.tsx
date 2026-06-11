@@ -494,7 +494,7 @@ const VEGA_FEATURE_CATEGORIES = [
         category: 'Billing & Finance',
         Icon: DocumentIcon,
         items: [
-            { title: 'Legal Billing', desc: 'Generate professional invoices with sequential numbering (INV-[Firm][Manager]-[Seq]). Track billable hours, apply court-aligned rates, and manage trust accounts.' },
+            { title: 'Legal Billing', desc: 'Generate professional invoices seamlessly. Track billable hours, apply court-aligned rates, and manage trust accounts.' },
             { title: 'Financial Dashboard', desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable and which clients are overdue.', badge: 'Pro' },
             { title: 'Bank Transfer Payments', desc: 'Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your firm\'s account.' },
         ],
@@ -637,7 +637,7 @@ const TIER_CTAS: Record<TierId, string> = {
     Enterprise: 'Contact Sales',
 };
 
-const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, onContactSales, activeProduct }) => {
+const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
@@ -672,9 +672,6 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <div className="text-center mb-16">
-                <Pill className="bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10 mb-5">
-                    {isVega ? 'Vega Plans' : 'Atrium Plans'}
-                </Pill>
                 <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white tracking-tight mb-4">
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
@@ -779,23 +776,56 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
                 ))}
             </div>
 
-            {/* Unified Suite Callout */}
-            <div className="max-w-4xl mx-auto mt-8 mb-12 p-8 rounded-3xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 dark:border-indigo-500/10 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
-                <div>
-                    <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center justify-center sm:justify-start gap-2">
-                        <SparklesIcon className="w-5 h-5 text-indigo-500" />
-                        Need both Legal & Property tools?
-                    </h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        Get <strong className="text-indigo-600 dark:text-indigo-400">Komplete</strong> and manage your entire professional portfolio from a single unified workspace.
-                    </p>
+            {/* ── Dual CTA Banner: Real Estate Lawyer Hook + Custom Automation Pipeline ── */}
+            <div className="max-w-5xl mx-auto mt-10 mb-12 space-y-5">
+                {/* A. Real Estate Lawyer Hook — Komplete Tier */}
+                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-amber-500/10 via-emerald-500/5 to-indigo-500/10 border border-amber-500/20 dark:border-amber-500/10">
+                    <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl bg-amber-400/10 pointer-events-none" />
+                    <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full blur-3xl bg-emerald-400/8 pointer-events-none" />
+                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div className="flex-1">
+                            <h4 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">
+                                Are you a Real Estate Lawyer?
+                            </h4>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
+                                Discover <strong className="text-amber-600 dark:text-amber-400">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => {
+                                setProductChosen(true);
+                                setActiveProduct('vega');
+                                setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100);
+                            }}
+                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white text-sm font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <SparklesIcon className="w-4 h-4" />
+                            Explore Komplete
+                        </button>
+                    </div>
                 </div>
-                <button 
-                    onClick={() => onContactSales('Komplete Callout')}
-                    className="whitespace-nowrap px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold shadow-lg shadow-indigo-600/20 transition-all active:scale-95"
-                >
-                    Contact Sales
-                </button>
+
+                {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems */}
+                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-800 dark:to-slate-950 border border-slate-700/40 dark:border-white/[0.06]">
+                    <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl bg-violet-500/10 pointer-events-none" />
+                    <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl bg-blue-500/8 pointer-events-none" />
+                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div className="flex-1">
+                            <h4 className="text-2xl font-extrabold text-white mb-2 tracking-tight">
+                                Need Custom Automations or Tailored Management Tools?
+                            </h4>
+                            <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
+                                PracticePro develops bespoke operational systems, specialized CRMs, and custom workflow automations tailored to your organization's precise processes. Talk to us about building high-performance management tools engineered around your specific business architecture.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={() => onContactSales('Custom Automation Pipeline')}
+                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold shadow-lg shadow-white/10 transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            Contact Sales
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Footnote */}
@@ -917,7 +947,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                     <HomeSection onSignup={openSignup} onDemo={() => onDemo(activeProduct)} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <FeaturesSection activeProduct={activeProduct} />
                     <TrustBadgesStrip />
-                    <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} />
+                    <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                 </main>
             )}
 
