@@ -1120,6 +1120,8 @@ export default defineSchema({
     inviteePhone: v.optional(v.string()),
     portalType: v.union(v.literal("client"), v.literal("resident")),
     relatedId: v.optional(v.string()),      // matterId for client, propertyId for resident
+    token: v.string(),                      // unique invite token for magic-link URL
+    channel: v.optional(v.string()),        // "email" | "whatsapp" | "both" — how the invite was sent
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked")),
     message: v.optional(v.string()),
     acceptedAt: v.optional(v.number()),
@@ -1130,7 +1132,8 @@ export default defineSchema({
     .index("by_firm", ["firmId"])
     .index("by_email", ["inviteeEmail"])
     .index("by_status", ["status"])
-    .index("by_firm_status", ["firmId", "status"]),
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_token", ["token"]),
 
   scheduled_messages: defineTable({
     firmId: v.string(),

@@ -5,13 +5,15 @@
  * to access their SC/MV financial ledger, download receipts,
  * and log maintenance tickets.
  *
- * Authenticates directly via AuthContext.login() — no extra modal needed.
- * Feature-gated: Available on Atrium Growth and Pro plans only.
+ * Supports magic-link invitations: ?token=ABC auto-fills email and
+ * marks the invite as accepted on successful login.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { Logo, LockClosedIcon, ShieldCheckIcon } from '../../constants';
+import { Logo, LockClosedIcon, ShieldCheckIcon, MailIcon } from '../../constants';
 
 const TenantPortalLogin: React.FC = () => {
     const { login } = useAuth();
@@ -20,6 +22,30 @@ const TenantPortalLogin: React.FC = () => {
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [inviteToken, setInviteToken] = useState<string | null>(null);
+
+    // Read token from URL on mount
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        if (token) setInviteToken(token);
+    }, []);
+
+    // Look up invite by token
+    const invite = useQuery(
+        api.portals.getInviteByToken,
+        inviteToken ? { token: inviteToken } : 'skip'
+    );
+
+    // Accept invite mutation
+    const acceptInvite = useMutation(api.portals.acceptPortalInviteByToken);
+
+    // Auto-fill email from invite when data arrives
+    useEffect(() => {
+        if (invite && invite.inviteeEmail && !email) {
+            setEmail(invite.inviteeEmail);
+        }
+    }, [invite]);
 
     const handleSignIn = async () => {
         if (!email.trim() || !password) {
@@ -32,8 +58,16 @@ const TenantPortalLogin: React.FC = () => {
         try {
             const result = await login(email.trim(), password);
             if (result.success) {
-                // AuthContext will set currentUser; App.tsx will route Tenant role to TenantPortal
-                addToast('Welcome to the Residents\' Portal.', { type: 'success' });
+                // Accept the invite if we have a token
+                if (inviteToken) {
+                    try {
+                        await acceptInvite({ token: inviteToken });
+                    } catch (e) {
+                        // Non-blocking — invite might already be accepted or expired
+                        console.warn('Invite accept failed:', e);
+                    }
+                }
+                addToast("Welcome to the Residents' Portal.", { type: 'success' });
             } else {
                 if (result.isLocked) {
                     setError('Your account has been locked. Please contact your property manager.');
@@ -53,6 +87,9 @@ const TenantPortalLogin: React.FC = () => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !isSubmitting) handleSignIn();
     };
+
+    // Show invite info banner if we have a valid invite
+    const showInviteBanner = invite && invite.status === 'pending' && invite.expiresAt > Date.now();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
@@ -83,6 +120,39 @@ const TenantPortalLogin: React.FC = () => {
                             View your SC/MV payment status, download rent receipts, and log maintenance issues.
                         </p>
                     </div>
+
+                    {/* Invite banner */}
+                    {showInviteBanner && (
+                        <div className="mb-4 px-4 py-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
+                            <div className="flex items-start gap-2">
+                                <MailIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold">You've been invited!</p>
+                                    <p className="text-violet-400/80 text-xs mt-0.5">
+                                        {invite.inviteeName
+                                            ? `Welcome, ${invite.inviteeName}. Your email has been pre-filled.`
+                                            : 'Your email has been pre-filled from the invitation.'}
+                                        {invite.expiresAt && (
+                                            <span> This invite expires {new Date(invite.expiresAt).toLocaleDateString()}.</span>
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Expired/revoked invite banner */}
+                    {invite && invite.status !== 'pending' && inviteToken && (
+                        <div className="mb-4 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                            {invite.status === 'expired' || invite.expiresAt < Date.now()
+                                ? 'This invitation has expired. Please request a new one from your property manager.'
+                                : invite.status === 'revoked'
+                                ? 'This invitation has been revoked by the property manager.'
+                                : invite.status === 'accepted'
+                                ? 'This invitation has already been accepted. You can sign in directly.'
+                                : null}
+                        </div>
+                    )}
 
                     {/* Login card */}
                     <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">

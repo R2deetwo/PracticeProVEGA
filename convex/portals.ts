@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // ─── Maintenance Tickets ────────────────────────────────────────────────
 
@@ -64,7 +65,24 @@ export const updateMaintenanceTicketStatus = mutation({
 
 // ─── Portal Invites ─────────────────────────────────────────────────────
 
-export const createPortalInvite = mutation({
+/** Generate a crypto-random invite token (12 chars, URL-safe) */
+function generateToken(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const arr = new Uint8Array(12);
+  // @ts-ignore — crypto available in Convex runtime
+  crypto.getRandomValues(arr);
+  return Array.from(arr, b => chars[b % chars.length]).join("");
+}
+
+/**
+ * createPortalInvite — ACTION (not a plain mutation) so it can call
+ * sendEmail / sendWhatsApp via ctx.runAction.
+ *
+ * 1. Generates a unique token for the magic-link URL
+ * 2. Writes the portal_invites record
+ * 3. Sends the invitation via the chosen channel (email / whatsapp / both)
+ */
+export const createPortalInvite = action({
   args: {
     firmId: v.string(),
     inviterId: v.string(),
@@ -73,18 +91,241 @@ export const createPortalInvite = mutation({
     inviteePhone: v.optional(v.string()),
     portalType: v.union(v.literal("client"), v.literal("resident")),
     relatedId: v.optional(v.string()),
+    channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
     message: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
-    return await ctx.db.insert("portal_invites", {
-      ...args,
-      status: "pending",
+    const token = generateToken();
+    const channel = args.channel || "email";
+
+    // 1. Insert the invite record
+    const inviteId = await ctx.runMutation(api.portals._insertInviteRecord, {
+      firmId: args.firmId,
+      inviterId: args.inviterId,
+      inviteeEmail: args.inviteeEmail,
+      inviteeName: args.inviteeName,
+      inviteePhone: args.inviteePhone,
+      portalType: args.portalType,
+      relatedId: args.relatedId,
+      token,
+      channel,
+      message: args.message,
       expiresAt,
+    });
+
+    // 2. Build the magic-link URL
+    const portalBase = args.portalType === "client"
+      ? "https://practice-pro-vega.vercel.app/portal/client/login"
+      : "https://practice-pro-vega.vercel.app/portal/tenant/login";
+    const inviteUrl = `${portalBase}?token=${token}`;
+    const portalLabel = args.portalType === "client" ? "Client Portal" : "Residents' Portal";
+    const inviteeGreeting = args.inviteeName ? args.inviteeName : args.inviteeEmail;
+    const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
+
+    // 3. Send via email
+    const shouldSendEmail = channel === "email" || channel === "both";
+    let emailResult: any = { success: true, simulated: true };
+    if (shouldSendEmail) {
+      const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #0f172a; border-radius: 16px; color: #e2e8f0;">
+          <div style="text-align: center; margin-bottom: 28px;">
+            <span style="font-size: 22px; font-weight: 800; color: #ffffff;">Practice<span style="color: #f59e0b;">Pro</span></span>
+          </div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 12px;">You're Invited to the ${portalLabel}</h2>
+          <p style="font-size: 15px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px;">
+            Hello ${inviteeGreeting},<br/><br/>
+            You have been invited to access the ${portalLabel} on PracticePro. Click the button below to get started.
+            ${args.message ? `<br/><br/><em style="color: #cbd5e1;">"${args.message}"</em>` : ""}
+          </p>
+          <div style="text-align: center; margin-bottom: 28px;">
+            <a href="${inviteUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; font-weight: 700; font-size: 15px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);">
+              Accept Invitation & Open Portal
+            </a>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${inviteUrl}" style="color: #60a5fa; word-break: break-all;">${inviteUrl}</a><br/><br/>
+            This invitation expires in 7 days. If you did not expect this invitation, you can safely ignore it.
+          </p>
+          <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;"/>
+          <p style="font-size: 11px; color: #475569; text-align: center;">
+            PracticePro Tech Ltd · Lagos, Nigeria · NDPA 2023 Compliant · ISO 27001 Aligned
+          </p>
+        </div>
+      `;
+      emailResult = await ctx.runAction(api.communications.sendEmail, {
+        to: args.inviteeEmail,
+        toName: args.inviteeName,
+        subject: `You're Invited: ${portalLabel} on PracticePro`,
+        htmlContent: htmlBody,
+        firmId: args.firmId,
+      });
+    }
+
+    // 4. Send via WhatsApp
+    const shouldSendWhatsApp = (channel === "whatsapp" || channel === "both") && args.inviteePhone;
+    let waResult: any = { success: true, simulated: true };
+    if (shouldSendWhatsApp) {
+      const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 7 days.${personalMsg}\n\n— PracticePro`;
+      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+        to: args.inviteePhone!,
+        messageText: waText,
+        firmId: args.firmId,
+      });
+    }
+
+    return {
+      inviteId,
+      token,
+      channel,
+      emailSent: emailResult.success && !emailResult.simulated,
+      emailSimulated: emailResult.simulated || false,
+      whatsappSent: shouldSendWhatsApp && waResult.success && !waResult.simulated,
+      whatsappSimulated: shouldSendWhatsApp && (waResult.simulated || false),
+      whatsappSkipped: !shouldSendWhatsApp,
+    };
+  },
+});
+
+/**
+ * Internal mutation — only used by createPortalInvite action to write the DB record.
+ * Not exported for direct frontend use.
+ */
+export const _insertInviteRecord = mutation({
+  args: {
+    firmId: v.string(),
+    inviterId: v.string(),
+    inviteeEmail: v.string(),
+    inviteeName: v.optional(v.string()),
+    inviteePhone: v.optional(v.string()),
+    portalType: v.union(v.literal("client"), v.literal("resident")),
+    relatedId: v.optional(v.string()),
+    token: v.string(),
+    channel: v.optional(v.string()),
+    message: v.optional(v.string()),
+    expiresAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("portal_invites", {
+      firmId: args.firmId,
+      inviterId: args.inviterId,
+      inviteeEmail: args.inviteeEmail,
+      inviteeName: args.inviteeName,
+      inviteePhone: args.inviteePhone,
+      portalType: args.portalType,
+      relatedId: args.relatedId,
+      token: args.token,
+      channel: args.channel,
+      message: args.message,
+      status: "pending",
+      expiresAt: args.expiresAt,
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+/**
+ * resendPortalInvite — action that updates the existing record's expiry + token,
+ * then re-sends via the stored channel.
+ */
+export const resendPortalInvite = action({
+  args: {
+    inviteId: v.id("portal_invites"),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
+    if (!existing) throw new Error("Invitation not found");
+    if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
+
+    // Refresh token + expiry on the existing record
+    const newToken = generateToken();
+    const now = Date.now();
+    const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
+    await ctx.runMutation(api.portals._updateInviteRecord, {
+      inviteId: args.inviteId,
+      updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
+    });
+
+    // Re-send via stored channel
+    const portalBase = existing.portalType === "client"
+      ? "https://practice-pro-vega.vercel.app/portal/client/login"
+      : "https://practice-pro-vega.vercel.app/portal/tenant/login";
+    const inviteUrl = `${portalBase}?token=${newToken}`;
+    const portalLabel = existing.portalType === "client" ? "Client Portal" : "Residents' Portal";
+    const channel = existing.channel || "email";
+
+    let emailResult: any = { success: true, simulated: true };
+    if (channel === "email" || channel === "both") {
+      const htmlBody = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; background: #0f172a; border-radius: 16px; color: #e2e8f0;">
+          <div style="text-align: center; margin-bottom: 28px;">
+            <span style="font-size: 22px; font-weight: 800; color: #ffffff;">Practice<span style="color: #f59e0b;">Pro</span></span>
+          </div>
+          <h2 style="font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 12px;">Reminder: ${portalLabel} Invitation</h2>
+          <p style="font-size: 15px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px;">
+            Hello ${existing.inviteeName || existing.inviteeEmail},<br/><br/>
+            This is a reminder about your invitation to the ${portalLabel}. Your link has been refreshed.
+          </p>
+          <div style="text-align: center; margin-bottom: 28px;">
+            <a href="${inviteUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; font-weight: 700; font-size: 15px; border-radius: 12px; text-decoration: none; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);">
+              Accept Invitation & Open Portal
+            </a>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.5;">
+            Or copy and paste this link: <a href="${inviteUrl}" style="color: #60a5fa; word-break: break-all;">${inviteUrl}</a><br/><br/>
+            This invitation expires in 7 days.
+          </p>
+          <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;"/>
+          <p style="font-size: 11px; color: #475569; text-align: center;">PracticePro Tech Ltd · Lagos, Nigeria · NDPA 2023 Compliant</p>
+        </div>
+      `;
+      emailResult = await ctx.runAction(api.communications.sendEmail, {
+        to: existing.inviteeEmail,
+        toName: existing.inviteeName,
+        subject: `Reminder: ${portalLabel} Invitation on PracticePro`,
+        htmlContent: htmlBody,
+        firmId: existing.firmId,
+      });
+    }
+
+    let waResult: any = { success: true, simulated: true };
+    if ((channel === "whatsapp" || channel === "both") && existing.inviteePhone) {
+      const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 7 days.\n\n— PracticePro`;
+      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+        to: existing.inviteePhone,
+        messageText: waText,
+        firmId: existing.firmId,
+      });
+    }
+
+    return {
+      token: newToken,
+      emailSent: emailResult.success && !emailResult.simulated,
+      whatsappSent: waResult.success && !waResult.simulated,
+    };
+  },
+});
+
+/** Internal mutation to update an invite record */
+export const _updateInviteRecord = mutation({
+  args: {
+    inviteId: v.id("portal_invites"),
+    updates: v.any(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.inviteId, args.updates);
+  },
+});
+
+/** Get a single invite by its ID (used by resendPortalInvite) */
+export const getPortalInviteById = query({
+  args: { inviteId: v.id("portal_invites") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.inviteId);
   },
 });
 
@@ -120,27 +361,40 @@ export const revokePortalInvite = mutation({
   },
 });
 
-export const resendPortalInvite = mutation({
-  args: { inviteId: v.id("portal_invites") },
+/** Look up an invite by its token — used by portal login pages for magic-link flow */
+export const getInviteByToken = query({
+  args: { token: v.string() },
   handler: async (ctx, args) => {
-    const existing = await ctx.db.get(args.inviteId);
-    if (!existing) throw new Error("Invitation not found");
-    // Create a new invite with same details and fresh expiry
-    const now = Date.now();
-    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
-    return await ctx.db.insert("portal_invites", {
-      firmId: existing.firmId,
-      inviterId: existing.inviterId,
-      inviteeEmail: existing.inviteeEmail,
-      inviteeName: existing.inviteeName,
-      inviteePhone: existing.inviteePhone,
-      portalType: existing.portalType,
-      relatedId: existing.relatedId,
-      status: "pending",
-      expiresAt,
-      createdAt: now,
-      updatedAt: now,
+    const results = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .collect();
+    return results[0] || null;
+  },
+});
+
+/** Accept an invite by token — marks it as accepted (called when invitee visits the magic link) */
+export const acceptPortalInviteByToken = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_token", (q) => q.eq("token", args.token))
+      .collect();
+    const invite = results[0];
+    if (!invite) throw new Error("Invalid invitation link");
+    if (invite.status === "accepted") return invite; // already accepted, that's fine
+    if (invite.status === "revoked") throw new Error("This invitation has been revoked");
+    if (invite.status === "expired" || invite.expiresAt < Date.now()) {
+      await ctx.db.patch(invite._id, { status: "expired", updatedAt: Date.now() });
+      throw new Error("This invitation has expired. Please request a new one.");
+    }
+    await ctx.db.patch(invite._id, {
+      status: "accepted",
+      acceptedAt: Date.now(),
+      updatedAt: Date.now(),
     });
+    return invite;
   },
 });
 

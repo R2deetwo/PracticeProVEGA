@@ -2,14 +2,14 @@
  * PortalAccessSettings — Manage portal invitations for clients (Vega) or residents (Atrium)
  *
  * Features:
- * - View all portal invitations with status (pending / accepted / expired / revoked)
- * - Send new invitations by email
- * - Revoke or resend invitations
- * - View which clients/residents have active portal access
- * - Quick-copy portal URL for sharing
+ * - Send invitations via Email, WhatsApp, or Both
+ * - Auto-populate name/phone from linked matter (Vega) or property/unit (Atrium)
+ * - Magic-link tokens embedded in invite URLs for auto-fill on portal login
+ * - Resend, revoke, and copy invite links with real token
+ * - Track invitation status (pending / accepted / expired / revoked)
  */
-import React, { useState, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -18,10 +18,10 @@ import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import {
-  UserCircleIcon, ShieldCheckIcon, LockClosedIcon,
+  ShieldCheckIcon, LockClosedIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
-  ExternalLinkIcon, MailIcon, CheckIcon, ClockIcon,
-  ExclamationTriangleIcon, SendIcon,
+  MailIcon, CheckIcon, ClockIcon,
+  ExclamationTriangleIcon, SendIcon, DeviceMobileIcon,
 } from '../../constants';
 
 // ─── Status Badge ──────────────────────────────────────────────────────────
@@ -44,38 +44,31 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
-// ─── Portal URL Component ──────────────────────────────────────────────────
-const PortalUrl: React.FC<{ isProperty: boolean }> = ({ isProperty }) => {
-  const { addToast } = useUI();
-  const url = isProperty
-    ? 'https://practice-pro-vega.vercel.app/portal/tenant/login'
-    : 'https://practice-pro-vega.vercel.app/portal/client/login';
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(url).then(() => {
-      addToast('Portal URL copied to clipboard!', { type: 'success' });
-    }).catch(() => {
-      addToast('Failed to copy URL', { type: 'error' });
-    });
-  };
-
+// ─── Channel Badge ──────────────────────────────────────────────────────────
+const ChannelBadge: React.FC<{ channel?: string }> = ({ channel }) => {
+  const ch = channel || 'email';
+  if (ch === 'whatsapp') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+        <DeviceMobileIcon className="w-2.5 h-2.5" /> WhatsApp
+      </span>
+    );
+  }
+  if (ch === 'both') {
+    return (
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
+        <MailIcon className="w-2.5 h-2.5" /> Email + WhatsApp
+      </span>
+    );
+  }
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 bg-slate-100 dark:bg-zinc-700 rounded-lg px-3 py-2 font-mono text-xs text-primary-600 dark:text-primary-400 truncate">
-        {url}
-      </div>
-      <button
-        onClick={handleCopy}
-        className="flex-shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
-        title="Copy URL"
-      >
-        <ClipboardIcon className="w-4 h-4" />
-      </button>
-    </div>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+      <MailIcon className="w-2.5 h-2.5" /> Email
+    </span>
   );
 };
 
-// ─── Invite Form Modal ─────────────────────────────────────────────────────
+// ─── Invite Form ─────────────────────────────────────────────────────────────
 const InviteForm: React.FC<{
   firmId: string;
   inviterId: string;
@@ -85,7 +78,7 @@ const InviteForm: React.FC<{
   onCancel: () => void;
 }> = ({ firmId, inviterId, portalType, isProperty, onSent, onCancel }) => {
   const { addToast } = useUI();
-  const createInvite = useMutation(api.portals.createPortalInvite);
+  const sendInvite = useAction(api.portals.createPortalInvite);
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
 
@@ -93,7 +86,7 @@ const InviteForm: React.FC<{
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [relatedId, setRelatedId] = useState('');
-  const [message, setMessage] = useState('');
+  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'both'>('email');
   const [isSending, setIsSending] = useState(false);
 
   // Build list of matters (Vega) or properties (Atrium) to link invite to
@@ -101,34 +94,72 @@ const InviteForm: React.FC<{
     if (isProperty) {
       return (coreState.properties || []).map((p: any) => ({
         id: p.id,
-        label: p.address || `Property ${p.id?.slice(-5)}`,
+        label: p.address || p.name || `Property ${String(p.id || '').slice(-5)}`,
+        tenantName: p.tenantName || p.currentTenantName || '',
+        tenantPhone: p.tenantPhone || p.currentTenantPhone || '',
+        tenantEmail: p.tenantEmail || p.currentTenantEmail || '',
       }));
     } else {
       return (matterState.matters || []).map((m: any) => ({
         id: m.id,
-        label: m.title || `Matter ${m.id?.slice(-5)}`,
+        label: m.title || m.name || `Matter ${String(m.id || '').slice(-5)}`,
+        clientName: m.clientName || '',
+        clientEmail: m.clientEmail || '',
+        clientPhone: m.clientPhone || '',
       }));
     }
   }, [isProperty, coreState.properties, matterState.matters]);
 
+  // Auto-populate when user selects a matter/property
+  const handleRelatedChange = useCallback((selectedId: string) => {
+    setRelatedId(selectedId);
+    if (!selectedId) return;
+    const item = relatedItems.find((r: any) => r.id === selectedId);
+    if (!item) return;
+    if (isProperty) {
+      // Auto-fill from property tenant data
+      if (item.tenantName && !name) setName(item.tenantName);
+      if (item.tenantPhone && !phone) setPhone(item.tenantPhone);
+      if (item.tenantEmail && !email) setEmail(item.tenantEmail);
+    } else {
+      // Auto-fill from matter client data
+      if (item.clientName && !name) setName(item.clientName);
+      if (item.clientEmail && !email) setEmail(item.clientEmail);
+      if (item.clientPhone && !phone) setPhone(item.clientPhone);
+    }
+  }, [relatedItems, isProperty, name, phone, email]);
+
   const handleSubmit = async () => {
-    if (!email.trim()) {
+    if (!email.trim() && channel !== 'whatsapp') {
       addToast('Please enter an email address', { type: 'error' });
+      return;
+    }
+    if ((channel === 'whatsapp' || channel === 'both') && !phone.trim()) {
+      addToast('Please enter a phone number for WhatsApp delivery', { type: 'error' });
       return;
     }
     setIsSending(true);
     try {
-      await createInvite({
+      const result = await sendInvite({
         firmId,
         inviterId,
-        inviteeEmail: email.trim().toLowerCase(),
+        inviteeEmail: email.trim().toLowerCase() || 'no-email@placeholder.com',
         inviteeName: name.trim() || undefined,
         inviteePhone: phone.trim() || undefined,
         portalType,
         relatedId: relatedId || undefined,
-        message: message.trim() || undefined,
+        channel,
       });
-      addToast(`Invitation sent to ${email.trim()}`, { type: 'success' });
+      // Build feedback message based on result
+      const parts: string[] = [];
+      if (result.emailSent) parts.push('email delivered');
+      else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+      if (result.whatsappSent) parts.push('WhatsApp delivered');
+      else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
+      else if (result.whatsappSkipped && (channel === 'whatsapp' || channel === 'both')) parts.push('WhatsApp skipped (no phone number)');
+
+      const feedback = parts.length > 0 ? parts.join(', ') : 'invitation created';
+      addToast(`Invitation sent — ${feedback}`, { type: 'success' });
       onSent();
     } catch (err: any) {
       addToast(err.message || 'Failed to send invitation', { type: 'error' });
@@ -136,6 +167,8 @@ const InviteForm: React.FC<{
       setIsSending(false);
     }
   };
+
+  const needsPhone = channel === 'whatsapp' || channel === 'both';
 
   return (
     <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
@@ -149,24 +182,72 @@ const InviteForm: React.FC<{
       </div>
 
       <div className="space-y-4">
-        {/* Email */}
+        {/* Channel Picker */}
         <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
-            Email Address <span className="text-rose-500">*</span>
+          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
+            Send Via
           </label>
-          <div className="relative">
-            <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder={isProperty ? 'resident@example.com' : 'client@example.com'}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-            />
+          <div className="flex gap-2">
+            {[
+              { value: 'email' as const, label: 'Email', icon: MailIcon },
+              { value: 'whatsapp' as const, label: 'WhatsApp', icon: DeviceMobileIcon },
+              { value: 'both' as const, label: 'Both', icon: SendIcon },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setChannel(opt.value)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                  channel === opt.value
+                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
+                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-600 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+                }`}
+              >
+                <opt.icon className="w-3.5 h-3.5" />
+                {opt.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Name */}
+        {/* Email — required unless WhatsApp-only */}
+        {channel !== 'whatsapp' && (
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+              Email Address <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder={isProperty ? 'resident@example.com' : 'client@example.com'}
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Phone — required for WhatsApp/Both */}
+        {needsPhone && (
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+              Phone / WhatsApp <span className="text-rose-500">*</span>
+            </label>
+            <div className="relative">
+              <DeviceMobileIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="tel"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="e.g., +2348012345678"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Name — always shown but optional */}
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
             Full Name <span className="text-slate-400">(optional)</span>
@@ -180,49 +261,26 @@ const InviteForm: React.FC<{
           />
         </div>
 
-        {/* Phone */}
+        {/* Link to matter/property — auto-fills name/phone/email */}
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
-            Phone / WhatsApp <span className="text-slate-400">(optional)</span>
-          </label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-            placeholder="e.g., 08012345678"
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
-          />
-        </div>
-
-        {/* Link to matter/property */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
-            Link to {isProperty ? 'Property' : 'Matter'} <span className="text-slate-400">(optional)</span>
+            Link to {isProperty ? 'Property' : 'Matter'} <span className="text-slate-400">(optional — auto-fills details)</span>
           </label>
           <select
             value={relatedId}
-            onChange={e => setRelatedId(e.target.value)}
+            onChange={e => handleRelatedChange(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           >
-            <option value="">No specific {isProperty ? 'property' : 'matter'}</option>
-            {relatedItems.map(item => (
+            <option value="">Select {isProperty ? 'a property' : 'a matter'} to auto-fill details</option>
+            {relatedItems.map((item: any) => (
               <option key={item.id} value={item.id}>{item.label}</option>
             ))}
           </select>
-        </div>
-
-        {/* Personal message */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
-            Personal Message <span className="text-slate-400">(optional)</span>
-          </label>
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder={`Add a brief message to include in the invitation email…`}
-            rows={2}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none resize-none"
-          />
+          {relatedId && (
+            <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+              Name, email, and phone will be auto-filled from the selected {isProperty ? 'tenant' : 'client'} record.
+            </p>
+          )}
         </div>
 
         {/* Actions */}
@@ -235,7 +293,7 @@ const InviteForm: React.FC<{
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSending || !email.trim()}
+            disabled={isSending || (!email.trim() && channel !== 'whatsapp') || (needsPhone && !phone.trim())}
             className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-lg font-semibold text-sm hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
@@ -246,7 +304,7 @@ const InviteForm: React.FC<{
             ) : (
               <>
                 <SendIcon className="w-4 h-4" />
-                Send Invitation
+                Send via {channel === 'email' ? 'Email' : channel === 'whatsapp' ? 'WhatsApp' : 'Email & WhatsApp'}
               </>
             )}
           </button>
@@ -259,7 +317,6 @@ const InviteForm: React.FC<{
 // ─── Main Component ────────────────────────────────────────────────────────
 export const PortalAccessSettings: React.FC = () => {
   const { currentUser } = useAuth();
-  const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { isProperty } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
@@ -269,6 +326,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   // Fetch portal invites
   const invites = useQuery(
@@ -277,6 +335,7 @@ export const PortalAccessSettings: React.FC = () => {
   );
 
   const revokeInvite = useMutation(api.portals.revokePortalInvite);
+  const resendInvite = useAction(api.portals.resendPortalInvite);
 
   const filteredInvites = useMemo(() => {
     if (!invites) return [];
@@ -305,17 +364,32 @@ export const PortalAccessSettings: React.FC = () => {
     }
   };
 
-  const handleResend = (invite: any) => {
-    // For now, create a new invite with same details
-    addToast('Resend functionality will create a new invitation with updated expiry.', { type: 'info' });
+  const handleResend = async (invite: any) => {
+    setResendingId(String(invite._id));
+    try {
+      const result = await resendInvite({ inviteId: invite._id });
+      const parts: string[] = [];
+      if (result.emailSent) parts.push('email sent');
+      if (result.whatsappSent) parts.push('WhatsApp sent');
+      addToast(`Invitation resent — ${parts.join(' & ') || 'refreshed'}`, { type: 'success' });
+    } catch (err: any) {
+      addToast(err.message || 'Failed to resend invitation.', { type: 'error' });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const handleCopyInviteLink = (invite: any) => {
-    const portalUrl = isProperty
+    const portalBase = isProperty
       ? 'https://practice-pro-vega.vercel.app/portal/tenant/login'
       : 'https://practice-pro-vega.vercel.app/portal/client/login';
-    navigator.clipboard.writeText(portalUrl).then(() => {
-      addToast('Portal login URL copied! Share this with the invitee along with their email.', { type: 'success' });
+    const inviteUrl = invite.token
+      ? `${portalBase}?token=${invite.token}`
+      : portalBase;
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      addToast('Invite link copied! The link includes a token that will auto-fill their email on the portal login page.', { type: 'success' });
+    }).catch(() => {
+      addToast('Failed to copy link', { type: 'error' });
     });
   };
 
@@ -349,7 +423,7 @@ export const PortalAccessSettings: React.FC = () => {
             {isProperty ? "Residents' Portal" : 'Client Portal'} Access
           </h3>
           <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-            Manage who can access the {isProperty ? 'residents' : 'client'} portal. Invite {isProperty ? 'tenants' : 'clients'} by email and track their access status.
+            Manage who can access the {isProperty ? 'residents' : 'client'} portal. Send invitations via email or WhatsApp.
           </p>
         </div>
         {!showInviteForm && (
@@ -361,17 +435,6 @@ export const PortalAccessSettings: React.FC = () => {
             Invite {isProperty ? 'Resident' : 'Client'}
           </button>
         )}
-      </div>
-
-      {/* Portal URL */}
-      <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/40 rounded-xl p-4">
-        <p className="text-xs font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">
-          {isProperty ? "Residents'" : 'Client'} Portal URL
-        </p>
-        <p className="text-sm text-blue-600 dark:text-blue-300 mb-3">
-          Share this URL with your {isProperty ? 'residents' : 'clients'} so they can log in directly.
-        </p>
-        <PortalUrl isProperty={isProperty} />
       </div>
 
       {/* Invite Form (shown when "Invite" button clicked) */}
@@ -443,7 +506,7 @@ export const PortalAccessSettings: React.FC = () => {
           </p>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
             {filterStatus === 'all'
-              ? `Click "Invite ${isProperty ? 'Resident' : 'Client'}" above to send your first portal invitation.`
+              ? `Click "Invite ${isProperty ? 'Resident' : 'Client'}" above to send your first portal invitation via email or WhatsApp.`
               : `No ${filterStatus} invitations found. Try a different filter.`}
           </p>
         </div>
@@ -452,6 +515,7 @@ export const PortalAccessSettings: React.FC = () => {
           {filteredInvites.map((invite: any) => {
             const isPending = invite.status === 'pending';
             const isActive = invite.status === 'accepted';
+            const isResending = resendingId === String(invite._id);
 
             return (
               <div
@@ -473,24 +537,41 @@ export const PortalAccessSettings: React.FC = () => {
                     <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
                       {invite.inviteeName || invite.inviteeEmail}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
-                      {invite.inviteeEmail}
-                      {invite.inviteePhone && <span className="ml-2">· {invite.inviteePhone}</span>}
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                        {invite.inviteeEmail}
+                      </p>
+                      {invite.inviteePhone && (
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">· {invite.inviteePhone}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Status + Actions */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Status + Channel + Actions */}
+                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+                  <ChannelBadge channel={invite.channel} />
                   <StatusBadge status={invite.status} />
                   {isPending && (
                     <>
                       <button
                         onClick={() => handleCopyInviteLink(invite)}
                         className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                        title="Copy portal link"
+                        title="Copy invite link"
                       >
                         <ClipboardIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleResend(invite)}
+                        disabled={isResending}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+                        title="Resend invitation"
+                      >
+                        {isResending ? (
+                          <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <RefreshIcon className="w-4 h-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => handleRevoke(String(invite._id))}
@@ -524,9 +605,9 @@ export const PortalAccessSettings: React.FC = () => {
           <div>
             <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Security & Data Protection</p>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-              All portal data is encrypted at rest (AES-256) and in transit (TLS 1.3). {isProperty ? 'Residents' : 'Clients'} can only see
-              information specifically shared with them. Portal sessions expire after 30 minutes of inactivity.
-              Every action is logged with a timestamp for your compliance reporting.
+              Each invitation contains a unique token that auto-fills the recipient's email on the portal login page.
+              Invite links expire after 7 days. All portal data is encrypted at rest (AES-256) and in transit (TLS 1.3).
+              {isProperty ? ' Residents' : ' Clients'} can only see information specifically shared with them.
             </p>
           </div>
         </div>
