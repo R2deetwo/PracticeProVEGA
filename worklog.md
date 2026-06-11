@@ -210,3 +210,31 @@ Stage Summary:
 - Fix: Removed all Next.js artifacts (next.config.ts, src/app/)
 - FeaturesSection in LandingPage.tsx is the live features page with accurate content for both apps
 - Vercel should now correctly detect and build with Vite framework
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Regulatory Copy Guardrails, Brand Theme Correction, and CTA Funnel Routing
+
+Work Log:
+- Replaced "Legal Document Generation" with "Estate Administration Documents" in LandingPage.tsx (Atrium feature card) and tiers.ts (Atrium Pro plan extras) — administrative framing insulates against LPDC/NBA regulatory risk
+- ClientPortalLogin.tsx: Full amber→emerald green conversion (ambient glow, brand icon, Pro text, focus rings, CTA button, shadows)
+- ClientPortalLogin.tsx: Replaced ScalesIcon with Logo component (sleek minimalist tech alternative per brand directive)
+- ClientPortalLogin.tsx: Removed "VEGA" badge pill from portal header
+- TenantPortalLogin.tsx: Removed "ATRIUM" badge pill from portal header
+- LandingPage.tsx: Feature section pills unified from "Vega Features"/"Atrium Features" to just "Features"
+- LandingPage.tsx: "Explore Komplete" button now launches Sign-Up Modal directly with selectedProduct="unified" instead of scrolling to pricing
+- LandingPage.tsx: openSignup() now accepts optional ProductMode override parameter
+- LandingPage.tsx: Komplete banner accent colors changed from amber to primary brand green
+- LandingPage.tsx: Footer product indicator changed from amber (Vega) to primary-500 (brand green)
+- Anti-regression verified: unit grid expansion (row-aware, no scroll), hover tooltips (NEEDS INFO/ACTION REQUIRED with allowWrap), nav dropdown hover bridge (pt-1), metrics min-width:0, dual CTA banner (Komplete + Custom Automation), ContactSalesDrawer integration
+- TypeScript: Fixed onClick handler type compatibility (onSignup wrapped in arrow function)
+- Build passes clean (12.66s), pushed to GitHub (8ffd7d2)
+
+Stage Summary:
+- Regulatory: No public-facing copy implies legal document preparation for non-lawyers
+- Brand: Both portals now use brand emerald green; cheesy scales icon replaced with Logo
+- Pills: "VEGA"/"ATRIUM" explicit text badges removed from portal headers and feature section
+- CTA: "Explore Komplete" → instant sign-up modal (unified product pre-selected), no scroll friction
+- Anti-regression: All 6 guardrail checks PASS (LAKE-NUWA label is backend-only, not frontend)
+
