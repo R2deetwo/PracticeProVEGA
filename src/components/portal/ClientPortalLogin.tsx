@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { ScalesIcon, LockClosedIcon, ShieldCheckIcon } from '../../constants';
+import { Logo, LockClosedIcon, ShieldCheckIcon } from '../../constants';
 
 const ClientPortalLogin: React.FC = () => {
     const { openModal, navigateTo } = useUI();
@@ -27,18 +27,17 @@ const ClientPortalLogin: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center p-6">
             {/* Ambient glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[120px] bg-emerald-500/10 pointer-events-none" />
 
             <div className="relative z-10 w-full max-w-md">
                 {/* Brand header */}
                 <div className="text-center mb-8">
                     <div className="inline-flex items-center gap-2.5 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                            <ScalesIcon className="w-5 h-5 text-white" />
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <Logo className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-xl font-bold text-white tracking-tight">
-                            Practice<span className="text-amber-400">Pro</span>
-                            <span className="ml-1.5 text-[10px] font-black uppercase tracking-tight text-amber-500 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">VEGA</span>
+                            Practice<span className="text-emerald-400">Pro</span>
                         </span>
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-2">Client Portal</h1>
@@ -57,7 +56,7 @@ const ClientPortalLogin: React.FC = () => {
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
                                 placeholder="your@email.com"
-                                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
+                                className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
                             />
                         </div>
                         <div>
@@ -68,14 +67,14 @@ const ClientPortalLogin: React.FC = () => {
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
                                     placeholder="Enter your password"
-                                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all"
+                                    className="w-full px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/30 transition-all"
                                 />
                             </div>
                         </div>
 
                         <button
                             onClick={() => openModal('login')}
-                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
+                            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-sm hover:from-emerald-400 hover:to-emerald-500 shadow-lg shadow-emerald-500/20 transition-all active:scale-[0.98]"
                         >
                             Sign In to Client Portal
                         </button>

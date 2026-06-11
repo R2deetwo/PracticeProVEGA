@@ -191,7 +191,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             Practice<span className="text-primary-500">Pro</span>
                             {productChosen && (
                                 <span
-                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-500'}`}
+                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight text-primary-500`}
                                 >
                                     {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                                 </span>
@@ -528,7 +528,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         items: [
             { title: 'Maintenance Tickets', desc: 'Tenants log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
             { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
-            { title: 'Legal Document Generation', desc: 'Pro plan includes automated generation of notices, demands, and other legal documents tailored to Nigerian property law.', badge: 'Pro' },
+            { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.', badge: 'Pro' },
         ],
     },
 ];
@@ -542,8 +542,8 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
             <div className="container mx-auto px-6 max-w-7xl">
                 {/* Header */}
                 <div className="text-center mb-16">
-                    <Pill className={`mb-5 ${isVega ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
-                        {isVega ? 'Vega Features' : 'Atrium Features'}
+                    <Pill className={`mb-5 ${isVega ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50'}`}>
+                        Features
                     </Pill>
                     <h2 className={`text-4xl md:text-5xl font-bold tracking-tight mb-4 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
                         {isVega ? <>Case Management &<br />Legal Intelligence</> : <>Property Management &<br />Revenue Operations</>}
@@ -637,7 +637,7 @@ const TIER_CTAS: Record<TierId, string> = {
     Enterprise: 'Contact Sales',
 };
 
-const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
+const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
@@ -763,7 +763,7 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
 
                         {/* CTA */}
                         <button 
-                            onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : onSignup} 
+                            onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : () => onSignup()} 
                             className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
                                 plan.highlighted 
                                 ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90' 
@@ -779,8 +779,8 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
             {/* ── Dual CTA Banner: Real Estate Lawyer Hook + Custom Automation Pipeline ── */}
             <div className="max-w-5xl mx-auto mt-10 mb-12 space-y-5">
                 {/* A. Real Estate Lawyer Hook — Komplete Tier */}
-                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-amber-500/10 via-emerald-500/5 to-indigo-500/10 border border-amber-500/20 dark:border-amber-500/10">
-                    <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl bg-amber-400/10 pointer-events-none" />
+                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-primary-500/10 via-emerald-500/5 to-indigo-500/10 border border-primary-500/20 dark:border-primary-500/10">
+                    <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl bg-primary-400/10 pointer-events-none" />
                     <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full blur-3xl bg-emerald-400/8 pointer-events-none" />
                     <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                         <div className="flex-1">
@@ -788,16 +788,12 @@ const PricingSection: React.FC<{ onSignup: () => void; onContactSales: (source: 
                                 Are you a Real Estate Lawyer?
                             </h4>
                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
-                                Discover <strong className="text-amber-600 dark:text-amber-400">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
+                                Discover <strong className="text-primary-600 dark:text-primary-400">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
                             </p>
                         </div>
                         <button 
-                            onClick={() => {
-                                setProductChosen(true);
-                                setActiveProduct('vega');
-                                setTimeout(() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }), 100);
-                            }}
-                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-600 hover:to-emerald-700 text-white text-sm font-bold shadow-lg shadow-amber-500/20 transition-all active:scale-95 flex items-center gap-2"
+                            onClick={() => onSignup('unified')}
+                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-gradient-to-r from-primary-500 to-emerald-600 hover:from-primary-600 hover:to-emerald-700 text-white text-sm font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95 flex items-center gap-2"
                         >
                             <SparklesIcon className="w-4 h-4" />
                             Explore Komplete
@@ -905,7 +901,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
         }
     };
 
-    const openSignup = () => openModal('signup', null, { selectedProduct: activeProduct });
+    const openSignup = (productOverride?: ProductMode) => openModal('signup', null, { selectedProduct: productOverride || activeProduct });
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
     const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
     const openContactSales = (source: string) => { setContactDrawerSource(source); setIsContactDrawerOpen(true); };

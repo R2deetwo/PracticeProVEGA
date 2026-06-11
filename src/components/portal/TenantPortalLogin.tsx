@@ -37,7 +37,6 @@ const TenantPortalLogin: React.FC = () => {
                         </div>
                         <span className="text-xl font-bold text-white tracking-tight">
                             Practice<span className="text-emerald-400">Pro</span>
-                            <span className="ml-1.5 text-[10px] font-black uppercase tracking-tight text-emerald-500 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">ATRIUM</span>
                         </span>
                     </div>
                     <h1 className="text-2xl font-bold text-white mb-2">Tenant Portal</h1>

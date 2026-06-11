@@ -261,7 +261,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: null,
       maxActiveTenants: null,
       whatsappLimit: null,
-      extras: ['Legal document generation (notices & demands)', 'Live defaulter dashboard', 'Uncapped Tenant Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets', 'Morning WhatsApp notification throttle system'],
+      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', 'Uncapped Tenant Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets', 'Morning WhatsApp notification throttle system'],
     }),
     maxUsers: null,
     maxUnits: null,
