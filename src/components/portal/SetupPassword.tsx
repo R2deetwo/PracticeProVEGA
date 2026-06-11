@@ -143,12 +143,9 @@ const SetupPassword: React.FC = () => {
                         const loginResult = await login(result.email!, password);
                         if (loginResult.success) {
                             // Redirect to the appropriate portal login page
-                            const portalType = inviteData?.invite?.portalType;
-                            if (portalType === 'client') {
-                                navigate('/portal/client/login', { replace: true });
-                            } else {
-                                navigate('/portal/tenant/login', { replace: true });
-                            }
+                            // Redirect to the main app — the router will detect the user's
+                            // Client/Tenant role and show the correct portal view automatically.
+                            navigate('/', { replace: true });
                         } else {
                             setLoginError('Your password has been set! Please sign in using the button below.');
                             setStep('success');
@@ -198,13 +195,13 @@ const SetupPassword: React.FC = () => {
             },
             already_accepted: {
                 title: 'Already Accepted',
-                body: 'This invitation has already been used. You can sign in directly using your email and password.',
+                body: 'Your invitation has already been used and your account is set up. You can sign in directly using your email and password.',
             },
         };
         const msg = messages[invalidReason] || messages.not_found;
 
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] bg-rose-500/10 pointer-events-none" />
                 <div className="relative z-10 flex-shrink-0">
                     <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
@@ -259,7 +256,7 @@ const SetupPassword: React.FC = () => {
     // ─── Success screen ───────────────────────────────────────────────────
     if (step === 'success') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] bg-emerald-500/10 pointer-events-none" />
                 <div className="relative z-10 flex-shrink-0">
                     <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
@@ -287,6 +284,7 @@ const SetupPassword: React.FC = () => {
                                 <p className="text-sm text-amber-400 mb-4">{loginError}</p>
                                 <button
                                     onClick={() => {
+                                        // Go to the portal login page to sign in manually
                                         const isClient = inviteData?.invite?.portalType === 'client';
                                         navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                     }}
@@ -304,7 +302,7 @@ const SetupPassword: React.FC = () => {
 
     // ─── Main form ────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
             {/* Ambient glow */}
             <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-${productColor}-500/10 pointer-events-none`} />
 

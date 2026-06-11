@@ -123,6 +123,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const showSkeleton = !isDataLoaded && !hasData;
     const isClient = currentUser?.role === UserRole.Client;
     const isTenant = currentUser?.role === UserRole.Tenant;
+    const isPortalUser = isClient || isTenant;
 
     console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
 
@@ -363,9 +364,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     return (
         <div className="flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
-            {currentUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} appMode={appMode} />}
-            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
-                {currentUser && <Header />}
+            {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} appMode={appMode} />}
+            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
+                {currentUser && !isPortalUser && <Header />}
                 <main className="flex-1 relative h-full overflow-hidden pb-0">
                     {currentUser ? (
                         <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate">
@@ -380,10 +381,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                         </div>
                     ) : <DashboardSkeleton />}
                 </main>
-                {currentUser && <BottomNav currentView={view} setView={navigateTo} />}
+                {currentUser && !isPortalUser && <BottomNav currentView={view} setView={navigateTo} />}
                 <DemoProductSwitcher />
             </div>
-            {currentUser && flowState === 'app' && (
+            {currentUser && flowState === 'app' && !isPortalUser && (
                 <>
                     <ContextMenu />
                     <DockedModal />
@@ -534,6 +535,9 @@ export const App: React.FC = () => {
     useEffect(() => {
         if (flowState === 'app' && currentUser) {
             if (forceEntry && !isDataLoaded) return;
+            // Don't auto-start the tour for portal users (Client/Tenant)
+            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+            if (isPortal) return;
             const hasCompletedTour = localStorage.getItem('practicepro_tour_completed');
             if (hasCompletedTour !== 'true') setTimeout(() => startTour(), 500);
         }
@@ -655,8 +659,10 @@ export const App: React.FC = () => {
                     <ToastContainer />
                 </>
             )}
-            <OnboardingTour />
-            {flowState === 'app' && currentUser && <WhatsNew />}
+            {/* Onboarding Tour only shown for non-portal users; portal users get a simpler experience */}
+            {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
+            {/* What's New only for admin/firm users, not portal users */}
+            {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
             <CookieConsent />
         </div>
     );

@@ -619,6 +619,12 @@ export const setupPortalPassword = action({
 
     if (existingUser) {
       // Update existing user: set password + mark verified
+      // Also upgrade their role to Client/Tenant if they were a "Portal User"
+      // or had no role assigned, so the frontend can route them correctly.
+      const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
+      const needsRoleUpdate = !existingUser.role
+        || existingUser.role === "Portal User"
+        || existingUser.role === "Pending";
       await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
         userId: existingUser._id,
         fields: {
@@ -627,18 +633,22 @@ export const setupPortalPassword = action({
           emailVerified: true,
           verificationCode: null,
           ...(args.name && !existingUser.name ? { name: args.name } : {}),
+          ...(needsRoleUpdate ? { role: portalRole } : {}),
         },
       });
     } else {
       // Create new user record for this portal user
+      // Use the proper UserRole (Client / Tenant) so the frontend can route
+      // them to the correct portal view automatically.
       const portalProduct = invite.portalType === "client" ? "legal" : "property";
+      const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
       const userName = args.name || invite.inviteeName || email.split("@")[0];
       await ctx.runMutation(internal.myFunctions.createUser, {
         tokenIdentifier: email,
         name: userName,
         email: email,
         password: hashedPassword,
-        role: "Portal User",
+        role: portalRole,
         product: portalProduct,
         onboardingCompleted: false,
         isVerified: true,
@@ -917,5 +927,44 @@ export const getClientInvoices = query({
       const matterId = matterField?.id || matterField;
       return matterId && matterIds.includes(String(matterId));
     });
+  },
+});
+
+// ─── Migration: Fix legacy "Portal User" role → Client/Tenant ──────────
+// One-time migration to update any users created with the old "Portal User"
+// role. Cross-references their portal_invites records to determine whether
+// they should be Client or Tenant.
+export const migratePortalUserRoles = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const allUsers = await ctx.db.query("users").collect();
+    const portalUsers = allUsers.filter((u: any) => u.role === "Portal User");
+
+    if (portalUsers.length === 0) {
+      return { migrated: 0, message: "No Portal User records found." };
+    }
+
+    let migrated = 0;
+    for (const user of portalUsers) {
+      // Look up their invite to determine portal type
+      const invites = await ctx.db
+        .query("portal_invites")
+        .withIndex("by_email", (q) => q.eq("inviteeEmail", user.email || ""))
+        .collect();
+
+      const acceptedInvite = invites.find((inv: any) => inv.status === "accepted");
+      if (acceptedInvite) {
+        const newRole = acceptedInvite.portalType === "client" ? "Client" : "Tenant";
+        await ctx.db.patch(user._id, { role: newRole });
+        migrated++;
+      } else {
+        // No invite found — default to Tenant (property portal) since that's
+        // the more common case for "Portal User" accounts
+        await ctx.db.patch(user._id, { role: "Tenant" });
+        migrated++;
+      }
+    }
+
+    return { migrated, message: `Migrated ${migrated} Portal User(s) to Client/Tenant roles.` };
   },
 });

@@ -80,3 +80,27 @@ Stage Summary:
 - Compliance view is now accessible from the sidebar for legal/unified firms
 - Locked nav items have proper visual and behavioral guards
 - 404 page is now a proper reusable component
+---
+Task ID: portal-onboarding-fix
+Agent: Main Agent
+Task: Fix portal onboarding flow - scroll, role mismatch, wrong redirect, What's New/OnboardingTour showing to portal users, app chrome for portal users, localhost
+
+Work Log:
+- Fixed scroll issue on SetupPassword page: added overflow-y-auto to all three screen containers (invalid, success, form)
+- Fixed scroll on TenantPortalLogin page: added overflow-y-auto
+- Fixed critical role mismatch: Changed `role: "Portal User"` to `role: "Client"` or `role: "Tenant"` based on portalType in convex/portals.ts setupPortalPassword action
+- Fixed existing user role upgrade: When an existing user with role "Portal User" or "Pending" sets up their portal password, their role is now upgraded to Client/Tenant
+- Fixed redirect after password setup: Instead of redirecting to portal login page, now redirects to `/` so the app auto-detects the user role and routes to the correct portal
+- Fixed WhatsNew showing to portal users: Added role check in App.tsx so WhatsNew only shows for non-Client/non-Tenant users
+- Fixed OnboardingTour showing to portal users: Added role check so the tour doesn't auto-start for portal users, and OnboardingTour component is not rendered for portal users
+- Fixed app chrome for portal users: Sidebar, Header, BottomNav, ContextMenu, DockedModal, AloaFAB, AloaPanel, CommandPalette, FullScreenSearch are now hidden for Client/Tenant users
+- Added migration function `migratePortalUserRoles` to fix existing "Portal User" records in the database
+- Ran migration: found and fixed 1 existing Portal User record
+- Deployed backend changes to Convex
+- Started Vite dev server on localhost:5000
+
+Stage Summary:
+- Portal onboarding flow now works end-to-end: email link → setup password → auto-login → correct portal view
+- Portal users (Client/Tenant) no longer see main app features (What's New, Onboarding Tour, Sidebar, ALOA, etc.)
+- Existing "Portal User" records migrated to proper Client/Tenant roles
+- Dev server running at http://localhost:5000/
