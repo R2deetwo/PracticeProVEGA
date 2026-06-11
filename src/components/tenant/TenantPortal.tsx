@@ -1,18 +1,18 @@
 /**
  * TenantPortal — Atrium Residents' Portal
  *
- * Read-only portal for residents to view their financial ledger,
- * download rent receipts, check SC/MV status, log maintenance tickets,
- * and view messages from their property manager.
+ * Portal for residents to view their financial ledger,
+ * download rent receipts, check SC/MV status, log maintenance tickets
+ * (with file attachments), submit payment proof, send messages to their
+ * property manager (if enabled), and view inbound messages.
  *
  * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
  * Role-gated: Only users with role === 'Tenant'
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import NairaSymbol from '../NairaSymbol';
@@ -48,6 +48,42 @@ const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+);
+
+const MoonIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+);
+
+const UploadIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+  </svg>
+);
+
+const PaperclipIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+  </svg>
+);
+
+const XCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+  </svg>
+);
+
+const SendIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+  </svg>
+);
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatNaira = (amount: number) => (
   <span className="inline-flex items-center">
@@ -61,15 +97,60 @@ const formatDate = (ts: number) => {
 };
 
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
-type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages';
+type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments';
+
+// ─── File Upload Helper ──────────────────────────────────────────────────────
+async function uploadFilesToConvex(files: File[]): Promise<string[]> {
+  const storageIds: string[] = [];
+  for (const file of files) {
+    const postUrl = await fetch('/api/storage/upload-url');
+    // Fallback: use the Convex action for upload URL
+    // We'll use the Convex generateUploadUrl mutation via the hook instead
+    // For now, we'll use the standard Convex file upload flow
+    const { url, storageId } = await (async () => {
+      // Use Convex's built-in file upload
+      const uploadUrlRes = await fetch(`${window.location.origin}/api/storage/upload-url`);
+      if (uploadUrlRes.ok) {
+        const { url: u, storageId: s } = await uploadUrlRes.json();
+        return { url: u, storageId: s };
+      }
+      throw new Error('Failed to get upload URL');
+    })();
+
+    const uploadRes = await fetch(url, {
+      method: 'POST',
+      body: file,
+    });
+    if (uploadRes.ok) {
+      const { storageId: sid } = await uploadRes.json();
+      storageIds.push(sid);
+    }
+  }
+  return storageIds;
+}
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
   const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
-  const { coreState } = useCoreState();
-  const { addToast } = useUI();
+  const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
   const [activeTab, setActiveTab] = useState<TabId>('ledger');
+
+  // Resolve tenant info once at the top level — all sub-tabs can use it
+  const firmId = currentUser?.firmId || '';
+  const userId = currentUser?.id || '';
+  const email = currentUser?.email || '';
+
+  const tenantInfo = useQuery(
+    api.portals.getTenantInfo,
+    firmId && userId ? { firmId, userId, email } : 'skip'
+  );
+
+  // Fetch firm portal settings for messaging toggle
+  const portalSettings = useQuery(
+    api.portals.getFirmPortalSettings,
+    firmId ? { firmId } : 'skip'
+  );
 
   // Access guard
   if (!currentUser) return null;
@@ -78,7 +159,6 @@ const TenantPortal: React.FC = () => {
   // to access their portal. The canUseTenantPortal feature gate is meant to
   // control whether ADMINS can create portal invites — it should never block
   // an already-authenticated portal user from accessing their own dashboard.
-  // Only show the upgrade prompt if the user is NOT a Tenant role (e.g. admin previewing).
   if (!canUseTenantPortal && currentUser.role !== 'Tenant') {
     return (
       <div className="flex items-center justify-center h-full p-8">
@@ -95,12 +175,30 @@ const TenantPortal: React.FC = () => {
     );
   }
 
+  const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+    theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const toggleTheme = () => {
+    setTheme(isDark ? 'light' : 'dark');
+  };
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
-    { id: 'messages', label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
+    ...(portalSettings?.tenantMessagingEnabled ? [
+      { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
+    ] : []),
+    { id: 'payments', label: 'Payments', icon: <BanknotesIcon className="w-4 h-4" /> },
   ];
+
+  // Build location description from tenant info
+  const locationLabel = tenantInfo?.primaryUnitName
+    ? `${tenantInfo.primaryUnitName}, ${tenantInfo.primaryPropertyName}`
+    : tenantInfo?.primaryPropertyName
+    ? tenantInfo.primaryPropertyName
+    : null;
 
   return (
     <div className="flex flex-col h-full">
@@ -121,6 +219,7 @@ const TenantPortal: React.FC = () => {
           </button>
         </div>
       )}
+
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex items-center justify-between mb-1">
@@ -132,15 +231,39 @@ const TenantPortal: React.FC = () => {
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
                 Welcome, {currentUser.name}
+                {locationLabel && (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                    {' '}&middot; {locationLabel}
+                  </span>
+                )}
               </p>
+              {/* Show full unit/property info if available */}
+              {tenantInfo?.primaryUnitName && (
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                  Unit: {tenantInfo.primaryUnitName}
+                  {tenantInfo.primaryPropertyName && ` in ${tenantInfo.primaryPropertyName}`}
+                  {tenantInfo.primaryPropertyAddress && ` — ${tenantInfo.primaryPropertyAddress}`}
+                </p>
+              )}
             </div>
           </div>
-          <button
-            onClick={() => logout()}
-            className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-          >
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+            </button>
+            {/* Sign Out */}
+            <button
+              onClick={() => logout()}
+              className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
@@ -166,46 +289,25 @@ const TenantPortal: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
-        {activeTab === 'ledger' && <LedgerTab />}
-        {activeTab === 'receipts' && <ReceiptsTab addToast={addToast} />}
-        {activeTab === 'maintenance' && <MaintenanceTab addToast={addToast} />}
-        {activeTab === 'messages' && <MessagesTab />}
-      </div>
-
-      {/* Trust Badges */}
-      <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] text-slate-400 dark:text-zinc-500">
-          <span className="flex items-center gap-1">
-            <CheckIcon className="w-3 h-3 text-emerald-500" /> Secure Portal
-          </span>
-          <span className="flex items-center gap-1">
-            <BanknotesIcon className="w-3 h-3 text-emerald-500" /> Payment Verified
-          </span>
-          <span className="flex items-center gap-1">
-            <DocumentIcon className="w-3 h-3 text-emerald-500" /> Audit Trail
-          </span>
-        </div>
+        {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} />}
+        {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} addToast={addToast} />}
+        {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} addToast={addToast} />}
+        {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} portalSettings={portalSettings} addToast={addToast} />}
+        {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} addToast={addToast} />}
       </div>
     </div>
   );
 };
 
+// ─── Shared Tenant Info Hook Helper ──────────────────────────────────────────
+// All sub-tabs receive tenantInfo from the parent to avoid duplicate queries
+
 // ─── Financial Ledger Tab ────────────────────────────────────────────────────
-const LedgerTab: React.FC = () => {
+const LedgerTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
   const { currentUser } = useAuth();
-  const { coreState } = useCoreState();
   const firmId = currentUser?.firmId || '';
   const userId = currentUser?.id || '';
-  const email = currentUser?.email || '';
 
-  // First, resolve the correct tenant ID using getTenantInfo
-  // This handles the case where properties store tenantId as email instead of Convex _id
-  const tenantInfo = useQuery(
-    api.portals.getTenantInfo,
-    firmId && userId ? { firmId, userId, email } : 'skip'
-  );
-
-  // Use the resolved tenantId from getTenantInfo, or fall back to currentUser.id
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   // Fetch ledger entries from Convex using the resolved tenant ID
@@ -456,17 +558,10 @@ const LedgerTab: React.FC = () => {
 };
 
 // ─── Receipts Tab ────────────────────────────────────────────────────────────
-const ReceiptsTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ addToast }) => {
+const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
   const { currentUser } = useAuth();
   const firmId = currentUser?.firmId || '';
   const userId = currentUser?.id || '';
-  const email = currentUser?.email || '';
-
-  // Resolve the correct tenant ID
-  const tenantInfo = useQuery(
-    api.portals.getTenantInfo,
-    firmId && userId ? { firmId, userId, email } : 'skip'
-  );
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   // Fetch ledger entries — receipts are cleared entries
@@ -558,24 +653,18 @@ const ReceiptsTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => vo
 };
 
 // ─── Maintenance Tab ─────────────────────────────────────────────────────────
-const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ addToast }) => {
+const MaintenanceTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
   const { currentUser } = useAuth();
-  const { coreState } = useCoreState();
   const firmId = currentUser?.firmId || '';
   const userId = currentUser?.id || '';
-  const email = currentUser?.email || '';
-
-  // Resolve the correct tenant ID
-  const tenantInfo = useQuery(
-    api.portals.getTenantInfo,
-    firmId && userId ? { firmId, userId, email } : 'skip'
-  );
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<'plumbing' | 'electrical' | 'structural' | 'other'>('other');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch tickets from Convex
   const tickets = useQuery(
@@ -585,40 +674,88 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
 
   // Mutation for creating a ticket
   const createTicket = useMutation(api.portals.createMaintenanceTicket);
+  // Get upload URL mutation
+  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  const getUrl = useQuery(api.myFunctions.getUrl, 'skip' as any);
 
-  // Find the tenant's property to get propertyId
-  const tenantProperty = useMemo(() => {
-    if (!coreState?.properties) return null;
-    return coreState.properties.find(
-      (p: any) => p.currentTenantId === resolvedTenantId || p.tenantId === resolvedTenantId
-    );
-  }, [coreState?.properties, resolvedTenantId]);
+  // Use tenantInfo to resolve property and unit IDs
+  // This is the KEY FIX: we no longer use coreState (which is empty for portal users)
+  const propertyId = tenantInfo?.primaryPropertyId;
+  const unitId = tenantInfo?.primaryUnitId;
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    // Validate file types: images and PDFs only
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const validFiles = files.filter(f => {
+      if (!validTypes.includes(f.type)) {
+        addToast(`"${f.name}" is not a supported file type. Use images or PDFs.`, { type: 'error' });
+        return false;
+      }
+      if (f.size > maxSize) {
+        addToast(`"${f.name}" exceeds 10MB limit.`, { type: 'error' });
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles(prev => [...prev, ...validFiles]);
+    // Reset the input
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
       addToast('Please fill in all fields before submitting.', { type: 'info' });
       return;
     }
-    if (!tenantProperty) {
-      addToast('No property found for your account. Please contact your property manager.', { type: 'error' });
+    if (!propertyId) {
+      addToast('No property linked to your account. Please contact your property manager to ensure your unit is properly assigned.', { type: 'error' });
       return;
     }
 
     setIsSubmitting(true);
     try {
+      // Upload files to Convex storage if any
+      let attachmentStorageIds: string[] = [];
+      if (pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          try {
+            const postUrl = await generateUploadUrl();
+            const res = await fetch(postUrl, {
+              method: 'POST',
+              body: file,
+            });
+            if (res.ok) {
+              const { storageId } = await res.json();
+              if (storageId) attachmentStorageIds.push(storageId);
+            }
+          } catch (uploadErr) {
+            console.warn('File upload failed:', uploadErr);
+          }
+        }
+      }
+
       await createTicket({
         firmId,
-        propertyId: tenantProperty.id,
+        propertyId,
+        unitId: unitId || undefined,
         tenantId: resolvedTenantId,
         tenantName: currentUser?.name || undefined,
         subject: subject.trim(),
         description: description.trim(),
         category,
+        attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
       });
       addToast('Maintenance ticket submitted successfully. Your property manager has been notified.', { type: 'success' });
       setSubject('');
       setDescription('');
       setCategory('other');
+      setPendingFiles([]);
     } catch (err: any) {
       addToast(err.message || 'Failed to submit ticket. Please try again.', { type: 'error' });
     } finally {
@@ -650,6 +787,20 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
       <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
         Log maintenance issues directly into your property manager's workflow.
       </p>
+
+      {/* Property/Unit Info Banner */}
+      {tenantInfo?.primaryPropertyName && (
+        <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 text-sm">
+          <div className="flex items-center gap-2">
+            <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+            <span className="text-emerald-800 dark:text-emerald-300 font-medium">
+              {tenantInfo.primaryUnitName
+                ? `Unit: ${tenantInfo.primaryUnitName} in ${tenantInfo.primaryPropertyName}`
+                : tenantInfo.primaryPropertyName}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* New Ticket Form */}
       <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
@@ -686,6 +837,45 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
               rows={3}
               className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
             />
+          </div>
+          {/* File Attachments */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Attachments (Optional)</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
+            >
+              <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                Click to upload photos or PDFs
+              </p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                JPG, PNG, GIF, WebP, PDF · Max 10MB each
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            {/* Show selected files */}
+            {pendingFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {pendingFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+                    <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
+                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+                    <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
+                      <XCircleIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={handleSubmit}
@@ -742,6 +932,7 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
                     {t.category && <span className="capitalize">{t.category}</span>}
                     {t.category && ' · '}
                     {formatDate(t.createdAt)}
+                    {t.attachments?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.attachments.length}</span>}
                   </p>
                 </div>
               </div>
@@ -765,17 +956,11 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
 };
 
 // ─── Messages Tab ────────────────────────────────────────────────────────────
-const MessagesTab: React.FC = () => {
+const MessagesTab: React.FC<{ tenantInfo: any; portalSettings: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, portalSettings, addToast }) => {
   const { currentUser } = useAuth();
   const userId = currentUser?.id || '';
   const firmId = currentUser?.firmId || '';
   const email = currentUser?.email || '';
-
-  // Resolve the correct tenant ID
-  const tenantInfo = useQuery(
-    api.portals.getTenantInfo,
-    firmId && userId ? { firmId, userId, email } : 'skip'
-  );
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   // Fetch inbound messages for this tenant from Convex
@@ -784,7 +969,50 @@ const MessagesTab: React.FC = () => {
     resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
   );
 
-  const isLoading = messages === undefined;
+  // Fetch messages sent by this tenant
+  const sentMessages = useQuery(
+    api.portals.getPortalMessagesBySender,
+    userId ? { senderId: userId } : 'skip'
+  );
+
+  const sendMessage = useMutation(api.portals.sendPortalMessage);
+  const [messageContent, setMessageContent] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSendMessage = async () => {
+    if (!messageContent.trim()) {
+      addToast('Please type a message before sending.', { type: 'info' });
+      return;
+    }
+    setIsSending(true);
+    try {
+      await sendMessage({
+        firmId,
+        senderId: userId,
+        senderName: currentUser?.name,
+        senderEmail: email,
+        senderRole: 'Tenant',
+        content: messageContent.trim(),
+        propertyId: tenantInfo?.primaryPropertyId || undefined,
+        unitId: tenantInfo?.primaryUnitId || undefined,
+      });
+      addToast('Message sent to your property manager.', { type: 'success' });
+      setMessageContent('');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to send message.', { type: 'error' });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const isLoading = messages === undefined || sentMessages === undefined;
+
+  // Combine and sort inbound + sent messages
+  const allMessages = useMemo(() => {
+    const inbound = (messages || []).map((m: any) => ({ ...m, direction: 'inbound' as const }));
+    const sent = (sentMessages || []).map((m: any) => ({ ...m, direction: 'outbound' as const }));
+    return [...inbound, ...sent].sort((a, b) => (b.createdAt || b.receivedAt || 0) - (a.createdAt || a.receivedAt || 0));
+  }, [messages, sentMessages]);
 
   const getChannelIcon = (channel: string) => {
     switch (channel) {
@@ -825,35 +1053,78 @@ const MessagesTab: React.FC = () => {
     <div>
       <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Messages</h3>
       <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
-        Recent messages from your property manager.
+        {portalSettings?.tenantMessagingEnabled
+          ? 'Messages from your property manager and your sent messages.'
+          : 'Recent messages from your property manager.'}
       </p>
 
-      {messages && messages.length > 0 ? (
+      {/* Send message form (only if messaging is enabled) */}
+      {portalSettings?.tenantMessagingEnabled && (
+        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 mb-6">
+          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Send a Message</h4>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+            Contact your property manager directly.
+          </p>
+          <div className="flex gap-2">
+            <textarea
+              value={messageContent}
+              onChange={e => setMessageContent(e.target.value)}
+              placeholder="Type your message..."
+              rows={2}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isSending || !messageContent.trim()}
+              className="self-end px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            >
+              <SendIcon className="w-3.5 h-3.5" />
+              {isSending ? 'Sending...' : 'Send'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Message List */}
+      {allMessages.length > 0 ? (
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
-          {messages.map((msg: any) => (
+          {allMessages.map((msg: any) => (
             <div
               key={msg._id}
               className={`bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 ${
-                !msg.isRead ? 'border-l-4 border-l-emerald-400' : ''
+                msg.direction === 'outbound' ? 'border-l-4 border-l-emerald-400' :
+                !msg.isRead ? 'border-l-4 border-l-blue-400' : ''
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {getChannelIcon(msg.channel)}
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  msg.direction === 'outbound'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                    : 'bg-slate-100 dark:bg-zinc-700'
+                }`}>
+                  {msg.direction === 'outbound'
+                    ? <SendIcon className="w-4 h-4 text-emerald-500" />
+                    : getChannelIcon(msg.channel)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    {msg.senderName && (
-                      <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">{msg.senderName}</span>
-                    )}
-                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">{msg.channel}</span>
-                    {!msg.isRead && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                    <span className={`text-xs font-bold ${
+                      msg.direction === 'outbound'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-600 dark:text-zinc-300'
+                    }`}>
+                      {msg.direction === 'outbound' ? 'You' : (msg.senderName || 'Property Manager')}
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+                      {msg.direction === 'outbound' ? 'sent' : msg.channel || 'message'}
+                    </span>
+                    {msg.direction === 'inbound' && !msg.isRead && (
+                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                     )}
                   </div>
                   <p className="text-sm text-slate-700 dark:text-zinc-300 break-words">{msg.content}</p>
                   <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
-                    {formatDate(msg.receivedAt)}
+                    {formatDate(msg.createdAt || msg.receivedAt)}
                   </p>
                 </div>
               </div>
@@ -867,7 +1138,293 @@ const MessagesTab: React.FC = () => {
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No messages</p>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
-            No messages from your property manager.
+            {portalSettings?.tenantMessagingEnabled
+              ? 'Start a conversation with your property manager using the form above.'
+              : 'No messages from your property manager.'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Payments Tab (Upload Payment Proof) ─────────────────────────────────────
+const PaymentsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+  const { currentUser } = useAuth();
+  const firmId = currentUser?.firmId || '';
+  const userId = currentUser?.id || '';
+  const resolvedTenantId = tenantInfo?.tenantId || userId;
+
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [period, setPeriod] = useState('');
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const submitProof = useMutation(api.portals.submitPaymentProof);
+  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+
+  // Fetch existing payment proofs
+  const paymentProofs = useQuery(
+    api.portals.getPaymentProofsByTenant,
+    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+  );
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const validFiles = files.filter(f => {
+      if (!validTypes.includes(f.type)) {
+        addToast(`"${f.name}" is not a supported file type. Use images or PDFs.`, { type: 'error' });
+        return false;
+      }
+      if (f.size > maxSize) {
+        addToast(`"${f.name}" exceeds 10MB limit.`, { type: 'error' });
+        return false;
+      }
+      return true;
+    });
+    setPendingFiles(prev => [...prev, ...validFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (pendingFiles.length === 0) {
+      addToast('Please upload at least one payment proof file.', { type: 'info' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Upload files to Convex storage
+      const storageIds: string[] = [];
+      for (const file of pendingFiles) {
+        try {
+          const postUrl = await generateUploadUrl();
+          const res = await fetch(postUrl, {
+            method: 'POST',
+            body: file,
+          });
+          if (res.ok) {
+            const { storageId } = await res.json();
+            if (storageId) storageIds.push(storageId);
+          }
+        } catch (uploadErr) {
+          console.warn('File upload failed:', uploadErr);
+        }
+      }
+
+      if (storageIds.length === 0) {
+        addToast('Failed to upload files. Please try again.', { type: 'error' });
+        setIsSubmitting(false);
+        return;
+      }
+
+      await submitProof({
+        firmId,
+        tenantId: resolvedTenantId,
+        tenantName: currentUser?.name || undefined,
+        tenantEmail: currentUser?.email || undefined,
+        propertyId: tenantInfo?.primaryPropertyId || undefined,
+        unitId: tenantInfo?.primaryUnitId || undefined,
+        amount: amount ? parseFloat(amount) : undefined,
+        period: period.trim() || undefined,
+        description: description.trim() || undefined,
+        storageIds,
+      });
+
+      addToast('Payment proof submitted successfully. Your property manager will review it and issue an official receipt.', { type: 'success' });
+      setDescription('');
+      setAmount('');
+      setPeriod('');
+      setPendingFiles([]);
+    } catch (err: any) {
+      addToast(err.message || 'Failed to submit payment proof.', { type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"><CheckIcon className="w-3 h-3" /> Approved</span>;
+      case 'rejected':
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> Rejected</span>;
+      default:
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"><ExclamationTriangleIcon className="w-3 h-3" /> Pending Review</span>;
+    }
+  };
+
+  return (
+    <div>
+      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Proof</h3>
+      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+        Upload payment receipts or stubs for your property manager to review. Once approved, you will receive an official receipt.
+      </p>
+
+      {/* Upload Form */}
+      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Submit Payment Proof</h4>
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Amount (Optional)</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Period (Optional)</label>
+              <input
+                type="text"
+                value={period}
+                onChange={e => setPeriod(e.target.value)}
+                placeholder="e.g., January 2025"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description (Optional)</label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="e.g., Rent payment via bank transfer"
+              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            />
+          </div>
+          {/* File Upload */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Upload Proof *</label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
+            >
+              <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                Click to upload payment receipt or stub
+              </p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                JPG, PNG, PDF · Max 10MB each
+              </p>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            {pendingFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {pendingFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+                    <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
+                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+                    <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
+                      <XCircleIcon className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting || pendingFiles.length === 0}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+          >
+            <UploadIcon className="w-4 h-4" />
+            {isSubmitting ? 'Uploading...' : 'Submit Payment Proof'}
+          </button>
+        </div>
+      </div>
+
+      {/* Previous Submissions */}
+      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Previous Submissions</h4>
+      {paymentProofs === undefined ? (
+        <div className="space-y-2">
+          {[1, 2].map(i => (
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+                <div className="flex-1">
+                  <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-40 mb-2" />
+                  <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : paymentProofs.length > 0 ? (
+        <div className="space-y-2">
+          {paymentProofs.map((proof: any) => (
+            <div
+              key={proof._id}
+              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  proof.status === 'approved'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                    : proof.status === 'rejected'
+                    ? 'bg-rose-50 dark:bg-rose-900/20'
+                    : 'bg-amber-50 dark:bg-amber-900/20'
+                }`}>
+                  <BanknotesIcon className={`w-4 h-4 ${
+                    proof.status === 'approved'
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : proof.status === 'rejected'
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+                    {proof.description || 'Payment proof'}
+                    {proof.amount && <span className="ml-2 text-emerald-600 dark:text-emerald-400">₦{proof.amount.toLocaleString()}</span>}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+                    {proof.period && `${proof.period} · `}
+                    {formatDate(proof.createdAt)}
+                    {proof.storageIds?.length > 0 && <span className="ml-1">· {proof.storageIds.length} file(s)</span>}
+                  </p>
+                  {proof.adminNote && (
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 italic">
+                      Note: {proof.adminNote}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex-shrink-0">{getStatusBadge(proof.status)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+            <BanknotesIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+          </div>
+          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment proofs submitted</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">
+            Upload a receipt or payment stub above to get an official receipt from your property manager.
           </p>
         </div>
       )}

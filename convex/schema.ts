@@ -1159,4 +1159,65 @@ export default defineSchema({
     .index("by_firm_status", ["firmId", "status"])
     .index("by_automation", ["isAutomation"]),
 
+  // ─── Portal Messages ──────────────────────────────────────────────
+  // Messages sent by portal users (Tenants/Clients) to their firm admin.
+  // Only available when the firm has enabled portal messaging.
+  portal_messages: defineTable({
+    firmId: nullableString,
+    senderId: nullableString,
+    senderName: nullableString,
+    senderEmail: nullableString,
+    senderRole: nullableString,        // "Tenant" or "Client"
+    subject: nullableString,
+    content: nullableString,
+    attachments: v.optional(v.array(v.string())), // Convex storage IDs
+    propertyId: nullableString,
+    unitId: nullableString,
+    status: nullableString,            // "unread" | "read" | "replied"
+    replyContent: nullableString,
+    repliedAt: nullableNumber,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_sender", ["senderId"])
+    .index("by_firm_status", ["firmId", "status"]),
+
+  // ─── Payment Proofs ───────────────────────────────────────────────
+  // Payment proof submissions from tenants (receipts, stubs, transfer slips).
+  payment_proofs: defineTable({
+    firmId: nullableString,
+    tenantId: nullableString,
+    tenantName: nullableString,
+    tenantEmail: nullableString,
+    propertyId: nullableString,
+    unitId: nullableString,
+    amount: nullableNumber,
+    period: nullableString,            // e.g., "January 2025"
+    description: nullableString,
+    storageIds: v.optional(v.array(v.string())), // Convex storage IDs for uploaded files
+    status: nullableString,            // "pending_review" | "approved" | "rejected"
+    adminNote: nullableString,
+    reviewedAt: nullableNumber,
+    reviewedBy: nullableString,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_tenant", ["tenantId"])
+    .index("by_firm_status", ["firmId", "status"]),
+
+  // ─── Portal Settings ──────────────────────────────────────────────
+  // Per-firm portal configuration. Controls features like messaging,
+  // payment proof uploads, etc.
+  portal_settings: defineTable({
+    firmId: nullableString,
+    tenantMessagingEnabled: v.optional(v.boolean()),  // Off by default
+    clientMessagingEnabled: v.optional(v.boolean()),  // Off by default
+    paymentProofUploadEnabled: v.optional(v.boolean()), // On by default
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"]),
+
 }, { schemaValidation: false });

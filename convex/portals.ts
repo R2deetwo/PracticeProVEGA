@@ -14,11 +14,14 @@ export const createMaintenanceTicket = mutation({
     subject: v.string(),
     description: v.string(),
     category: v.union(v.literal("plumbing"), v.literal("electrical"), v.literal("structural"), v.literal("other")),
+    attachments: v.optional(v.array(v.string())), // Convex storage IDs for images/PDFs
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const { attachments, ...rest } = args;
     return await ctx.db.insert("maintenance_tickets", {
-      ...args,
+      ...rest,
+      attachments: attachments ?? [],
       status: "open",
       priority: "medium",
       createdAt: now,
@@ -932,9 +935,12 @@ export const getTenantInfo = query({
             String(unitTenantId).toLowerCase() === args.email.toLowerCase()) {
           tenantUnits.push({
             id: unit.id || unit._id,
-            name: unit.name || unit.unitName,
+            name: unit.name || unit.unitName || unit.label,
+            unitName: unit.name || unit.unitName || unit.label,
             propertyId: String(prop._id),
             propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+            propertyAddress: prop.address,
+            amenities: unit.amenities || [],
           });
           if (unitTenantId && unitTenantId !== args.userId) {
             resolvedTenantId = unitTenantId;
@@ -943,10 +949,22 @@ export const getTenantInfo = query({
       }
     }
 
+    // Determine primary property/unit for this tenant (first match)
+    const primaryUnit = tenantUnits.length > 0 ? tenantUnits[0] : null;
+    const primaryProperty = primaryUnit
+      ? { id: primaryUnit.propertyId, name: primaryUnit.propertyName, address: primaryUnit.propertyAddress }
+      : tenantProperties.length > 0 ? tenantProperties[0] : null;
+
     return {
       tenantId: resolvedTenantId,
       properties: tenantProperties,
       units: tenantUnits,
+      // Convenience fields for maintenance ticket creation
+      primaryPropertyId: primaryProperty?.id || null,
+      primaryUnitId: primaryUnit?.id || null,
+      primaryPropertyName: primaryProperty?.name || null,
+      primaryUnitName: primaryUnit?.unitName || null,
+      primaryPropertyAddress: primaryProperty?.address || null,
     };
   },
 });
@@ -1336,5 +1354,224 @@ export const getClientMattersByUserId = query({
         assignedUsers: m.assignedUsers,
         clientId: m.clientId,
       }));
+  },
+});
+
+// ─── Portal Messaging ────────────────────────────────────────────────────
+
+/**
+ * sendPortalMessage — Allows a portal user (Tenant/Client) to send a message
+ * to their property manager / firm admin. This is only possible if the firm
+ * has enabled portal messaging in their portal settings.
+ */
+export const sendPortalMessage = mutation({
+  args: {
+    firmId: v.string(),
+    senderId: v.string(),
+    senderName: v.optional(v.string()),
+    senderEmail: v.optional(v.string()),
+    senderRole: v.string(), // "Tenant" or "Client"
+    subject: v.optional(v.string()),
+    content: v.string(),
+    attachments: v.optional(v.array(v.string())), // Convex storage IDs
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("portal_messages", {
+      firmId: args.firmId,
+      senderId: args.senderId,
+      senderName: args.senderName,
+      senderEmail: args.senderEmail,
+      senderRole: args.senderRole,
+      subject: args.subject,
+      content: args.content,
+      attachments: args.attachments ?? [],
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      status: "unread",
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+/**
+ * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
+ */
+export const getPortalMessagesByFirm = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_messages")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * getPortalMessagesBySender — Gets messages sent by a specific portal user.
+ */
+export const getPortalMessagesBySender = query({
+  args: { senderId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_messages")
+      .withIndex("by_sender", (q) => q.eq("senderId", args.senderId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * markPortalMessageRead — Marks a portal message as read.
+ */
+export const markPortalMessageRead = mutation({
+  args: { messageId: v.id("portal_messages") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.messageId, { status: "read", updatedAt: Date.now() });
+  },
+});
+
+// ─── Payment Proof Upload ────────────────────────────────────────────────
+
+/**
+ * submitPaymentProof — Allows a tenant to submit proof of payment (receipt/stub)
+ * for review by their property manager. Creates a record with the uploaded file.
+ */
+export const submitPaymentProof = mutation({
+  args: {
+    firmId: v.string(),
+    tenantId: v.string(),
+    tenantName: v.optional(v.string()),
+    tenantEmail: v.optional(v.string()),
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    period: v.optional(v.string()),
+    description: v.optional(v.string()),
+    storageIds: v.array(v.string()), // Convex storage IDs for uploaded files
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("payment_proofs", {
+      firmId: args.firmId,
+      tenantId: args.tenantId,
+      tenantName: args.tenantName,
+      tenantEmail: args.tenantEmail,
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      amount: args.amount,
+      period: args.period,
+      description: args.description,
+      storageIds: args.storageIds,
+      status: "pending_review",
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+/**
+ * getPaymentProofsByFirm — Gets all payment proof submissions for a firm (admin side).
+ */
+export const getPaymentProofsByFirm = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("payment_proofs")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * getPaymentProofsByTenant — Gets payment proof submissions by a specific tenant.
+ */
+export const getPaymentProofsByTenant = query({
+  args: { tenantId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("payment_proofs")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/**
+ * updatePaymentProofStatus — Admin updates the status of a payment proof submission.
+ */
+export const updatePaymentProofStatus = mutation({
+  args: {
+    proofId: v.id("payment_proofs"),
+    status: v.union(v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
+    adminNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { proofId, ...updates } = args;
+    await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
+  },
+});
+
+// ─── Firm Portal Settings ────────────────────────────────────────────────
+
+/**
+ * getFirmPortalSettings — Gets portal settings for a firm, including
+ * whether portal messaging is enabled for tenants and clients.
+ */
+export const getFirmPortalSettings = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query("portal_settings")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+    // Default settings if none exist
+    if (!settings) {
+      return {
+        tenantMessagingEnabled: false,
+        clientMessagingEnabled: false,
+        paymentProofUploadEnabled: true,
+      };
+    }
+    return settings;
+  },
+});
+
+/**
+ * updateFirmPortalSettings — Updates portal settings for a firm.
+ * Admins use this to enable/disable tenant messaging, client messaging, etc.
+ */
+export const updateFirmPortalSettings = mutation({
+  args: {
+    firmId: v.string(),
+    tenantMessagingEnabled: v.optional(v.boolean()),
+    clientMessagingEnabled: v.optional(v.boolean()),
+    paymentProofUploadEnabled: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const { firmId, ...updates } = args;
+    const existing = await ctx.db
+      .query("portal_settings")
+      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { ...updates, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("portal_settings", {
+        firmId,
+        ...updates,
+        tenantMessagingEnabled: updates.tenantMessagingEnabled ?? false,
+        clientMessagingEnabled: updates.clientMessagingEnabled ?? false,
+        paymentProofUploadEnabled: updates.paymentProofUploadEnabled ?? true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
   },
 });

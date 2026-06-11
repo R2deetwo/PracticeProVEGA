@@ -1,0 +1,879 @@
+     1→/**
+     2→ * TenantPortal — Atrium Residents' Portal
+     3→ *
+     4→ * Read-only portal for residents to view their financial ledger,
+     5→ * download rent receipts, check SC/MV status, log maintenance tickets,
+     6→ * and view messages from their property manager.
+     7→ *
+     8→ * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
+     9→ * Role-gated: Only users with role === 'Tenant'
+    10→ */
+    11→import React, { useState, useMemo } from 'react';
+    12→import { useQuery, useMutation } from 'convex/react';
+    13→import { api } from '../../../convex/_generated/api';
+    14→import { useAuth } from '../../contexts/AuthContext';
+    15→import { useCoreState } from '../../contexts/CoreContext';
+    16→import { useUI } from '../../contexts/UIContext';
+    17→import { useFeatures } from '../../hooks/useFeatures';
+    18→import NairaSymbol from '../NairaSymbol';
+    19→import {
+    20→  EyeIcon,
+    21→  OfficeBuildingIcon,
+    22→  DownloadIcon,
+    23→  CheckIcon,
+    24→  ExclamationTriangleIcon,
+    25→  BanknotesIcon,
+    26→  DocumentIcon,
+    27→  MailIcon,
+    28→  BellIcon,
+    29→} from '../../constants';
+    30→
+    31→// ─── Local Icons ──────────────────────────────────────────────────────────────
+    32→const ReceiptIcon: React.FC<{ className?: string }> = ({ className }) => (
+    33→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    34→    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+    35→    <path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" />
+    36→  </svg>
+    37→);
+    38→
+    39→const WrenchIcon: React.FC<{ className?: string }> = ({ className }) => (
+    40→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    41→    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    42→  </svg>
+    43→);
+    44→
+    45→const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
+    46→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    47→    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    48→  </svg>
+    49→);
+    50→
+    51→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    52→const formatNaira = (amount: number) => (
+    53→  <span className="inline-flex items-center">
+    54→    <NairaSymbol />{amount.toLocaleString()}
+    55→  </span>
+    56→);
+    57→
+    58→const formatDate = (ts: number) => {
+    59→  const d = new Date(ts);
+    60→  return d.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+    61→};
+    62→
+    63→// ─── Tab Type ─────────────────────────────────────────────────────────────────
+    64→type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages';
+    65→
+    66→// ─── Main Component ──────────────────────────────────────────────────────────
+    67→const TenantPortal: React.FC = () => {
+    68→  const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
+    69→  const { coreState } = useCoreState();
+    70→  const { addToast } = useUI();
+    71→  const { canUseTenantPortal } = useFeatures();
+    72→  const [activeTab, setActiveTab] = useState<TabId>('ledger');
+    73→
+    74→  // Access guard
+    75→  if (!currentUser) return null;
+    76→
+    77→  // SAFETY NET: Portal users with a valid Tenant role should ALWAYS be able
+    78→  // to access their portal. The canUseTenantPortal feature gate is meant to
+    79→  // control whether ADMINS can create portal invites — it should never block
+    80→  // an already-authenticated portal user from accessing their own dashboard.
+    81→  // Only show the upgrade prompt if the user is NOT a Tenant role (e.g. admin previewing).
+    82→  if (!canUseTenantPortal && currentUser.role !== 'Tenant') {
+    83→    return (
+    84→      <div className="flex items-center justify-center h-full p-8">
+    85→        <div className="text-center max-w-sm">
+    86→          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+    87→            <OfficeBuildingIcon className="w-8 h-8 text-amber-500" />
+    88→          </div>
+    89→          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Residents' Portal Unavailable</h3>
+    90→          <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+    91→            The Residents' Portal is available on Growth and Pro plans. Ask your property manager to upgrade.
+    92→          </p>
+    93→        </div>
+    94→      </div>
+    95→    );
+    96→  }
+    97→
+    98→  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    99→    { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
+   100→    { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
+   101→    { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
+   102→    { id: 'messages', label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
+   103→  ];
+   104→
+   105→  return (
+   106→    <div className="flex flex-col h-full">
+   107→      {/* Impersonation Banner — shown when admin is viewing as this tenant */}
+   108→      {originalUser && (
+   109→        <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
+   110→          <div className="flex items-center gap-2">
+   111→            <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+   112→            <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+   113→              You are previewing the portal as <strong>{currentUser.name || currentUser.email}</strong>
+   114→            </p>
+   115→          </div>
+   116→          <button
+   117→            onClick={revertToOriginalUser}
+   118→            className="px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex-shrink-0"
+   119→          >
+   120→            Return to Admin
+   121→          </button>
+   122→        </div>
+   123→      )}
+   124→      {/* Header */}
+   125→      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
+   126→        <div className="flex items-center justify-between mb-1">
+   127→          <div className="flex items-center gap-3">
+   128→            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+   129→              <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+   130→            </div>
+   131→            <div>
+   132→              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
+   133→              <p className="text-xs text-slate-500 dark:text-zinc-400">
+   134→                Welcome, {currentUser.name}
+   135→              </p>
+   136→            </div>
+   137→          </div>
+   138→          <button
+   139→            onClick={() => logout()}
+   140→            className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+   141→          >
+   142→            Sign Out
+   143→          </button>
+   144→        </div>
+   145→      </div>
+   146→
+   147→      {/* Tab Bar */}
+   148→      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6">
+   149→        <div className="flex gap-0 -mb-px overflow-x-auto">
+   150→          {tabs.map(tab => (
+   151→            <button
+   152→              key={tab.id}
+   153→              onClick={() => setActiveTab(tab.id)}
+   154→              className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+   155→                activeTab === tab.id
+   156→                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+   157→                  : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
+   158→              }`}
+   159→            >
+   160→              {tab.icon}
+   161→              <span className="hidden sm:inline">{tab.label}</span>
+   162→            </button>
+   163→          ))}
+   164→        </div>
+   165→      </div>
+   166→
+   167→      {/* Content */}
+   168→      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
+   169→        {activeTab === 'ledger' && <LedgerTab />}
+   170→        {activeTab === 'receipts' && <ReceiptsTab addToast={addToast} />}
+   171→        {activeTab === 'maintenance' && <MaintenanceTab addToast={addToast} />}
+   172→        {activeTab === 'messages' && <MessagesTab />}
+   173→      </div>
+   174→
+   175→      {/* Trust Badges */}
+   176→      <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
+   177→        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] text-slate-400 dark:text-zinc-500">
+   178→          <span className="flex items-center gap-1">
+   179→            <CheckIcon className="w-3 h-3 text-emerald-500" /> Secure Portal
+   180→          </span>
+   181→          <span className="flex items-center gap-1">
+   182→            <BanknotesIcon className="w-3 h-3 text-emerald-500" /> Payment Verified
+   183→          </span>
+   184→          <span className="flex items-center gap-1">
+   185→            <DocumentIcon className="w-3 h-3 text-emerald-500" /> Audit Trail
+   186→          </span>
+   187→        </div>
+   188→      </div>
+   189→    </div>
+   190→  );
+   191→};
+   192→
+   193→// ─── Financial Ledger Tab ────────────────────────────────────────────────────
+   194→const LedgerTab: React.FC = () => {
+   195→  const { currentUser } = useAuth();
+   196→  const { coreState } = useCoreState();
+   197→  const firmId = currentUser?.firmId || '';
+   198→  const userId = currentUser?.id || '';
+   199→  const email = currentUser?.email || '';
+   200→
+   201→  // First, resolve the correct tenant ID using getTenantInfo
+   202→  // This handles the case where properties store tenantId as email instead of Convex _id
+   203→  const tenantInfo = useQuery(
+   204→    api.portals.getTenantInfo,
+   205→    firmId && userId ? { firmId, userId, email } : 'skip'
+   206→  );
+   207→
+   208→  // Use the resolved tenantId from getTenantInfo, or fall back to currentUser.id
+   209→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   210→
+   211→  // Fetch ledger entries from Convex using the resolved tenant ID
+   212→  const ledgerEntries = useQuery(
+   213→    api.portals.getTenantLedger,
+   214→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
+   215→  );
+   216→
+   217→  // Fetch service charges from Convex to compute current SC/MV
+   218→  const serviceCharges = useQuery(
+   219→    api.sentry.getServiceChargesByFirm,
+   220→    firmId ? { firmId } : 'skip'
+   221→  );
+   222→
+   223→  const isLoading = ledgerEntries === undefined || serviceCharges === undefined;
+   224→
+   225→  // Compute tenant-specific service charges
+   226→  const tenantServiceCharges = useMemo(() => {
+   227→    if (!serviceCharges || !resolvedTenantId) return [];
+   228→    return serviceCharges.filter((sc: any) => sc.tenantId === resolvedTenantId);
+   229→  }, [serviceCharges, resolvedTenantId]);
+   230→
+   231→  // Summary calculations
+   232→  const currentMonthSC = useMemo(() => {
+   233→    return tenantServiceCharges
+   234→      .filter((sc: any) => !sc.isMinimumVend)
+   235→      .reduce((sum: number, sc: any) => sum + (sc.outstandingBalance ?? sc.amount), 0);
+   236→  }, [tenantServiceCharges]);
+   237→
+   238→  const currentMonthMV = useMemo(() => {
+   239→    return tenantServiceCharges
+   240→      .filter((sc: any) => sc.isMinimumVend)
+   241→      .reduce((sum: number, sc: any) => sum + (sc.outstandingBalance ?? sc.amount), 0);
+   242→  }, [tenantServiceCharges]);
+   243→
+   244→  const outstandingBalance = useMemo(() => {
+   245→    if (!ledgerEntries) return 0;
+   246→    return ledgerEntries
+   247→      .filter((e: any) => e.status === 'pending' || e.status === 'defaulted')
+   248→      .reduce((sum: number, e: any) => sum + e.amount, 0);
+   249→  }, [ledgerEntries]);
+   250→
+   251→  const scPaid = tenantServiceCharges.filter((sc: any) => !sc.isMinimumVend && sc.serviceChargeStatus === 'PAID_FULLY').length > 0;
+   252→  const mvStatus = tenantServiceCharges.filter((sc: any) => sc.isMinimumVend).length > 0
+   253→    ? (tenantServiceCharges.filter((sc: any) => sc.isMinimumVend && sc.serviceChargeStatus === 'PAID_FULLY').length > 0 ? 'paid' : 'pending')
+   254→    : null;
+   255→
+   256→  if (isLoading) {
+   257→    return (
+   258→      <div>
+   259→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+   260→          {[1, 2, 3].map(i => (
+   261→            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
+   262→              <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24 mb-2" />
+   263→              <div className="h-7 bg-slate-200 dark:bg-zinc-700 rounded w-32 mb-1" />
+   264→              <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-16" />
+   265→            </div>
+   266→          ))}
+   267→        </div>
+   268→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+   269→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-3" />
+   270→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
+   271→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+   272→        </div>
+   273→      </div>
+   274→    );
+   275→  }
+   276→
+   277→  const hasLedgerData = ledgerEntries && ledgerEntries.length > 0;
+   278→  const hasServiceCharges = tenantServiceCharges.length > 0;
+   279→
+   280→  return (
+   281→    <div>
+   282→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Ledger</h3>
+   283→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   284→        View your rent, Service Charge (SC), and Minimum Vend (MV) obligations and payment status.
+   285→      </p>
+   286→
+   287→      {/* Summary Cards */}
+   288→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+   289→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   290→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month SC</p>
+   291→          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+   292→            {formatNaira(currentMonthSC)}
+   293→          </p>
+   294→          {hasServiceCharges && !currentMonthSC ? (
+   295→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   296→              <CheckIcon className="w-3 h-3" /> Paid
+   297→            </span>
+   298→          ) : currentMonthSC > 0 ? (
+   299→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+   300→              <ExclamationTriangleIcon className="w-3 h-3" /> Due
+   301→            </span>
+   302→          ) : null}
+   303→        </div>
+   304→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   305→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month MV</p>
+   306→          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+   307→            {currentMonthMV > 0 ? formatNaira(currentMonthMV) : '—'}
+   308→          </p>
+   309→          {mvStatus === 'paid' ? (
+   310→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   311→              <CheckIcon className="w-3 h-3" /> Paid
+   312→            </span>
+   313→          ) : mvStatus === 'pending' ? (
+   314→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+   315→              <ExclamationTriangleIcon className="w-3 h-3" /> Pending
+   316→            </span>
+   317→          ) : null}
+   318→        </div>
+   319→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   320→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Outstanding Balance</p>
+   321→          <p className={`text-2xl font-bold ${outstandingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+   322→            {outstandingBalance > 0 ? formatNaira(outstandingBalance) : formatNaira(0)}
+   323→          </p>
+   324→          {outstandingBalance > 0 && (
+   325→            <p className="text-[10px] text-slate-400 mt-1">
+   326→              {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length || 0} unpaid {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length === 1 ? 'entry' : 'entries'}
+   327→            </p>
+   328→          )}
+   329→          {outstandingBalance === 0 && hasLedgerData && (
+   330→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   331→              <CheckIcon className="w-3 h-3" /> All Clear
+   332→            </span>
+   333→          )}
+   334→        </div>
+   335→      </div>
+   336→
+   337→      {/* Service Charges Section */}
+   338→      {hasServiceCharges && (
+   339→        <div className="mb-6">
+   340→          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Service Charges</h4>
+   341→          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+   342→            <div className="overflow-x-auto">
+   343→              <table className="w-full text-sm">
+   344→                <thead>
+   345→                  <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
+   346→                    <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Category</th>
+   347→                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
+   348→                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Outstanding</th>
+   349→                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Cycle</th>
+   350→                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
+   351→                  </tr>
+   352→                </thead>
+   353→                <tbody>
+   354→                  {tenantServiceCharges.map((sc: any) => {
+   355→                    const isMV = sc.isMinimumVend;
+   356→                    const statusLabel = sc.serviceChargeStatus === 'PAID_FULLY'
+   357→                      ? 'Paid' : sc.serviceChargeStatus === 'PARTIALLY_PAID'
+   358→                      ? 'Partial' : 'Unpaid';
+   359→                    return (
+   360→                      <tr key={sc._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
+   361→                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+   362→                          {isMV ? (sc.category === 'Other' ? 'Minimum Vend' : sc.category) : sc.category}
+   363→                          {isMV && <span className="ml-1 text-[9px] text-emerald-500 font-bold">(MV)</span>}
+   364→                        </td>
+   365→                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">{formatNaira(sc.amount)}</td>
+   366→                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+   367→                          {formatNaira(sc.outstandingBalance ?? sc.amount)}
+   368→                        </td>
+   369→                        <td className="px-4 py-3 text-center text-slate-500 dark:text-zinc-400 text-xs">{sc.cycle}</td>
+   370→                        <td className="px-4 py-3 text-center">
+   371→                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+   372→                            sc.serviceChargeStatus === 'PAID_FULLY'
+   373→                              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+   374→                              : sc.serviceChargeStatus === 'PARTIALLY_PAID'
+   375→                              ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+   376→                              : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+   377→                          }`}>
+   378→                            {sc.serviceChargeStatus === 'PAID_FULLY'
+   379→                              ? <CheckIcon className="w-3 h-3" />
+   380→                              : <ExclamationTriangleIcon className="w-3 h-3" />}
+   381→                            {statusLabel}
+   382→                          </span>
+   383→                        </td>
+   384→                      </tr>
+   385→                    );
+   386→                  })}
+   387→                </tbody>
+   388→              </table>
+   389→            </div>
+   390→          </div>
+   391→        </div>
+   392→      )}
+   393→
+   394→      {/* Ledger Table */}
+   395→      {hasLedgerData ? (
+   396→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+   397→          <div className="overflow-x-auto">
+   398→            <table className="w-full text-sm">
+   399→              <thead>
+   400→                <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
+   401→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Period</th>
+   402→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Type</th>
+   403→                  <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
+   404→                  <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
+   405→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Ref</th>
+   406→                </tr>
+   407→              </thead>
+   408→              <tbody>
+   409→                {ledgerEntries.map((entry: any) => (
+   410→                  <tr key={entry._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
+   411→                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+   412→                      {entry.period || formatDate(entry.timestamp)}
+   413→                    </td>
+   414→                    <td className="px-4 py-3 text-slate-600 dark:text-zinc-300 capitalize">
+   415→                      {entry.type?.replace('_', ' ')}
+   416→                    </td>
+   417→                    <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+   418→                      {formatNaira(entry.amount)}
+   419→                    </td>
+   420→                    <td className="px-4 py-3 text-center">
+   421→                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+   422→                        entry.status === 'cleared'
+   423→                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+   424→                          : entry.status === 'defaulted'
+   425→                          ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+   426→                          : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+   427→                      }`}>
+   428→                        {entry.status === 'cleared'
+   429→                          ? <CheckIcon className="w-3 h-3" />
+   430→                          : <ExclamationTriangleIcon className="w-3 h-3" />}
+   431→                        {entry.status === 'cleared' ? 'Paid' : entry.status === 'defaulted' ? 'Defaulted' : 'Pending'}
+   432→                      </span>
+   433→                    </td>
+   434→                    <td className="px-4 py-3 text-slate-400 dark:text-zinc-500 text-xs font-mono">
+   435→                      {entry.txHash || '—'}
+   436→                    </td>
+   437→                  </tr>
+   438→                ))}
+   439→              </tbody>
+   440→            </table>
+   441→          </div>
+   442→        </div>
+   443→      ) : (
+   444→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   445→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   446→            <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   447→          </div>
+   448→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment records found</p>
+   449→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   450→            Your property manager will add ledger entries as payments become due.
+   451→          </p>
+   452→        </div>
+   453→      )}
+   454→    </div>
+   455→  );
+   456→};
+   457→
+   458→// ─── Receipts Tab ────────────────────────────────────────────────────────────
+   459→const ReceiptsTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ addToast }) => {
+   460→  const { currentUser } = useAuth();
+   461→  const firmId = currentUser?.firmId || '';
+   462→  const userId = currentUser?.id || '';
+   463→  const email = currentUser?.email || '';
+   464→
+   465→  // Resolve the correct tenant ID
+   466→  const tenantInfo = useQuery(
+   467→    api.portals.getTenantInfo,
+   468→    firmId && userId ? { firmId, userId, email } : 'skip'
+   469→  );
+   470→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   471→
+   472→  // Fetch ledger entries — receipts are cleared entries
+   473→  const ledgerEntries = useQuery(
+   474→    api.portals.getTenantLedger,
+   475→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
+   476→  );
+   477→
+   478→  const isLoading = ledgerEntries === undefined;
+   479→
+   480→  // Filter for cleared entries (these are receipts)
+   481→  const receipts = useMemo(() => {
+   482→    if (!ledgerEntries) return [];
+   483→    return ledgerEntries.filter((e: any) => e.status === 'cleared');
+   484→  }, [ledgerEntries]);
+   485→
+   486→  const handleDownload = (entry: any) => {
+   487→    addToast('PDF generation coming soon. Your receipt details are visible below.', { type: 'info' });
+   488→  };
+   489→
+   490→  if (isLoading) {
+   491→    return (
+   492→      <div className="space-y-3">
+   493→        {[1, 2, 3].map(i => (
+   494→          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   495→            <div className="flex items-center gap-3">
+   496→              <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+   497→              <div className="flex-1">
+   498→                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-2" />
+   499→                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-32" />
+   500→              </div>
+   501→            </div>
+   502→          </div>
+   503→        ))}
+   504→      </div>
+   505→    );
+   506→  }
+   507→
+   508→  return (
+   509→    <div>
+   510→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Receipts</h3>
+   511→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   512→        View and download PDF receipts for your completed payments.
+   513→      </p>
+   514→
+   515→      {receipts.length > 0 ? (
+   516→        <div className="space-y-3">
+   517→          {receipts.map((r: any) => (
+   518→            <div
+   519→              key={r._id}
+   520→              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+   521→            >
+   522→              <div className="flex items-center gap-3 min-w-0">
+   523→                <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+   524→                  <ReceiptIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+   525→                </div>
+   526→                <div className="min-w-0 sm:min-w-0">
+   527→                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+   528→                    {r.description || `${r.type?.replace('_', ' ')} — ${r.period || formatDate(r.timestamp)}`}
+   529→                  </p>
+   530→                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+   531→                    {formatDate(r.timestamp)} · {formatNaira(r.amount)}
+   532→                    {r.paymentRef && <span className="ml-2">Ref: {r.paymentRef}</span>}
+   533→                  </p>
+   534→                </div>
+   535→              </div>
+   536→              <button
+   537→                onClick={() => handleDownload(r)}
+   538→                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+   539→              >
+   540→                <DownloadIcon className="w-3.5 h-3.5" /> PDF
+   541→              </button>
+   542→            </div>
+   543→          ))}
+   544→        </div>
+   545→      ) : (
+   546→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   547→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   548→            <DownloadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   549→          </div>
+   550→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No receipts yet</p>
+   551→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   552→            Receipts will appear here after your payments are confirmed.
+   553→          </p>
+   554→        </div>
+   555→      )}
+   556→    </div>
+   557→  );
+   558→};
+   559→
+   560→// ─── Maintenance Tab ─────────────────────────────────────────────────────────
+   561→const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ addToast }) => {
+   562→  const { currentUser } = useAuth();
+   563→  const { coreState } = useCoreState();
+   564→  const firmId = currentUser?.firmId || '';
+   565→  const userId = currentUser?.id || '';
+   566→  const email = currentUser?.email || '';
+   567→
+   568→  // Resolve the correct tenant ID
+   569→  const tenantInfo = useQuery(
+   570→    api.portals.getTenantInfo,
+   571→    firmId && userId ? { firmId, userId, email } : 'skip'
+   572→  );
+   573→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   574→
+   575→  const [subject, setSubject] = useState('');
+   576→  const [description, setDescription] = useState('');
+   577→  const [category, setCategory] = useState<'plumbing' | 'electrical' | 'structural' | 'other'>('other');
+   578→  const [isSubmitting, setIsSubmitting] = useState(false);
+   579→
+   580→  // Fetch tickets from Convex
+   581→  const tickets = useQuery(
+   582→    api.portals.getMaintenanceTicketsByTenant,
+   583→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+   584→  );
+   585→
+   586→  // Mutation for creating a ticket
+   587→  const createTicket = useMutation(api.portals.createMaintenanceTicket);
+   588→
+   589→  // Find the tenant's property to get propertyId
+   590→  const tenantProperty = useMemo(() => {
+   591→    if (!coreState?.properties) return null;
+   592→    return coreState.properties.find(
+   593→      (p: any) => p.currentTenantId === resolvedTenantId || p.tenantId === resolvedTenantId
+   594→    );
+   595→  }, [coreState?.properties, resolvedTenantId]);
+   596→
+   597→  const handleSubmit = async () => {
+   598→    if (!subject.trim() || !description.trim()) {
+   599→      addToast('Please fill in all fields before submitting.', { type: 'info' });
+   600→      return;
+   601→    }
+   602→    if (!tenantProperty) {
+   603→      addToast('No property found for your account. Please contact your property manager.', { type: 'error' });
+   604→      return;
+   605→    }
+   606→
+   607→    setIsSubmitting(true);
+   608→    try {
+   609→      await createTicket({
+   610→        firmId,
+   611→        propertyId: tenantProperty.id,
+   612→        tenantId: resolvedTenantId,
+   613→        tenantName: currentUser?.name || undefined,
+   614→        subject: subject.trim(),
+   615→        description: description.trim(),
+   616→        category,
+   617→      });
+   618→      addToast('Maintenance ticket submitted successfully. Your property manager has been notified.', { type: 'success' });
+   619→      setSubject('');
+   620→      setDescription('');
+   621→      setCategory('other');
+   622→    } catch (err: any) {
+   623→      addToast(err.message || 'Failed to submit ticket. Please try again.', { type: 'error' });
+   624→    } finally {
+   625→      setIsSubmitting(false);
+   626→    }
+   627→  };
+   628→
+   629→  const isLoading = tickets === undefined;
+   630→
+   631→  const getStatusBadge = (status: string) => {
+   632→    const config: Record<string, { bg: string; text: string; label: string }> = {
+   633→      open: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', label: 'Open' },
+   634→      in_progress: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', label: 'In Progress' },
+   635→      resolved: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', label: 'Resolved' },
+   636→      closed: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-600 dark:text-zinc-400', label: 'Closed' },
+   637→    };
+   638→    const c = config[status] || config.open;
+   639→    return (
+   640→      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+   641→        {status === 'resolved' || status === 'closed' ? <CheckIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
+   642→        {c.label}
+   643→      </span>
+   644→    );
+   645→  };
+   646→
+   647→  return (
+   648→    <div>
+   649→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Maintenance Tickets</h3>
+   650→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   651→        Log maintenance issues directly into your property manager's workflow.
+   652→      </p>
+   653→
+   654→      {/* New Ticket Form */}
+   655→      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+   656→        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Report New Issue</h4>
+   657→        <div className="space-y-3">
+   658→          <div>
+   659→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Category</label>
+   660→            <select
+   661→              value={category}
+   662→              onChange={e => setCategory(e.target.value as any)}
+   663→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+   664→            >
+   665→              <option value="plumbing">Plumbing</option>
+   666→              <option value="electrical">Electrical</option>
+   667→              <option value="structural">Structural / Roof</option>
+   668→              <option value="other">Other</option>
+   669→            </select>
+   670→          </div>
+   671→          <div>
+   672→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Subject</label>
+   673→            <input
+   674→              value={subject}
+   675→              onChange={e => setSubject(e.target.value)}
+   676→              placeholder="e.g., Leaking roof in bedroom"
+   677→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+   678→            />
+   679→          </div>
+   680→          <div>
+   681→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description</label>
+   682→            <textarea
+   683→              value={description}
+   684→              onChange={e => setDescription(e.target.value)}
+   685→              placeholder="Describe the issue in detail..."
+   686→              rows={3}
+   687→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+   688→            />
+   689→          </div>
+   690→          <button
+   691→            onClick={handleSubmit}
+   692→            disabled={isSubmitting}
+   693→            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+   694→          >
+   695→            {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+   696→          </button>
+   697→        </div>
+   698→      </div>
+   699→
+   700→      {/* Existing Tickets */}
+   701→      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Your Tickets</h4>
+   702→      {isLoading ? (
+   703→        <div className="space-y-2">
+   704→          {[1, 2].map(i => (
+   705→            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   706→              <div className="flex items-center gap-3">
+   707→                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+   708→                <div className="flex-1">
+   709→                  <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-40 mb-2" />
+   710→                  <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+   711→                </div>
+   712→              </div>
+   713→            </div>
+   714→          ))}
+   715→        </div>
+   716→      ) : tickets && tickets.length > 0 ? (
+   717→        <div className="space-y-2">
+   718→          {tickets.map((t: any) => (
+   719→            <div
+   720→              key={t._id}
+   721→              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-row items-start sm:items-center justify-between gap-3"
+   722→            >
+   723→              <div className="flex items-center gap-3 min-w-0">
+   724→                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+   725→                  t.status === 'resolved' || t.status === 'closed'
+   726→                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+   727→                    : t.status === 'in_progress'
+   728→                    ? 'bg-blue-50 dark:bg-blue-900/20'
+   729→                    : 'bg-amber-50 dark:bg-amber-900/20'
+   730→                }`}>
+   731→                  <WrenchIcon className={`w-4 h-4 ${
+   732→                    t.status === 'resolved' || t.status === 'closed'
+   733→                      ? 'text-emerald-600 dark:text-emerald-400'
+   734→                      : t.status === 'in_progress'
+   735→                      ? 'text-blue-600 dark:text-blue-400'
+   736→                      : 'text-amber-600 dark:text-amber-400'
+   737→                  }`} />
+   738→                </div>
+   739→                <div className="min-w-0">
+   740→                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
+   741→                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+   742→                    {t.category && <span className="capitalize">{t.category}</span>}
+   743→                    {t.category && ' · '}
+   744→                    {formatDate(t.createdAt)}
+   745→                  </p>
+   746→                </div>
+   747→              </div>
+   748→              <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
+   749→            </div>
+   750→          ))}
+   751→        </div>
+   752→      ) : (
+   753→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   754→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   755→            <WrenchIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   756→          </div>
+   757→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No maintenance tickets</p>
+   758→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   759→            Use the form above to report any issues in your unit.
+   760→          </p>
+   761→        </div>
+   762→      )}
+   763→    </div>
+   764→  );
+   765→};
+   766→
+   767→// ─── Messages Tab ────────────────────────────────────────────────────────────
+   768→const MessagesTab: React.FC = () => {
+   769→  const { currentUser } = useAuth();
+   770→  const userId = currentUser?.id || '';
+   771→  const firmId = currentUser?.firmId || '';
+   772→  const email = currentUser?.email || '';
+   773→
+   774→  // Resolve the correct tenant ID
+   775→  const tenantInfo = useQuery(
+   776→    api.portals.getTenantInfo,
+   777→    firmId && userId ? { firmId, userId, email } : 'skip'
+   778→  );
+   779→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   780→
+   781→  // Fetch inbound messages for this tenant from Convex
+   782→  const messages = useQuery(
+   783→    api.portals.getInboundMessagesByTenant,
+   784→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+   785→  );
+   786→
+   787→  const isLoading = messages === undefined;
+   788→
+   789→  const getChannelIcon = (channel: string) => {
+   790→    switch (channel) {
+   791→      case 'whatsapp':
+   792→        return (
+   793→          <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="currentColor">
+   794→            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+   795→          </svg>
+   796→        );
+   797→      case 'email':
+   798→        return <MailIcon className="w-4 h-4 text-blue-500" />;
+   799→      case 'sms':
+   800→        return <ChatIcon className="w-4 h-4 text-violet-500" />;
+   801→      default:
+   802→        return <BellIcon className="w-4 h-4 text-slate-400" />;
+   803→    }
+   804→  };
+   805→
+   806→  if (isLoading) {
+   807→    return (
+   808→      <div className="space-y-3">
+   809→        {[1, 2, 3].map(i => (
+   810→          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   811→            <div className="flex items-start gap-3">
+   812→              <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+   813→              <div className="flex-1">
+   814→                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
+   815→                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+   816→              </div>
+   817→            </div>
+   818→          </div>
+   819→        ))}
+   820→      </div>
+   821→    );
+   822→  }
+   823→
+   824→  return (
+   825→    <div>
+   826→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Messages</h3>
+   827→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   828→        Recent messages from your property manager.
+   829→      </p>
+   830→
+   831→      {messages && messages.length > 0 ? (
+   832→        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+   833→          {messages.map((msg: any) => (
+   834→            <div
+   835→              key={msg._id}
+   836→              className={`bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 ${
+   837→                !msg.isRead ? 'border-l-4 border-l-emerald-400' : ''
+   838→              }`}
+   839→            >
+   840→              <div className="flex items-start gap-3">
+   841→                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+   842→                  {getChannelIcon(msg.channel)}
+   843→                </div>
+   844→                <div className="flex-1 min-w-0">
+   845→                  <div className="flex items-center gap-2 mb-1">
+   846→                    {msg.senderName && (
+   847→                      <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">{msg.senderName}</span>
+   848→                    )}
+   849→                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">{msg.channel}</span>
+   850→                    {!msg.isRead && (
+   851→                      <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+   852→                    )}
+   853→                  </div>
+   854→                  <p className="text-sm text-slate-700 dark:text-zinc-300 break-words">{msg.content}</p>
+   855→                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+   856→                    {formatDate(msg.receivedAt)}
+   857→                  </p>
+   858→                </div>
+   859→              </div>
+   860→            </div>
+   861→          ))}
+   862→        </div>
+   863→      ) : (
+   864→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   865→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   866→            <ChatIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   867→          </div>
+   868→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No messages</p>
+   869→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   870→            No messages from your property manager.
+   871→          </p>
+   872→        </div>
+   873→      )}
+   874→    </div>
+   875→  );
+   876→};
+   877→
+   878→export default TenantPortal;
+   879→
