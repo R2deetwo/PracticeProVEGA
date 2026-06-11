@@ -13,10 +13,12 @@ export const sendEmail = action({
     recordLog: v.optional(v.boolean()),
   },
   handler: async (_ctx, args) => {
-    const BREVO_API_KEY = process.env.BREVO_API_KEY;
+    // Use the same env var as myFunctions.ts sendBrevoEmail (PracticePro_Vega_Mailer)
+    // Fall back to BREVO_API_KEY for backwards compatibility
+    const BREVO_API_KEY = process.env.PracticePro_Vega_Mailer || process.env.BREVO_API_KEY;
 
     if (!BREVO_API_KEY) {
-      console.warn("[Brevo] BREVO_API_KEY not set — simulating email send.");
+      console.warn("[Brevo] No API key set (PracticePro_Vega_Mailer / BREVO_API_KEY) — simulating email send.");
       return { success: true, simulated: true };
     }
 
@@ -29,7 +31,7 @@ export const sendEmail = action({
           "api-key": BREVO_API_KEY,
         },
         body: JSON.stringify({
-          sender: { name: "Sentry Property Management", email: process.env.BREVO_SENDER_EMAIL || "noreply@sentry.ng" },
+          sender: { name: "PracticePro", email: process.env.BREVO_SENDER_EMAIL || "practiceprovega@gmail.com" },
           to: [{ email: args.to, name: args.toName || args.to }],
           subject: args.subject,
           htmlContent: args.htmlContent,
