@@ -58,3 +58,23 @@ Stage Summary:
 - Portal users have visual indicators distinguishing them from team members
 - Preview portal button navigates to portal view after impersonation
 - Sign out buttons added to both portal dashboards
+---
+Task ID: portal-fixes-3
+Agent: Main Agent
+Task: Fix portal users blocked by "speak to administrator/manager" screen - comprehensive portal access fix
+
+Work Log:
+- Diagnosed ROOT CAUSE: DataProvider skips firm data loading for portal users (Client/Tenant), causing useFeatures() to default to Core plan. This makes canUseClientPortal and canUseTenantPortal return false, showing "Portal Unavailable" / "Residents' Portal Unavailable" screens instead of the actual portal dashboard.
+- Added getFirmBasicInfo query to convex/myFunctions.ts - lightweight query that returns just the firm record (subscriptionPlan, product, etc.) without loading all the heavy data
+- Modified DataProvider to load firm basic info for portal users via getFirmBasicInfo and merge into appState.firmDetails so useFeatures works correctly
+- Modified useFeatures to add currentUser-based fallback for plan/product derivation - portal users assume Komplete access until firm data loads
+- Fixed ClientDashboard to skip canUseClientPortal gate for authenticated Client role users - portal users with valid accounts should ALWAYS access their portal regardless of feature gate
+- Fixed TenantPortal to skip canUseTenantPortal gate for authenticated Tenant role users - same safety net
+- Fixed "invitation already accepted" dead-end in verifyInviteToken and setupPortalPassword by checking if user's role is Pending or isVerified is false - allows re-acceptance after portal access deletion
+- Committed and pushed to git: commit 27d3eb0
+
+Stage Summary:
+- ROOT CAUSE FIXED: Portal users can now access their portal dashboards because firm data is loaded for them
+- Double safety net: Both DataProvider loads firm data AND portal components skip feature gates for correct roles
+- "Already accepted" error fixed for re-invite scenarios where user was reset but stale invite remains
+- All changes pushed to git (main branch)
