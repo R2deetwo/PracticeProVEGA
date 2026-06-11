@@ -264,3 +264,23 @@ Stage Summary:
 - Tenant Portal restored to amber/orange accent as requested
 - Both portals use Logo + PracticePro + product badge + tagline pattern
 
+---
+Task ID: 1
+Agent: Main Agent
+Task: Portal branding updates, Residents' Portal rename, modal latency fix, Client Portal doc upload
+
+Work Log:
+- Read ClientPortalLogin.tsx, TenantPortalLogin.tsx, LandingPage.tsx, UIContext.tsx, Modal.tsx, Login.tsx, Signup.tsx, TenantPortal.tsx, App.tsx, tiers.ts, useFeatures.ts, HelpSettings.tsx
+- Identified modal latency root cause: double-rAF pattern in Modal.tsx + 200ms animation + overshoot bezier easing
+- Removed "Building systems for Nigerian Firms." tagline from both portal login pages
+- Fixed branding colors: VEGA badge = text-amber-500 (orangeish), ATRIUM badge = text-violet-400 (lilacy blue), Logo = text-primary-500 (brand green), PracticePro = white + brand green Pro
+- Added document upload capability to Client Portal feature description ("upload and access documents")
+- Renamed "Tenant Portal" to "Residents' Portal" across: TenantPortalLogin.tsx, TenantPortal.tsx, LandingPage.tsx, tiers.ts, useFeatures.ts, HelpSettings.tsx
+- Updated LandingPage footer VEGA/ATRIUM badge colors to match portal scheme (amber/violet)
+- Fixed Modal.tsx latency: single rAF instead of double-rAF, 150ms duration instead of 200ms, ease-out instead of overshoot bezier, reduced translate-y offset, removed redundant child animate-in wrapper
+- Verified Vite build passes, committed and pushed to Vercel
+
+Stage Summary:
+- All 6 user requests completed and deployed
+- Key files changed: ClientPortalLogin.tsx, TenantPortalLogin.tsx, LandingPage.tsx, Modal.tsx, TenantPortal.tsx, tiers.ts, useFeatures.ts, HelpSettings.tsx
+- Modal should now feel significantly snappier (~80ms faster open time)
