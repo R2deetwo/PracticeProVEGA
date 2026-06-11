@@ -315,7 +315,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
                     </SettingsCard>
                 </div>
             )}
-            <FeedbackButton />
+            {activeSubTab === 'general' && <FeedbackButton />}
         </div>
     );
 };
