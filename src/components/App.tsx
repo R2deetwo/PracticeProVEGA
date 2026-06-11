@@ -61,7 +61,6 @@ import ToastContainer from './ToastContainer';
 import DemoProductSwitcher from './DemoProductSwitcher';
 
 import { LandingPage } from './LandingPage';
-import FeedbackButton from './FeedbackButton';
 import BottomNav from './BottomNav';
 import FullScreenSearch from './FullScreenSearch';
 import AloaPanel from './aloa/AloaPanel';
@@ -390,7 +389,6 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     <AloaPanel />
                     <CommandPalette />
                     <FullScreenSearch />
-                    {view === 'settings' && <FeedbackButton />}
                 </>
             )}
         </div>
@@ -634,8 +632,6 @@ export const App: React.FC = () => {
         }
     }, [splashAnimationComplete, isDataLoaded]);
 
-    const shouldShowFeedbackButton = currentUser && view === 'settings' && flowState === 'app';
-
     return (
         <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
             <SplashScreen 
@@ -657,7 +653,6 @@ export const App: React.FC = () => {
                     <ToastContainer />
                 </>
             )}
-            {shouldShowFeedbackButton && <FeedbackButton />}
             <OnboardingTour />
             {flowState === 'app' && currentUser && <WhatsNew />}
             <CookieConsent />

@@ -142,6 +142,8 @@ export const createPortalInvite = action({
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="text-align:center;">
+                    <img src="https://practice-pro-vega.vercel.app/logo.png" alt="PracticePro" width="40" height="40" style="display:inline-block;width:40px;height:40px;margin-bottom:8px;border-radius:8px;" />
+                    <br/>
                     <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#f59e0b;">Pro</span></span>
                     <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${productName}</span>
                   </td>
@@ -197,6 +199,8 @@ export const createPortalInvite = action({
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td style="text-align:center;">
+                    <img src="https://practice-pro-vega.vercel.app/logo.png" alt="PracticePro" width="20" height="20" style="display:inline-block;width:20px;height:20px;margin-bottom:6px;opacity:0.4;border-radius:4px;" />
+                    <br/>
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">
                       PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
                     </p>
@@ -329,6 +333,8 @@ export const resendPortalInvite = action({
         <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
           <tr>
             <td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;border-bottom:3px solid #f59e0b;">
+              <img src="https://practice-pro-vega.vercel.app/logo.png" alt="PracticePro" width="40" height="40" style="display:inline-block;width:40px;height:40px;margin-bottom:8px;border-radius:8px;" />
+              <br/>
               <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;">Practice<span style="color:#f59e0b;">Pro</span></span>
               <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${productName}</span>
             </td>
@@ -368,8 +374,12 @@ export const resendPortalInvite = action({
           </tr>
           <tr>
             <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid rgba(255,255,255,0.04);border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
-              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;text-align:center;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
-              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;text-align:center;">NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted</p>
+              <div style="text-align:center;">
+                <img src="https://practice-pro-vega.vercel.app/logo.png" alt="PracticePro" width="20" height="20" style="display:inline-block;width:20px;height:20px;margin-bottom:6px;opacity:0.4;border-radius:4px;" />
+                <br/>
+                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
+                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;">NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted</p>
+              </div>
             </td>
           </tr>
         </table>

@@ -13,6 +13,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery, useAction } from 'convex/react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -30,6 +31,7 @@ type Step = 'loading' | 'invalid' | 'form' | 'submitting' | 'success';
 const SetupPassword: React.FC = () => {
     const { login } = useAuth();
     const { addToast } = useUI();
+    const navigate = useNavigate();
 
     // URL token
     const [token, setToken] = useState<string | null>(null);
@@ -140,12 +142,12 @@ const SetupPassword: React.FC = () => {
                     try {
                         const loginResult = await login(result.email!, password);
                         if (loginResult.success) {
-                            // Redirect to the appropriate portal
+                            // Redirect to the appropriate portal login page
                             const portalType = inviteData?.invite?.portalType;
                             if (portalType === 'client') {
-                                window.location.href = '/portal/client/login';
+                                navigate('/portal/client/login', { replace: true });
                             } else {
-                                window.location.href = '/portal/tenant/login';
+                                navigate('/portal/tenant/login', { replace: true });
                             }
                         } else {
                             setLoginError('Your password has been set! Please sign in using the button below.');
@@ -220,7 +222,7 @@ const SetupPassword: React.FC = () => {
                         <h1 className="text-xl font-bold text-white mb-3">{msg.title}</h1>
                         <p className="text-sm text-slate-400 leading-relaxed mb-6">{msg.body}</p>
                         <button
-                            onClick={() => { window.location.href = '/'; }}
+                            onClick={() => { navigate('/'); }}
                             className="px-6 py-3 rounded-xl text-slate-300 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.08] transition-all"
                         >
                             Back to PracticePro
@@ -229,7 +231,7 @@ const SetupPassword: React.FC = () => {
                             <button
                                 onClick={() => {
                                     const isClient = inviteData?.invite?.portalType === 'client';
-                                    window.location.href = isClient ? '/portal/client/login' : '/portal/tenant/login';
+                                    navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                 }}
                                 className="ml-3 px-6 py-3 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-400 transition-all"
                             >
@@ -286,7 +288,7 @@ const SetupPassword: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         const isClient = inviteData?.invite?.portalType === 'client';
-                                        window.location.href = isClient ? '/portal/client/login' : '/portal/tenant/login';
+                                        navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                     }}
                                     className="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all"
                                 >
@@ -479,7 +481,7 @@ const SetupPassword: React.FC = () => {
                             </button>
 
                             <button
-                                onClick={() => { window.location.href = '/'; }}
+                                onClick={() => { navigate('/'); }}
                                 disabled={step === 'submitting'}
                                 className="w-full py-3 rounded-xl text-slate-400 text-sm font-medium hover:text-white hover:bg-white/[0.04] border border-white/[0.06] transition-all disabled:opacity-50"
                             >

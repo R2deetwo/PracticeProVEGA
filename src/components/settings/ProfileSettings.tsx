@@ -7,6 +7,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { LockClosedIcon, ZapIcon, TrashIcon, UserCircleIcon, DesktopComputerIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
+import FeedbackButton from '../FeedbackButton';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
@@ -314,6 +315,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
                     </SettingsCard>
                 </div>
             )}
+            <FeedbackButton />
         </div>
     );
 };
