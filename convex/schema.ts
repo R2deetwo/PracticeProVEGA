@@ -979,7 +979,12 @@ export default defineSchema({
       v.literal("service_charge_alert"),
       v.literal("access_restriction"),
       v.literal("penalty_notice"),
-      v.literal("lease_renewal")
+      v.literal("lease_renewal"),
+      v.literal("welcome_note"),
+      v.literal("promotion"),
+      v.literal("vendor_update"),
+      v.literal("general_announcement"),
+      v.literal("maintenance_update")
     ),
     channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
     recipient: v.string(), 
@@ -1083,5 +1088,72 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_createdAt", ["createdAt"])
     .index("by_email", ["email"]),
+
+  maintenance_tickets: defineTable({
+    firmId: v.string(),
+    propertyId: v.string(),
+    unitId: v.optional(v.string()),
+    tenantId: v.optional(v.string()),       // userId of the tenant who submitted
+    tenantName: v.optional(v.string()),
+    subject: v.string(),
+    description: v.string(),
+    category: v.union(v.literal("plumbing"), v.literal("electrical"), v.literal("structural"), v.literal("other")),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    assignedTo: v.optional(v.string()),     // userId of staff assigned
+    resolution: v.optional(v.string()),
+    images: v.optional(v.array(v.string())), // storageIds for attached images
+    createdAt: v.number(),
+    updatedAt: v.number(),
+})
+    .index("by_firm", ["firmId"])
+    .index("by_property", ["propertyId"])
+    .index("by_tenant", ["tenantId"])
+    .index("by_status", ["status"])
+    .index("by_firm_status", ["firmId", "status"]),
+
+  portal_invites: defineTable({
+    firmId: v.string(),
+    inviterId: v.string(),                  // userId of the person who sent the invite
+    inviteeEmail: v.string(),
+    inviteeName: v.optional(v.string()),
+    inviteePhone: v.optional(v.string()),
+    portalType: v.union(v.literal("client"), v.literal("resident")),
+    relatedId: v.optional(v.string()),      // matterId for client, propertyId for resident
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked")),
+    message: v.optional(v.string()),
+    acceptedAt: v.optional(v.number()),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+})
+    .index("by_firm", ["firmId"])
+    .index("by_email", ["inviteeEmail"])
+    .index("by_status", ["status"])
+    .index("by_firm_status", ["firmId", "status"]),
+
+  scheduled_messages: defineTable({
+    firmId: v.string(),
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+    tenantIds: v.optional(v.array(v.string())),  // multiple recipients
+    messageType: v.string(),
+    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
+    content: v.string(),
+    scheduledFor: v.number(),               // timestamp when it should go out
+    status: v.union(v.literal("scheduled"), v.literal("sent"), v.literal("failed"), v.literal("cancelled")),
+    sentAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+    isAutomation: v.optional(v.boolean()),  // true if triggered by automation rule
+    automationRuleId: v.optional(v.string()),
+    triggeredBy: v.optional(v.string()),    // userId if manually triggered
+    createdAt: v.number(),
+    updatedAt: v.number(),
+})
+    .index("by_firm", ["firmId"])
+    .index("by_status", ["status"])
+    .index("by_scheduled", ["scheduledFor"])
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_automation", ["isAutomation"]),
 
 }, { schemaValidation: false });

@@ -27,6 +27,7 @@ import type * as legalRepo from "../legalRepo.js";
 import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as migrations from "../migrations.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as portals from "../portals.js";
 import type * as productPermissions from "../productPermissions.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   "lib/withAuth": typeof lib_withAuth;
   migrations: typeof migrations;
   myFunctions: typeof myFunctions;
+  portals: typeof portals;
   productPermissions: typeof productPermissions;
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;
