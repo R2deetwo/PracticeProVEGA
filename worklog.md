@@ -21,3 +21,36 @@ Stage Summary:
 - Convex backend extended with revoke/resend invite mutations
 - All recent changes are responsive across mobile/tablet/desktop
 - Build passes successfully
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix footer Company column orphan positioning + Fix portal invite system (spinning button, no actual delivery)
+
+Work Log:
+- Fixed footer: Company column now uses md:col-start-4 so it stays on far right even when Product/Portals columns are not rendered
+- Changed footer grid to always be 4-column with conditional rendering for Product/Portals
+- Diagnosed root cause of spinning invite button: createPortalInvite was a mutation (cannot call actions like sendEmail/sendWhatsApp)
+- Converted createPortalInvite from mutation to action — now generates crypto-random token, writes DB record, then calls sendEmail/sendWhatsApp
+- Added token field to portal_invites schema + by_token index
+- Added channel field to portal_invites schema ("email" | "whatsapp" | "both")
+- Created professional HTML email template with branded PracticePro styling
+- Created WhatsApp message template with invite link + token
+- Added channel picker (Email / WhatsApp / Both) to invite form
+- Auto-populate name/phone/email from linked matter (Vega) or property (Atrium) tenant data
+- Converted resendPortalInvite to action — refreshes token on SAME record (no duplicates), re-sends via stored channel
+- Portal login pages now read ?token= from URL, look up invite via getInviteByToken, auto-fill email, show invite banner, and call acceptPortalInviteByToken on successful login
+- Copy invite link now includes token for magic-link sharing
+- Added ChannelBadge to invitation list showing delivery method
+- Added getInviteByToken query, acceptPortalInviteByToken mutation, _insertInviteRecord mutation, _updateInviteRecord mutation, getPortalInviteById query
+- Removed Portal URL section from settings (replaced by per-invite magic links)
+- Build passes, pushed to Git
+
+Stage Summary:
+- Footer Company column no longer orphaned — stays on far right always
+- Portal invites NOW ACTUALLY SEND via Brevo email and/or Chakra WhatsApp
+- Magic-link tokens auto-fill email on portal login pages
+- Channel picker lets users choose Email, WhatsApp, or Both
+- Auto-populate from linked records reduces form filling
+- Resend works properly — no more duplicates, refreshes existing record
+- All changes pushed to origin/main
