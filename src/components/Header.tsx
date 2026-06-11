@@ -163,6 +163,26 @@ const Header: React.FC = React.memo(() => {
             )}
 
             <div className="flex items-center">
+                {/* Mobile: Back/Forward navigation buttons */}
+                <div className="md:hidden flex items-center -ml-1">
+                    <button
+                        onClick={goBack}
+                        disabled={!canGoBack}
+                        className={`p-2 rounded-lg transition-colors ${canGoBack ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
+                        aria-label="Go back"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <button
+                        onClick={goForward}
+                        disabled={!canGoForward}
+                        className={`p-2 rounded-lg transition-colors ${canGoForward ? 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 active:bg-slate-200 dark:active:bg-zinc-600' : 'text-slate-300 dark:text-zinc-600'}`}
+                        aria-label="Go forward"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                </div>
+
                 <div className="md:hidden mr-2">
                     <Logo className="h-8 w-8 text-primary-500" />
                 </div>

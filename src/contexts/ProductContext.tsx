@@ -15,6 +15,16 @@ interface Terminology {
   activeMatters: string;
 }
 
+/** Role-derived signer context for KOMPLETE (unified) mode. */
+export interface SignerContext {
+  /** The user's actual name from their profile (e.g. "Barr. Chukwuma Okafor") */
+  signerName: string;
+  /** A human-readable title/role the user has set (e.g. "Principal Counsel", "Managing Director", "Property Consultant") */
+  signerTitle: string;
+  /** The raw UserRole enum value from the user profile */
+  userRole: string;
+}
+
 interface ProductContextValue {
   product: ProductType;
   isLegal: boolean;
@@ -23,6 +33,8 @@ interface ProductContextValue {
   isVega: boolean;
   isAtrium: boolean;
   terminology: Terminology;
+  /** Only populated when `isUnified` (KOMPLETE). VEGA/ATRIUM derive role from product variant. */
+  signerContext: SignerContext | null;
 }
 
 const ProductContext = createContext<ProductContextValue>({
@@ -41,7 +53,8 @@ const ProductContext = createContext<ProductContextValue>({
     stage: 'Stage',
     newMatter: 'New Matter',
     activeMatters: 'Active Matters'
-  }
+  },
+  signerContext: null,
 });
 
 export function ProductProvider({ children }: { children?: ReactNode }) {
@@ -95,7 +108,36 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       activeMatters: usePropertyTerms ? 'Active Properties' : 'Active Matters',
     };
 
-    return { product, isLegal, isProperty, isUnified, isVega, isAtrium, terminology };
+    // ── Signer Context (KOMPLETE / Unified only) ──────────────────────────
+    // In VEGA, the user is always "Solicitor". In ATRIUM, always "Property Manager".
+    // In KOMPLETE, we must derive the signer identity from the user's profile —
+    // we never guess or assume "lawyer" vs "property manager".
+    let signerContext: SignerContext | null = null;
+    if (isUnified && currentUser) {
+      // Derive a human-readable title from the user's role.
+      // The user may also have a custom `signerTitle` stored in firmDetails.settings.
+      const customTitle = (appState?.firmDetails as any)?.settings?.signerTitle as string | undefined;
+      const userRole = currentUser.role || '';
+
+      // Default title mapping from UserRole enum
+      const defaultTitleMap: Record<string, string> = {
+        Admin: 'Administrator',
+        Lawyer: 'Solicitor',
+        Paralegal: 'Paralegal',
+        'External Counsel': 'External Counsel',
+        Client: 'Client',
+        Tenant: 'Tenant',
+        Pending: 'User',
+      };
+
+      signerContext = {
+        signerName: currentUser.name || '',
+        signerTitle: customTitle || defaultTitleMap[userRole] || userRole || 'User',
+        userRole,
+      };
+    }
+
+    return { product, isLegal, isProperty, isUnified, isVega, isAtrium, terminology, signerContext };
   }, [currentUser, isDataLoaded, appState?.firmDetails]);
 
   return (
@@ -117,3 +159,5 @@ export function useIsLegal() { return useProduct().isLegal; }
 export function useIsProperty() { return useProduct().isProperty; }
 export function useIsUnified() { return useProduct().isUnified; }
 export function useIsAtrium() { return useProduct().isAtrium; }
+/** Returns signer context (only populated for KOMPLETE/unified mode). */
+export function useSignerContext() { return useProduct().signerContext; }

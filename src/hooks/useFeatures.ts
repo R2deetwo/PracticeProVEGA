@@ -54,6 +54,8 @@ export const useFeatures = () => {
         isPropertyFirm,
         isLegalFirm,
         isKompleteFirm,
+        isGrowthOrAbove,
+        isKompletePlan,
 
         // --- FEATURE GATES ---
 

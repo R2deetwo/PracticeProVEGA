@@ -910,3 +910,84 @@ span[data-type="legal-placeholder"] {
 .animate-swap-in {
   animation: swap-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ─── Print Styles ──────────────────────────────────────────────────────── */
+@media print {
+  /* Hide non-essential UI elements when printing */
+  nav,
+  button,
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Ensure backgrounds print for key content */
+  body {
+    background: white !important;
+    color: #1e293b !important;
+    font-size: 12pt;
+  }
+
+  /* Remove shadows and borders for cleaner print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Ensure links show their URL in print */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #64748b;
+  }
+
+  /* Prevent page breaks inside important elements */
+  .print-no-break {
+    page-break-inside: avoid;
+  }
+
+  /* ─── Communication Print View Styles ─────────────────────────── */
+  .print-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  .print-letterhead {
+    border-bottom: 2px solid #e2e8f0 !important;
+    padding: 24pt 36pt !important;
+  }
+
+  .print-comm-entry {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* A4 page setup */
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm 2cm;
+  }
+
+  /* Force the print view overlay to be the only thing printed */
+  body > *:not(.print-content):not(script):not(style) {
+    display: none !important;
+  }
+
+  /* Make the fixed overlay take full page */
+  .fixed.inset-0 {
+    position: static !important;
+    inset: auto !important;
+    background: white !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Hide the screen-only header bar in print */
+  .print\:hidden {
+    display: none !important;
+  }
+}

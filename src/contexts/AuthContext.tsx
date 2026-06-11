@@ -8,10 +8,12 @@ const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
 
 // Helper to determine if we're on a portal route
+// Checks both sessionStorage (same-tab) and localStorage (cross-tab/persistent)
 const isPortalRoute = () => {
     try {
         return window.location.pathname.startsWith('/portal/') ||
-               sessionStorage.getItem('practicepro_portal_type') !== null;
+               sessionStorage.getItem('practicepro_portal_type') !== null ||
+               localStorage.getItem('practicepro_portal_type') !== null;
     } catch {
         return false;
     }
@@ -173,14 +175,24 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         return combined;
     }, [userData, sessionToken, localUserOverrides]);
 
-    // Persist portal type to sessionStorage so we can redirect correctly on refresh/logout.
+    // Persist portal type to BOTH sessionStorage and localStorage so we can
+    // redirect correctly on refresh/logout. localStorage ensures the portal type
+    // survives tab closure and cross-tab navigation, fixing the session persistence
+    // bug where portal users get kicked to the landing page on refresh.
     // This is a side-effect of currentUser changing, not part of the memo.
     React.useEffect(() => {
         if (currentUser) {
             if (currentUser.role === UserRole.Client) {
                 sessionStorage.setItem('practicepro_portal_type', 'client');
+                localStorage.setItem('practicepro_portal_type', 'client');
             } else if (currentUser.role === UserRole.Tenant) {
                 sessionStorage.setItem('practicepro_portal_type', 'tenant');
+                localStorage.setItem('practicepro_portal_type', 'tenant');
+            } else {
+                // Non-portal user (Admin, etc.) — clear any stale portal type flag
+                // to prevent session conflicts (Bug 14)
+                sessionStorage.removeItem('practicepro_portal_type');
+                localStorage.removeItem('practicepro_portal_type');
             }
         }
     }, [currentUser?.role]);
@@ -259,9 +271,14 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 } else {
                     localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
                 }
-                // Clear portal session to prevent conflict
+                // Clear portal session to prevent conflict (Bug 14)
                 sessionStorage.removeItem(PORTAL_SESSION_KEY);
                 localStorage.removeItem(PORTAL_SESSION_KEY);
+                // Also clear portal type flag from BOTH storages to prevent
+                // isPortalRoute() from returning true on next refresh, which
+                // would cause the app session to be ignored in getInitialToken()
+                sessionStorage.removeItem('practicepro_portal_type');
+                localStorage.removeItem('practicepro_portal_type');
             }
             
             setOriginalSessionToken(null);
@@ -378,6 +395,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         localStorage.removeItem(PORTAL_SESSION_KEY);
         localStorage.removeItem('practicepro_session_locked');
         sessionStorage.removeItem('practicepro_portal_type');
+        localStorage.removeItem('practicepro_portal_type');
 
         // Redirect portal users to their specific login page, not the main landing page
         if (isPortalUser) {

@@ -21,7 +21,7 @@ export enum FirmSpecialty { Maritime = 'Maritime & Admiralty', OilGas = 'Oil & G
 // Basic Types
 export type Theme = 'light' | 'dark' | 'system' | 'midnight' | 'oled' | 'neon-cyber' | 'sunlight-soft' | 'city-lights' | 'city-emerald' | 'midnight-emerald' | 'army-dark' | 'army-light';
 export type FontSize = 'sm' | 'md' | 'lg';
-export type View = 'dashboard' | 'matters' | 'matterDetail' | 'contacts' | 'contactDetail' | 'documents' | 'documentDetail' | 'tasks' | 'calendar' | 'billing' | 'invoiceDetail' | 'receiptDetail' | 'reporting' | 'compliance' | 'settings' | 'messaging' | 'notes' | 'help' | 'archive' | 'editor' | 'research' | 'timeline' | 'properties' | 'propertyDetail' | 'intake' | 'privacyPolicy' | 'termsOfService' | 'dataProcessingAgreement' | 'cookiePolicy' | 'indexer' | 'atriumEngine' | 'tenantPortal';
+export type View = 'dashboard' | 'matters' | 'matterDetail' | 'contacts' | 'contactDetail' | 'documents' | 'documentDetail' | 'tasks' | 'calendar' | 'billing' | 'invoiceDetail' | 'receiptDetail' | 'reporting' | 'compliance' | 'settings' | 'messaging' | 'notes' | 'help' | 'archive' | 'editor' | 'research' | 'timeline' | 'properties' | 'propertyDetail' | 'intake' | 'privacyPolicy' | 'termsOfService' | 'portalTermsOfUse' | 'dataProcessingAgreement' | 'cookiePolicy' | 'indexer' | 'atriumEngine' | 'tenantPortal';
 export type ModalType = 'login' | 'signup' | 'leadCapture' | 'newMatter' | 'editMatter' | 'closeMatter' | 'archiveMatter' | 'newContact' | 'editContact' | 'mergeContact' | 'collectRent' | 'newDocument' | 'editDocument' | 'shareDocument' | 'signDocument' | 'newEvent' | 'editEvent' | 'viewEvent' | 'newInvoice' | 'editInvoice' | 'viewInvoice' | 'generateInvoice' | 'newUser' | 'editUser' | 'newTimeEntry' | 'editTimeEntry' | 'newExpense' | 'editExpense' | 'deleteConfirmation' | 'newWorkflow' | 'editWorkflow' | 'newEventType' | 'editEventType' | 'newContactCategory' | 'editContactCategory' | 'newChecklistTemplate' | 'editChecklistTemplate' | 'editFirmDetails' | 'newTemplate' | 'editTemplate' | 'newTemplateCategory' | 'editTemplateCategory' | 'googleDrivePicker' | 'noTeamMembers' | 'folderPermissions' | 'assignUsers' | 'viewTask' | 'newTask' | 'editTask' | 'stageChecklist' | 'newChannel' | 'newDirectMessage' | 'externalCounsel' | 'newExternalCounsel' | 'aloaHelp' | 'feedback' | 'newBankAccount' | 'editBankAccount' | 'newNotebook' | 'editNotebook' | 'newPage' | 'copyPage' | 'newLead' | 'activateLead' | 'sendIntakeLink' | 'sendPostActivationEmail' | 'requestFinancialDocument' | 'linkContactToMatter' | 'newProperty' | 'editProperty' | 'bulkEditProperty' | 'newDocumentCategory' | 'editDocumentCategory' | 'newResearchNotebook' | 'addResearchSource' | 'addCaseToNotebook' | 'keyboardShortcuts' | 'quickLook' | 'requestTrustDeposit' | 'compareDocuments' | 'composeEmail' | 'paymentGateway' | 'upgradePlan' | 'onboarding' | 'demoUpsell' | 'newDraft' | 'workspaceSetup' | 'saveToNote' | 'linkMatterToContact' | 'batchUpload' | 'joinFirm' | 'aiConsent' | 'recordRentPayment'
     | 'create_matter' | 'create_contact' | 'create_task' | 'matterIngestion'; // Aliases for AI tools
 export type SelectedId = string | null;
@@ -592,7 +592,7 @@ export type ServiceChargeCategory = 'Diesel' | 'Security' | 'Cleaning' | 'Water'
 export type ServiceChargeCycle = 'Monthly' | 'Quarterly' | 'Annually';
 export type LeadPipelineStage = 'Inquiry' | 'Vetted' | 'Lease_Generated' | 'Closed';
 export type AutomationMessageType = 'rent_reminder' | 'late_notice' | 'payment_receipt' | 'service_charge_alert' | 'access_restriction' | 'penalty_notice' | 'lease_renewal' | 'welcome_note' | 'promotion' | 'vendor_update' | 'general_announcement' | 'maintenance_update' | 'custom';
-export type AutomationChannel = 'whatsapp' | 'email' | 'sms' | 'portal';
+export type AutomationChannel = 'whatsapp' | 'email' | 'portal';
 
 // ── Communication Integration ────────────────────────────────────────────
 export type CommunicationProvider = 'chakra' | 'twilio' | 'manual' | 'none';
@@ -623,18 +623,18 @@ export interface CommunicationIntegration {
   /** Integration status derived from config */
   status: IntegrationStatus;
   /** Available channels based on plan */
-  availableChannels: ('whatsapp' | 'email' | 'sms')[];
+  availableChannels: ('whatsapp' | 'email' | 'portal')[];
   /** Monthly message limits (0 = unlimited) */
   monthlyLimits: {
     whatsapp: number;  // ChakraHQ free = 1000/mo, starter = 5000/mo, pro = unlimited
     email: number;     // Usually unlimited
-    sms: number;       // ChakraHQ free = 100/mo, starter = 500/mo, pro = 2000/mo
+    portal: number;    // Portal messages (no limit)
   };
   /** Current month usage */
   currentUsage?: {
     whatsapp: number;
     email: number;
-    sms: number;
+    portal: number;
     period: string; // e.g. "2026-05"
   };
 }
@@ -707,9 +707,28 @@ export interface AutomationLog {
   channel: AutomationChannel;
   recipient: string;
   messagePreview?: string;
+  messageContent?: string;
+  direction?: 'outbound' | 'inbound';
+  senderName?: string;
   sentAt: number;
   status: 'sent' | 'failed' | 'simulated';
   triggeredBy?: string;
+}
+
+export interface AuditTrailEntry {
+  _id: string;
+  direction: 'outbound' | 'inbound';
+  channel: string;
+  messageType?: string;
+  recipient?: string;
+  senderName?: string;
+  senderContact?: string;
+  content: string;
+  timestamp: number;
+  status?: string;
+  triggeredBy?: string;
+  unitId?: string;
+  tenantId?: string;
 }
 
 export interface AtriumInboundMessage {

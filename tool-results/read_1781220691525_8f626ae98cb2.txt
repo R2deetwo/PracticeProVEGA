@@ -1,0 +1,898 @@
+     1→     1→import { mutation, query, internalMutation } from "./_generated/server";
+     2→     2→import { v } from "convex/values";
+     3→     3→
+     4→     4→// ─── HELPERS ────────────────────────────────────────────────────────────────
+     5→     5→
+     6→     6→/** Simple deterministic hash for append-only enforcement */
+     7→     7→function makeTxHash(firmId: string, unitId: string, amount: number, timestamp: number, type: string): string {
+     8→     8→  const raw = `${firmId}|${unitId}|${amount}|${timestamp}|${type}`;
+     9→     9→  let h = 0;
+    10→    10→  for (let i = 0; i < raw.length; i++) {
+    11→    11→    h = Math.imul(31, h) + raw.charCodeAt(i) | 0;
+    12→    12→  }
+    13→    13→  return `TX-${Math.abs(h).toString(16).toUpperCase().padStart(8, "0")}`;
+    14→    14→}
+    15→    15→
+    16→    16→// ─── LEDGER ─────────────────────────────────────────────────────────────────
+    17→    17→
+    18→    18→export const addLedgerEntry = mutation({
+    19→    19→  args: {
+    20→    20→    firmId: v.string(),
+    21→    21→    propertyId: v.optional(v.string()),
+    22→    22→    unitId: v.string(),
+    23→    23→    tenantId: v.optional(v.string()),
+    24→    24→    amount: v.number(),
+    25→    25→    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit")),
+    26→    26→    status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
+    27→    27→    paymentRef: v.optional(v.string()),
+    28→    28→    channel: v.optional(v.string()),
+    29→    29→    description: v.optional(v.string()),
+    30→    30→    period: v.optional(v.string()),
+    31→    31→  },
+    32→    32→  handler: async (ctx, args) => {
+    33→    33→    const timestamp = Date.now();
+    34→    34→    const txHash = makeTxHash(args.firmId, args.unitId, args.amount, timestamp, args.type);
+    35→    35→    return await ctx.db.insert("ledger_entries", {
+    36→    36→      ...args,
+    37→    37→      timestamp,
+    38→    38→      txHash,
+    39→    39→    });
+    40→    40→  },
+    41→    41→});
+    42→    42→
+    43→    43→export const getLedgerByFirm = query({
+    44→    44→  args: { firmId: v.string(), limit: v.optional(v.number()) },
+    45→    45→  handler: async (ctx, { firmId, limit }) => {
+    46→    46→    const entries = await ctx.db
+    47→    47→      .query("ledger_entries")
+    48→    48→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+    49→    49→      .order("desc")
+    50→    50→      .take(limit ?? 100);
+    51→    51→    return entries;
+    52→    52→  },
+    53→    53→});
+    54→    54→
+    55→    55→export const getLedgerByUnit = query({
+    56→    56→  args: { unitId: v.string() },
+    57→    57→  handler: async (ctx, { unitId }) => {
+    58→    58→    return await ctx.db
+    59→    59→      .query("ledger_entries")
+    60→    60→      .withIndex("by_unit", q => q.eq("unitId", unitId))
+    61→    61→      .order("desc")
+    62→    62→      .take(200);
+    63→    63→  },
+    64→    64→});
+    65→    65→
+    66→    66→export const updateLedgerStatus = mutation({
+    67→    67→  args: {
+    68→    68→    entryId: v.id("ledger_entries"),
+    69→    69→    status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
+    70→    70→  },
+    71→    71→  handler: async (ctx, { entryId, status }) => {
+    72→    72→    // Only status transitions are permitted — the core record stays immutable
+    73→    73→    await ctx.db.patch(entryId, { status });
+    74→    74→  },
+    75→    75→});
+    76→    76→
+    77→    77→export const getCashFlowSummary = query({
+    78→    78→  args: { firmId: v.string() },
+    79→    79→  handler: async (ctx, { firmId }) => {
+    80→    80→    const entries = await ctx.db
+    81→    81→      .query("ledger_entries")
+    82→    82→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+    83→    83→      .collect();
+    84→    84→
+    85→    85→    const cleared = entries.filter(e => e.status === "cleared");
+    86→    86→    const defaulted = entries.filter(e => e.status === "defaulted");
+    87→    87→    const pending = entries.filter(e => e.status === "pending");
+    88→    88→
+    89→    89→    const totalIncome = cleared.reduce((s, e) => s + e.amount, 0);
+    90→    90→    const revenueAtRisk = defaulted.reduce((s, e) => s + e.amount, 0) + pending.reduce((s, e) => s + e.amount, 0);
+    91→    91→
+    92→    92→    // Monthly buckets for the last 6 months
+    93→    93→    const now = new Date();
+    94→    94→    const monthlyData: Record<string, { income: number; risk: number }> = {};
+    95→    95→    for (let i = 5; i >= 0; i--) {
+    96→    96→      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    97→    97→      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    98→    98→      monthlyData[key] = { income: 0, risk: 0 };
+    99→    99→    }
+   100→   100→
+   101→   101→    for (const e of entries) {
+   102→   102→      const d = new Date(e.timestamp);
+   103→   103→      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+   104→   104→      if (monthlyData[key]) {
+   105→   105→        if (e.status === "cleared") monthlyData[key].income += e.amount;
+   106→   106→        else monthlyData[key].risk += e.amount;
+   107→   107→      }
+   108→   108→    }
+   109→   109→
+   110→   110→    return { totalIncome, revenueAtRisk, totalTransactions: entries.length, monthlyData };
+   111→   111→  },
+   112→   112→});
+   113→   113→
+   114→   114→// ─── SERVICE CHARGES ────────────────────────────────────────────────────────
+   115→   115→
+   116→   116→export const upsertServiceCharge = mutation({
+   117→   117→  args: {
+   118→   118→    firmId: v.string(),
+   119→   119→    unitId: v.string(),
+   120→   120→    tenantId: v.optional(v.string()),
+   121→   121→    category: v.union(v.literal("Diesel"), v.literal("Security"), v.literal("Cleaning"), v.literal("Water"), v.literal("Other")),
+   122→   122→    amount: v.number(),
+   123→   123→    cycle: v.union(v.literal("Monthly"), v.literal("Quarterly"), v.literal("Annually")),
+   124→   124→    nextDueDate: v.number(),
+   125→   125→    notes: v.optional(v.string()),
+   126→   126→  },
+   127→   127→  handler: async (ctx, args) => {
+   128→   128→    // Find existing charge for this unit+category
+   129→   129→    const existing = await ctx.db
+   130→   130→      .query("service_charges")
+   131→   131→      .withIndex("by_unit", q => q.eq("unitId", args.unitId))
+   132→   132→      .filter(q => q.eq(q.field("category"), args.category))
+   133→   133→      .first();
+   134→   134→
+   135→   135→    if (existing) {
+   136→   136→      await ctx.db.patch(existing._id, { ...args, isDefaulter: false });
+   137→   137→      return existing._id;
+   138→   138→    }
+   139→   139→    return await ctx.db.insert("service_charges", { ...args, isDefaulter: false });
+   140→   140→  },
+   141→   141→});
+   142→   142→
+   143→   143→export const getServiceChargesByFirm = query({
+   144→   144→  args: { firmId: v.string() },
+   145→   145→  handler: async (ctx, { firmId }) => {
+   146→   146→    return await ctx.db
+   147→   147→      .query("service_charges")
+   148→   148→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+   149→   149→      .collect();
+   150→   150→  },
+   151→   151→});
+   152→   152→
+   153→   153→export const getDefaulters = query({
+   154→   154→  args: { firmId: v.string() },
+   155→   155→  handler: async (ctx, { firmId }) => {
+   156→   156→    return await ctx.db
+   157→   157→      .query("service_charges")
+   158→   158→      .withIndex("by_firm_defaulter", q => q.eq("firmId", firmId).eq("isDefaulter", true))
+   159→   159→      .collect();
+   160→   160→  },
+   161→   161→});
+   162→   162→
+   163→   163→export const applyLatePenalty = mutation({
+   164→   164→  args: {
+   165→   165→    firmId: v.string(),
+   166→   166→    serviceChargeId: v.id("service_charges"),
+   167→   167→    penaltyAmount: v.number(),
+   168→   168→    triggeredBy: v.optional(v.string()),
+   169→   169→  },
+   170→   170→  handler: async (ctx, { firmId, serviceChargeId, penaltyAmount, triggeredBy }) => {
+   171→   171→    const sc = await ctx.db.get(serviceChargeId);
+   172→   172→    if (!sc) throw new Error("Service charge not found");
+   173→   173→    // Mark penalty applied
+   174→   174→    await ctx.db.patch(serviceChargeId, { penaltyApplied: true });
+   175→   175→    // Write penalty to ledger
+   176→   176→    const timestamp = Date.now();
+   177→   177→    const txHash = makeTxHash(firmId, sc.unitId, penaltyAmount, timestamp, "penalty");
+   178→   178→    await ctx.db.insert("ledger_entries", {
+   179→   179→      firmId,
+   180→   180→      unitId: sc.unitId,
+   181→   181→      tenantId: sc.tenantId,
+   182→   182→      amount: penaltyAmount,
+   183→   183→      type: "penalty",
+   184→   184→      status: "pending",
+   185→   185→      timestamp,
+   186→   186→      txHash,
+   187→   187→      description: `Late penalty — ${sc.category} service charge`,
+   188→   188→    });
+   189→   189→    return { success: true };
+   190→   190→  },
+   191→   191→});
+   192→   192→
+   193→   193→export const markChargeAsPaid = mutation({
+   194→   194→  args: {
+   195→   195→    serviceChargeId: v.id("service_charges"),
+   196→   196→    paidAmount: v.number(),
+   197→   197→    firmId: v.string(),
+   198→   198→    channel: v.optional(v.string()),
+   199→   199→    isPartialPayment: v.optional(v.boolean()),
+   200→   200→  },
+   201→   201→  handler: async (ctx, { serviceChargeId, paidAmount, firmId, channel, isPartialPayment }) => {
+   202→   202→    const sc = await ctx.db.get(serviceChargeId);
+   203→   203→    if (!sc) throw new Error("Service charge not found");
+   204→   204→
+   205→   205→    const totalAmount = sc.amount;
+   206→   206→    const previouslyPaid = sc.amountPaidThisCycle ?? 0;
+   207→   207→    const newTotalPaid = previouslyPaid + paidAmount;
+   208→   208→    const outstandingBalance = Math.max(0, totalAmount - newTotalPaid);
+   209→   209→
+   210→   210→    // Determine new status
+   211→   211→    let newStatus: "PAID_FULLY" | "PARTIALLY_PAID" | "UNPAID";
+   212→   212→    if (outstandingBalance <= 0) {
+   213→   213→      newStatus = "PAID_FULLY";
+   214→   214→    } else if (newTotalPaid > 0) {
+   215→   215→      newStatus = "PARTIALLY_PAID";
+   216→   216→    } else {
+   217→   217→      newStatus = "UNPAID";
+   218→   218→    }
+   219→   219→
+   220→   220→    // If fully paid, advance nextDueDate
+   221→   221→    let nextDueDate = sc.nextDueDate;
+   222→   222→    let isDefaulter = sc.isDefaulter;
+   223→   223→    let daysOverdue = sc.daysOverdue;
+   224→   224→    let penaltyApplied = sc.penaltyApplied;
+   225→   225→
+   226→   226→    if (newStatus === "PAID_FULLY") {
+   227→   227→      const cycleMs = sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000;
+   228→   228→      nextDueDate = Date.now() + cycleMs;
+   229→   229→      isDefaulter = false;
+   230→   230→      daysOverdue = 0;
+   231→   231→      penaltyApplied = false;
+   232→   232→    }
+   233→   233→
+   234→   234→    await ctx.db.patch(serviceChargeId, {
+   235→   235→      isDefaulter,
+   236→   236→      lastPaidDate: Date.now(),
+   237→   237→      nextDueDate,
+   238→   238→      penaltyApplied,
+   239→   239→      daysOverdue,
+   240→   240→      serviceChargeStatus: newStatus,
+   241→   241→      outstandingBalance: newStatus === "PAID_FULLY" ? 0 : outstandingBalance,
+   242→   242→      amountPaidThisCycle: newStatus === "PAID_FULLY" ? 0 : newTotalPaid,
+   243→   243→      // Reset reminder tracking on any payment
+   244→   244→      consecutiveReminderCount: 0,
+   245→   245→      remindersPaused: false,
+   246→   246→    });
+   247→   247→
+   248→   248→    // Ledger entry
+   249→   249→    const timestamp = Date.now();
+   250→   250→    const txHash = makeTxHash(firmId, sc.unitId, paidAmount, timestamp, "service_charge");
+   251→   251→    await ctx.db.insert("ledger_entries", {
+   252→   252→      firmId,
+   253→   253→      unitId: sc.unitId,
+   254→   254→      tenantId: sc.tenantId,
+   255→   255→      amount: paidAmount,
+   256→   256→      type: "service_charge",
+   257→   257→      status: newStatus === "PAID_FULLY" ? "cleared" : "pending",
+   258→   258→      timestamp,
+   259→   259→      txHash,
+   260→   260→      channel,
+   261→   261→      description: newStatus === "PAID_FULLY"
+   262→   262→        ? `${sc.category} service charge — full payment`
+   263→   263→        : `${sc.category} service charge — partial payment (₦${newTotalPaid.toLocaleString()} of ₦${totalAmount.toLocaleString()})`,
+   264→   264→    });
+   265→   265→
+   266→   266→    // ── PAID Confirmation WhatsApp Message ──
+   267→   267→    // When a tenant is marked as fully paid by the administrator,
+   268→   268→    // send a confirmation message acknowledging the payment.
+   269→   269→    if (newStatus === "PAID_FULLY") {
+   270→   270→      try {
+   271→   271→        // Resolve tenant contact from the property/unit
+   272→   272→        const unitDoc = await ctx.db
+   273→   273→          .query("properties")
+   274→   274→          .withIndex("by_custom_id", q => q.eq("id", sc.unitId))
+   275→   275→          .first();
+   276→   276→        const altDoc = !unitDoc ? await ctx.db
+   277→   277→          .query("properties")
+   278→   278→          .filter(q => q.eq(q.field("_id"), sc.unitId))
+   279→   279→          .first() : null;
+   280→   280→        const effectiveDoc = unitDoc || altDoc;
+   281→   281→
+   282→   282→        if (effectiveDoc) {
+   283→   283→          const rd = (effectiveDoc as any).rentalDetails || {};
+   284→   284→          const tenantPhone: string = rd.tenantPhone || '';
+   285→   285→          const tenantEmail: string = rd.tenantEmail || '';
+   286→   286→          const tenantName: string = rd.tenantName || 'Tenant';
+   287→   287→          const unitName: string = rd.unitName || 'Unit';
+   288→   288→          const chargeLabel = sc.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : sc.category;
+   289→   289→          const recipient = tenantPhone || tenantEmail;
+   290→   290→
+   291→   291→          if (recipient) {
+   292→   292→            const confirmMessage = `Dear ${tenantName}, we confirm receipt of your ${chargeLabel} service charge payment of ₦${totalAmount.toLocaleString()} for ${unitName}. Your account is now fully settled. Thank you for your prompt payment.`;
+   293→   293→            await ctx.db.insert("automation_logs", {
+   294→   294→              firmId,
+   295→   295→              unitId: sc.unitId,
+   296→   296→              tenantId: sc.tenantId,
+   297→   297→              messageType: "payment_receipt",
+   298→   298→              channel: tenantPhone ? "whatsapp" : "email",
+   299→   299→              recipient,
+   300→   300→              messagePreview: confirmMessage,
+   301→   301→              sentAt: Date.now(),
+   302→   302→              status: "simulated",
+   303→   303→              triggeredBy: "admin_mark_paid",
+   304→   304→            });
+   305→   305→          }
+   306→   306→        }
+   307→   307→      } catch (e) {
+   308→   308→        // Non-blocking — don't fail the payment recording if confirmation fails
+   309→   309→        console.warn("Failed to send PAID confirmation:", e);
+   310→   310→      }
+   311→   311→    }
+   312→   312→  },
+   313→   313→});
+   314→   314→
+   315→   315→// Internal mutation called by cron job
+   316→   316→export const flagOverdueCharges = internalMutation({
+   317→   317→  args: {},
+   318→   318→  handler: async (ctx) => {
+   319→   319→    const now = Date.now();
+   320→   320→    const allCharges = await ctx.db.query("service_charges").collect();
+   321→   321→    let flagged = 0;
+   322→   322→    for (const charge of allCharges) {
+   323→   323→      if (charge.nextDueDate < now && charge.serviceChargeStatus !== "PAID_FULLY") {
+   324→   324→        const daysOverdue = Math.floor((now - charge.nextDueDate) / 86400000);
+   325→   325→        // If no partial payment has been made, status stays UNPAID (or becomes UNPAID if not set)
+   326→   326→        const currentStatus = charge.serviceChargeStatus || (charge.isDefaulter ? "UNPAID" : "UNPAID");
+   327→   327→        await ctx.db.patch(charge._id, {
+   328→   328→          isDefaulter: true,
+   329→   329→          daysOverdue,
+   330→   330→          // Preserve PARTIALLY_PAID if tenant has made a partial payment, otherwise UNPAID
+   331→   331→          serviceChargeStatus: currentStatus === "PARTIALLY_PAID" ? "PARTIALLY_PAID" : "UNPAID",
+   332→   332→          outstandingBalance: currentStatus === "PARTIALLY_PAID"
+   333→   333→            ? (charge.outstandingBalance ?? charge.amount - (charge.amountPaidThisCycle ?? 0))
+   334→   334→            : charge.amount,
+   335→   335→        });
+   336→   336→        flagged++;
+   337→   337→      }
+   338→   338→    }
+   339→   339→    return { flagged };
+   340→   340→  },
+   341→   341→});
+   342→   342→
+   343→   343→// ─── LEADS PIPELINE ─────────────────────────────────────────────────────────
+   344→   344→
+   345→   345→export const addLeadToPipeline = mutation({
+   346→   346→  args: {
+   347→   347→    firmId: v.string(),
+   348→   348→    unitId: v.string(),
+   349→   349→    applicantName: v.string(),
+   350→   350→    contactInfo: v.string(),
+   351→   351→    stage: v.optional(v.union(v.literal("Inquiry"), v.literal("Vetted"), v.literal("Lease_Generated"), v.literal("Closed"))),
+   352→   352→    vettingScore: v.optional(v.number()),
+   353→   353→    proposedRent: v.optional(v.number()),
+   354→   354→    notes: v.optional(v.string()),
+   355→   355→  },
+   356→   356→  handler: async (ctx, args) => {
+   357→   357→    const now = Date.now();
+   358→   358→    return await ctx.db.insert("leads_pipeline", {
+   359→   359→      ...args,
+   360→   360→      stage: args.stage ?? "Inquiry",
+   361→   361→      createdAt: now,
+   362→   362→      updatedAt: now,
+   363→   363→    });
+   364→   364→  },
+   365→   365→});
+   366→   366→
+   367→   367→export const advanceLeadStage = mutation({
+   368→   368→  args: {
+   369→   369→    leadId: v.id("leads_pipeline"),
+   370→   370→    stage: v.union(v.literal("Inquiry"), v.literal("Vetted"), v.literal("Lease_Generated"), v.literal("Closed")),
+   371→   371→    vettingScore: v.optional(v.number()),
+   372→   372→    notes: v.optional(v.string()),
+   373→   373→  },
+   374→   374→  handler: async (ctx, { leadId, stage, vettingScore, notes }) => {
+   375→   375→    await ctx.db.patch(leadId, { stage, vettingScore, notes, updatedAt: Date.now() });
+   376→   376→  },
+   377→   377→});
+   378→   378→
+   379→   379→export const getPipelineByUnit = query({
+   380→   380→  args: { unitId: v.string() },
+   381→   381→  handler: async (ctx, { unitId }) => {
+   382→   382→    return await ctx.db
+   383→   383→      .query("leads_pipeline")
+   384→   384→      .withIndex("by_unit", q => q.eq("unitId", unitId))
+   385→   385→      .collect();
+   386→   386→  },
+   387→   387→});
+   388→   388→
+   389→   389→export const getPipelineByFirm = query({
+   390→   390→  args: { firmId: v.string() },
+   391→   391→  handler: async (ctx, { firmId }) => {
+   392→   392→    return await ctx.db
+   393→   393→      .query("leads_pipeline")
+   394→   394→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+   395→   395→      .collect();
+   396→   396→  },
+   397→   397→});
+   398→   398→
+   399→   399→// ─── AUTOMATION LOGS ────────────────────────────────────────────────────────
+   400→   400→
+   401→   401→export const logAutomation = mutation({
+   402→   402→  args: {
+   403→   403→    firmId: v.string(),
+   404→   404→    unitId: v.optional(v.string()),
+   405→   405→    tenantId: v.optional(v.string()),
+   406→   406→    messageType: v.union(
+   407→   407→      v.literal("custom"),
+   408→   408→      v.literal("rent_reminder"),
+   409→   409→      v.literal("late_notice"),
+   410→   410→      v.literal("payment_receipt"),
+   411→   411→      v.literal("service_charge_alert"),
+   412→   412→      v.literal("access_restriction"),
+   413→   413→      v.literal("penalty_notice"),
+   414→   414→      v.literal("lease_renewal"),
+   415→   415→    ),
+   416→   416→    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
+   417→   417→    recipient: v.string(),
+   418→   418→    messagePreview: v.optional(v.string()),
+   419→   419→    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
+   420→   420→    triggeredBy: v.optional(v.string()),
+   421→   421→  },
+   422→   422→  handler: async (ctx, args) => {
+   423→   423→    return await ctx.db.insert("automation_logs", { ...args, sentAt: Date.now() });
+   424→   424→  },
+   425→   425→});
+   426→   426→
+   427→   427→export const getAutomationLogs = query({
+   428→   428→  args: { firmId: v.string(), limit: v.optional(v.number()) },
+   429→   429→  handler: async (ctx, { firmId, limit }) => {
+   430→   430→    return await ctx.db
+   431→   431→      .query("automation_logs")
+   432→   432→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+   433→   433→      .order("desc")
+   434→   434→      .take(limit ?? 50);
+   435→   435→  },
+   436→   436→});
+   437→   437→
+   438→   438→/** Spam guard: check if a message of this type was already sent to this recipient within the last N hours */
+   439→   439→export const checkSpamGuard = query({
+   440→   440→  args: {
+   441→   441→    firmId: v.string(),
+   442→   442→    recipient: v.string(),
+   443→   443→    messageType: v.string(),
+   444→   444→    withinHours: v.number(),
+   445→   445→  },
+   446→   446→  handler: async (ctx, { firmId, recipient, messageType, withinHours }) => {
+   447→   447→    const cutoff = Date.now() - withinHours * 3600000;
+   448→   448→    const recent = await ctx.db
+   449→   449→      .query("automation_logs")
+   450→   450→      .withIndex("by_firm", q => q.eq("firmId", firmId))
+   451→   451→      .filter(q =>
+   452→   452→        q.and(
+   453→   453→          q.eq(q.field("recipient"), recipient),
+   454→   454→          q.eq(q.field("messageType"), messageType),
+   455→   455→          q.gte(q.field("sentAt"), cutoff)
+   456→   456→        )
+   457→   457→      )
+   458→   458→      .first();
+   459→   459→    return { blocked: !!recent, lastSentAt: recent?.sentAt };
+   460→   460→  },
+   461→   461→});
+   462→   462→
+   463→   463→export const processInboundMessage = internalMutation({
+   464→   464→  args: {
+   465→   465→    senderContact: v.string(),
+   466→   466→    senderName: v.string(),
+   467→   467→    content: v.string(),
+   468→   468→    channel: v.union(v.literal("whatsapp"), v.literal("sms"), v.literal("email"), v.literal("portal")),
+   469→   469→    mediaUrl: v.optional(v.string()),
+   470→   470→    mimeType: v.optional(v.string()),
+   471→   471→  },
+   472→   472→  handler: async (ctx, args) => {
+   473→   473→    // Attempt to match the senderContact with a tenant
+   474→   474→    const contacts = await ctx.db
+   475→   475→      .query("contacts")
+   476→   476→      .filter((q) => q.eq(q.field("phone"), args.senderContact))
+   477→   477→      .collect();
+   478→   478→
+   479→   479→    let firmId = "unknown";
+   480→   480→    let tenantId = undefined;
+   481→   481→    
+   482→   482→    if (contacts.length > 0) {
+   483→   483→      firmId = contacts[0].firmId ?? "unknown";
+   484→   484→      tenantId = contacts[0]._id;
+   485→   485→    }
+   486→   486→
+   487→   487→
+   488→   488→    await ctx.db.insert("atrium_inbound_messages", {
+   489→   489→      firmId,
+   490→   490→      tenantId,
+   491→   491→      senderContact: args.senderContact,
+   492→   492→      senderName: args.senderName,
+   493→   493→      content: args.content,
+   494→   494→      channel: args.channel,
+   495→   495→      mediaUrl: args.mediaUrl,
+   496→   496→      mimeType: args.mimeType,
+   497→   497→      receivedAt: Date.now(),
+   498→   498→      isRead: false,
+   499→   499→    });
+   500→   500→  },
+   501→   501→});
+   502→   502→
+   503→   503→// ─── SERVICE CHARGE WHATSAPP REMINDERS ─────────────────────────────────────
+   504→   504→// Scans all active tenancies with unpaid or partially-paid service charges
+   505→   505→// and triggers automated WhatsApp reminder notifications via the integration gateway.
+   506→   506→// Called daily by cron job "serviceChargeWhatsAppReminder" at 6:30 AM UTC.
+   507→   507→// Dynamically includes outstanding balance for PARTIALLY_PAID tenants.
+   508→   508→export const sendServiceChargeReminders = internalMutation({
+   509→   509→  args: {},
+   510→   510→  handler: async (ctx) => {
+   511→   511→    console.log("Running Service Charge WhatsApp Reminder scan...");
+   512→   512→    const now = Date.now();
+   513→   513→    let remindersSent = 0;
+   514→   514→    let remindersSkipped = 0;
+   515→   515→    let remindersPausedCount = 0;
+   516→   516→
+   517→   517→    // 1. Find all service_charges that are overdue or upcoming (nextDue within 7 days)
+   518→   518→    const allCharges = await ctx.db.query("service_charges").collect();
+   519→   519→    const actionableCharges = allCharges.filter(sc => {
+   520→   520→      // Skip fully paid charges
+   521→   521→      if (sc.serviceChargeStatus === "PAID_FULLY") return false;
+   522→   522→      const daysUntilDue = Math.floor((sc.nextDueDate - now) / 86400000);
+   523→   523→      // Include: currently unpaid/defaulted OR partially paid OR due within the next 7 days
+   524→   524→      return sc.isDefaulter || sc.serviceChargeStatus === "PARTIALLY_PAID" || daysUntilDue <= 7;
+   525→   525→    });
+   526→   526→
+   527→   527→    // Pre-load all properties for property-level toggle checks
+   528→   528→    const allProperties = await ctx.db.query("properties").collect();
+   529→   529→    const propertyMap = new Map<string, any>();
+   530→   530→    for (const p of allProperties) {
+   531→   531→      if (p.id) propertyMap.set(p.id, p);
+   532→   532→      if ((p as any)._id) propertyMap.set((p as any)._id, p);
+   533→   533→      // Also index by unit IDs embedded in the property
+   534→   534→      const units: any[] = (p as any).units || [];
+   535→   535→      for (const u of units) {
+   536→   536→        if (u.id) propertyMap.set(u.id, p);
+   537→   537→      }
+   538→   538→    }
+   539→   539→
+   540→   540→    for (const charge of actionableCharges) {
+   541→   541→      // ── GUARD 0: Per-unit mute toggle ──
+   542→   542→      if (charge.remindersMuted) {
+   543→   543→        remindersSkipped++;
+   544→   544→        continue;
+   545→   545→      }
+   546→   546→
+   547→   547→      // ── GUARD 1: Cool-off — if remindersPaused, skip entirely ──
+   548→   548→      if (charge.remindersPaused) {
+   549→   549→        remindersPausedCount++;
+   550→   550→        remindersSkipped++;
+   551→   551→        continue;
+   552→   552→      }
+   553→   553→
+   554→   554→      // ── GUARD 2: Property-level reminders toggle ──
+   555→   555→      const parentProperty = propertyMap.get(charge.unitId);
+   556→   556→      if (parentProperty && parentProperty.remindersEnabled === false) {
+   557→   557→        remindersSkipped++;
+   558→   558→        continue;
+   559→   559→      }
+   560→   560→
+   561→   561→      // Resolve cool-off threshold (property-level override or default 7)
+   562→   562→      const coolOffThreshold = parentProperty?.reminderCoolOffDays || 7;
+   563→   563→
+   564→   564→      // ── GUARD 3: Cool-off — check consecutive reminder count ──
+   565→   565→      const consecutiveCount = charge.consecutiveReminderCount ?? 0;
+   566→   566→      if (consecutiveCount >= coolOffThreshold) {
+   567→   567→        // Auto-pause: flag the unit so admin sees REMINDERS_PAUSED_MAX_EFFORT
+   568→   568→        await ctx.db.patch(charge._id, {
+   569→   569→          remindersPaused: true,
+   570→   570→        });
+   571→   571→        remindersPausedCount++;
+   572→   572→        remindersSkipped++;
+   573→   573→        continue;
+   574→   574→      }
+   575→   575→
+   576→   576→      // 2. Resolve tenant phone from the properties table
+   577→   577→      const unitDoc = parentProperty || await ctx.db
+   578→   578→        .query("properties")
+   579→   579→        .withIndex("by_custom_id", q => q.eq("id", charge.unitId))
+   580→   580→        .first();
+   581→   581→
+   582→   582→      if (!unitDoc) {
+   583→   583→        // Also try by Convex _id match
+   584→   584→        const altDoc = await ctx.db
+   585→   585→          .query("properties")
+   586→   586→          .filter(q => q.eq(q.field("_id"), charge.unitId))
+   587→   587→          .first();
+   588→   588→        if (!altDoc) {
+   589→   589→          remindersSkipped++;
+   590→   590→          continue;
+   591→   591→        }
+   592→   592→      }
+   593→   593→
+   594→   594→      const effectiveDoc = unitDoc || propertyMap.get(charge.unitId);
+   595→   595→      if (!effectiveDoc) {
+   596→   596→        remindersSkipped++;
+   597→   597→        continue;
+   598→   598→      }
+   599→   599→
+   600→   600→      // Extract tenant contact info from rentalDetails
+   601→   601→      const rd = (effectiveDoc as any).rentalDetails || {};
+   602→   602→      const tenantPhone: string = rd.tenantPhone || '';
+   603→   603→      const tenantEmail: string = rd.tenantEmail || '';
+   604→   604→      const tenantName: string = rd.tenantName || 'Tenant';
+   605→   605→      const unitName: string = rd.unitName || 'Unit';
+   606→   606→      // Check if property has minimum vend enabled
+   607→   607→      const minimumVendEnabled = (effectiveDoc as any).minimumVendEnabled || false;
+   608→   608→      const vendLabel = charge.isMinimumVend ? ((effectiveDoc as any).minimumVendLabel || 'Minimum Vend') : null;
+   609→   609→
+   610→   610→      if (!tenantPhone && !tenantEmail) {
+   611→   611→        remindersSkipped++;
+   612→   612→        continue;
+   613→   613→      }
+   614→   614→
+   615→   615→      // 3. Spam guard: check if we already sent a service_charge_alert in the last 24 hours
+   616→   616→      const cutoff = now - 24 * 3600000;
+   617→   617→      const recentAlert = await ctx.db
+   618→   618→        .query("automation_logs")
+   619→   619→        .withIndex("by_firm", q => q.eq("firmId", charge.firmId))
+   620→   620→        .filter(q =>
+   621→   621→          q.and(
+   622→   622→            q.eq(q.field("unitId"), charge.unitId),
+   623→   623→            q.eq(q.field("messageType"), "service_charge_alert"),
+   624→   624→            q.gte(q.field("sentAt"), cutoff)
+   625→   625→          )
+   626→   626→        )
+   627→   627→        .first();
+   628→   628→
+   629→   629→      if (recentAlert) {
+   630→   630→        remindersSkipped++;
+   631→   631→        continue;
+   632→   632→      }
+   633→   633→
+   634→   634→      // 4. Build dynamic reminder message based on payment status
+   635→   635→      const daysOverdue = charge.isDefaulter && charge.daysOverdue
+   636→   636→        ? charge.daysOverdue
+   637→   637→        : Math.max(0, Math.floor((now - charge.nextDueDate) / 86400000));
+   638→   638→      const isUpcoming = !charge.isDefaulter && charge.nextDueDate > now;
+   639→   639→      const dueDateStr = new Date(charge.nextDueDate).toLocaleDateString('en-NG');
+   640→   640→      const chargeLabel = charge.isMinimumVend ? (vendLabel || 'Minimum Vend') : charge.category;
+   641→   641→
+   642→   642→      let messagePreview: string;
+   643→   643→      if (charge.serviceChargeStatus === "PARTIALLY_PAID") {
+   644→   644→        // Dynamic message for partial payments — include exact outstanding balance
+   645→   645→        const outstanding = charge.outstandingBalance ?? (charge.amount - (charge.amountPaidThisCycle ?? 0));
+   646→   646→        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge for ${unitName} has an outstanding balance of ₦${outstanding.toLocaleString()}. You have paid ₦${(charge.amountPaidThisCycle ?? 0).toLocaleString()} of ₦${charge.amount.toLocaleString()}. Kindly complete the payment to avoid penalties.`;
+   647→   647→      } else if (isUpcoming) {
+   648→   648→        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is due on ${dueDateStr}. Please ensure timely payment.`;
+   649→   649→      } else {
+   650→   650→        messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is ${daysOverdue} day(s) overdue. Kindly make payment to avoid penalties.`;
+   651→   651→      }
+   652→   652→
+   653→   653→      // 5. Determine channel — prefer WhatsApp if phone available
+   654→   654→      const channel = tenantPhone ? "whatsapp" as const : "email" as const;
+   655→   655→      const recipient = tenantPhone || tenantEmail;
+   656→   656→
+   657→   657→      // 6. Log the automation (simulated for now — actual WhatsApp/email dispatch
+   658→   658→      // would integrate with Twilio/Resend here)
+   659→   659→      await ctx.db.insert("automation_logs", {
+   660→   660→        firmId: charge.firmId,
+   661→   661→        unitId: charge.unitId,
+   662→   662→        tenantId: charge.tenantId,
+   663→   663→        messageType: "service_charge_alert",
+   664→   664→        channel,
+   665→   665→        recipient,
+   666→   666→        messagePreview,
+   667→   667→        sentAt: now,
+   668→   668→        status: "simulated",
+   669→   669→        triggeredBy: "cron_service_charge_reminder",
+   670→   670→      });
+   671→   671→
+   672→   672→      // 7. Increment consecutive reminder counter + record last reminder timestamp
+   673→   673→      await ctx.db.patch(charge._id, {
+   674→   674→        consecutiveReminderCount: (charge.consecutiveReminderCount ?? 0) + 1,
+   675→   675→        lastReminderSentAt: now,
+   676→   676→      });
+   677→   677→
+   678→   678→      remindersSent++;
+   679→   679→    }
+   680→   680→
+   681→   681→    console.log(`Service Charge Reminders: ${remindersSent} sent, ${remindersSkipped} skipped, ${remindersPausedCount} auto-paused.`);
+   682→   682→    return { remindersSent, remindersSkipped, remindersPausedCount };
+   683→   683→  },
+   684→   684→});
+   685→   685→
+   686→   686→export const runDailyAutomation = internalMutation({
+   687→   687→  args: {},
+   688→   688→  handler: async (ctx) => {
+   689→   689→    console.log("Running Daily Sentry Automation Scans...");
+   690→   690→    
+   691→   691→    // In a full implementation, we would:
+   692→   692→    // 1. Scan properties for automationSettings.remindRentDue === true
+   693→   693→    // 2. Cross-reference Service Charges and Rent Payments for nextDueDate
+   694→   694→    // 3. Dispatch emails / whatsapp using Resend / Twilio
+   695→   695→    // For now, we simulate this step and log it to automation_logs.
+   696→   696→    
+   697→   697→    const overdueCharges = await ctx.db
+   698→   698→      .query("service_charges")
+   699→   699→      .filter((q) => q.eq(q.field("isDefaulter"), true))
+   700→   700→      .collect();
+   701→   701→      
+   702→   702→    for (const charge of overdueCharges) {
+   703→   703→      if (charge.daysOverdue && charge.daysOverdue === 1) {
+   704→   704→        // Send a simulated late notice
+   705→   705→        await ctx.db.insert("automation_logs", {
+   706→   706→          firmId: charge.firmId,
+   707→   707→          unitId: charge.unitId,
+   708→   708→          tenantId: charge.tenantId,
+   709→   709→          messageType: "late_notice",
+   710→   710→          channel: "whatsapp",
+   711→   711→          recipient: "simulated_tenant",
+   712→   712→          messagePreview: "Your service charge is overdue by 1 day.",
+   713→   713→          sentAt: Date.now(),
+   714→   714→          status: "simulated",
+   715→   715→          triggeredBy: "system",
+   716→   716→        });
+   717→   717→      }
+   718→   718→    }
+   719→   719→  },
+   720→   720→});
+   721→   721→
+   722→   722→export const getInboundMessages = query({
+   723→   723→  args: { firmId: v.string() },
+   724→   724→  handler: async (ctx, { firmId }) => {
+   725→   725→    return await ctx.db
+   726→   726→      .query("atrium_inbound_messages")
+   727→   727→      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+   728→   728→      .order("desc")
+   729→   729→      .collect();
+   730→   730→  },
+   731→   731→});
+   732→   732→
+   733→   733→export const markMessageAsRead = mutation({
+   734→   734→  args: { messageId: v.id("atrium_inbound_messages") },
+   735→   735→  handler: async (ctx, { messageId }) => {
+   736→   736→    await ctx.db.patch(messageId, { isRead: true });
+   737→   737→  },
+   738→   738→});
+   739→   739→
+   740→   740→export const deleteInboundMessage = mutation({
+   741→   741→  args: { messageId: v.id("atrium_inbound_messages") },
+   742→   742→  handler: async (ctx, { messageId }) => {
+   743→   743→    await ctx.db.delete(messageId);
+   744→   744→  },
+   745→   745→});
+   746→   746→
+   747→   747→// ─── MONTHLY SERVICE CHARGE RESET ─────────────────────────────────────────
+   748→   748→// Resets all active service charges back to UNPAID on the 1st of every month.
+   749→   749→// Called by cron job "monthlyServiceChargeReset" at 00:30 UTC on the 1st.
+   750→   750→// Handles both regular service charges and minimum vend charges.
+   751→   751→export const resetMonthlyServiceCharges = internalMutation({
+   752→   752→  args: {},
+   753→   753→  handler: async (ctx) => {
+   754→   754→    console.log("Running Monthly Service Charge Reset...");
+   755→   755→    const now = Date.now();
+   756→   756→    let resetCount = 0;
+   757→   757→    let skippedCount = 0;
+   758→   758→
+   759→   759→    // Get all service charges
+   760→   760→    const allCharges = await ctx.db.query("service_charges").collect();
+   761→   761→
+   762→   762→    for (const charge of allCharges) {
+   763→   763→      // Only reset Monthly cycle charges (Quarterly/Annual have their own cycle)
+   764→   764→      // Also reset minimum vend charges regardless of cycle since they're monthly
+   765→   765→      if (charge.cycle !== "Monthly" && !charge.isMinimumVend) {
+   766→   766→        skippedCount++;
+   767→   767→        continue;
+   768→   768→      }
+   769→   769→
+   770→   770→      // Skip if already reset this month (idempotency guard)
+   771→   771→      if (charge.lastResetAt) {
+   772→   772→        const lastReset = new Date(charge.lastResetAt);
+   773→   773→        const currentMonth = new Date(now);
+   774→   774→        if (lastReset.getMonth() === currentMonth.getMonth() && lastReset.getFullYear() === currentMonth.getFullYear()) {
+   775→   775→          skippedCount++;
+   776→   776→          continue;
+   777→   777→        }
+   778→   778→      }
+   779→   779→
+   780→   780→      // Reset to UNPAID, clear cycle payment tracking
+   781→   781→      await ctx.db.patch(charge._id, {
+   782→   782→        serviceChargeStatus: "UNPAID",
+   783→   783→        outstandingBalance: charge.amount,
+   784→   784→        amountPaidThisCycle: 0,
+   785→   785→        lastResetAt: now,
+   786→   786→        // Recalculate nextDueDate for the new month
+   787→   787→        nextDueDate: now + 30 * 86400000,
+   788→   788→        // Clear defaulter status for the new cycle
+   789→   789→        isDefaulter: false,
+   790→   790→        daysOverdue: 0,
+   791→   791→        penaltyApplied: false,
+   792→   792→      });
+   793→   793→      resetCount++;
+   794→   794→    }
+   795→   795→
+   796→   796→    // Also check for properties with minimumVendEnabled that might not have a service_charges record yet
+   797→   797→    const allProperties = await ctx.db.query("properties").collect();
+   798→   798→    const propertiesWithVend = allProperties.filter(p => p.minimumVendEnabled);
+   799→   799→
+   800→   800→    for (const prop of propertiesWithVend) {
+   801→   801→      // Check if a minimum vend charge already exists for each unit
+   802→   802→      const units: any[] = (prop as any).units || [];
+   803→   803→      const unitIds = units.length > 0
+   804→   804→        ? units.map((u: any) => u.id || u._id)
+   805→   805→        : [prop.id];
+   806→   806→
+   807→   807→      for (const unitId of unitIds) {
+   808→   808→        if (!unitId) continue;
+   809→   809→
+   810→   810→        const existingVend = allCharges.find(c =>
+   811→   811→          c.unitId === unitId && c.isMinimumVend
+   812→   812→        );
+   813→   813→
+   814→   814→        if (!existingVend) {
+   815→   815→          // Create the minimum vend charge record
+   816→   816→          const vendAmount = (prop as any).minimumVendAmount || 0;
+   817→   817→          if (vendAmount > 0) {
+   818→   818→            await ctx.db.insert("service_charges", {
+   819→   819→              firmId: prop.firmId!,
+   820→   820→              unitId,
+   821→   821→              tenantId: prop.tenantId || prop.currentTenantId || undefined,
+   822→   822→              category: "Other",
+   823→   823→              amount: vendAmount,
+   824→   824→              cycle: "Monthly",
+   825→   825→              nextDueDate: now + 30 * 86400000,
+   826→   826→              isDefaulter: false,
+   827→   827→              isMinimumVend: true,
+   828→   828→              serviceChargeStatus: "UNPAID",
+   829→   829→              outstandingBalance: vendAmount,
+   830→   830→              amountPaidThisCycle: 0,
+   831→   831→              lastResetAt: now,
+   832→   832→            });
+   833→   833→            resetCount++;
+   834→   834→          }
+   835→   835→        }
+   836→   836→      }
+   837→   837→    }
+   838→   838→
+   839→   839→    console.log(`Monthly SC Reset: ${resetCount} reset, ${skippedCount} skipped.`);
+   840→   840→    return { resetCount, skippedCount };
+   841→   841→  },
+   842→   842→});
+   843→   843→
+   844→   844→// ─── REMINDER TOGGLE MUTATIONS ──────────────────────────────────────────────
+   845→   845→
+   846→   846→/** Toggle property-level reminders on/off */
+   847→   847→export const setPropertyRemindersEnabled = mutation({
+   848→   848→  args: {
+   849→   849→    propertyId: v.string(),
+   850→   850→    remindersEnabled: v.boolean(),
+   851→   851→    reminderCoolOffDays: v.optional(v.number()),
+   852→   852→  },
+   853→   853→  handler: async (ctx, { propertyId, remindersEnabled, reminderCoolOffDays }) => {
+   854→   854→    // Find by custom id or Convex _id
+   855→   855→    let doc = await ctx.db
+   856→   856→      .query("properties")
+   857→   857→      .withIndex("by_custom_id", q => q.eq("id", propertyId))
+   858→   858→      .first();
+   859→   859→    if (!doc) {
+   860→   860→      const all = await ctx.db.query("properties").collect();
+   861→   861→      doc = all.find(p => p._id === propertyId as any) || null;
+   862→   862→    }
+   863→   863→    if (!doc) throw new Error("Property not found");
+   864→   864→    await ctx.db.patch(doc._id, {
+   865→   865→      remindersEnabled,
+   866→   866→      ...(reminderCoolOffDays !== undefined ? { reminderCoolOffDays } : {}),
+   867→   867→    });
+   868→   868→    return { success: true };
+   869→   869→  },
+   870→   870→});
+   871→   871→
+   872→   872→/** Toggle per-unit reminder mute */
+   873→   873→export const setUnitRemindersMuted = mutation({
+   874→   874→  args: {
+   875→   875→    serviceChargeId: v.id("service_charges"),
+   876→   876→    remindersMuted: v.boolean(),
+   877→   877→  },
+   878→   878→  handler: async (ctx, { serviceChargeId, remindersMuted }) => {
+   879→   879→    await ctx.db.patch(serviceChargeId, { remindersMuted });
+   880→   880→    return { success: true };
+   881→   881→  },
+   882→   882→});
+   883→   883→
+   884→   884→/** Unpause reminders for a unit (manual admin intervention after cool-off auto-pause) */
+   885→   885→export const unpauseReminders = mutation({
+   886→   886→  args: {
+   887→   887→    serviceChargeId: v.id("service_charges"),
+   888→   888→  },
+   889→   889→  handler: async (ctx, { serviceChargeId }) => {
+   890→   890→    await ctx.db.patch(serviceChargeId, {
+   891→   891→      remindersPaused: false,
+   892→   892→      consecutiveReminderCount: 0,
+   893→   893→    });
+   894→   894→    return { success: true };
+   895→   895→  },
+   896→   896→});
+   897→   897→
+   898→   898→

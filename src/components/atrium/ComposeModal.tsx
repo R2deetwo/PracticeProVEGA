@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
+import { useFeatures } from '../../hooks/useFeatures';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
 
@@ -40,7 +41,7 @@ const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
 const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
-  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30',
+  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30',
   portal: 'text-emerald-400 bg-emerald-900/30',
 };
 
@@ -194,12 +195,17 @@ interface SelectableRecipient {
 export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
+  const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
   const convex = useConvex();
   const logAuto = useMutation(api.sentry.logAutomation);
 
   // ── State ────────────────────────────────────────────────────────────
   const [msgType, setMsgType] = useState<AutomationMessageType>('custom');
-  const [channel, setChannel] = useState<AutomationChannel>(() => prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp'));
+  const [channel, setChannel] = useState<AutomationChannel>(() => {
+    const waAllowed = isGrowthOrAbove || isKompleteFirm;
+    const preferred = prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp');
+    return (preferred === 'whatsapp' && !waAllowed) ? 'email' : preferred;
+  });
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(() => {
     if (prefill?.unitId) return [prefill.unitId];
     return [];
@@ -421,6 +427,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   // ── Send handler ─────────────────────────────────────────────────────
   const handleSend = async () => {
     if (selectedRecipients.length === 0) return;
+    if (channel === 'whatsapp' && !isGrowthOrAbove && !isKompleteFirm) {
+      onToast('WhatsApp requires Growth plan or above. Upgrade to unlock this channel.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -504,9 +514,6 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               htmlContent: `<p style="font-family:sans-serif;line-height:1.6">${personalizedMessage.replace(/\n/g, '<br/>')}</p>`,
               firmId,
             });
-          } else if (channel === 'sms') {
-            // SMS: log as simulated for now
-            sendResult = { success: true, simulated: true };
           }
 
           const status = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
@@ -516,7 +523,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             messageType: msgType as any, 
             channel, 
             recipient: finalRecipient, 
-            messagePreview: personalizedMessage, 
+            messagePreview: personalizedMessage.substring(0, 200), 
+            messageContent: personalizedMessage,
+            direction: 'outbound' as const,
+            senderName: currentUser?.name || 'Property Manager',
             status, 
             triggeredBy: currentUser?.id 
           });
@@ -603,19 +613,27 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               <div>
                 <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Channel</label>
                 <div className="flex gap-1.5">
-                  {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => (
-                    <button
-                      key={ch}
-                      onClick={() => setChannel(ch)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
-                        channel === ch 
-                          ? CHANNEL_COLORS[ch] + ' ring-1 ring-white/20' 
-                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                      }`}
-                    >
-                      {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : ch === 'portal' ? '🏠 Portal' : '💬 SMS'}
-                    </button>
-                  ))}
+                  {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
+                    const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
+                    return (
+                      <button
+                        key={ch}
+                        onClick={() => waAllowed && setChannel(ch)}
+                        disabled={!waAllowed}
+                        title={!waAllowed ? 'WhatsApp requires Growth plan or above' : undefined}
+                        className={`relative flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+                          !waAllowed
+                            ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                            : channel === ch 
+                              ? CHANNEL_COLORS[ch] + ' ring-1 ring-white/20' 
+                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
+                        {!waAllowed && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-500" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

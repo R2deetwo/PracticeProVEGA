@@ -6,8 +6,10 @@ import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
-import { useQuery } from "convex/react";
+import { useQuery, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
+import { useFeatures } from '../../hooks/useFeatures';
 import { DocumentsTab } from './DocumentsTab';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
@@ -63,6 +65,8 @@ const PropertyDetailViewContent: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
     const { currentUser } = useAuth();
+    const convex = useConvex();
+    const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
     const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
     const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
     const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
@@ -72,6 +76,8 @@ const PropertyDetailViewContent: React.FC = () => {
     const [newUnitName, setNewUnitName] = useState('');
     const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
     const [showUnitMessaging, setShowUnitMessaging] = useState(false);
+    const [showCompose, setShowCompose] = useState(false);
+    const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -864,30 +870,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </div>
                             )}
 
-                            {/* ── HIGH-DENSITY UNIT CARDS ── Row-grouped inline expansion layout */}
+                            {/* ── HIGH-DENSITY UNIT CARDS ── Inline expansion layout */}
                             {(() => {
-                                // Determine column count for row grouping
-                                // xl:4, lg:3, sm:2, xs:1 — we use a JS-based approach
-                                const COLS_XL = 4;
-                                const COLS_LG = 3;
-                                const COLS_SM = 2;
-                                // Group units into rows for the largest breakpoint (xl=4)
-                                // The expansion panel will span all columns via grid-column: 1 / -1
-                                const rows: Property[][] = [];
-                                const chunkSize = COLS_XL;
-                                for (let i = 0; i < units.length; i += chunkSize) {
-                                    rows.push(units.slice(i, i + chunkSize));
-                                }
-
-                                // Find which row the selected unit is in
-                                const selectedRowIdx = selectedUnit
-                                    ? rows.findIndex(row => row.some(u => u.id === selectedUnit.id))
-                                    : -1;
-
                                 return (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                        {rows.flatMap((row, rowIdx) => {
-                                            const cards = row.map((unit: Property) => {
+                                        {units.map((unit: Property) => {
                                                 const d = getUnitDisplay(unit);
                                                 const isFloor = d.name.toLowerCase().includes('floor');
                                                 const menuOpen = openUnitMenuId === unit.id;
@@ -954,12 +941,79 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     );
                                                 };
 
+                                                // Expanded view data
+                                                const tenantPhone: string = (unit as any).rentalDetails?.tenantPhone || (unit as any).tenantPhone || '';
+                                                const tenantEmail: string = (unit as any).rentalDetails?.tenantEmail || (unit as any).tenantEmail || '';
+                                                const hasContactInfo = !!(tenantPhone || tenantEmail);
+
+                                                const handleWhatsApp = () => {
+                                                    if (!tenantPhone) return;
+                                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
+                                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
+                                                    const msg = encodeURIComponent(`Hello ${d.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${d.name} at ${property.address}.`);
+                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+                                                };
+
+                                                const handleEmailTenant = () => {
+                                                    openModal('composeEmail', null, {
+                                                        to: tenantEmail,
+                                                        subject: `Re: ${d.name} — ${property.address}`,
+                                                    });
+                                                };
+
+                                                const handleOpenInbox = () => {
+                                                    try {
+                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
+                                                            unitId: unit.id,
+                                                            unitName: d.name,
+                                                            tenantName: d.tenantName,
+                                                            tenantPhone,
+                                                            tenantEmail,
+                                                            rentAmount: d.rentAmount,
+                                                            propertyAddress: property.address,
+                                                        }));
+                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
+                                                    } catch (e) {}
+                                                    navigateTo('atriumEngine');
+                                                };
+
+                                                const handleSendPortalMessage = async () => {
+                                                    try {
+                                                        await convex.mutation(api.portals.sendPortalMessage, {
+                                                            firmId: coreState.firmDetails?.id || '',
+                                                            senderId: currentUser?.id || '',
+                                                            senderName: currentUser?.name || 'Property Manager',
+                                                            senderRole: 'admin',
+                                                            subject: `Message for ${d.tenantName || 'Tenant'}`,
+                                                            content: `Hello ${d.tenantName || 'Tenant'}, this is a message from ${coreState.firmDetails?.name || 'Management'} regarding Unit ${d.name} at ${property.address}.`,
+                                                            unitId: unit.id,
+                                                        });
+                                                        addToast('Portal message sent!', { type: 'success' });
+                                                    } catch (err: any) {
+                                                        addToast(err.message || 'Failed to send portal message', { type: 'error' });
+                                                    }
+                                                };
+
+                                                const handleOpenCompose = () => {
+                                                    setComposePrefill({
+                                                        unitId: unit.id,
+                                                        unitName: d.name,
+                                                        tenantName: d.tenantName,
+                                                        tenantPhone,
+                                                        tenantEmail,
+                                                        rentAmount: d.rentAmount,
+                                                        propertyAddress: property.address,
+                                                    });
+                                                    setShowCompose(true);
+                                                };
+
                                                 return (
                                                     <div
                                                         key={unit.id}
+                                                        ref={isSelected ? (el: HTMLDivElement | null) => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120); } : undefined}
                                                         onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                                        className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+                                                        className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-2.5'}`}
                                                     >
                                                         {/* ── Card Header ── */}
                                                         <div className="flex items-start justify-between mb-1.5">
@@ -994,7 +1048,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
                                                                     <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
-                                                                    {d.serviceChargeStatus === 'PAID_FULLY' || d.serviceChargeStatus === 'PAID'
+                                                                    {(d.serviceChargeStatus as string) === 'PAID_FULLY' || (d.serviceChargeStatus as string) === 'PAID'
                                                                         ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
                                                                         : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
                                                                     }
@@ -1185,183 +1239,148 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 )}
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            });
 
-                                            // After this row's cards, inject the expansion panel if selected unit is in this row
-                                            const expansionPanel = (selectedUnit && rowIdx === selectedRowIdx) ? (() => {
-                                                const sd = getUnitDisplay(selectedUnit);
-                                                const tenantPhone: string = (selectedUnit as any).rentalDetails?.tenantPhone || (selectedUnit as any).tenantPhone || '';
-                                                const tenantEmail: string = (selectedUnit as any).rentalDetails?.tenantEmail || (selectedUnit as any).tenantEmail || '';
-                                                const hasContactInfo = !!(tenantPhone || tenantEmail);
-
-                                                const handleWhatsApp = () => {
-                                                    if (!tenantPhone) return;
-                                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
-                                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
-                                                    const msg = encodeURIComponent(`Hello ${sd.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${sd.name} at ${property.address}.`);
-                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
-                                                };
-
-                                                const handleEmailTenant = () => {
-                                                    openModal('composeEmail', null, {
-                                                        to: tenantEmail,
-                                                        subject: `Re: ${sd.name} — ${property.address}`,
-                                                    });
-                                                };
-
-                                                const handleOpenInbox = () => {
-                                                    try {
-                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
-                                                            unitId: selectedUnit.id,
-                                                            unitName: sd.name,
-                                                            tenantName: sd.tenantName,
-                                                            tenantPhone,
-                                                            tenantEmail,
-                                                            rentAmount: sd.rentAmount,
-                                                            propertyAddress: property.address,
-                                                        }));
-                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
-                                                    } catch (e) {}
-                                                    navigateTo('atriumEngine');
-                                                };
-
-                                                return (
-                                                    <div
-                                                        key={`expansion-${selectedUnit.id}`}
-                                                        className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5 animate-fade-in"
-                                                    >
-                                                        {/* Header */}
-                                                        <div className="flex items-start justify-between mb-4">
-                                                            <div>
-                                                                <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
-                                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{sd.name}</h4>
-                                                                {sd.floor && <p className="text-xs text-slate-400">Floor {sd.floor}</p>}
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                {sd.remindersPaused && (
-                                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
-                                                                        Reminders Paused
-                                                                    </span>
-                                                                )}
-                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
-                                                                    {String(selectedUnit.status || 'Vacant')}
-                                                                </span>
-                                                                <button onClick={() => { setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
-                                                                    <XIcon className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Details grid — full metadata in expanded view */}
-                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-                                                            {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
-                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
-                                                                <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
-                                                            )}
-                                                            {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
-                                                            {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
-                                                            {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
-                                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && (
-                                                                <DetailItem label="Service Charge" value={
-                                                                    <>
-                                                                        ₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
-                                                                        {(() => {
-                                                                            const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
-                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
-                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                                            if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
-                                                                            return null;
-                                                                        })()}
-                                                                    </>
-                                                                } />
-                                                            )}
-                                                            {(() => {
-                                                                const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
-                                                                const outstanding = sd.outstandingServiceChargeBalance || (selectedUnit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
-                                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
-                                                            })()}
-                                                            {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
-                                                            {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
-                                                            {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
-                                                            {/* Term Progress */}
-                                                            {sd.termProgress !== null && (
-                                                                <DetailItem label="Term Progress" value={
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
-                                                                            <div className={`h-full rounded-full transition-all ${sd.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(sd.termProgress * 100)}%` }} />
-                                                                        </div>
-                                                                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(sd.termProgress * 100)}%</span>
+                                                        {/* ── Inline Expanded View ── */}
+                                                        {isSelected && (
+                                                            <div className="mt-4 pt-4 border-t border-primary-200 dark:border-primary-700 animate-fade-in">
+                                                                {/* Expanded header */}
+                                                                <div className="flex items-start justify-between mb-4">
+                                                                    <div>
+                                                                        <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+                                                                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">{d.name}</h4>
+                                                                        {d.floor && <p className="text-xs text-slate-400">Floor {d.floor}</p>}
                                                                     </div>
-                                                                } />
-                                                            )}
-                                                        </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {d.remindersPaused && (
+                                                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
+                                                                                Reminders Paused
+                                                                            </span>
+                                                                        )}
+                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                                            {String(unit.status || 'Vacant')}
+                                                                        </span>
+                                                                        <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+                                                                            <XIcon className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
 
-                                                        {/* Message Tenant panel */}
-                                                        {showUnitMessaging && (
-                                                            <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
-                                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
-                                                                    Contact {sd.tenantName || 'Tenant'}
-                                                                </p>
-                                                                <div className="flex flex-wrap items-center gap-2">
-                                                                    {tenantPhone && (
-                                                                        <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                            <MessageSquare className="w-4 h-4" /> WhatsApp
+                                                                {/* Details grid — full metadata in expanded view */}
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+                                                                    {d.tenantName && <DetailItem label="Tenant" value={d.tenantName} />}
+                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
+                                                                        <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+                                                                    )}
+                                                                    {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
+                                                                    {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
+                                                                    {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
+                                                                    {((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+                                                                        <DetailItem label="Service Charge" value={
+                                                                            <>
+                                                                                ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                                                {(() => {
+                                                                                    const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                                                    if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                                                    if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+                                                                                    if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                                                    return null;
+                                                                                })()}
+                                                                            </>
+                                                                        } />
+                                                                    )}
+                                                                    {(() => {
+                                                                        const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                                        const outstanding = d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
+                                                                        return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+                                                                    })()}
+                                                                    {((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
+                                                                    {((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
+                                                                    {((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
+                                                                    {/* Term Progress */}
+                                                                    {d.termProgress !== null && (
+                                                                        <DetailItem label="Term Progress" value={
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
+                                                                                    <div className={`h-full rounded-full transition-all ${d.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(d.termProgress * 100)}%` }} />
+                                                                                </div>
+                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
+                                                                            </div>
+                                                                        } />
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Message Tenant panel */}
+                                                                {showUnitMessaging && (
+                                                                    <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
+                                                                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
+                                                                            Contact {d.tenantName || 'Tenant'}
+                                                                        </p>
+                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                            {tenantPhone && (isGrowthOrAbove || isKompleteFirm) && (
+                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                                    <MessageSquare className="w-4 h-4" /> WhatsApp
+                                                                                </button>
+                                                                            )}
+                                                                            {tenantPhone && !isGrowthOrAbove && !isKompleteFirm && (
+                                                                                <button disabled title="WhatsApp requires Growth plan or above" className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600/40 text-white/50 text-xs font-bold rounded-lg cursor-not-allowed shadow-sm relative">
+                                                                                    <MessageSquare className="w-4 h-4" /> WhatsApp
+                                                                                    <LockClosedIcon className="w-3 h-3 absolute top-1 right-1" />
+                                                                                </button>
+                                                                            )}
+                                                                            {tenantEmail && (
+                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                                    <Mail className="w-4 h-4" /> Email
+                                                                                </button>
+                                                                            )}
+                                                                            {tenantPhone && (
+                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                                    <Phone className="w-4 h-4" /> Call
+                                                                                </a>
+                                                                            )}
+                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                                <Eye className="w-4 h-4" /> Portal
+                                                                            </button>
+                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm">
+                                                                                <MessageSquare className="w-4 h-4 text-emerald-500" /> Compose
+                                                                            </button>
+                                                                        </div>
+                                                                        {!hasContactInfo && (
+                                                                            <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Action buttons */}
+                                                                <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }}
+                                                                        className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+                                                                    >
+                                                                        <EditIcon className="w-3.5 h-3.5" /> Edit Unit
+                                                                    </button>
+                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                                            <Receipt className="w-3.5 h-3.5" /> Record Payment
                                                                         </button>
                                                                     )}
-                                                                    {tenantEmail && (
-                                                                        <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                            <Mail className="w-4 h-4" /> Email
-                                                                        </button>
-                                                                    )}
-                                                                    {tenantPhone && (
-                                                                        <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                            <Phone className="w-4 h-4" /> Call
-                                                                        </a>
-                                                                    )}
-                                                                    <button onClick={handleOpenInbox} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm ml-auto">
-                                                                        <MessageSquare className="w-4 h-4 text-emerald-500" /> Full Compose in Revenue Monitor →
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+                                                                        <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); }}
+                                                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+                                                                    >
+                                                                        <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
+                                                                    </button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
+                                                                        <Trash2 className="w-3.5 h-3.5" /> Remove Unit
                                                                     </button>
                                                                 </div>
-                                                                {!hasContactInfo && (
-                                                                    <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
-                                                                )}
                                                             </div>
                                                         )}
-
-                                                        {/* Action buttons */}
-                                                        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
-                                                            <button
-                                                                onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
-                                                                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
-                                                            >
-                                                                <EditIcon className="w-3.5 h-3.5" /> Edit Unit
-                                                            </button>
-                                                            {selectedUnit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                <button onClick={() => openModal('collectRent', property.id, { unitName: sd.name, tenantName: sd.tenantName, rentAmount: sd.rentAmount, unitId: selectedUnit.id })} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                                    <Receipt className="w-3.5 h-3.5" /> Record Payment
-                                                                </button>
-                                                            )}
-                                                            <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                                <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setShowUnitMessaging(v => !v)}
-                                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
-                                                            >
-                                                                <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
-                                                            </button>
-                                                            <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
-                                                                <Trash2 className="w-3.5 h-3.5" /> Remove Unit
-                                                            </button>
-                                                        </div>
                                                     </div>
                                                 );
-                                            })() : null;
-
-                                            return [...cards, expansionPanel];
-                                        })}
+                                            })}
                                     </div>
                                 );
                             })()}
@@ -1501,7 +1520,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         onUpdate={(updated) =>
                             updateItem(
                                 'properties',
-                                { ...updated, _id: (updated as { _id?: string })._id ?? property._id, id: updated.id ?? property.id },
+                                { ...updated, _id: (updated as any)._id ?? (property as any)._id, id: updated.id ?? property.id },
                                 'Property Updated'
                             )
                         } 
@@ -1679,6 +1698,16 @@ const PropertyDetailViewContent: React.FC = () => {
                 )}
                 </div>
             </div>
+
+            {/* Compose Modal */}
+            {showCompose && coreState.firmDetails?.id && (
+                <ComposeModal
+                    firmId={coreState.firmDetails.id}
+                    prefill={composePrefill}
+                    onClose={() => { setShowCompose(false); setComposePrefill(undefined); }}
+                    onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') || msg.includes('requires') ? 'error' : 'success' })}
+                />
+            )}
         </div>
     );
 };

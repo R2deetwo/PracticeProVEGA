@@ -47,7 +47,7 @@ const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
 const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
-  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30', portal: 'text-emerald-400 bg-emerald-900/30',
+  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', portal: 'text-emerald-400 bg-emerald-900/30',
 };
 const STATUS_COLORS = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400' };
 
@@ -157,7 +157,7 @@ const AutomationCenter: React.FC = () => {
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-black text-white tracking-tight">{terminology.matters} Notifications</h2>
-          <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · SMS automation bridge</p>
+          <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · Portal automation bridge</p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
           <button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl transition-colors whitespace-nowrap">

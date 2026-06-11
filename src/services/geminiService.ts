@@ -1,8 +1,9 @@
 import { FunctionDeclaration, Type, Content, GoogleGenAI } from "@google/genai";
 import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult, AriaChatContext } from '../types';
+import { SignerContext } from '../contexts/ProductContext';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';
 import { getSystemInstruction } from '../agents/AgencyHub';
-import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES } from '../constants/aloaPrompts';
+import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, getAloaProtocol } from '../constants/aloaPrompts';
 import { validateAIResponse } from '../config/identityGuardrails';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
@@ -504,7 +505,7 @@ export const streamMessage = async (
 
 export const streamDraft = async (
     history: { role: string, content: string }[],
-    context: { appState: AppState; currentUser: User; },
+    context: { appState: AppState; currentUser: User; signerContext?: SignerContext | null; },
     onChunk: (text: string) => void,
     signal?: AbortSignal
 ) => {
@@ -513,13 +514,35 @@ export const streamDraft = async (
         parts: [{ text: typeof msg.content === 'string' ? msg.content : '' }]
     })).filter(c => c.parts[0].text);
 
+    // ── Build role-aware context instruction ────────────────────────────────
+    // KOMPLETE (unified) mode: use the user's actual profile role, never guess.
+    // VEGA mode: always "legal practitioner / Solicitor".
+    // ATRIUM mode: always "property manager / real estate professional".
+    const isUnified = !!context.signerContext;
+    const aloaProtocol = getAloaProtocol(isUnified, context.signerContext);
+
+    let roleContextBlock: string;
+    const sc = context.signerContext;
+    if (sc) {
+        // KOMPLETE / unified — derive from user profile
+        roleContextBlock = `CONTEXT: The user is ${sc.signerName || 'the account holder'}, a ${sc.signerTitle || 'professional'}.
+Unless explicitly instructed otherwise, ALL drafts must be signed and authored as "${sc.signerName || '[SIGNER NAME]'}" with the title "${sc.signerTitle || '[SIGNER TITLE]'}".
+Do NOT assume the user is a "Lawyer" or "Property Manager" — use their actual profile title: "${sc.signerTitle}".
+If you need more context about the user's practice area, include [BRACKETED PLACEHOLDERS] rather than guessing.
+Jurisdiction: Tailor to Nigerian law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).`;
+    } else {
+        // VEGA or ATRIUM — existing behavior preserved
+        roleContextBlock = `CONTEXT: The user is a legal practitioner based in Asaba, Delta State, Nigeria. 
+Unless explicitly instructed otherwise (e.g., "Lagos High Court"), ALL drafts must be tailored to the jurisdiction of the High Court of Delta State or relevant Delta State laws.
+The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
+    }
+
     const systemInstruction = `
-    ${ALOA_PRECISION_PROTOCOL}
+    ${aloaProtocol}
     
     ${DRAFTPRO_HTML_FORMATTING_RULES}
 
-    CONTEXT: The user is a legal practitioner based in Asaba, Delta State, Nigeria. 
-    Unless explicitly instructed otherwise (e.g., "Lagos High Court"), ALL drafts must be tailored to the jurisdiction of the High Court of Delta State or relevant Delta State laws.
+    ${roleContextBlock}
     
     TASK: Write a perfectly formatted, authoritative legal document.
     

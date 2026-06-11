@@ -48,10 +48,11 @@ import LegalPlaceholder from './extensions/LegalPlaceholder';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
 import { FontSize } from './extensions/FontSize';
-import { useProduct } from '../../../contexts/ProductContext';
+import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAloa } from '../../../contexts/AloaProvider';
 import { HeaderRenderer } from '../HeaderRenderer';
 import { HeaderDesigner } from '../HeaderDesigner';
 import { HeaderConfiguration } from '../../../types';
@@ -377,7 +378,9 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const { appState } = useDataState();
     const { handleUpdateFirmDetails } = useDataActions();
     const { currentUser } = useAuth();
-    const { isProperty } = useProduct();
+    const { isProperty, isUnified } = useProduct();
+    const signerContext = useSignerContext();
+    const { openWithContext, openPanel } = useAloa();
 
     // States
     // Number of explicit pageBreak nodes currently in the document
@@ -393,6 +396,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // Modals
     const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | null>(null);
     const [modalInput, setModalInput] = useState('');
+    const [targetPlaceholderLabel, setTargetPlaceholderLabel] = useState<string | null>(null);
+    const [aiHelpLabel, setAiHelpLabel] = useState<string | null>(null);
+    const [aiHelpLoading, setAiHelpLoading] = useState(false);
+    const [aiHelpResult, setAiHelpResult] = useState<Record<string, string>>({});
+    const isFillingRef = useRef(false);
     const [formatRules, setFormatRules] = useState({
         suitTitleFormat: true,
         doubleSpacing: false,
@@ -414,6 +422,8 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // Global placeholder fill modal trigger
     useEffect(() => {
         const handleOpenTarget = (e: any) => {
+            const label = e?.detail?.label || null;
+            setTargetPlaceholderLabel(label);
             setActiveModal('fill_placeholders');
         };
         window.addEventListener('open-placeholder-modal', handleOpenTarget);
@@ -568,7 +578,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
             aiService.streamDraft(
                 [{ role: 'user', content: draftPrompt }],
-                { appState, currentUser: currentUser! },
+                { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
                     // Accumulate chunks ONLY
                     draftBuffer += chunk;
@@ -737,6 +747,70 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
             setActiveModal(null);
         }
+    };
+
+    // ── AI Help for Placeholders ────────────────────────────────────────────
+    // Opens Mini ALOA with context about the current document and the
+    // specific placeholder the user needs help with.
+    const handleAiHelpForPlaceholder = (label: string) => {
+        setAiHelpLabel(label);
+        setAiHelpLoading(true);
+
+        // Build a snippet of the document context (first 500 chars of plain text)
+        let docContext = '';
+        editor?.state.doc.descendants((node) => {
+            if (node.isText && docContext.length < 500) {
+                docContext += node.text || '';
+            }
+        });
+        const truncatedContext = docContext.slice(0, 500);
+
+        // Open MiniAloa with context about this placeholder
+        openWithContext({
+            entityType: 'matter',
+            entityId: 'draftpro-placeholder-help',
+            entityName: title || 'Draft Document',
+            payload: {
+                placeholderLabel: label,
+                documentContext: truncatedContext,
+                signerContext: signerContext ? { signerName: signerContext.signerName, signerTitle: signerContext.signerTitle } : null,
+            },
+        });
+
+        // Also try a quick inline AI suggestion
+        (async () => {
+            try {
+                const { streamMessage } = await import('../../../services/aiService');
+                const aiContext = {
+                    appState,
+                    currentUser: currentUser!,
+                    currentHistoryEntry: null as any,
+                    localFiles: [],
+                    aloaXLibrary: [],
+                    isFirmSearchEnabled: false,
+                    searchBrain: undefined as any,
+                };
+                const prompt = `I'm drafting a document and need to fill the placeholder [${label}]. Based on the document context below, suggest a concise value for this placeholder. Reply with ONLY the suggested value, nothing else. If you can't determine a specific value, reply with a brief description of what should go there.\n\nDocument context: "${truncatedContext}"${signerContext ? `\nUser: ${signerContext.signerName}, ${signerContext.signerTitle}` : ''}`;
+
+                let suggestion = '';
+                await streamMessage(
+                    [{ role: 'user' as const, content: prompt, id: 'ai-help' }],
+                    aiContext,
+                    (chunk) => { suggestion += chunk; },
+                    'flash'
+                );
+
+                if (suggestion.trim()) {
+                    setAiHelpResult(prev => ({ ...prev, [label]: suggestion.trim() }));
+                    addToast(`AI suggestion for [${label}] ready`, { type: 'info' });
+                }
+            } catch (err: any) {
+                console.warn('AI help failed for placeholder:', err.message);
+            } finally {
+                setAiHelpLoading(false);
+                setAiHelpLabel(null);
+            }
+        })();
     };
 
     // if (!editor) return null; // Removed to prevent "black screen" during init
@@ -1120,38 +1194,79 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             )}
 
                             {activeModal === 'fill_placeholders' && (() => {
-                                const nodesToFill: { pos: number, size: number, label: string }[] = [];
-                                editor?.state.doc.descendants((node, pos) => {
+                                // Collect unique labels for the form UI (read-only at render time)
+                                const nodesForUI: { label: string }[] = [];
+                                editor?.state.doc.descendants((node) => {
                                     if (node.type.name === 'legalPlaceholder') {
-                                        nodesToFill.push({ pos, size: node.nodeSize, label: node.attrs.label });
+                                        nodesForUI.push({ label: node.attrs.label });
                                     }
                                 });
-
-                                // Get unique labels to list in the UI
-                                const uniqueLabels = Array.from(new Set(nodesToFill.map(n => n.label)));
+                                const uniqueLabels = Array.from(new Set(nodesForUI.map(n => n.label)));
 
                                 const processFill = () => {
+                                    // Guard against duplicate submissions
+                                    if (isFillingRef.current) return;
+                                    if (!editor) return;
+
                                     const form = document.getElementById('fill-placeholders-form') as HTMLFormElement;
                                     if (!form) return;
                                     const formData = new FormData(form);
                                     const values: Record<string, string> = {};
                                     formData.forEach((val, key) => { values[key] = val as string; });
 
-                                    // Apply from bottom up to avoid pos shifts
-                                    nodesToFill.sort((a, b) => b.pos - a.pos).forEach(n => {
-                                        if (values[n.label]) {
-                                            editor?.chain().deleteRange({ from: n.pos, to: n.pos + n.size }).insertContentAt(n.pos, values[n.label]).run();
+                                    // Check if there's anything to fill
+                                    const hasValues = Object.values(values).some(v => v.trim().length > 0);
+                                    if (!hasValues) {
+                                        setActiveModal(null);
+                                        setTargetPlaceholderLabel(null);
+                                        return;
+                                    }
+
+                                    isFillingRef.current = true;
+
+                                    try {
+                                        // Re-fetch positions from the CURRENT document state (fresh, not stale)
+                                        const { tr, schema } = editor.state;
+                                        const currentNodes: { pos: number; size: number; label: string }[] = [];
+                                        editor.state.doc.descendants((node, pos) => {
+                                            if (node.type.name === 'legalPlaceholder') {
+                                                currentNodes.push({ pos, size: node.nodeSize, label: node.attrs.label });
+                                            }
+                                        });
+
+                                        // Sort bottom-up so that replacing higher positions doesn't shift lower ones
+                                        currentNodes.sort((a, b) => b.pos - a.pos);
+
+                                        // Apply all replacements in a single ProseMirror transaction
+                                        for (const n of currentNodes) {
+                                            const val = values[n.label];
+                                            if (val !== undefined && val.trim().length > 0) {
+                                                tr.replaceWith(n.pos, n.pos + n.size, schema.text(val));
+                                            }
                                         }
-                                    });
+
+                                        editor.view.dispatch(tr);
+                                        addToast('Placeholders filled.', { type: 'success' });
+                                    } catch (err) {
+                                        console.error('Error filling placeholders:', err);
+                                        addToast('Error filling placeholders. Please try again.', { type: 'error' });
+                                    } finally {
+                                        isFillingRef.current = false;
+                                        setActiveModal(null);
+                                        setTargetPlaceholderLabel(null);
+                                    }
+                                };
+
+                                const closeFillModal = () => {
+                                    setTargetPlaceholderLabel(null);
                                     setActiveModal(null);
-                                    addToast('Placeholders filled.', { type: 'success' });
                                 };
 
                                 if (uniqueLabels.length === 0) {
                                     return (
                                         <div className="space-y-4">
                                             <p className="text-sm text-slate-500">No placeholders found in this document.</p>
-                                            <button onClick={() => setActiveModal(null)} className="w-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Close</button>
+                                            <button onClick={closeFillModal} className="w-full bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 font-bold py-2 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Close</button>
                                         </div>
                                     );
                                 }
@@ -1161,19 +1276,43 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                         <div className="max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar pr-2">
                                             {uniqueLabels.map(label => (
                                                 <div key={label} className="flex flex-col gap-1">
-                                                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 capitalize">{label.toLowerCase()}</label>
-                                                    <input autoComplete="off" data-lpignore="true" 
+                                                    <div className="flex items-center justify-between">
+                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 capitalize">{label.toLowerCase()}</label>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAiHelpForPlaceholder(label)}
+                                                            disabled={aiHelpLoading && aiHelpLabel === label}
+                                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
+                                                            title="Get AI help for this placeholder"
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                                            </svg>
+                                                            {aiHelpLoading && aiHelpLabel === label ? 'Asking...' : 'Ask ARIA'}
+                                                        </button>
+                                                    </div>
+                                                    <input autoComplete="off" data-lpignore="true"
                                                         name={label}
                                                         required
+                                                        autoFocus={targetPlaceholderLabel === label}
                                                         className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                                                        placeholder={`Enter ${label.toLowerCase()}...`}
+                                                        placeholder={aiHelpResult[label] || `Enter ${label.toLowerCase()}...`}
+                                                        defaultValue={aiHelpResult[label] || ''}
                                                     />
+                                                    {aiHelpResult[label] && (
+                                                        <p className="text-[10px] text-violet-500 dark:text-violet-400 flex items-center gap-1">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                                            </svg>
+                                                            AI suggested — edit or accept
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                         <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
-                                            <button type="button" onClick={() => setActiveModal(null)} className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 font-bold py-2 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
-                                            <button type="submit" className="flex-1 bg-amber-500 text-white font-bold py-2 rounded-lg hover:bg-amber-600 transition-colors">Apply All</button>
+                                            <button type="button" onClick={closeFillModal} className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 font-bold py-2 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
+                                            <button type="submit" className="flex-1 bg-amber-500 text-white font-bold py-2 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Apply All</button>
                                         </div>
                                     </form>
                                 );

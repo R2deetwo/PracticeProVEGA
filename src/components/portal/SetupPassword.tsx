@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { Logo, LockClosedIcon, ShieldCheckIcon, EyeIcon, EyeOffIcon, CheckCircleIcon, XIcon } from '../../constants';
+import { Logo, LockClosedIcon, ShieldCheckIcon, EyeIcon, EyeOffIcon, CheckCircleIcon, XIcon, ExternalLinkIcon } from '../../constants';
 
 // Inline icons that aren't in constants
 const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -49,6 +49,7 @@ const SetupPassword: React.FC = () => {
     const [loginError, setLoginError] = useState('');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
+    const [termsError, setTermsError] = useState('');
 
     // Extract token from URL on mount
     useEffect(() => {
@@ -108,6 +109,7 @@ const SetupPassword: React.FC = () => {
 
     const handleSubmit = async () => {
         setError('');
+        setTermsError('');
 
         // Validation
         if (!password) {
@@ -120,6 +122,10 @@ const SetupPassword: React.FC = () => {
         }
         if (password !== confirmPassword) {
             setError('Passwords do not match.');
+            return;
+        }
+        if (!agreedToTerms) {
+            setTermsError('You must agree to the Portal Terms of Use and the PracticePro Terms and Conditions of Service to proceed.');
             return;
         }
         if (!token) {
@@ -473,26 +479,37 @@ const SetupPassword: React.FC = () => {
                             </div>
 
                             {/* Terms & Conditions */}
-                            <div className="mt-4 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                            <div className={`mt-4 p-3 rounded-xl bg-white/[0.04] border ${termsError ? 'border-rose-500/50' : 'border-white/[0.08]'} transition-colors`}>
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
                                         checked={agreedToTerms}
-                                        onChange={e => setAgreedToTerms(e.target.checked)}
+                                        onChange={e => { setAgreedToTerms(e.target.checked); if (e.target.checked) setTermsError(''); }}
                                         className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-zinc-600 text-primary-600 focus:ring-primary-500 accent-amber-500"
                                     />
                                     <span className="text-xs text-slate-400 leading-relaxed">
-                                        I acknowledge and agree to the{' '}
+                                        I agree to the{' '}
                                         <button
                                             type="button"
                                             onClick={() => setShowTerms(true)}
                                             className="text-amber-400 underline hover:text-amber-300 font-medium"
                                         >
-                                            Terms and Conditions of Use
+                                            Portal Terms of Use
                                         </button>
-                                        {' '}for the PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal, including the Privacy Policy and Data Processing Agreement.
+                                        {' '}and the{' '}
+                                        <a
+                                            href="/terms-of-service"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-amber-400 underline hover:text-amber-300 font-medium"
+                                        >
+                                            PracticePro Terms and Conditions of Service
+                                        </a>
                                     </span>
                                 </label>
+                                {termsError && (
+                                    <p className="text-xs text-rose-400 mt-2 ml-7">{termsError}</p>
+                                )}
                             </div>
 
                             {/* Submit */}
@@ -524,41 +541,82 @@ const SetupPassword: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Terms & Conditions overlay */}
+                    {/* Portal Terms of Use overlay */}
                     {showTerms && (
                         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                            <div className="bg-slate-900 border border-white/[0.08] rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+                            <div className="bg-slate-900 border border-white/[0.08] rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6">
                                 <div className="flex items-center justify-between mb-4">
-                                    <h3 className="text-lg font-bold text-white">Portal Terms and Conditions</h3>
+                                    <h3 className="text-lg font-bold text-white">Portal Terms of Use</h3>
                                     <button onClick={() => setShowTerms(false)} className="text-slate-400 hover:text-slate-200">
                                         <XIcon className="w-5 h-5" />
                                     </button>
                                 </div>
                                 <div className="prose prose-sm prose-invert max-w-none text-slate-400 space-y-3">
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal — Terms of Use</p>
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal — Portal Terms of Use</p>
+                                    <p className="text-xs text-slate-500 italic">Effective Date: January 1, 2026 • Version 1.0</p>
                                     <p>By accessing this portal, you agree to the following terms:</p>
-                                    <h4 className="text-sm font-bold text-slate-200">1. Portal Access</h4>
-                                    <p>Your access to this portal is granted by your {isClientPortal ? 'legal service provider' : 'property manager'} through PracticePro. Access can be revoked at any time.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">2. Account Security</h4>
-                                    <p>You are responsible for maintaining the confidentiality of your login credentials. Do not share your password with anyone. Notify your administrator immediately if you suspect unauthorized access.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">3. Information Accuracy</h4>
-                                    <p>The information displayed in this portal is provided for your convenience. While we strive for accuracy, {isClientPortal ? 'your law firm' : 'your property manager'} is the final authority on all records.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">4. Data Protection</h4>
-                                    <p>Your personal data is processed in accordance with the Nigeria Data Protection Act 2023 (NDPA 2023). PracticePro employs AES-256 encryption and ISO 27001-aligned security practices to protect your information.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">5. Acceptable Use</h4>
-                                    <p>You agree not to misuse the portal, attempt to access unauthorized areas, or upload malicious content. All portal activities are logged for security and audit purposes.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">6. Communications</h4>
-                                    <p>Messages sent through the portal are intended for communication with your {isClientPortal ? 'legal service provider' : 'property manager'}. These communications are not encrypted end-to-end and should not contain highly sensitive information.</p>
-                                    <h4 className="text-sm font-bold text-slate-200">7. Modifications</h4>
-                                    <p>These terms may be updated from time to time. Continued use of the portal constitutes acceptance of any changes.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">1. Purpose and Scope</h4>
+                                    <p>The PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal is a secure, web-based interface that allows you to interact with your {isClientPortal ? 'legal service provider' : 'property manager'} through the PracticePro {productName} platform. Your access is limited to the features and data that your {isClientPortal ? 'law firm' : 'property management firm'} has expressly enabled for your account.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">2. User Responsibilities</h4>
+                                    <p>You represent and warrant that all information you provide through the Portal is accurate, complete, and current. You are solely responsible for maintaining the confidentiality of your login credentials. You must not share your password with any third party.</p>
+                                    <p>You must not use the Portal to upload unlawful content, attempt to gain unauthorized access, interfere with the platform's integrity, use automated means to extract data, reverse-engineer any component, or impersonate any person or entity.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">3. Privacy and Data Protection</h4>
+                                    <p>Your personal data is processed in accordance with the Nigeria Data Protection Act 2023 (NDPA 2023). PracticePro employs AES-256 encryption at rest, TLS 1.3 for data in transit, and PBKDF2 password hashing. Under the NDPA 2023, you have the right to access, rectify, erase, and restrict the processing of your personal data.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">4. Communication Through the Portal</h4>
+                                    <p>All messages, comments, and communications sent through the Portal are logged and stored for security, audit, and compliance purposes. Portal communications are secured in transit using TLS encryption but are not end-to-end encrypted. You should not use the Portal to transmit highly sensitive or privileged information without first consulting your {isClientPortal ? 'legal service provider' : 'property manager'}.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">5. Payment Submissions and Proof of Payment</h4>
+                                    <p>If you submit proof of payment through the Portal, you warrant that it is genuine, accurate, and relates to the {isClientPortal ? 'invoice' : 'obligation'} for which it is submitted. Submitting false or misleading proof of payment constitutes a material breach of these terms and may constitute a criminal offence. Submission of proof of payment does not constitute payment confirmation or acceptance.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">6. {!isClientPortal ? 'Maintenance Requests and Service Charges' : 'Document Submissions'}</h4>
+                                    {!isClientPortal ? (
+                                        <p>You may submit maintenance requests through the Portal with accurate and complete information. Deliberate or repeated submission of false requests may result in restriction of your access. Service charge statements are provided for informational purposes; your property manager is responsible for their accuracy. By submitting a maintenance request, you may be consenting to reasonable access to your unit for repairs.</p>
+                                    ) : (
+                                        <p>You may submit documents through the Portal at the request of your legal service provider. You warrant that all submitted documents are authentic and complete to the best of your knowledge. Documents must comply with any file size, format, or content restrictions displayed at the point of upload.</p>
+                                    )}
+
+                                    <h4 className="text-sm font-bold text-slate-200">7. Intellectual Property Restrictions</h4>
+                                    <p>The PracticePro platform, including the Portal, is the exclusive property of PracticePro Technologies Limited and is protected by applicable intellectual property laws. You are granted a limited, non-exclusive, non-transferable, revocable license to access and use the Portal solely for its intended purposes. You must not modify, copy, redistribute, reverse-engineer, or remove proprietary notices from the Portal.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">8. Limitation of Liability</h4>
+                                    <p>PracticePro does not control, verify, or endorse the content displayed on the Portal. The Portal is provided on an &quot;as is&quot; and &quot;as available&quot; basis. To the maximum extent permitted by applicable law, PracticePro shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Portal. PracticePro&apos;s total aggregate liability shall not exceed the amount of fees paid by your {isClientPortal ? 'law firm' : 'property management firm'} in the twelve months preceding the event, or ₦100,000, whichever is greater.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">9. Termination of Portal Access</h4>
+                                    <p>Your {isClientPortal ? 'legal service provider' : 'property manager'} may revoke your Portal access at any time. PracticePro reserves the right to suspend or terminate your access if you breach these terms. Upon termination, you must immediately cease all use of the Portal, and your login credentials will be deactivated.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">10. Governing Law</h4>
+                                    <p>These Portal Terms are governed by the laws of the Federal Republic of Nigeria. Any dispute shall be subject to the exclusive jurisdiction of the courts of Lagos State, Nigeria.</p>
+
+                                    <h4 className="text-sm font-bold text-slate-200">11. Contact Information</h4>
+                                    <p>PracticePro Technologies Limited, No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria. Email: <a href="mailto:practiceprovega@gmail.com" className="text-amber-400 underline">practiceprovega@gmail.com</a></p>
+
                                     <div className="mt-4 pt-4 border-t border-white/[0.08]">
-                                        <p className="text-xs text-slate-500">For full details, see the PracticePro <a href="/terms-of-service" target="_blank" className="text-amber-400 underline">Terms of Service</a>, <a href="/privacy-policy" target="_blank" className="text-amber-400 underline">Privacy Policy</a>, and <a href="/data-processing-agreement" target="_blank" className="text-amber-400 underline">Data Processing Agreement</a>.</p>
+                                        <p className="text-xs text-slate-500">For full details, see the PracticePro <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Terms and Conditions of Service</a>, <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Privacy Policy</a>, and <a href="/data-processing-agreement" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Data Processing Agreement</a>.</p>
                                     </div>
                                 </div>
-                                <div className="mt-4 flex justify-end">
+                                <div className="mt-4 flex justify-end gap-3">
+                                    <a
+                                        href="/portal-terms-of-use"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-4 py-2 text-amber-400 text-sm font-medium hover:text-amber-300 transition-colors flex items-center gap-1"
+                                    >
+                                        View Full Terms
+                                        <ExternalLinkIcon className="w-3.5 h-3.5" />
+                                    </a>
+                                    <button
+                                        onClick={() => { setShowTerms(false); setAgreedToTerms(true); setTermsError(''); }}
+                                        className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors"
+                                    >
+                                        I Agree
+                                    </button>
                                     <button
                                         onClick={() => setShowTerms(false)}
-                                        className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors"
+                                        className="px-4 py-2 text-slate-400 rounded-lg text-sm font-medium hover:text-white hover:bg-white/[0.06] transition-colors"
                                     >
                                         Close
                                     </button>

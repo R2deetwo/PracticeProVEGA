@@ -162,6 +162,7 @@ const InviteForm: React.FC<{
   const [relatedId, setRelatedId] = useState('');
   const [channel, setChannel] = useState<'email' | 'whatsapp' | 'both'>('email');
   const [isSending, setIsSending] = useState(false);
+  const [isNameAutoFilled, setIsNameAutoFilled] = useState(false);
 
   // Build list of matters (client portal) or properties (resident portal) to link invite to
   const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
@@ -188,13 +189,22 @@ const InviteForm: React.FC<{
   // Auto-populate when user selects a matter/property
   const handleRelatedChange = useCallback((selectedId: string) => {
     setRelatedId(selectedId);
-    if (!selectedId) return;
+    if (!selectedId) {
+      setIsNameAutoFilled(false);
+      return;
+    }
     const item = relatedItems.find((r: any) => r.id === selectedId);
     if (!item) return;
     if (isProperty) {
       // Auto-fill from property tenant data — always override if tenant data exists
+      // For resident invites, the tenant name comes from the property record (source of truth)
       const propItem = item as { id: string; label: string; tenantName: string; tenantPhone: string; tenantEmail: string };
-      if (propItem.tenantName) setName(propItem.tenantName);
+      if (propItem.tenantName) {
+        setName(propItem.tenantName);
+        setIsNameAutoFilled(true);
+      } else {
+        setIsNameAutoFilled(false);
+      }
       if (propItem.tenantPhone) setPhone(propItem.tenantPhone);
       if (propItem.tenantEmail) setEmail(propItem.tenantEmail);
     } else {
@@ -333,18 +343,34 @@ const InviteForm: React.FC<{
           </div>
         )}
 
-        {/* Name — always shown but optional */}
+        {/* Name — auto-filled from tenant record for resident invites, optional for client invites */}
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
-            Full Name <span className="text-slate-400">(optional)</span>
+            Full Name{' '}
+            {isProperty && isNameAutoFilled ? (
+              <span className="text-emerald-600 dark:text-emerald-400 font-normal normal-case tracking-normal">· from tenant record</span>
+            ) : (
+              <span className="text-slate-400">(optional)</span>
+            )}
           </label>
           <input
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={e => { setName(e.target.value); if (isProperty && isNameAutoFilled) setIsNameAutoFilled(false); }}
+            readOnly={isProperty && isNameAutoFilled}
             placeholder={isProperty ? 'e.g., Chidi Okafor' : 'e.g., Adebayo & Associates'}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            className={`w-full px-3 py-2 rounded-lg border text-sm outline-none ${
+              isProperty && isNameAutoFilled
+                ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10 text-slate-800 dark:text-zinc-200 cursor-default'
+                : 'border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+            }`}
           />
+          {isProperty && isNameAutoFilled && (
+            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+              This name is from the property's tenant record and will be used as the official name on the portal.
+              Edit only if the tenant record is incorrect.
+            </p>
+          )}
         </div>
 
         {/* Link to matter/property — auto-fills name/phone/email */}

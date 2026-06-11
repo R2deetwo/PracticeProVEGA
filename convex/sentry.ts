@@ -416,6 +416,9 @@ export const logAutomation = mutation({
     channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
     recipient: v.string(),
     messagePreview: v.optional(v.string()),
+    messageContent: v.optional(v.string()),
+    direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
+    senderName: v.optional(v.string()),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
     triggeredBy: v.optional(v.string()),
   },
@@ -432,6 +435,160 @@ export const getAutomationLogs = query({
       .withIndex("by_firm", q => q.eq("firmId", firmId))
       .order("desc")
       .take(limit ?? 50);
+  },
+});
+
+// ─── AUDIT TRAIL ────────────────────────────────────────────────────────────
+// Returns merged chronological timeline of outbound (automation_logs) and
+// inbound (atrium_inbound_messages) communications for a firm.
+
+export interface AuditTrailEntry {
+  _id: string;
+  direction: "outbound" | "inbound";
+  channel: string;
+  messageType?: string;
+  recipient?: string;
+  senderName?: string;
+  senderContact?: string;
+  content: string;
+  timestamp: number;
+  status?: string;
+  triggeredBy?: string;
+  unitId?: string;
+  tenantId?: string;
+}
+
+export const getAuditTrail = query({
+  args: {
+    firmId: v.string(),
+    unitId: v.optional(v.string()),
+    tenantId: v.optional(v.string()),
+    channel: v.optional(v.string()),
+    messageType: v.optional(v.string()),
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { firmId, unitId, tenantId, channel, messageType, startDate, endDate, limit }) => {
+    const maxLimit = limit ?? 200;
+
+    // Fetch outbound logs
+    let outboundQuery = ctx.db
+      .query("automation_logs")
+      .withIndex("by_firm", q => q.eq("firmId", firmId));
+
+    let outboundLogs = await outboundQuery.order("desc").take(maxLimit);
+
+    // Apply filters to outbound
+    if (unitId) outboundLogs = outboundLogs.filter(l => l.unitId === unitId);
+    if (tenantId) outboundLogs = outboundLogs.filter(l => l.tenantId === tenantId);
+    if (channel) outboundLogs = outboundLogs.filter(l => l.channel === channel);
+    if (messageType) outboundLogs = outboundLogs.filter(l => l.messageType === messageType);
+    if (startDate) outboundLogs = outboundLogs.filter(l => l.sentAt >= startDate);
+    if (endDate) outboundLogs = outboundLogs.filter(l => l.sentAt <= endDate);
+
+    const outbound: AuditTrailEntry[] = outboundLogs.map(l => ({
+      _id: l._id,
+      direction: (l.direction || "outbound") as "outbound" | "inbound",
+      channel: l.channel,
+      messageType: l.messageType,
+      recipient: l.recipient,
+      senderName: l.senderName,
+      content: l.messageContent || l.messagePreview || "",
+      timestamp: l.sentAt,
+      status: l.status,
+      triggeredBy: l.triggeredBy,
+      unitId: l.unitId,
+      tenantId: l.tenantId,
+    }));
+
+    // Fetch inbound messages
+    let inboundQuery = ctx.db
+      .query("atrium_inbound_messages")
+      .withIndex("by_firm", q => q.eq("firmId", firmId));
+
+    let inboundMsgs = await inboundQuery.order("desc").take(maxLimit);
+
+    // Apply filters to inbound
+    if (unitId) inboundMsgs = inboundMsgs.filter(m => m.unitId === unitId);
+    if (tenantId) inboundMsgs = inboundMsgs.filter(m => m.tenantId === tenantId);
+    if (channel) inboundMsgs = inboundMsgs.filter(m => m.channel === channel);
+    if (startDate) inboundMsgs = inboundMsgs.filter(m => m.receivedAt >= startDate);
+    if (endDate) inboundMsgs = inboundMsgs.filter(m => m.receivedAt <= endDate);
+
+    const inbound: AuditTrailEntry[] = inboundMsgs.map(m => ({
+      _id: m._id,
+      direction: "inbound" as const,
+      channel: m.channel,
+      senderName: m.senderName,
+      senderContact: m.senderContact,
+      content: m.content,
+      timestamp: m.receivedAt,
+      unitId: m.unitId,
+      tenantId: m.tenantId,
+    }));
+
+    // Merge and sort chronologically (newest first)
+    const merged = [...outbound, ...inbound].sort((a, b) => b.timestamp - a.timestamp);
+    return merged.slice(0, maxLimit);
+  },
+});
+
+/** Get all communications for printing — returns full detail for a specific tenant/unit */
+export const getCommunicationsForPrint = query({
+  args: {
+    firmId: v.string(),
+    unitId: v.optional(v.string()),
+    tenantContact: v.optional(v.string()),
+  },
+  handler: async (ctx, { firmId, unitId, tenantContact }) => {
+    // Outbound messages
+    let outboundLogs = await ctx.db
+      .query("automation_logs")
+      .withIndex("by_firm", q => q.eq("firmId", firmId))
+      .order("asc")
+      .collect();
+
+    if (unitId) outboundLogs = outboundLogs.filter(l => l.unitId === unitId);
+    if (tenantContact) outboundLogs = outboundLogs.filter(l => l.recipient === tenantContact);
+
+    // Inbound messages
+    let inboundMsgs = await ctx.db
+      .query("atrium_inbound_messages")
+      .withIndex("by_firm", q => q.eq("firmId", firmId))
+      .order("asc")
+      .collect();
+
+    if (unitId) inboundMsgs = inboundMsgs.filter(m => m.unitId === unitId);
+    if (tenantContact) inboundMsgs = inboundMsgs.filter(m => m.senderContact === tenantContact);
+
+    return {
+      outbound: outboundLogs.map(l => ({
+        _id: l._id,
+        direction: l.direction || "outbound",
+        channel: l.channel,
+        messageType: l.messageType,
+        recipient: l.recipient,
+        senderName: l.senderName,
+        content: l.messageContent || l.messagePreview || "",
+        timestamp: l.sentAt,
+        status: l.status,
+        triggeredBy: l.triggeredBy,
+        unitId: l.unitId,
+        tenantId: l.tenantId,
+      })),
+      inbound: inboundMsgs.map(m => ({
+        _id: m._id,
+        direction: "inbound",
+        channel: m.channel,
+        senderName: m.senderName,
+        senderContact: m.senderContact,
+        content: m.content,
+        timestamp: m.receivedAt,
+        unitId: m.unitId,
+        tenantId: m.tenantId,
+      })),
+    };
   },
 });
 

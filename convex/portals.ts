@@ -21,7 +21,8 @@ export const createMaintenanceTicket = mutation({
     const { attachments, ...rest } = args;
     return await ctx.db.insert("maintenance_tickets", {
       ...rest,
-      attachments: attachments ?? [],
+      // Schema uses 'images' field, not 'attachments' — map accordingly
+      images: attachments ?? [],
       status: "open",
       priority: "medium",
       createdAt: now,
@@ -123,12 +124,54 @@ export const createPortalInvite = action({
     const token = generateToken();
     const channel = args.channel || "email";
 
+    // 0.5. For resident invites, resolve the canonical tenant name from the
+    // property/tenancy record. The property record is the source of truth for
+    // a tenant's name — NOT the admin's manual input. This prevents name
+    // mismatches where the portal shows one name but the property shows another.
+    let resolvedInviteeName = args.inviteeName;
+    if (args.portalType === "resident" && args.relatedId) {
+      try {
+        const parts = args.relatedId.split("_");
+        const propertyCustomId = parts[0];
+        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+
+        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+          customId: propertyCustomId,
+        });
+
+        if (property) {
+          const units = property.units || [];
+          if (units.length > 0 && unitId) {
+            const unit = units.find((u: any) =>
+              u.id === unitId || u.unitName === unitId || u.id === args.relatedId
+            );
+            if (unit?.tenantName) {
+              resolvedInviteeName = unit.tenantName;
+            }
+          } else if (units.length > 0) {
+            // No specific unit matched, try first unit
+            if (units[0]?.tenantName) {
+              resolvedInviteeName = units[0].tenantName;
+            }
+          } else {
+            // No units array, check property-level tenant name
+            const propTenantName = (property as any).rentalDetails?.tenantName || (property as any).tenantName;
+            if (propTenantName) {
+              resolvedInviteeName = propTenantName;
+            }
+          }
+        }
+      } catch (e) {
+        // Non-blocking: use the provided name as fallback
+      }
+    }
+
     // 1. Insert the invite record
     const inviteId: string = await ctx.runMutation(api.portals.insertInviteRecord, {
       firmId: args.firmId,
       inviterId: args.inviterId,
       inviteeEmail: args.inviteeEmail,
-      inviteeName: args.inviteeName,
+      inviteeName: resolvedInviteeName,
       inviteePhone: args.inviteePhone,
       portalType: args.portalType,
       relatedId: args.relatedId,
@@ -143,7 +186,7 @@ export const createPortalInvite = action({
     const inviteUrl = `${portalBase}?token=${token}`;
     const portalLabel = args.portalType === "client" ? "Client Portal" : "Residents' Portal";
     const productName = args.portalType === "client" ? "VEGA" : "ATRIUM";
-    const inviteeGreeting = args.inviteeName ? args.inviteeName : args.inviteeEmail;
+    const inviteeGreeting = resolvedInviteeName ? resolvedInviteeName : args.inviteeEmail;
     const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
 
     // 3. Send via email (skip if no email address provided)
@@ -240,7 +283,7 @@ export const createPortalInvite = action({
 </html>`;
       emailResult = await ctx.runAction(api.communications.sendEmail, {
         to: args.inviteeEmail!,
-        toName: args.inviteeName,
+        toName: resolvedInviteeName,
         subject: `You're Invited: ${portalLabel} on PracticePro`,
         htmlContent: htmlBody,
         firmId: args.firmId,
@@ -298,6 +341,13 @@ export const insertInviteRecord = mutation({
     // after a previous invite was deleted via the simple deletePortalInvite
     // (which doesn't clean up). We mark old invites as "superseded" rather
     // than deleting them, so there's an audit trail.
+    //
+    // BUG 15 FIX: We now supersede ALL existing invites for the same email,
+    // regardless of firm/portal type. This ensures that stale "accepted" invites
+    // from a different context don't block the new invite. We also handle the
+    // case where the user account exists with role "Pending" (cleaned up by
+    // deletePortalInviteAndCleanup) — in that case, the user should be treated
+    // as a fresh invitee.
     const email = (args.inviteeEmail || "").toLowerCase().trim();
     if (email) {
       const existingInvites = await ctx.db
@@ -306,14 +356,13 @@ export const insertInviteRecord = mutation({
         .collect();
 
       for (const inv of existingInvites) {
-        // Only supersede invites for the same firm and portal type
-        if (inv.firmId === args.firmId && inv.portalType === args.portalType) {
-          if (inv.status === "pending" || inv.status === "accepted") {
-            await ctx.db.patch(inv._id, {
-              status: "superseded",
-              updatedAt: now,
-            });
-          }
+        // Supersede ALL invites for this email, regardless of firm/portal type.
+        // This is more aggressive but prevents the "already accepted" dead-end.
+        if (inv.status === "pending" || inv.status === "accepted") {
+          await ctx.db.patch(inv._id, {
+            status: "superseded",
+            updatedAt: now,
+          });
         }
       }
     }
@@ -526,9 +575,10 @@ export const deletePortalInvite = mutation({
  * 2. Creates a new invite for the same email
  *
  * Steps:
- * 1. Delete the portal_invites record
+ * 1. Delete ALL portal_invites records for the same email (not just the specified one)
  * 2. Find the user with the matching email + Client/Tenant role
- * 3. Reset their role, verification, and password so they're treated as a brand-new invitee
+ * 3. Reset their role, verification, password, and portal-specific fields so
+ *    they're treated as a brand-new invitee (Bug 16 fix: thorough cleanup)
  */
 export const deletePortalInviteAndCleanup = mutation({
   args: {
@@ -565,16 +615,20 @@ export const deletePortalInviteAndCleanup = mutation({
     // Only reset if the user has a Client or Tenant role (portal user)
     const role = (existingUser as any).role;
     if (role === "Client" || role === "Tenant" || role === "Portal User") {
-      // Reset the user so they can be re-invited cleanly
+      // Reset the user so they can be re-invited cleanly (Bug 16 fix)
       // Set isVerified to false so they can't log in with old credentials
       // Remove the password so setup-password creates a fresh one
       // Clear firmId so it will be set fresh on the next invite acceptance
+      // Clear product/portalPresenceHidden to fully reset portal state
       await ctx.db.patch(existingUser._id, {
         isVerified: false,
         emailVerified: false,
         password: undefined,
         role: "Pending",
         firmId: undefined,
+        product: undefined,
+        portalPresenceHidden: undefined,
+        onboardingCompleted: false,
       } as any);
     }
   },
@@ -611,6 +665,7 @@ export const acceptPortalInviteByToken = mutation({
     await ctx.db.patch(invite._id, {
       status: "accepted",
       acceptedAt: Date.now(),
+      termsAcceptedAt: Date.now(),
       updatedAt: Date.now(),
     });
     return invite;
@@ -682,9 +737,13 @@ export const verifyInviteToken = query({
       // deletePortalInviteAndCleanup), allow them to re-accept. This invite
       // might be a stale record from before the cleanup ran. The user needs
       // to set up their password again, so we should let them through.
+      // Bug 15 fix: Also check if the user doesn't exist at all (was deleted),
+      // or if they have no password (fully cleaned up).
       const userRole = existingUser?.role;
       const isUserUnverified = existingUser && !existingUser.isVerified;
-      if (userRole === "Pending" || isUserUnverified) {
+      const hasNoPassword = existingUser && !(existingUser as any).password;
+      const hasNoFirmId = existingUser && !existingUser.firmId;
+      if (userRole === "Pending" || isUserUnverified || hasNoPassword || hasNoFirmId) {
         // User was reset — allow re-accepting this invite
         // Fall through to return valid: true
       } else {
@@ -775,13 +834,17 @@ export const setupPortalPassword = action({
     }
 
     // ROBUSTNESS: If the invite was already accepted but the user's account was
-    // reset (role=Pending, isVerified=false), allow them to re-accept. This can
-    // happen when deletePortalInviteAndCleanup resets the user but a stale invite
-    // record still exists with status "accepted" and a valid token.
+    // reset (role=Pending, isVerified=false, no password, no firmId), allow them
+    // to re-accept. This can happen when deletePortalInviteAndCleanup resets the
+    // user but a stale invite record still exists with status "accepted" and a
+    // valid token. (Bug 15 fix: more thorough reset detection)
     if (invite.status === "accepted") {
       const emailCheck = (invite.inviteeEmail || "").toLowerCase().trim();
       const existingUserCheck: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: emailCheck });
-      const wasReset = existingUserCheck?.role === "Pending" || (existingUserCheck && !existingUserCheck.isVerified);
+      const wasReset = existingUserCheck?.role === "Pending"
+        || (existingUserCheck && !existingUserCheck.isVerified)
+        || (existingUserCheck && !(existingUserCheck as any).password)
+        || (existingUserCheck && !existingUserCheck.firmId);
       if (!wasReset) {
         return { success: false, message: "This invitation has already been used." };
       }
@@ -790,6 +853,46 @@ export const setupPortalPassword = action({
 
     const email = (invite.inviteeEmail || "").toLowerCase().trim();
     if (!email) return { success: false, message: "This invitation has no email address associated." };
+
+    // 1.5. For resident invites, resolve the canonical tenant name from the
+    // property/tenancy record. The property record is the source of truth for
+    // a tenant's name — NOT the invite. This ensures the user's name always
+    // matches the property record.
+    let canonicalTenantName: string | null = null;
+    if (invite.portalType === "resident" && invite.relatedId) {
+      try {
+        const parts = invite.relatedId.split("_");
+        const propertyCustomId = parts[0];
+        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+
+        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+          customId: propertyCustomId,
+        });
+
+        if (property) {
+          const units = property.units || [];
+          if (units.length > 0 && unitId) {
+            const unit = units.find((u: any) =>
+              u.id === unitId || u.unitName === unitId || u.id === invite.relatedId
+            );
+            if (unit?.tenantName) {
+              canonicalTenantName = unit.tenantName;
+            }
+          } else if (units.length > 0) {
+            if (units[0]?.tenantName) {
+              canonicalTenantName = units[0].tenantName;
+            }
+          } else {
+            const propTenantName = (property as any).rentalDetails?.tenantName || (property as any).tenantName;
+            if (propTenantName) {
+              canonicalTenantName = propTenantName;
+            }
+          }
+        }
+      } catch (e) {
+        // Non-blocking: use invite name as fallback
+      }
+    }
 
     // 2. Hash the password
     const hashedPassword = await ctx.runAction(internal.authUtils.hashPassword, { password: args.password });
@@ -821,7 +924,8 @@ export const setupPortalPassword = action({
           isVerified: true,
           emailVerified: true,
           verificationCode: null,
-          ...(args.name && !existingUser.name ? { name: args.name } : {}),
+          // For tenant users, always sync name with the property record (source of truth)
+          ...(canonicalTenantName ? { name: canonicalTenantName } : (args.name && !existingUser.name ? { name: args.name } : {})),
           ...(needsRoleUpdate ? { role: portalRole } : {}),
           ...(needsFirmId ? { firmId: invite.firmId } : {}),
           // Online presence privacy: property/resident portals default to hidden
@@ -834,7 +938,7 @@ export const setupPortalPassword = action({
       // them to the correct portal view automatically.
       const portalProduct = invite.portalType === "client" ? "legal" : "property";
       const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
-      const userName = args.name || invite.inviteeName || email.split("@")[0];
+      const userName = canonicalTenantName || args.name || invite.inviteeName || email.split("@")[0];
       const newUserId = await ctx.runMutation(internal.myFunctions.createUser, {
         tokenIdentifier: email,
         name: userName,
@@ -875,9 +979,9 @@ export const setupPortalPassword = action({
 
         if (property) {
           const units = property.units || [];
-          // Look up the user for their name (best-effort; use invite data as fallback)
-          const portalUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: email });
-          const tenantName = portalUser?.name || invite.inviteeName || email.split("@")[0];
+          // Use the canonical tenant name from the property record (source of truth)
+          // Fall back to the portal user's name or invite data if property lookup failed
+          const tenantName = canonicalTenantName || invite.inviteeName || email.split("@")[0];
 
           if (units.length > 0 && unitId) {
             // Multi-unit property: update the specific unit
@@ -919,12 +1023,13 @@ export const setupPortalPassword = action({
       }
     }
 
-    // 4. Mark invite as accepted
+    // 4. Mark invite as accepted (including terms acceptance timestamp)
     await ctx.runMutation(api.portals.updateInviteRecord, {
       inviteId: invite._id,
       updates: {
         status: "accepted",
         acceptedAt: Date.now(),
+        termsAcceptedAt: Date.now(),
         updatedAt: Date.now(),
         // Clear token to prevent replay attacks — the invite is now consumed
         token: undefined,
@@ -1027,6 +1132,7 @@ export const getTenantInfo = query({
           id: String(prop._id),
           name: (prop as any).name || prop.address || 'Unnamed Property',
           address: prop.address,
+          tenantName: (prop as any).rentalDetails?.tenantName || (prop as any).tenantName || null,
         });
         if (propTenantId && propTenantId !== args.userId) {
           resolvedTenantId = propTenantId;
@@ -1052,6 +1158,7 @@ export const getTenantInfo = query({
             propertyName: (prop as any).name || prop.address || 'Unnamed Property',
             propertyAddress: prop.address,
             amenities: unit.amenities || [],
+            tenantName: unit.tenantName || null,
           });
           if (unitTenantId && unitTenantId !== args.userId) {
             resolvedTenantId = unitTenantId;
@@ -1066,6 +1173,12 @@ export const getTenantInfo = query({
       ? { id: primaryUnit.propertyId, name: primaryUnit.propertyName, address: primaryUnit.propertyAddress }
       : tenantProperties.length > 0 ? tenantProperties[0] : null;
 
+    // Resolve the canonical tenant name from the property/tenancy record
+    // This is the source of truth — used by the portal to display the tenant's name
+    const resolvedTenantName = primaryUnit?.tenantName
+      || tenantProperties.find(p => p.tenantName)?.tenantName
+      || null;
+
     return {
       tenantId: resolvedTenantId,
       properties: tenantProperties,
@@ -1076,12 +1189,14 @@ export const getTenantInfo = query({
       primaryPropertyName: primaryProperty?.name || null,
       primaryUnitName: primaryUnit?.unitName || null,
       primaryPropertyAddress: primaryProperty?.address || null,
+      // Canonical tenant name from the property record (source of truth)
+      tenantName: resolvedTenantName,
     };
   },
 });
 
 export const getTenantLedger = query({
-  args: { firmId: v.string(), tenantId: v.string() },
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
   handler: async (ctx, args) => {
     // Find all properties where this tenant is assigned
     const properties = await ctx.db
@@ -1089,18 +1204,39 @@ export const getTenantLedger = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    // Collect all possible tenant IDs (direct ID + IDs from matching properties/units)
+    // Collect all possible tenant IDs (direct ID + email + IDs from matching properties/units)
     const possibleTenantIds = new Set([args.tenantId]);
+
+    // Also include the email as a possible tenantId, since ledger entries
+    // might be stored with the email instead of the Convex _id
+    if (args.email) {
+      possibleTenantIds.add(args.email.toLowerCase());
+    }
+
+    // Also try to resolve the user's Convex _id from their email,
+    // in case the tenantId is their _id but entries use the email
+    if (args.email) {
+      const user: any = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.email!.toLowerCase()))
+        .first();
+      if (user) {
+        possibleTenantIds.add(String(user._id));
+      }
+    }
 
     for (const prop of properties) {
       const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
-      if (propTenantId === args.tenantId) {
+      if (propTenantId === args.tenantId || (args.email && propTenantId === args.email.toLowerCase())) {
         // Found a property — also check if units have different IDs
+        if (propTenantId) possibleTenantIds.add(propTenantId);
       }
       const units = (prop as any).units || [];
       for (const unit of units) {
         const unitTenantId = unit.currentTenantId || unit.tenantId;
-        if (unitTenantId === args.tenantId) {
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        if (unitTenantId === args.tenantId || (args.email && (unitTenantId === args.email.toLowerCase() || unitTenantEmail === args.email.toLowerCase()))) {
+          if (unitTenantId) possibleTenantIds.add(unitTenantId);
           if (propTenantId && propTenantId !== args.tenantId) possibleTenantIds.add(propTenantId);
         }
       }
@@ -1625,6 +1761,247 @@ export const updatePaymentProofStatus = mutation({
   handler: async (ctx, args) => {
     const { proofId, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
+  },
+});
+
+// ─── Tenant Documents for Portal ────────────────────────────────────────
+
+/**
+ * getTenantDocuments — Returns documents shared with a tenant's property.
+ * For tenants, documents come from documents linked to the property's matterId,
+ * plus any documents shared with the tenant specifically.
+ */
+export const getTenantDocuments = query({
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // Find properties where this tenant is assigned
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    const tenantPropertyIds: string[] = [];
+    const tenantMatterIds: string[] = [];
+
+    for (const prop of properties) {
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      const matchesTenant = propTenantId === args.tenantId ||
+        propTenantId === args.email ||
+        String(propTenantId).toLowerCase() === (args.email || '').toLowerCase();
+
+      if (matchesTenant) {
+        tenantPropertyIds.push(String(prop._id));
+        if (prop.matterId) tenantMatterIds.push(prop.matterId);
+      }
+
+      // Also check unit-level tenants
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantId = unit.currentTenantId || unit.tenantId;
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        const matchesUnit = unitTenantId === args.tenantId ||
+          unitTenantId === args.email ||
+          String(unitTenantId).toLowerCase() === (args.email || '').toLowerCase() ||
+          (unitTenantEmail && unitTenantEmail === (args.email || '').toLowerCase());
+
+        if (matchesUnit && !tenantPropertyIds.includes(String(prop._id))) {
+          tenantPropertyIds.push(String(prop._id));
+          if (prop.matterId && !tenantMatterIds.includes(prop.matterId)) {
+            tenantMatterIds.push(prop.matterId);
+          }
+        }
+      }
+    }
+
+    if (tenantMatterIds.length === 0 && tenantPropertyIds.length === 0) return [];
+
+    // Get all documents for the firm and filter by relevant matter/property
+    const allDocs = await ctx.db
+      .query("documents")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Filter documents that are shared with client or belong to the tenant's matters
+    return allDocs
+      .filter(d => {
+        const matchesMatter = d.matterId && tenantMatterIds.includes(d.matterId as any);
+        return matchesMatter;
+      })
+      .map(d => ({
+        _id: d._id,
+        title: d.title,
+        matterId: d.matterId,
+        dateFiled: d.dateFiled,
+        isSharedWithClient: d.isSharedWithClient,
+        clientReviewStatus: d.clientReviewStatus,
+        isSignatureRequested: d.isSignatureRequested,
+        source: d.source,
+        content: d.content,
+        createdAt: d.createdAt,
+      }));
+  },
+});
+
+/**
+ * getPortalUserConsentRecords — Returns consent/acceptance records for a portal user.
+ * Looks up portal_invites for the user's email and returns terms acceptance info.
+ */
+export const getPortalUserConsentRecords = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+    if (!email) return [];
+
+    const invites = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+      .collect();
+
+    return invites
+      .filter(inv => inv.status === 'accepted' && inv.termsAcceptedAt)
+      .map(inv => ({
+        _id: inv._id,
+        portalType: inv.portalType,
+        termsAcceptedAt: inv.termsAcceptedAt,
+        acceptedAt: inv.acceptedAt,
+        inviteeName: inv.inviteeName,
+        inviteeEmail: inv.inviteeEmail,
+        firmId: inv.firmId,
+        createdAt: inv.createdAt,
+      }));
+  },
+});
+
+/**
+ * getTenantLeaseDetails — Returns lease/rental details for a tenant's property.
+ * Pulls rentalDetails from the property record and tenancy information.
+ */
+export const getTenantLeaseDetails = query({
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    const leases: any[] = [];
+
+    for (const prop of properties) {
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      const matchesTenant = propTenantId === args.tenantId ||
+        propTenantId === args.email ||
+        String(propTenantId).toLowerCase() === (args.email || '').toLowerCase();
+
+      if (matchesTenant) {
+        leases.push({
+          propertyId: String(prop._id),
+          propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+          propertyAddress: prop.address,
+          propertyType: prop.propertyType,
+          ownershipType: prop.ownershipType,
+          rentalDetails: (prop as any).rentalDetails || null,
+          category: prop.category,
+          status: prop.status,
+        });
+      }
+
+      // Also check unit-level tenants
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantId = unit.currentTenantId || unit.tenantId;
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        const matchesUnit = unitTenantId === args.tenantId ||
+          unitTenantId === args.email ||
+          String(unitTenantId).toLowerCase() === (args.email || '').toLowerCase() ||
+          (unitTenantEmail && unitTenantEmail === (args.email || '').toLowerCase());
+
+        if (matchesUnit) {
+          leases.push({
+            propertyId: String(prop._id),
+            propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+            propertyAddress: prop.address,
+            unitName: unit.name || unit.unitName || unit.label,
+            unitId: unit.id,
+            propertyType: prop.propertyType,
+            ownershipType: prop.ownershipType,
+            rentalDetails: (prop as any).rentalDetails || null,
+            unitDetails: {
+              tenantName: unit.tenantName,
+              rentAmount: unit.rentAmount,
+              leaseStart: unit.leaseStart || unit.leaseStartDate,
+              leaseEnd: unit.leaseEnd || unit.leaseEndDate,
+            },
+            category: prop.category,
+            status: prop.status,
+          });
+        }
+      }
+    }
+
+    // Also check tenancies table
+    const tenancies = await ctx.db
+      .query("tenancies")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .collect();
+
+    for (const tenancy of tenancies) {
+      // Check if we already have this property in the leases
+      const propId = tenancy.propertyId;
+      const exists = leases.find(l => l.propertyId === propId);
+      if (!exists) {
+        const prop: any = await ctx.db.get(propId as any);
+        leases.push({
+          propertyId: propId,
+          propertyName: prop ? (prop.name || prop.address || 'Unnamed Property') : 'Unknown Property',
+          propertyAddress: prop?.address || null,
+          propertyType: prop?.propertyType || null,
+          ownershipType: prop?.ownershipType || null,
+          rentalDetails: prop?.rentalDetails || null,
+          tenancyDetails: {
+            startDate: tenancy.startDate,
+            endDate: tenancy.endDate,
+            rentAmount: tenancy.rentAmount,
+            paymentFrequency: tenancy.paymentFrequency,
+            status: tenancy.status,
+          },
+          category: prop?.category || null,
+          status: prop?.status || null,
+        });
+      }
+    }
+
+    return leases;
+  },
+});
+
+/**
+ * getClientConsentRecords — Returns consent/acceptance records for a client portal user.
+ * Uses the same portal_invites data as getPortalUserConsentRecords but named
+ * separately for semantic clarity in the client dashboard.
+ */
+export const getClientConsentRecords = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+    if (!email) return [];
+
+    const invites = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+      .collect();
+
+    return invites
+      .filter(inv => inv.status === 'accepted')
+      .map(inv => ({
+        _id: inv._id,
+        portalType: inv.portalType,
+        termsAcceptedAt: inv.termsAcceptedAt,
+        acceptedAt: inv.acceptedAt,
+        inviteeName: inv.inviteeName,
+        inviteeEmail: inv.inviteeEmail,
+        firmId: inv.firmId,
+        createdAt: inv.createdAt,
+      }));
   },
 });
 

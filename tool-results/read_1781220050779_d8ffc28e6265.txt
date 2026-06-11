@@ -1,0 +1,302 @@
+   880→                                // Group units into rows for the largest breakpoint (xl=4)
+   881→                                // The expansion panel will span all columns via grid-column: 1 / -1
+   882→                                const rows: Property[][] = [];
+   883→                                const chunkSize = COLS_XL;
+   884→                                for (let i = 0; i < units.length; i += chunkSize) {
+   885→                                    rows.push(units.slice(i, i + chunkSize));
+   886→                                }
+   887→
+   888→                                // Find which row the selected unit is in
+   889→                                const selectedRowIdx = selectedUnit
+   890→                                    ? rows.findIndex(row => row.some(u => u.id === selectedUnit.id))
+   891→                                    : -1;
+   892→
+   893→                                return (
+   894→                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+   895→                                        {rows.flatMap((row, rowIdx) => {
+   896→                                            const cards = row.map((unit: Property) => {
+   897→                                                const d = getUnitDisplay(unit);
+   898→                                                const isFloor = d.name.toLowerCase().includes('floor');
+   899→                                                const menuOpen = openUnitMenuId === unit.id;
+   900→                                                const isSelected = selectedUnit?.id === unit.id;
+   901→                                                const rental = (unit as any).rentalDetails || {};
+   902→                                                const uStatus = String(unit.status || 'Vacant');
+   903→                                                const uType = (unit as any).propertyType || (unit as any).unitType || '';
+   904→
+   905→                                                // ── Visual status — contextual tooltips replace static labels ──
+   906→                                                let statusBorder = '#94A3B8';
+   907→                                                let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
+   908→                                                if (uStatus === 'Occupied') {
+   909→                                                    const hasTier1 = !!(d.tenantName && d.leaseEnd);
+   910→                                                    const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
+   911→                                                    if (hasTier1 && hasTier2) {
+   912→                                                        statusBorder = '#22C55E';
+   913→                                                        statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
+   914→                                                    } else if (!hasTier1) {
+   915→                                                        statusBorder = '#EF4444';
+   916→                                                        statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
+   917→                                                    } else {
+   918→                                                        statusBorder = '#F59E0B';
+   919→                                                        statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400', tooltip: d.statusTooltip };
+   920→                                                    }
+   921→                                                }
+   922→
+   923→                                                const typeBg = uType === 'Commercial'
+   924→                                                    ? 'bg-amber-50/60 dark:bg-amber-950/20'
+   925→                                                    : 'bg-blue-50/40 dark:bg-blue-950/10';
+   926→
+   927→                                                // ── SC status badge renderer ──
+   928→                                                const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
+   929→                                                const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
+   930→                                                const scAmount = d.serviceChargeAmount || Number((unit as any).serviceCharge || (rental as any).serviceCharge || 0);
+   931→
+   932→                                                const renderScBadge = () => {
+   933→                                                    if (d.remindersPaused) {
+   934→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
+   935→                                                    }
+   936→                                                    if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
+   937→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
+   938→                                                    }
+   939→                                                    if (scStatus === 'PARTIALLY_PAID') {
+   940→                                                        return <>
+   941→                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
+   942→                                                            {scOutstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
+   943→                                                        </>;
+   944→                                                    }
+   945→                                                    if (scStatus === 'UNPAID') {
+   946→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+   947→                                                    }
+   948→                                                    return null;
+   949→                                                };
+   950→
+   951→                                                // ── Statutory timeline milestone ──
+   952→                                                const renderTermMilestone = () => {
+   953→                                                    if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
+   954→                                                    const pct = Math.round((d.termProgress ?? 0) * 100);
+   955→                                                    return (
+   956→                                                        <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
+   957→                                                            <Scale className="w-3 h-3 text-orange-500" />
+   958→                                                            <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
+   959→                                                        </div>
+   960→                                                    );
+   961→                                                };
+   962→
+   963→                                                return (
+   964→                                                    <div
+   965→                                                        key={unit.id}
+   966→                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
+   967→                                                        style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
+   968→                                                        className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+   969→                                                    >
+   970→                                                        {/* ── Card Header ── */}
+   971→                                                        <div className="flex items-start justify-between mb-1.5">
+   972→                                                            <div className="min-w-0 flex-1 pr-2">
+   973→                                                                <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
+   974→                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>}
+   975→                                                            </div>
+   976→                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[uStatus] || 'bg-slate-100 text-slate-600'}`}>
+   977→                                                                {uStatus}
+   978→                                                            </span>
+   979→                                                        </div>
+   980→
+   981→                                                        {/* ── Micro-Profile: Operational dynamics only ── */}
+   982→                                                        <div className="space-y-1 text-xs">
+   983→                                                            {d.tenantName && (
+   984→                                                                <p className="text-slate-700 dark:text-zinc-200 truncate">
+   985→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
+   986→                                                                </p>
+   987→                                                            )}
+   988→
+   989→                                                            {/* Service Charge — always show if amount > 0 */}
+   990→                                                            {scAmount > 0 && (
+   991→                                                                <div className="flex items-center gap-1.5 flex-wrap">
+   992→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">SC</span>
+   993→                                                                    <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
+   994→                                                                    {renderScBadge()}
+   995→                                                                </div>
+   996→                                                            )}
+   997→
+   998→                                                            {/* Minimum Vend — if property has MV enabled */}
+   999→                                                            {minimumVendEnabled && uStatus === 'Occupied' && (
+  1000→                                                                <div className="flex items-center gap-1.5">
+  1001→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
+  1002→                                                                    <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
+  1003→                                                                    {d.serviceChargeStatus === 'PAID_FULLY' || d.serviceChargeStatus === 'PAID'
+  1004→                                                                        ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
+  1005→                                                                        : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
+  1006→                                                                    }
+  1007→                                                                </div>
+  1008→                                                            )}
+  1009→
+  1010→                                                            {/* Statutory Timeline Milestone */}
+  1011→                                                            {renderTermMilestone()}
+  1012→
+  1013→                                                            {/* Lease end — compact */}
+  1014→                                                            {d.leaseEnd && (
+  1015→                                                                <p className="text-slate-500 dark:text-zinc-400">
+  1016→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Ends</span>
+  1017→                                                                    {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
+  1018→                                                                </p>
+  1019→                                                            )}
+  1020→                                                        </div>
+  1021→
+  1022→                                                        {/* ── Card Footer: contextual badge + actions ── */}
+  1023→                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
+  1024→                                                            {statusBadge ? (
+  1025→                                                                <Tooltip text={statusBadge.tooltip} allowWrap>
+  1026→                                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
+  1027→                                                                        {statusBadge.label}
+  1028→                                                                    </span>
+  1029→                                                                </Tooltip>
+  1030→                                                            ) : (
+  1031→                                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+  1032→                                                                    Vacant
+  1033→                                                                </span>
+  1034→                                                            )}
+  1035→                                                            <div className="relative">
+  1036→                                                                <button
+  1037→                                                                    type="button"
+  1038→                                                                    onClick={(e) => {
+  1039→                                                                        e.stopPropagation();
+  1040→                                                                        if (menuOpen) {
+  1041→                                                                            setOpenUnitMenuId(null);
+  1042→                                                                            setOpenUnitMenuPos(null);
+  1043→                                                                        } else {
+  1044→                                                                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+  1045→                                                                            const estimatedMenuHeight = 340;
+  1046→                                                                            const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
+  1047→                                                                            setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
+  1048→                                                                            setOpenUnitMenuId(unit.id);
+  1049→                                                                        }
+  1050→                                                                    }}
+  1051→                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+  1052→                                                                    aria-expanded={menuOpen}
+  1053→                                                                >
+  1054→                                                                    <CogIcon className="w-3.5 h-3.5" />
+  1055→                                                                </button>
+  1056→                                                                
+  1057→                                                                {openUnitMenuPos && menuOpen && (
+  1058→                                                                <div
+  1059→                                                                    style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
+  1060→                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[70vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+  1061→                                                                >
+  1062→                                                                    <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
+  1063→                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
+  1064→                                                                    </div>
+  1065→                                                                    
+  1066→                                                                    {!isFloor ? (
+  1067→                                                                        <>
+  1068→                                                                            {unit.status === 'Occupied' ? (
+  1069→                                                                                <>
+  1070→                                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+  1071→                                                                                        <>
+  1072→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
+  1073→                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
+  1074→                                                                                            </button>
+  1075→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
+  1076→                                                                                                <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
+  1077→                                                                                            </button>
+  1078→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
+  1079→                                                                                                <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
+  1080→                                                                                            </button>
+  1081→                                                                                        </>
+  1082→                                                                                    )}
+  1083→                                                                                    <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
+  1084→                                                                                        <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
+  1085→                                                                                    </button>
+  1086→                                                                                </>
+  1087→                                                                            ) : (
+  1088→                                                                                <>
+  1089→                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1090→                                                                                        <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
+  1091→                                                                                    </button>
+  1092→                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1093→                                                                                        <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
+  1094→                                                                                    </button>
+  1095→                                                                                </>
+  1096→                                                                            )}
+  1097→                                                                            
+  1098→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
+  1099→                                                                                <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
+  1100→                                                                            </button>
+  1101→                                                                            
+  1102→                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+  1103→                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
+  1104→                                                                            </button>
+  1105→
+  1106→                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
+  1107→                                                                                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
+  1108→                                                                                    <p className="px-3 py-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
+  1109→                                                                                    {coreState.documentTemplates.slice(0, 3).map((template: any) => (
+  1110→                                                                                        <button 
+  1111→                                                                                            key={template.id} 
+  1112→                                                                                            onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
+  1113→                                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
+  1114→                                                                                        >
+  1115→                                                                                            <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
+  1116→                                                                                        </button>
+  1117→                                                                                    ))}
+  1118→                                                                                </div>
+  1119→                                                                            )}
+  1120→                                                                        </>
+  1121→                                                                    ) : (
+  1122→                                                                        <>
+  1123→                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1124→                                                                                    <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
+  1125→                                                                            </button>
+  1126→                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+  1127→                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
+  1128→                                                                            </button>
+  1129→                                                                        </>
+  1130→                                                                    )}
+  1131→                                                                    {/* Status toggle */}
+  1132→                                                                    <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
+  1133→                                                                        {uStatus !== 'Vacant' && (
+  1134→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1135→                                                                                <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
+  1136→                                                                            </button>
+  1137→                                                                        )}
+  1138→                                                                        {uStatus === 'Vacant' && (
+  1139→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
+  1140→                                                                                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
+  1141→                                                                            </button>
+  1142→                                                                        )}
+  1143→                                                                        <button
+  1144→                                                                            onClick={(e) => {
+  1145→                                                                                e.stopPropagation();
+  1146→                                                                                setOpenUnitMenuId(null);
+  1147→                                                                                try {
+  1148→                                                                                    sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
+  1149→                                                                                    sessionStorage.setItem('atrium_open_tab', 'inbox');
+  1150→                                                                                } catch (_) {}
+  1151→                                                                                navigateTo('atriumEngine');
+  1152→                                                                            }}
+  1153→                                                                            className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
+  1154→                                                                        >
+  1155→                                                                            <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
+  1156→                                                                        </button>
+  1157→                                                                        <button
+  1158→                                                                            onClick={(e) => {
+  1159→                                                                                e.stopPropagation();
+  1160→                                                                                setOpenUnitMenuId(null);
+  1161→                                                                                const details = [
+  1162→                                                                                    `Unit: ${d.name}`,
+  1163→                                                                                    `Property: ${property.address}`,
+  1164→                                                                                    `Status: ${uStatus}`,
+  1165→                                                                                    d.tenantName ? `Tenant: ${d.tenantName}` : '',
+  1166→                                                                                    rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
+  1167→                                                                                    rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
+  1168→                                                                                    d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
+  1169→                                                                                    d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
+  1170→                                                                                ].filter(Boolean).join('\n');
+  1171→                                                                                try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
+  1172→                                                                            }}
+  1173→                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
+  1174→                                                                        >
+  1175→                                                                            <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
+  1176→                                                                        </button>
+  1177→                                                                    </div>
+  1178→
+  1179→                                                                    <button
+
+[showing lines 880-1179 of 1759; use offset=1180 with limit to continue reading]

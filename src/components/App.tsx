@@ -78,6 +78,7 @@ import { ClientIntakePortal } from './client/ClientIntakePortal';
 import TenantPortal from './tenant/TenantPortal';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
+import { PortalTermsOfUse } from './PortalTermsOfUse';
 import RevenueEngine from './atrium/RevenueEngine';
 
 
@@ -346,6 +347,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
             case 'privacyPolicy': return <PrivacyPolicy onBack={goBack} />;
             case 'termsOfService': return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+            case 'portalTermsOfUse': return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
             case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
             default: return <NotFoundView />;
@@ -414,8 +416,12 @@ export const App: React.FC = () => {
 
     const hasSavedSession = React.useMemo(() => {
         try {
-            const saved = localStorage.getItem('practicepro_user_session');
-            return !!saved;
+            // Check both app session and portal session keys
+            // Portal users need the splash screen too when their session is being restored
+            const appSession = localStorage.getItem('practicepro_user_session');
+            const portalSession = localStorage.getItem('practicepro_portal_session');
+            const portalType = localStorage.getItem('practicepro_portal_type');
+            return !!(appSession || portalSession || portalType);
         } catch {
             return false;
         }
@@ -457,7 +463,8 @@ export const App: React.FC = () => {
     // sessionStorage for a stored portal type.
     useEffect(() => {
         const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/setup-password'];
-        const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type');
+        // Check both sessionStorage and localStorage for portal type (Bug 11 fix)
+        const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
             // If user has a remembered portal but no currentUser, they might be in a
             // loading state — don't redirect them away from their portal
@@ -598,8 +605,10 @@ export const App: React.FC = () => {
         if (!currentUser && !isLoadingSession) {
             // Check if a portal user session is being restored — if so, show a loading
             // state instead of the LandingPage to prevent the jarring flash
-            const hasRememberedPortal = typeof sessionStorage !== 'undefined' && (
+            // Check both sessionStorage and localStorage (Bug 11 fix)
+            const hasRememberedPortal = typeof window !== 'undefined' && (
                 sessionStorage.getItem('practicepro_portal_type') !== null ||
+                localStorage.getItem('practicepro_portal_type') !== null ||
                 sessionStorage.getItem('practicepro_portal_session') !== null ||
                 localStorage.getItem('practicepro_portal_session') !== null
             );
@@ -619,6 +628,7 @@ export const App: React.FC = () => {
                 );
             }
             if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+            if (view === 'portalTermsOfUse') return <PortalTermsOfUse onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;

@@ -986,9 +986,12 @@ export default defineSchema({
       v.literal("general_announcement"),
       v.literal("maintenance_update")
     ),
-    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
+    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
     recipient: v.string(), 
     messagePreview: v.optional(v.string()),
+    messageContent: v.optional(v.string()),
+    direction: v.optional(v.union(v.literal("outbound"), v.literal("inbound"))),
+    senderName: v.optional(v.string()),
     sentAt: v.number(),
     status: v.union(v.literal("sent"), v.literal("failed"), v.literal("simulated")),
     triggeredBy: v.optional(v.string()), 
@@ -997,7 +1000,8 @@ export default defineSchema({
     .index("by_unit", ["unitId"])
     .index("by_tenant", ["tenantId"])
     .index("by_sentAt", ["sentAt"])
-    .index("by_firm_type", ["firmId", "messageType"]),
+    .index("by_firm_type", ["firmId", "messageType"])
+    .index("by_firm_channel", ["firmId", "channel"]),
 
   atrium_inbound_messages: defineTable({
     firmId: v.string(),
@@ -1005,7 +1009,7 @@ export default defineSchema({
     tenantId: v.optional(v.string()),
     senderName: v.optional(v.string()),
     senderContact: v.string(), 
-    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
+    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms"), v.literal("portal")),
     content: v.string(),
     mediaUrl: v.optional(v.string()), 
     mimeType: v.optional(v.string()), 
@@ -1021,7 +1025,8 @@ export default defineSchema({
     .index("by_unit", ["unitId"])
     .index("by_tenant", ["tenantId"])
     .index("by_receivedAt", ["receivedAt"])
-    .index("by_firm_read", ["firmId", "isRead"]),
+    .index("by_firm_read", ["firmId", "isRead"])
+    .index("by_firm_channel", ["firmId", "channel"]),
 
   index_checkpoints: defineTable({
     sessionId: v.string(),
@@ -1125,6 +1130,7 @@ export default defineSchema({
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked"), v.literal("superseded")),
     message: v.optional(v.string()),
     acceptedAt: v.optional(v.number()),
+    termsAcceptedAt: v.optional(v.number()),
     expiresAt: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),

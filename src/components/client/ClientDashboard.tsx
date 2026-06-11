@@ -186,6 +186,10 @@ const ClientDashboard: React.FC = () => {
     const clientMessages = useQuery(api.portals.getClientMessages, portalQueryArgs);
     const clientActivity = useQuery(api.portals.getClientActivity, portalQueryArgs);
     const clientInvoices = useQuery(api.portals.getClientInvoices, portalQueryArgs);
+    const clientConsentRecords = useQuery(
+        api.portals.getClientConsentRecords,
+        currentUser?.email ? { email: currentUser.email } : 'skip'
+    );
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
     const clientMatters = (clientMattersResult || []) as any[];
@@ -499,9 +503,105 @@ const ClientDashboard: React.FC = () => {
     const renderDocuments = () => {
         const isLoading = clientDocs === undefined;
         const docs = filteredDocs || [];
+        const consents = clientConsentRecords || [];
+
+        const handlePrintConsent = (consent: any) => {
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Terms Acceptance Record</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
+                        .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 20px; margin-bottom: 24px; }
+                        .header h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+                        .header .brand { color: #f59e0b; }
+                        .header p { color: #64748b; font-size: 13px; margin: 0; }
+                        .details { background: #f8fafc; border-radius: 12px; padding: 24px; margin: 24px 0; }
+                        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+                        .row:last-child { border-bottom: none; }
+                        .label { color: #64748b; font-size: 13px; }
+                        .value { font-weight: 600; font-size: 13px; }
+                        .badge { display: inline-block; background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+                        .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+                        @media print { body { padding: 0; } .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Practice<span class="brand">Pro</span> <span style="color:#8b5cf6;font-size:13px">VEGA</span></h1>
+                        <p>Terms & Conditions Acceptance Record</p>
+                    </div>
+                    <div class="details">
+                        <div class="row"><span class="label">User</span><span class="value">${consent.inviteeName || currentUser?.name || 'N/A'}</span></div>
+                        <div class="row"><span class="label">Email</span><span class="value">${consent.inviteeEmail || currentUser?.email || 'N/A'}</span></div>
+                        <div class="row"><span class="label">Portal Type</span><span class="value">${consent.portalType === 'client' ? 'Client Portal' : "Residents' Portal"}</span></div>
+                        <div class="row"><span class="label">Terms Accepted</span><span class="value">${consent.termsAcceptedAt ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
+                        <div class="row"><span class="label">Account Activated</span><span class="value">${consent.acceptedAt ? new Date(consent.acceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
+                        <div class="row"><span class="label">Status</span><span class="value"><span class="badge">ACCEPTED</span></span></div>
+                    </div>
+                    <div class="footer">
+                        <p>This record confirms your acceptance of the PracticePro portal terms and conditions.</p>
+                        <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+                        <p>NDPA 2023 Compliant · ISO 27001 Aligned · AES-256 Encrypted</p>
+                    </div>
+                    <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
+                        <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Record</button>
+                    </div>
+                </body>
+                </html>
+            `;
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(html);
+                printWindow.document.close();
+            } else {
+                addToast('Please allow popups to print this record.', { type: 'error' });
+            }
+        };
+
+        const handlePrintDocument = (doc: any) => {
+            const html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${doc.title || 'Document'}</title>
+                    <style>
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
+                        .header { border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 24px; }
+                        .header h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+                        .header p { color: #64748b; font-size: 13px; margin: 0; }
+                        .content { white-space: pre-wrap; font-size: 14px; }
+                        .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+                        @media print { body { padding: 0; } .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>${doc.title || 'Untitled Document'}</h1>
+                        <p>${doc.matterTitle ? `Matter: ${doc.matterTitle}` : ''} ${doc.dateFiled ? `· Filed: ${doc.dateFiled}` : ''}</p>
+                    </div>
+                    <div class="content">${doc.content || 'Document content is not available for viewing in the portal. Please contact your legal team for the full document.'}</div>
+                    <div class="footer">
+                        <p>PracticePro VEGA · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    </div>
+                    <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
+                        <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Document</button>
+                    </div>
+                </body>
+                </html>
+            `;
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(html);
+                printWindow.document.close();
+            } else {
+                addToast('Please allow popups to print this document.', { type: 'error' });
+            }
+        };
 
         return (
-            <div className="space-y-4">
+            <div className="space-y-6">
                 {/* Toolbar */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -531,84 +631,153 @@ const ClientDashboard: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Document List */}
-                {isLoading ? (
-                    <div className="space-y-3">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
-                                    <div className="flex-1 space-y-2">
-                                        <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
-                                        <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                {/* ─── Terms & Consents Section ───────────────────────────── */}
+                {consents.length > 0 && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-3">
+                            <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+                            </svg>
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Terms & Consents</h3>
+                        </div>
+                        <div className="space-y-2">
+                            {consents.map((consent: any) => (
+                                <div
+                                    key={String(consent._id)}
+                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center flex-shrink-0">
+                                            <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+                                            </svg>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+                                                {consent.portalType === 'client' ? 'Client Portal Terms & Conditions' : "Residents' Portal Terms & Conditions"}
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                Accepted on {consent.termsAcceptedAt
+                                                    ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                    : 'N/A'}
+                                            </p>
+                                            <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                                <CheckCircleIcon className="w-3 h-3" /> Accepted
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 flex-shrink-0 pl-12 sm:pl-0">
+                                        <button
+                                            onClick={() => handlePrintConsent(consent)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                                        >
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+                                            </svg>
+                                            Print
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                ) : docs.length === 0 ? (
-                    <EmptyState
-                        icon={<LargeFolderIcon className="w-7 h-7" />}
-                        title="No Documents Shared With You Yet"
-                        description="Documents related to your matters will appear here once your legal team shares them."
-                    />
-                ) : (
-                    <div className="space-y-2">
-                        {docs.map((doc: any) => (
-                            <div
-                                key={String(doc._id)}
-                                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
-                            >
-                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                                    <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
-                                        <FileTypeIcon source={doc.source} title={doc.title} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
-                                            {doc.title || 'Untitled Document'}
-                                        </h4>
-                                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                                            {doc.matterTitle && (
-                                                <span className="truncate max-w-[120px] sm:max-w-[200px]">{doc.matterTitle}</span>
-                                            )}
-                                            {doc.dateFiled && (
-                                                <>
-                                                    <span>&middot;</span>
-                                                    <span>{doc.dateFiled}</span>
-                                                </>
-                                            )}
+                )}
+
+                {/* ─── Shared Documents ─────────────────────────────────────── */}
+                <div>
+                    <div className="flex items-center gap-2 mb-3">
+                        <DocumentIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Shared Documents</h3>
+                    </div>
+
+                    {isLoading ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
+                                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0 pl-12 sm:pl-0">
-                                    {doc.isSignatureRequested && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                            <ExclamationTriangleIcon className="w-3 h-3" />
-                                            Signature Requested
-                                        </span>
-                                    )}
-                                    {doc.clientReviewStatus === 'review_requested' && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
-                                            <EyeIcon className="w-3 h-3" />
-                                            Review Requested
-                                        </span>
-                                    )}
-                                    {doc.isSharedWithClient && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                            <CheckCircleIcon className="w-3 h-3" />
-                                            Shared
-                                        </span>
-                                    )}
-                                    {doc.source && (
-                                        <span className="text-xs text-slate-400 dark:text-zinc-500 capitalize">
-                                            {doc.source}
-                                        </span>
-                                    )}
+                            ))}
+                        </div>
+                    ) : docs.length === 0 ? (
+                        <EmptyState
+                            icon={<LargeFolderIcon className="w-7 h-7" />}
+                            title="No Documents Shared With You Yet"
+                            description="Documents related to your matters will appear here once your legal team shares them."
+                        />
+                    ) : (
+                        <div className="space-y-2">
+                            {docs.map((doc: any) => (
+                                <div
+                                    key={String(doc._id)}
+                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
+                                >
+                                    <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                            <FileTypeIcon source={doc.source} title={doc.title} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+                                                {doc.title || 'Untitled Document'}
+                                            </h4>
+                                            <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                                                {doc.matterTitle && (
+                                                    <span className="truncate max-w-[120px] sm:max-w-[200px]">{doc.matterTitle}</span>
+                                                )}
+                                                {doc.dateFiled && (
+                                                    <>
+                                                        <span>&middot;</span>
+                                                        <span>{doc.dateFiled}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0 pl-12 sm:pl-0">
+                                        {doc.isSignatureRequested && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                <ExclamationTriangleIcon className="w-3 h-3" />
+                                                Signature Requested
+                                            </span>
+                                        )}
+                                        {doc.clientReviewStatus === 'review_requested' && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+                                                <EyeIcon className="w-3 h-3" />
+                                                Review Requested
+                                            </span>
+                                        )}
+                                        {doc.isSharedWithClient && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                                <CheckCircleIcon className="w-3 h-3" />
+                                                Shared
+                                            </span>
+                                        )}
+                                        {doc.source && (
+                                            <span className="text-xs text-slate-400 dark:text-zinc-500 capitalize">
+                                                {doc.source}
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => handlePrintDocument(doc)}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-600 transition-colors"
+                                            title="Print document"
+                                        >
+                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+                                            </svg>
+                                            Print
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
@@ -804,10 +973,14 @@ const ClientDashboard: React.FC = () => {
                         >
                             {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
                         </button>
+                        {/* Sign Out — prominent for portal users */}
                         <button
                             onClick={() => logout()}
-                            className="px-3 py-2.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500 border border-rose-200 dark:border-rose-800/50 hover:border-rose-600 dark:hover:border-rose-500 rounded-lg transition-colors"
                         >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
                             Sign Out
                         </button>
                     </div>

@@ -1,0 +1,737 @@
+     1→import React, { useState, useEffect, useRef } from 'react';
+     2→import { useNavigate, useLocation } from 'react-router-dom';
+     3→import { View, ModalType, AppState, Task, Document, User, NotePage, HistoryEntry, Invoice, UserRole, Theme, TaskStatus, ClientMessage, Contact, Lead, AppMode, SubscriptionPlan } from '../types';
+     4→import { useMatterState } from '../contexts/MatterContext';
+     5→import { useFinanceState } from '../contexts/FinanceContext';
+     6→import { useExecutionState } from '../contexts/ExecutionContext';
+     7→import { useDocumentState } from '../contexts/DocumentContext';
+     8→import { useCoreState } from '../contexts/CoreContext';
+     9→import { useDataActions } from '../contexts/DataContext';
+    10→import { useUI } from '../contexts/UIContext';
+    11→import { useAuth } from '../contexts/AuthContext';
+    12→import { useOnboarding } from '../contexts/OnboardingProvider';
+    13→import { useIdleTimer } from '../hooks/useIdleTimer';
+    14→import { OfficeBuildingIcon } from '../constants';
+    15→import { useProduct } from '../contexts/ProductContext';
+    16→
+    17→import Sidebar from './Sidebar';
+    18→import Header from './Header';
+    19→import Dashboard from './Dashboard';
+    20→import ContactsView from './ContactsView';
+    21→import { TasksView } from './TasksView';
+    22→import { DocumentList } from './DocumentList';
+    23→import { CalendarView } from './CalendarView';
+    24→import { BillingView } from './BillingView';
+    25→import ReportingView from './ReportingView';
+    26→import ComplianceView from './ComplianceView';
+    27→import SettingsView from './settings/SettingsView';
+    28→import MessagesView from './MessagesView';
+    29→import { WordProcessor } from './documents/WordProcessor';
+    30→import ResearchView from './ResearchView';
+    31→import { AloaXView } from './indexer/AloaXView';
+    32→import TimelineView from './TimelineView';
+    33→import CommandPalette from './CommandPalette';
+    34→import ContextMenu from './ContextMenu';
+    35→import { SplitMasterDetail } from './layout/SplitMasterDetail';
+    36→import ErrorBoundary from './ErrorBoundary';
+    37→import { FeatureGuard } from './FeatureGuard';
+    38→import OnboardingWizard from './modals/OnboardingWizard';
+    39→import {
+    40→    DashboardSkeleton,
+    41→    TasksSkeleton,
+    42→    MattersSkeleton,
+    43→    ContactsSkeleton,
+    44→    DocumentsSkeleton,
+    45→    GenericSkeleton
+    46→} from './toolkit/Skeleton';
+    47→import { NotesView } from './NotesView';
+    48→import HelpView from './HelpView';
+    49→import ArchiveView from './ArchiveView';
+    50→import ModalManager from './modals/ModalManager';
+    51→import { DockedModal } from './modals/DockedModal';
+    52→import { MatterDetailView } from './details/MatterDetailView';
+    53→import { ContactDetailView } from './details/ContactDetailView';
+    54→import { DocumentDetailView } from './details/DocumentDetailView';
+    55→import { InvoiceDetailView } from './details/InvoiceDetailView';
+    56→import { ReceiptDetailView } from './details/ReceiptDetailView';
+    57→import LockScreen from './LockScreen';
+    58→import SplashScreen from './SplashScreen';
+    59→import FloatingTestControls from './FloatingTestControls';
+    60→import ToastContainer from './ToastContainer';
+    61→import DemoProductSwitcher from './DemoProductSwitcher';
+    62→
+    63→import { LandingPage } from './LandingPage';
+    64→import BottomNav from './BottomNav';
+    65→import FullScreenSearch from './FullScreenSearch';
+    66→import AloaPanel from './aloa/AloaPanel';
+    67→import AloaFAB from './aloa/AloaFAB';
+    68→import { MatterList } from './MatterList';
+    69→
+    70→
+    71→
+    72→import PropertyManagerView from './PropertyManagerView';
+    73→import PropertyDetailView from './details/PropertyDetailView';
+    74→import OnboardingTour from './OnboardingTour';
+    75→import ClientDashboard from './client/ClientDashboard';
+    76→import { ClientMatterDetailView } from './client/ClientMatterDetailView';
+    77→import { ClientIntakePortal } from './client/ClientIntakePortal';
+    78→import TenantPortal from './tenant/TenantPortal';
+    79→import { PrivacyPolicy } from './PrivacyPolicy';
+    80→import { TermsOfService } from './TermsOfService';
+    81→import RevenueEngine from './atrium/RevenueEngine';
+    82→
+    83→
+    84→import DataProcessingAgreement from './DataProcessingAgreement';
+    85→import CookiePolicy from './CookiePolicy';
+    86→import NotFoundView from './NotFoundView';
+    87→import ClientPortalLogin from './portal/ClientPortalLogin';
+    88→import TenantPortalLogin from './portal/TenantPortalLogin';
+    89→import SetupPassword from './portal/SetupPassword';
+    90→import WhatsNew from './WhatsNew';
+    91→import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
+    92→import CookieConsent from './CookieConsent';
+    93→
+    94→
+    95→const IDLE_TIMEOUT = 15 * 60 * 1000;
+    96→
+    97→type FlowState = 'splash' | 'setup' | 'app';
+    98→
+    99→// ViewWrapper now takes full height and acts as the mount point for major views
+   100→const ViewWrapper: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+   101→    <div className={`animate-fade-in flex flex-col relative w-full h-full ${className || ''}`}>
+   102→        <ErrorBoundary>
+   103→            {children}
+   104→        </ErrorBoundary>
+   105→    </div>
+   106→);
+   107→
+   108→const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit, onEnableDevMode, flowState }: { onToggleToolkit: () => void, isToolkitOpen: boolean, onCloseToolkit: () => void, onEnableDevMode: () => void, flowState: FlowState }) => {
+   109→    const { matterState } = useMatterState();
+   110→    const { financeState } = useFinanceState();
+   111→    const { executionState } = useExecutionState();
+   112→    const { documentState } = useDocumentState();
+   113→    const { coreState, isDataLoaded } = useCoreState();
+   114→    const dataHandlers = useDataActions();
+   115→    const { currentUser, appMode, updateCurrentUser } = useAuth();
+   116→    const ui = useUI();
+   117→    const { view, selectedId, currentHistoryEntry, isSidebarRetracted, openModal, closeModal, navigateTo, theme, goBack } = ui;
+   118→    const { product } = useProduct();
+   119→
+   120→    useBrainAutoIndex();
+   121→
+   122→    const hasData = matterState.matters.length > 0 || matterState.contacts.length > 0 || executionState.tasks.length > 0;
+   123→    const showSkeleton = !isDataLoaded && !hasData;
+   124→    const isClient = currentUser?.role === UserRole.Client;
+   125→    const isTenant = currentUser?.role === UserRole.Tenant;
+   126→    const isPortalUser = isClient || isTenant;
+   127→
+   128→    console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
+   129→
+   130→
+   131→    const onUpdateUser = React.useCallback((data: Partial<User>) => {
+   132→        if (!currentUser) return;
+   133→        dataHandlers.handleUpdateUser(currentUser.id, data);
+   134→        updateCurrentUser(data);
+   135→    }, [dataHandlers, currentUser, updateCurrentUser]);
+   136→
+   137→    const [localPreviewDoc, setLocalPreviewDoc] = useState<Document | null>(null);
+   138→    const [mattersViewMode, setMattersViewMode] = useState<'list'|'board'>('list');
+   139→
+   140→    // Sync initial state from user preferences once
+   141→    useEffect(() => {
+   142→        if (currentUser?.defaultViewModes?.matters) {
+   143→            setMattersViewMode(currentUser.defaultViewModes.matters as 'list'|'board');
+   144→        }
+   145→    }, [currentUser?.id]); // Only run when user changes
+   146→
+   147→    useEffect(() => {
+   148→        setLocalPreviewDoc(null);
+   149→    }, [view]);
+   150→
+   151→    const renderView = () => {
+   152→        if (showSkeleton) {
+   153→            switch (view) {
+   154→                case 'dashboard': return <DashboardSkeleton />;
+   155→                case 'tasks': return <TasksSkeleton />;
+   156→                case 'matters': return <MattersSkeleton />;
+   157→                case 'contacts': return <ContactsSkeleton />;
+   158→                case 'documents': return <DocumentsSkeleton />;
+   159→                default: return <GenericSkeleton />;
+   160→            }
+   161→        }
+   162→
+   163→        if (isClient) {
+   164→            if (view === 'matterDetail' && selectedId) {
+   165→                return <ViewWrapper><ClientMatterDetailView /></ViewWrapper>;
+   166→            }
+   167→
+   168→
+   169→            if (view === 'intake' && selectedId) {
+   170→                return <ViewWrapper><ClientIntakePortal /></ViewWrapper>;
+   171→            }
+   172→            return <ViewWrapper><ClientDashboard /></ViewWrapper>;
+   173→        }
+   174→
+   175→        if (isTenant) {
+   176→            return <ViewWrapper><TenantPortal /></ViewWrapper>;
+   177→        }
+   178→
+   179→        switch (view) {
+   180→            case 'dashboard': return (
+   181→                <ViewWrapper>
+   182→                    <Dashboard />
+   183→                </ViewWrapper>
+   184→            );
+   185→
+   186→
+   187→            case 'matters':
+   188→            case 'matterDetail': {
+   189→                const isDetailOpen = view === 'matterDetail' && !!selectedId;
+   190→
+   191→                const handleViewModeChange = (mode: 'list' | 'board') => {
+   192→                    setMattersViewMode(mode);
+   193→                    onUpdateUser({ defaultViewModes: { ...currentUser?.defaultViewModes, matters: mode } });
+   194→                    if (mode === 'board' && isDetailOpen) {
+   195→                        navigateTo('matters'); // Close detail when switching to board
+   196→                    }
+   197→                };
+   198→
+   199→                if (mattersViewMode === 'board' && !isDetailOpen) {
+   200→                    return (
+   201→                        <ViewWrapper>
+   202→                            <FeatureGuard requiredProduct="legal">
+   203→                                <MatterList
+   204→                                    viewMode="board"
+   205→                                    onViewModeChange={handleViewModeChange}
+   206→                                    onNavigate={navigateTo}
+   207→                                    isCompact={false}
+   208→                                />
+   209→                            </FeatureGuard>
+   210→                        </ViewWrapper>
+   211→                    );
+   212→                }
+   213→
+   214→                return (
+   215→                    <ViewWrapper>
+   216→                        <FeatureGuard requiredProduct="legal">
+   217→                            <SplitMasterDetail
+   218→                                title="Matter Details"
+   219→                                isDetailVisible={isDetailOpen}
+   220→                                onCloseDetail={() => navigateTo('matters')}
+   221→                                sidebarContent={
+   222→                                    <MatterList
+   223→                                        viewMode="list" // Always force list in the sidebar to prevent squishing the board
+   224→                                        onViewModeChange={handleViewModeChange}
+   225→                                        onNavigate={navigateTo}
+   226→                                        isCompact={true}
+   227→                                    />
+   228→                                }
+   229→                                detailContent={
+   230→                                    selectedId ? (
+   231→                                        <MatterDetailView key={selectedId} />
+   232→                                    ) : null
+   233→                                }
+   234→                            />
+   235→                        </FeatureGuard>
+   236→                    </ViewWrapper>
+   237→                );
+   238→            }
+   239→
+   240→            case 'contacts':
+   241→            case 'contactDetail':
+   242→                return (
+   243→                    <ViewWrapper>
+   244→                        <SplitMasterDetail
+   245→                            title="Contact Profile"
+   246→                            isDetailVisible={view === 'contactDetail'}
+   247→                            onCloseDetail={() => navigateTo('contacts')}
+   248→                            sidebarContent={
+   249→                                <ContactsView />
+   250→                            }
+   251→                            detailContent={
+   252→                                selectedId ? (
+   253→                                    <ContactDetailView
+   254→                                        contactId={selectedId}
+   255→                                        onGoBack={() => navigateTo('contacts')}
+   256→                                        openModal={openModal}
+   257→                                    />
+   258→                                ) : (
+   259→                                    <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+   260→                                        <p className="text-lg font-medium">Select a contact to view profile</p>
+   261→                                    </div>
+   262→                                )
+   263→                            }
+   264→                        />
+   265→                    </ViewWrapper>
+   266→                );
+   267→
+   268→            case 'tasks': return (
+   269→                <ViewWrapper>
+   270→                    <TasksView />
+   271→                </ViewWrapper>
+   272→            );
+   273→
+   274→
+   275→            case 'documents':
+   276→            case 'documentDetail':
+   277→                return (
+   278→                    <ViewWrapper>
+   279→                        <SplitMasterDetail
+   280→                            title="Document Preview"
+   281→                            isDetailVisible={(view === 'documentDetail' && !!selectedId) || !!localPreviewDoc}
+   282→                            onCloseDetail={() => {
+   283→                                if (localPreviewDoc) setLocalPreviewDoc(null);
+   284→                                else navigateTo('documents');
+   285→                            }}
+   286→                            sidebarContent={
+   287→                                <DocumentList isCompact={true} onPreviewLocalFile={setLocalPreviewDoc} />
+   288→                            }
+   289→                            detailContent={
+   290→                                selectedId ? (
+   291→                                    <DocumentDetailView key={selectedId} />
+   292→                                ) : null
+   293→                            }
+   294→                        />
+   295→                    </ViewWrapper>
+   296→                );
+   297→
+   298→            case 'properties':
+   299→            case 'propertyDetail':
+   300→                return (
+   301→                    <ViewWrapper>
+   302→                        <FeatureGuard requiredProduct="property">
+   303→                            <SplitMasterDetail
+   304→                                title="Property Details"
+   305→                                isDetailVisible={view === 'propertyDetail' && !!selectedId}
+   306→                                onCloseDetail={() => navigateTo('properties')}
+   307→                                sidebarContent={<PropertyManagerView contacts={matterState.contacts} onViewDetails={(id) => navigateTo('propertyDetail', id)} openModal={openModal} isCompact={true} />}
+   308→                                detailContent={<PropertyDetailView key={selectedId} />}
+   309→                            />
+   310→                        </FeatureGuard>
+   311→                    </ViewWrapper>
+   312→                );
+   313→
+   314→
+   315→            case 'atriumEngine': return (
+   316→                <ViewWrapper>
+   317→                    <FeatureGuard requiredProduct="property">
+   318→                        <RevenueEngine />
+   319→                    </FeatureGuard>
+   320→                </ViewWrapper>
+   321→            );
+   322→
+   323→            case 'tenantPortal': return (
+   324→                <ViewWrapper>
+   325→                    <TenantPortal />
+   326→                </ViewWrapper>
+   327→            );
+   328→
+   329→            case 'calendar': return <ViewWrapper><CalendarView /></ViewWrapper>;
+   330→            case 'timeline': return <ViewWrapper><TimelineView /></ViewWrapper>;
+   331→            case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
+   332→            case 'reporting': return <ViewWrapper><ReportingView /></ViewWrapper>;
+   333→            case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
+   334→
+   335→            case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
+   336→            case 'notes': return <ViewWrapper><NotesView /></ViewWrapper>;
+   337→            case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
+   338→            case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
+   339→
+   340→            case 'editor': return <WordProcessor />;
+   341→            case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ResearchView /></FeatureGuard></ViewWrapper>;
+   342→            case 'indexer': return <ViewWrapper><AloaXView /></ViewWrapper>;
+   343→            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>;
+   344→            case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
+   345→            case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
+   346→
+   347→            case 'privacyPolicy': return <PrivacyPolicy onBack={goBack} />;
+   348→            case 'termsOfService': return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+   349→            case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
+   350→            case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
+   351→            default: return <NotFoundView />;
+   352→        }
+   353→    };
+   354→
+   355→    const isEditorMode = view === 'editor';
+   356→
+   357→    if (isEditorMode) {
+   358→        return (
+   359→            <main className="w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900">
+   360→                {currentUser ? renderView() : <div>Loading...</div>}
+   361→            </main>
+   362→        );
+   363→    }
+   364→
+   365→    return (
+   366→        <div className="flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
+   367→            {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} appMode={appMode} />}
+   368→            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
+   369→                {currentUser && !isPortalUser && <Header />}
+   370→                <main className="flex-1 relative h-full overflow-hidden pb-0">
+   371→                    {currentUser ? (
+   372→                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate">
+   373→                            <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
+   374→                                {renderView()}
+   375→                            </ErrorBoundary>
+   376→                            {view === 'indexer' && (
+   377→                                <ViewWrapper>
+   378→                                    <AloaXView />
+   379→                                </ViewWrapper>
+   380→                            )}
+   381→                        </div>
+   382→                    ) : <DashboardSkeleton />}
+   383→                </main>
+   384→                {currentUser && !isPortalUser && <BottomNav currentView={view} setView={navigateTo} />}
+   385→                <DemoProductSwitcher />
+   386→            </div>
+   387→            {currentUser && flowState === 'app' && !isPortalUser && (
+   388→                <>
+   389→                    <ContextMenu />
+   390→                    <DockedModal />
+   391→                    <AloaFAB />
+   392→                    <AloaPanel />
+   393→                    <CommandPalette />
+   394→                    <FullScreenSearch />
+   395→                </>
+   396→            )}
+   397→        </div>
+   398→    );
+   399→});
+   400→
+   401→export const App: React.FC = () => {
+   402→    const navigate = useNavigate();
+   403→    const location = useLocation();
+   404→    const { isAuthenticated, currentUser, isLoadingSession, loginAsDemoUser, appMode, logout } = useAuth();
+   405→    const { theme, fontSize, openModal, modal, view, closeModal, navigateTo } = useUI();
+   406→    const { matterState } = useMatterState();
+   407→    const { financeState } = useFinanceState();
+   408→    const { executionState } = useExecutionState();
+   409→    const { documentState } = useDocumentState();
+   410→    const { coreState, isDataLoaded } = useCoreState();
+   411→    const { startTour } = useOnboarding();
+   412→    const ui = useUI();
+   413→    const { isSessionLocked, setIsSessionLocked } = ui;
+   414→
+   415→    const hasSavedSession = React.useMemo(() => {
+   416→        try {
+   417→            const saved = localStorage.getItem('practicepro_user_session');
+   418→            return !!saved;
+   419→        } catch {
+   420→            return false;
+   421→        }
+   422→    }, []);
+   423→
+   424→    const [flowState, setFlowState] = useState<FlowState>(hasSavedSession ? 'splash' : 'app');
+   425→    const { product } = useProduct();
+   426→    const [forceEntry, setForceEntry] = useState(false);
+   427→    const [hasInitialized, setHasInitialized] = useState(false);
+   428→    const [visualsComplete, setVisualsComplete] = useState(false);
+   429→    const [loadingMessage, setLoadingMessage] = useState("Initializing System...");
+   430→    const [sessionLoadTimedOut, setSessionLoadTimedOut] = useState(false);
+   431→    const [portalRememberTimedOut, setPortalRememberTimedOut] = useState(false);
+   432→    const [hasInitialSplashFinished, setHasInitialSplashFinished] = useState(false);
+   433→    const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
+   434→    const isEditorMode = view === 'editor';
+   435→
+   436→    // #3 — Auto-open login modal when arriving via a password-reset magic link
+   437→    React.useEffect(() => {
+   438→        const params = new URLSearchParams(window.location.search);
+   439→        if (params.get('recoveryCode') && params.get('email') && !isAuthenticated) {
+   440→            // Small delay so ModalManager is mounted first
+   441→            setTimeout(() => openModal('login'), 300);
+   442→        }
+   443→    // eslint-disable-next-line react-hooks/exhaustive-deps
+   444→    }, []);
+   445→
+   446→
+   447→    useIdleTimer(() => { if (isAuthenticated && !isSessionLocked) setIsSessionLocked(true); }, IDLE_TIMEOUT);
+   448→    const [isToolkitOpen, setIsToolkitOpen] = useState(false);
+   449→
+   450→    console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });
+   451→
+   452→    // Safety valve: if the session has been loading for 6 seconds and the user has no
+   453→    // stored session, abandon the splash and show the landing page immediately.
+   454→    // #4 — Redirect unauthenticated users away from protected routes to keep URL clean
+   455→    // IMPORTANT: Portal users who have a saved session should NEVER be redirected away
+   456→    // during the brief window while auth is loading. We detect this by checking
+   457→    // sessionStorage for a stored portal type.
+   458→    useEffect(() => {
+   459→        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/setup-password'];
+   460→        const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type');
+   461→        if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
+   462→            // If user has a remembered portal but no currentUser, they might be in a
+   463→            // loading state — don't redirect them away from their portal
+   464→            if (hasRememberedPortal) return;
+   465→            console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
+   466→            navigate('/', { replace: true });
+   467→        }
+   468→    }, [isLoadingSession, currentUser, location.pathname, navigate]);
+   469→
+   470→    useEffect(() => {
+   471→        if (isLoadingSession && !hasSavedSession) {
+   472→            const t = setTimeout(() => setSessionLoadTimedOut(true), 6000);
+   473→            return () => clearTimeout(t);
+   474→        }
+   475→    }, [isLoadingSession, hasSavedSession]);
+   476→
+   477→    const handleReset = () => {
+   478→        if (window.confirm("Reset local data? This will clear all local data and reload. This cannot be undone.")) {
+   479→            localStorage.clear();
+   480→            window.location.reload();
+   481→        }
+   482→    };
+   483→
+   484→    const handleForceEnter = () => {
+   485→        setForceEntry(true);
+   486→    };
+   487→
+   488→    useEffect(() => {
+   489→        if (currentUser && !hasInitialized) {
+   490→            // Portal users skip the splash screen entirely — they go straight to their portal view
+   491→            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+   492→            if (isPortal) {
+   493→                setFlowState('app');
+   494→                setHasInitialized(true);
+   495→                setVisualsComplete(true);
+   496→                setHasInitialSplashFinished(true);
+   497→                return;
+   498→            }
+   499→            setFlowState('splash');
+   500→            setVisualsComplete(false);
+   501→            setLoadingMessage("Welcome back");
+   502→            const timerId = window.setTimeout(() => setVisualsComplete(true), 300);
+   503→            return () => window.clearTimeout(timerId);
+   504→        } else if (!currentUser) {
+   505→            setHasInitialized(false);
+   506→        }
+   507→    }, [currentUser, hasInitialized]);
+   508→
+   509→    const safetyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+   510→
+   511→    useEffect(() => {
+   512→        if (currentUser && visualsComplete && !isDataLoaded && !forceEntry) {
+   513→            if (!safetyTimeoutRef.current) {
+   514→                safetyTimeoutRef.current = setTimeout(() => {
+   515→                    console.warn("[App] Data load timeout - forcing entry.");
+   516→                    setForceEntry(true);
+   517→                    safetyTimeoutRef.current = null;
+   518→                }, 12000);
+   519→            }
+   520→        } else {
+   521→            if (safetyTimeoutRef.current) {
+   522→                clearTimeout(safetyTimeoutRef.current);
+   523→                safetyTimeoutRef.current = null;
+   524→            }
+   525→        }
+   526→        return () => { if (safetyTimeoutRef.current) clearTimeout(safetyTimeoutRef.current); };
+   527→    }, [currentUser, visualsComplete, isDataLoaded, forceEntry]);
+   528→
+   529→    useEffect(() => {
+   530→        if (currentUser && visualsComplete) {
+   531→            // Portal users skip the data loading wait — their data comes from dedicated portal queries
+   532→            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+   533→            if (isPortal) {
+   534→                setFlowState('app');
+   535→                setHasInitialized(true);
+   536→                setHasInitialSplashFinished(true);
+   537→                return;
+   538→            }
+   539→            if (isDataLoaded || forceEntry) {
+   540→                setLoadingMessage("Ready");
+   541→                const t = setTimeout(() => {
+   542→                    if (!currentUser.firmId) {
+   543→                        setFlowState('setup');
+   544→                    } else {
+   545→                        setFlowState('app');
+   546→                        if (appMode === AppMode.Solo) {
+   547→                            setIsToolkitOpen(true);
+   548→                        }
+   549→                    }
+   550→                    setHasInitialized(true);
+   551→                    if (!hasInitialized && (modal === 'login' || modal === 'signup')) {
+   552→                        closeModal();
+   553→                    }
+   554→                }, 500);
+   555→                return () => clearTimeout(t);
+   556→            } else {
+   557→                setLoadingMessage("Finalizing Data Synchronization...");
+   558→            }
+   559→        }
+   560→    }, [currentUser, visualsComplete, isDataLoaded, forceEntry, modal, closeModal]);
+   561→
+   562→    useEffect(() => {
+   563→        if (flowState === 'app' && currentUser) {
+   564→            if (forceEntry && !isDataLoaded) return;
+   565→            // Don't auto-start the tour for portal users (Client/Tenant)
+   566→            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+   567→            if (isPortal) return;
+   568→            const hasCompletedTour = localStorage.getItem('practicepro_tour_completed');
+   569→            if (hasCompletedTour !== 'true') setTimeout(() => startTour(), 500);
+   570→        }
+   571→    }, [flowState, currentUser, startTour]);
+   572→
+   573→    const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
+   574→
+   575→    const renderAppContent = () => {
+   576→        // ── Portal login routes ──
+   577→        // If user is already authenticated as a portal user, redirect them to their dashboard
+   578→        // instead of showing the login page again. This handles the case where a portal user
+   579→        // navigates to the login page while already logged in.
+   580→        if (location.pathname === '/portal/client/login') {
+   581→            if (currentUser && currentUser.role === UserRole.Client) {
+   582→                // Already logged in as client — redirect to portal dashboard via React Router
+   583→                navigate('/', { replace: true });
+   584→                return null;
+   585→            }
+   586→            return <ClientPortalLogin />;
+   587→        }
+   588→        if (location.pathname === '/portal/tenant/login') {
+   589→            if (currentUser && currentUser.role === UserRole.Tenant) {
+   590→                // Already logged in as tenant — redirect to portal dashboard via React Router
+   591→                navigate('/', { replace: true });
+   592→                return null;
+   593→            }
+   594→            return <TenantPortalLogin />;
+   595→        }
+   596→        if (location.pathname === '/setup-password') return <SetupPassword />;
+   597→
+   598→        if (!currentUser && !isLoadingSession) {
+   599→            // Check if a portal user session is being restored — if so, show a loading
+   600→            // state instead of the LandingPage to prevent the jarring flash
+   601→            const hasRememberedPortal = typeof sessionStorage !== 'undefined' && (
+   602→                sessionStorage.getItem('practicepro_portal_type') !== null ||
+   603→                sessionStorage.getItem('practicepro_portal_session') !== null ||
+   604→                localStorage.getItem('practicepro_portal_session') !== null
+   605→            );
+   606→            if (hasRememberedPortal && !portalRememberTimedOut) {
+   607→                // Session might still be loading (e.g. slow Convex query). Show a minimal
+   608→                // portal-themed loading screen rather than the public LandingPage.
+   609→                // Auto-timeout after 15s: if the session truly isn't valid, clear the
+   610→                // remembered portal type and fall through to the LandingPage.
+   611→                setTimeout(() => setPortalRememberTimedOut(true), 15000);
+   612→                return (
+   613→                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
+   614→                        <div className="text-center">
+   615→                            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+   616→                            <p className="text-slate-400 text-sm">Loading your portal...</p>
+   617→                        </div>
+   618→                    </div>
+   619→                );
+   620→            }
+   621→            if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
+   622→            if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
+   623→            if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
+   624→            if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
+   625→            return <LandingPage onDemo={(product) => openModal('leadCapture', null, { demoProduct: product })} />;
+   626→        }
+   627→
+   628→        // New User Flow: Go straight to setup if no firm exists
+   629→        if (currentUser && !currentUser.firmId) {
+   630→            return <OnboardingWizard onComplete={() => setFlowState('app')} />;
+   631→        }
+   632→
+   633→        // Only block on SplashScreen if the user has a saved session being restored.
+   634→        // New/unauthenticated visitors must NEVER see the splash — they go straight to the Landing Page.
+   635→        if (isLoadingSession) {
+   636→            return null; // Top-level SplashScreen handles the branding
+   637→        }
+   638→
+   639→        if (currentUser?.role === 'Pending') {
+   640→            return (
+   641→                <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950 w-full p-8 text-center font-sans">
+   642→                    <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-10 rounded-[32px] shadow-2xl shadow-slate-200 dark:shadow-black/50 border border-slate-100 dark:border-zinc-800 flex flex-col items-center animate-in fade-in zoom-in duration-500">
+   643→                        <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-8 ring-8 ring-amber-50/50 dark:ring-amber-900/10">
+   644→                            <OfficeBuildingIcon className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+   645→                        </div>
+   646→                        <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-3 tracking-tight">Access Pending</h2>
+   647→                        <p className="text-slate-500 dark:text-zinc-400 mb-10 leading-relaxed text-lg">
+   648→                            Your request to join <span className="font-bold text-slate-900 dark:text-white">{coreState?.firmDetails?.name || 'this workspace'}</span> is awaiting approval from {product === 'atrium' ? 'the portfolio manager' : 'a firm administrator'}.
+   649→                        </p>
+   650→                        
+   651→                        <div className="flex flex-col gap-4 w-full">
+   652→                            <button 
+   653→                                onClick={() => window.location.reload()} 
+   654→                                className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-green-600/20 active:scale-[0.98]"
+   655→                            >
+   656→                                Check Approval Status
+   657→                            </button>
+   658→                            <button 
+   659→                                onClick={() => logout()} 
+   660→                                className="w-full py-3 text-slate-400 dark:text-zinc-500 hover:text-slate-900 dark:hover:text-white font-bold text-sm transition-colors"
+   661→                            >
+   662→                                Sign Out & Switch Account
+   663→                            </button>
+   664→                        </div>
+   665→
+   666→                        <div className="mt-10 pt-8 border-t border-slate-50 dark:border-zinc-800 w-full">
+   667→                            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Account Reference</p>
+   668→                            <p className="text-xs font-mono text-slate-300 dark:text-zinc-700">{currentUser.id}</p>
+   669→                        </div>
+   670→                    </div>
+   671→                </div>
+   672→            );
+   673→        }
+   674→
+   675→        return (
+   676→            <>
+   677→                {(flowState === 'app' || flowState === 'splash') && (
+   678→                    <>
+   679→                        <MainContent
+   680→                            onToggleToolkit={() => setIsToolkitOpen(prev => !prev)}
+   681→                            isToolkitOpen={isToolkitOpen}
+   682→                            onCloseToolkit={() => setIsToolkitOpen(false)}
+   683→                            onEnableDevMode={() => setIsToolkitOpen(true)}
+   684→                            flowState={flowState}
+   685→                        />
+   686→                        {import.meta.env.DEV && <FloatingTestControls isOpen={isToolkitOpen} onClose={() => setIsToolkitOpen(false)} />}
+   687→                    </>
+   688→                )}
+   689→            </>
+   690→        );
+   691→    };
+   692→
+   693→    useEffect(() => {
+   694→        const timer = setTimeout(() => {
+   695→            setHasInitialSplashFinished(true);
+   696→        }, 12000);
+   697→        return () => clearTimeout(timer);
+   698→    }, []);
+   699→
+   700→    useEffect(() => {
+   701→        if (splashAnimationComplete && isDataLoaded) {
+   702→            setHasInitialSplashFinished(true);
+   703→        }
+   704→    }, [splashAnimationComplete, isDataLoaded]);
+   705→
+   706→    return (
+   707→        <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
+   708→            <SplashScreen 
+   709→                isVisible={!hasInitialSplashFinished && (hasSavedSession || flowState === 'splash')} 
+   710→                statusMessage={loadingMessage} 
+   711→                onReset={handleReset} 
+   712→                onForceEnter={() => { setForceEntry(true); setHasInitialSplashFinished(true); }} 
+   713→                onComplete={() => setSplashAnimationComplete(true)}
+   714→                product={(!isDataLoaded || !currentUser?.firmId) ? 'practicepro' : (product === 'property' ? 'atrium' : 'vega')} 
+   715→            />
+   716→            {isSessionLocked ? (
+   717→                <LockScreen onUnlock={() => setIsSessionLocked(false)} />
+   718→            ) : (
+   719→                renderAppContent()
+   720→            )}
+   721→            {((!currentUser) || (currentUser && flowState !== 'splash')) && (
+   722→                <>
+   723→                    <ModalManager />
+   724→                    <ToastContainer />
+   725→                </>
+   726→            )}
+   727→            {/* Onboarding Tour only shown for non-portal users; portal users get a simpler experience */}
+   728→            {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
+   729→            {/* What's New only for admin/firm users, not portal users */}
+   730→            {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
+   731→            <CookieConsent />
+   732→        </div>
+   733→    );
+   734→};
+   735→
+   736→export default App;
+   737→

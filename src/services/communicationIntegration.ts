@@ -12,40 +12,40 @@ const CHAKRA_PLANS = {
   free: {
     label: 'Free',
     whatsappLimit: 1000,
-    smsLimit: 100,
+    portalLimit: 0, // unlimited
     emailLimit: 100,
     cost: 0,
     currency: 'NGN',
     period: 'month',
-    features: ['WhatsApp Business API', '1 Phone Number', 'Basic Templates', '1000 WhatsApp messages/mo'],
+    features: ['WhatsApp Business API', '1 Phone Number', 'Basic Templates', '1000 WhatsApp messages/mo', 'Portal messaging'],
     recommendedFor: 'Atrium Core — up to 15 units (100 WhatsApp notices/mo)',
   },
   starter: {
     label: 'Starter',
     whatsappLimit: 5000,
-    smsLimit: 500,
+    portalLimit: 0, // unlimited
     emailLimit: 1000,
     cost: 15000,
     currency: 'NGN',
     period: 'month',
-    features: ['WhatsApp Business API', '2 Phone Numbers', 'Custom Templates', '5000 WhatsApp messages/mo', 'SMS support', 'Priority delivery'],
+    features: ['WhatsApp Business API', '2 Phone Numbers', 'Custom Templates', '5000 WhatsApp messages/mo', 'Portal messaging', 'Priority delivery'],
     recommendedFor: 'Atrium Growth — up to 35 units (500 WhatsApp notices/mo)',
   },
   pro: {
     label: 'Professional',
     whatsappLimit: 0, // unlimited
-    smsLimit: 2000,
+    portalLimit: 0, // unlimited
     emailLimit: 0, // unlimited
     cost: 45000,
     currency: 'NGN',
     period: 'month',
-    features: ['WhatsApp Business API', '5 Phone Numbers', 'Custom Templates', 'Unlimited WhatsApp', '2000 SMS/mo', 'Priority delivery', 'Analytics dashboard', 'Multi-agent support'],
+    features: ['WhatsApp Business API', '5 Phone Numbers', 'Custom Templates', 'Unlimited WhatsApp', 'Portal messaging', 'Priority delivery', 'Analytics dashboard', 'Multi-agent support'],
     recommendedFor: 'Atrium Pro — up to 100 units (unlimited WhatsApp notices)',
   },
   enterprise: {
     label: 'Enterprise',
     whatsappLimit: 0, // unlimited
-    smsLimit: 0, // unlimited
+    portalLimit: 0, // unlimited
     emailLimit: 0, // unlimited
     cost: 0, // custom
     currency: 'NGN',
@@ -64,7 +64,7 @@ export type ChakraPlanKey = keyof typeof CHAKRA_PLANS;
 export function estimateChakraPlan(
   totalUnits: number,
   avgMonthlyMessages: number, // estimated messages per unit per month (usually 2-4)
-  usesSMS: boolean = false,
+  usesPortal: boolean = true,
   usesEmail: boolean = true,
 ): {
   recommendedPlan: ChakraPlanKey;
@@ -131,13 +131,10 @@ export function deriveIntegrationStatus(config?: ChakraHQConfig): IntegrationSta
 /**
  * Get the available channels based on the current plan.
  */
-export function getAvailableChannels(plan?: ChakraPlanKey): ('whatsapp' | 'email' | 'sms')[] {
-  const channels: ('whatsapp' | 'email' | 'sms')[] = ['email']; // email always available
+export function getAvailableChannels(plan?: ChakraPlanKey): ('whatsapp' | 'email' | 'portal')[] {
+  const channels: ('whatsapp' | 'email' | 'portal')[] = ['email', 'portal']; // email & portal always available
   if (plan && plan !== 'free' && (plan as any) !== 'none') {
     channels.push('whatsapp');
-  }
-  if (plan && plan !== 'free' && (plan as any) !== 'none') {
-    channels.push('sms');
   }
   return channels;
 }

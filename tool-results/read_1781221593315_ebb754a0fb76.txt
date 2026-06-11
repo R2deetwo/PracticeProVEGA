@@ -1,0 +1,2002 @@
+     1→import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
+     2→import { v } from "convex/values";
+     3→import { api, internal } from "./_generated/api";
+     4→
+     5→// ─── Maintenance Tickets ────────────────────────────────────────────────
+     6→
+     7→export const createMaintenanceTicket = mutation({
+     8→  args: {
+     9→    firmId: v.string(),
+    10→    propertyId: v.string(),
+    11→    unitId: v.optional(v.string()),
+    12→    tenantId: v.optional(v.string()),
+    13→    tenantName: v.optional(v.string()),
+    14→    subject: v.string(),
+    15→    description: v.string(),
+    16→    category: v.union(v.literal("plumbing"), v.literal("electrical"), v.literal("structural"), v.literal("other")),
+    17→    attachments: v.optional(v.array(v.string())), // Convex storage IDs for images/PDFs
+    18→  },
+    19→  handler: async (ctx, args) => {
+    20→    const now = Date.now();
+    21→    const { attachments, ...rest } = args;
+    22→    return await ctx.db.insert("maintenance_tickets", {
+    23→      ...rest,
+    24→      attachments: attachments ?? [],
+    25→      status: "open",
+    26→      priority: "medium",
+    27→      createdAt: now,
+    28→      updatedAt: now,
+    29→    });
+    30→  },
+    31→});
+    32→
+    33→export const getMaintenanceTicketsByTenant = query({
+    34→  args: { tenantId: v.string() },
+    35→  handler: async (ctx, args) => {
+    36→    const tickets = await ctx.db
+    37→      .query("maintenance_tickets")
+    38→      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+    39→      .order("desc")
+    40→      .collect();
+    41→
+    42→    // Also try matching by email in case the tenantId stored is the user's email
+    43→    // This handles the case where the invite was created with the email as the tenant ID
+    44→    if (tickets.length === 0 && args.tenantId.includes('@')) {
+    45→      // The tenantId looks like an email, also search by the user's Convex _id
+    46→      const user: any = await ctx.db
+    47→        .query("users")
+    48→        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tenantId.toLowerCase()))
+    49→        .first();
+    50→      if (user) {
+    51→        const byUserId = await ctx.db
+    52→          .query("maintenance_tickets")
+    53→          .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
+    54→          .order("desc")
+    55→          .collect();
+    56→        return byUserId;
+    57→      }
+    58→    }
+    59→
+    60→    return tickets;
+    61→  },
+    62→});
+    63→
+    64→export const getMaintenanceTicketsByFirm = query({
+    65→  args: { firmId: v.string() },
+    66→  handler: async (ctx, args) => {
+    67→    return await ctx.db
+    68→      .query("maintenance_tickets")
+    69→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+    70→      .order("desc")
+    71→      .collect();
+    72→  },
+    73→});
+    74→
+    75→export const updateMaintenanceTicketStatus = mutation({
+    76→  args: {
+    77→    ticketId: v.id("maintenance_tickets"),
+    78→    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    79→    resolution: v.optional(v.string()),
+    80→    assignedTo: v.optional(v.string()),
+    81→    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    82→  },
+    83→  handler: async (ctx, args) => {
+    84→    const { ticketId, ...updates } = args;
+    85→    await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
+    86→  },
+    87→});
+    88→
+    89→// ─── Portal Invites ─────────────────────────────────────────────────────
+    90→
+    91→/** Generate a crypto-random invite token (12 chars, URL-safe) */
+    92→function generateToken(): string {
+    93→  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    94→  const arr = new Uint8Array(12);
+    95→  // @ts-ignore — crypto available in Convex runtime
+    96→  crypto.getRandomValues(arr);
+    97→  return Array.from(arr, b => chars[b % chars.length]).join("");
+    98→}
+    99→
+   100→/**
+   101→ * createPortalInvite — ACTION (not a plain mutation) so it can call
+   102→ * sendEmail / sendWhatsApp via ctx.runAction.
+   103→ *
+   104→ * 1. Generates a unique token for the magic-link URL
+   105→ * 2. Writes the portal_invites record
+   106→ * 3. Sends the invitation via the chosen channel (email / whatsapp / both)
+   107→ */
+   108→export const createPortalInvite = action({
+   109→  args: {
+   110→    firmId: v.string(),
+   111→    inviterId: v.string(),
+   112→    inviteeEmail: v.optional(v.string()),
+   113→    inviteeName: v.optional(v.string()),
+   114→    inviteePhone: v.optional(v.string()),
+   115→    portalType: v.union(v.literal("client"), v.literal("resident")),
+   116→    relatedId: v.optional(v.string()),
+   117→    channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
+   118→    message: v.optional(v.string()),
+   119→  },
+   120→  handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean }> => {
+   121→    const now = Date.now();
+   122→    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
+   123→    const token = generateToken();
+   124→    const channel = args.channel || "email";
+   125→
+   126→    // 0.5. For resident invites, resolve the canonical tenant name from the
+   127→    // property/tenancy record. The property record is the source of truth for
+   128→    // a tenant's name — NOT the admin's manual input. This prevents name
+   129→    // mismatches where the portal shows one name but the property shows another.
+   130→    let resolvedInviteeName = args.inviteeName;
+   131→    if (args.portalType === "resident" && args.relatedId) {
+   132→      try {
+   133→        const parts = args.relatedId.split("_");
+   134→        const propertyCustomId = parts[0];
+   135→        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+   136→
+   137→        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+   138→          customId: propertyCustomId,
+   139→        });
+   140→
+   141→        if (property) {
+   142→          const units = property.units || [];
+   143→          if (units.length > 0 && unitId) {
+   144→            const unit = units.find((u: any) =>
+   145→              u.id === unitId || u.unitName === unitId || u.id === args.relatedId
+   146→            );
+   147→            if (unit?.tenantName) {
+   148→              resolvedInviteeName = unit.tenantName;
+   149→            }
+   150→          } else if (units.length > 0) {
+   151→            // No specific unit matched, try first unit
+   152→            if (units[0]?.tenantName) {
+   153→              resolvedInviteeName = units[0].tenantName;
+   154→            }
+   155→          } else {
+   156→            // No units array, check property-level tenant name
+   157→            const propTenantName = (property as any).rentalDetails?.tenantName || (property as any).tenantName;
+   158→            if (propTenantName) {
+   159→              resolvedInviteeName = propTenantName;
+   160→            }
+   161→          }
+   162→        }
+   163→      } catch (e) {
+   164→        // Non-blocking: use the provided name as fallback
+   165→      }
+   166→    }
+   167→
+   168→    // 1. Insert the invite record
+   169→    const inviteId: string = await ctx.runMutation(api.portals.insertInviteRecord, {
+   170→      firmId: args.firmId,
+   171→      inviterId: args.inviterId,
+   172→      inviteeEmail: args.inviteeEmail,
+   173→      inviteeName: resolvedInviteeName,
+   174→      inviteePhone: args.inviteePhone,
+   175→      portalType: args.portalType,
+   176→      relatedId: args.relatedId,
+   177→      token,
+   178→      channel,
+   179→      message: args.message,
+   180→      expiresAt,
+   181→    });
+   182→
+   183→    // 2. Build the magic-link URL (setup-password page, not login)
+   184→    const portalBase = "https://practice-pro-vega.vercel.app/setup-password";
+   185→    const inviteUrl = `${portalBase}?token=${token}`;
+   186→    const portalLabel = args.portalType === "client" ? "Client Portal" : "Residents' Portal";
+   187→    const productName = args.portalType === "client" ? "VEGA" : "ATRIUM";
+   188→    const inviteeGreeting = resolvedInviteeName ? resolvedInviteeName : args.inviteeEmail;
+   189→    const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
+   190→
+   191→    // 3. Send via email (skip if no email address provided)
+   192→    const shouldSendEmail = (channel === "email" || channel === "both") && args.inviteeEmail;
+   193→    let emailResult: any = { success: true, simulated: true };
+   194→    if (shouldSendEmail) {
+   195→      const htmlBody = `<!DOCTYPE html>
+   196→<html lang="en" style="margin:0;padding:0;">
+   197→<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+   198→<body style="margin:0;padding:0;background:#0c1222;-webkit-text-size-adjust:100%;">
+   199→  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c1222;min-height:100vh;">
+   200→    <tr>
+   201→      <td align="center" style="padding:40px 16px;">
+   202→        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+   203→
+   204→          <!-- Header bar -->
+   205→          <tr>
+   206→            <td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;border-bottom:3px solid #f59e0b;">
+   207→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   208→                <tr>
+   209→                  <td style="text-align:center;">
+   210→                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#f59e0b;">Pro</span></span>
+   211→                    <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${productName}</span>
+   212→                  </td>
+   213→                </tr>
+   214→              </table>
+   215→            </td>
+   216→          </tr>
+   217→
+   218→          <!-- Body -->
+   219→          <tr>
+   220→            <td style="background:#0f172a;padding:32px 32px 24px;border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
+   221→              <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;color:#ffffff;margin:0 0 8px;line-height:1.3;">You're Invited to the ${portalLabel}</h1>
+   222→              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#94a3b8;margin:0 0 24px;">
+   223→                Hello ${inviteeGreeting},<br/><br/>
+   224→                You have been invited to access the <strong style="color:#e2e8f0;">${portalLabel}</strong> on PracticePro. Set up your secure password to get started.
+   225→                ${args.message ? `<br/><br/><span style="display:inline-block;margin-top:8px;padding:12px 16px;background:rgba(255,255,255,0.04);border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;color:#cbd5e1;font-style:italic;">"${args.message}"</span>` : ""}
+   226→              </p>
+   227→
+   228→              <!-- CTA Button -->
+   229→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   230→                <tr>
+   231→                  <td align="center" style="padding:8px 0 24px;">
+   232→                    <a href="${inviteUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(245,158,11,0.35),0 0 0 1px rgba(245,158,11,0.1);letter-spacing:0.2px;">
+   233→                      Set Up Your Password
+   234→                    </a>
+   235→                  </td>
+   236→                </tr>
+   237→              </table>
+   238→
+   239→              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#64748b;line-height:1.6;margin:0 0 6px;">
+   240→                Or copy and paste this link into your browser:
+   241→              </p>
+   242→              <p style="font-family:monospace;font-size:12px;color:#60a5fa;word-break:break-all;margin:0 0 20px;">
+   243→                <a href="${inviteUrl}" style="color:#60a5fa;">${inviteUrl}</a>
+   244→              </p>
+   245→
+   246→              <!-- Expiry notice -->
+   247→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   248→                <tr>
+   249→                  <td style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 14px;">
+   250→                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#fbbf24;margin:0;line-height:1.5;">
+   251→                      &#9888;&#65039; This invitation expires in <strong>7 days</strong>. If you did not expect this invitation, you can safely ignore it.
+   252→                    </p>
+   253→                  </td>
+   254→                </tr>
+   255→              </table>
+   256→            </td>
+   257→          </tr>
+   258→
+   259→          <!-- Footer -->
+   260→          <tr>
+   261→            <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid rgba(255,255,255,0.04);border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
+   262→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   263→                <tr>
+   264→                  <td style="text-align:center;">
+   265→                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">
+   266→                      PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
+   267→                    </p>
+   268→                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;">
+   269→                      NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
+   270→                    </p>
+   271→                  </td>
+   272→                </tr>
+   273→              </table>
+   274→            </td>
+   275→          </tr>
+   276→
+   277→        </table>
+   278→      </td>
+   279→    </tr>
+   280→  </table>
+   281→</body>
+   282→</html>`;
+   283→      emailResult = await ctx.runAction(api.communications.sendEmail, {
+   284→        to: args.inviteeEmail!,
+   285→        toName: resolvedInviteeName,
+   286→        subject: `You're Invited: ${portalLabel} on PracticePro`,
+   287→        htmlContent: htmlBody,
+   288→        firmId: args.firmId,
+   289→      });
+   290→    }
+   291→
+   292→    // 4. Send via WhatsApp
+   293→    const shouldSendWhatsApp = (channel === "whatsapp" || channel === "both") && args.inviteePhone;
+   294→    let waResult: any = { success: true, simulated: true };
+   295→    if (shouldSendWhatsApp) {
+   296→      const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 7 days.${personalMsg}\n\n— PracticePro`;
+   297→      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+   298→        to: args.inviteePhone!,
+   299→        messageText: waText,
+   300→        firmId: args.firmId,
+   301→      });
+   302→    }
+   303→
+   304→    return {
+   305→      inviteId,
+   306→      token,
+   307→      channel,
+   308→      emailSent: emailResult.success && !emailResult.simulated,
+   309→      emailSimulated: emailResult.simulated || false,
+   310→      whatsappSent: shouldSendWhatsApp && waResult.success && !waResult.simulated,
+   311→      whatsappSimulated: shouldSendWhatsApp && (waResult.simulated || false),
+   312→      whatsappSkipped: !shouldSendWhatsApp,
+   313→    };
+   314→  },
+   315→});
+   316→
+   317→/**
+   318→ * Internal mutation — only used by createPortalInvite action to write the DB record.
+   319→ * Not exported for direct frontend use.
+   320→ */
+   321→export const insertInviteRecord = mutation({
+   322→  args: {
+   323→    firmId: v.string(),
+   324→    inviterId: v.string(),
+   325→    inviteeEmail: v.optional(v.string()),
+   326→    inviteeName: v.optional(v.string()),
+   327→    inviteePhone: v.optional(v.string()),
+   328→    portalType: v.union(v.literal("client"), v.literal("resident")),
+   329→    relatedId: v.optional(v.string()),
+   330→    token: v.optional(v.string()),
+   331→    channel: v.optional(v.string()),
+   332→    message: v.optional(v.string()),
+   333→    expiresAt: v.number(),
+   334→  },
+   335→  handler: async (ctx, args) => {
+   336→    const now = Date.now();
+   337→
+   338→    // Clean up any existing invites for the same email + firm + portal type.
+   339→    // This prevents "invitation already accepted" errors when re-inviting
+   340→    // after a previous invite was deleted via the simple deletePortalInvite
+   341→    // (which doesn't clean up). We mark old invites as "superseded" rather
+   342→    // than deleting them, so there's an audit trail.
+   343→    const email = (args.inviteeEmail || "").toLowerCase().trim();
+   344→    if (email) {
+   345→      const existingInvites = await ctx.db
+   346→        .query("portal_invites")
+   347→        .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+   348→        .collect();
+   349→
+   350→      for (const inv of existingInvites) {
+   351→        // Only supersede invites for the same firm and portal type
+   352→        if (inv.firmId === args.firmId && inv.portalType === args.portalType) {
+   353→          if (inv.status === "pending" || inv.status === "accepted") {
+   354→            await ctx.db.patch(inv._id, {
+   355→              status: "superseded",
+   356→              updatedAt: now,
+   357→            });
+   358→          }
+   359→        }
+   360→      }
+   361→    }
+   362→
+   363→    return await ctx.db.insert("portal_invites", {
+   364→      firmId: args.firmId,
+   365→      inviterId: args.inviterId,
+   366→      inviteeEmail: args.inviteeEmail,
+   367→      inviteeName: args.inviteeName,
+   368→      inviteePhone: args.inviteePhone,
+   369→      portalType: args.portalType,
+   370→      relatedId: args.relatedId,
+   371→      token: args.token ?? undefined,
+   372→      channel: args.channel,
+   373→      message: args.message,
+   374→      status: "pending",
+   375→      expiresAt: args.expiresAt,
+   376→      createdAt: now,
+   377→      updatedAt: now,
+   378→    });
+   379→  },
+   380→});
+   381→
+   382→/**
+   383→ * resendPortalInvite — action that updates the existing record's expiry + token,
+   384→ * then re-sends via the stored channel.
+   385→ */
+   386→export const resendPortalInvite = action({
+   387→  args: {
+   388→    inviteId: v.id("portal_invites"),
+   389→  },
+   390→  handler: async (ctx, args) => {
+   391→    const existing = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
+   392→    if (!existing) throw new Error("Invitation not found");
+   393→    if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
+   394→
+   395→    // Refresh token + expiry on the existing record
+   396→    const newToken = generateToken();
+   397→    const now = Date.now();
+   398→    const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
+   399→    await ctx.runMutation(api.portals.updateInviteRecord, {
+   400→      inviteId: args.inviteId,
+   401→      updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
+   402→    });
+   403→
+   404→    // Re-send via stored channel
+   405→    const portalBase = "https://practice-pro-vega.vercel.app/setup-password";
+   406→    const inviteUrl = `${portalBase}?token=${newToken}`;
+   407→    const portalLabel = existing.portalType === "client" ? "Client Portal" : "Residents' Portal";
+   408→    const productName = existing.portalType === "client" ? "VEGA" : "ATRIUM";
+   409→    const channel = existing.channel || "email";
+   410→
+   411→    let emailResult: any = { success: true, simulated: true };
+   412→    if (channel === "email" || channel === "both") {
+   413→      const htmlBody = `<!DOCTYPE html>
+   414→<html lang="en" style="margin:0;padding:0;">
+   415→<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+   416→<body style="margin:0;padding:0;background:#0c1222;-webkit-text-size-adjust:100%;">
+   417→  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0c1222;min-height:100vh;">
+   418→    <tr>
+   419→      <td align="center" style="padding:40px 16px;">
+   420→        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+   421→          <tr>
+   422→            <td style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;border-bottom:3px solid #f59e0b;">
+   423→              <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#f59e0b;">Pro</span></span>
+   424→              <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;font-weight:800;color:#a78bfa;background:rgba(167,139,250,0.15);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${productName}</span>
+   425→            </td>
+   426→          </tr>
+   427→          <tr>
+   428→            <td style="background:#0f172a;padding:32px 32px 24px;border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
+   429→              <h1 style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:22px;font-weight:700;color:#ffffff;margin:0 0 8px;">Reminder: ${portalLabel} Invitation</h1>
+   430→              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#94a3b8;margin:0 0 24px;">
+   431→                Hello ${existing.inviteeName || existing.inviteeEmail},<br/><br/>
+   432→                This is a reminder about your invitation to the <strong style="color:#e2e8f0;">${portalLabel}</strong>. Your secure link has been refreshed. Set up your password to gain access.
+   433→              </p>
+   434→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   435→                <tr>
+   436→                  <td align="center" style="padding:8px 0 24px;">
+   437→                    <a href="${inviteUrl}" style="display:inline-block;padding:16px 40px;background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-weight:700;font-size:15px;border-radius:12px;text-decoration:none;box-shadow:0 4px 20px rgba(245,158,11,0.35);letter-spacing:0.2px;">
+   438→                      Set Up Your Password
+   439→                    </a>
+   440→                  </td>
+   441→                </tr>
+   442→              </table>
+   443→              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#64748b;line-height:1.6;margin:0 0 6px;">
+   444→                Or copy and paste this link:
+   445→              </p>
+   446→              <p style="font-family:monospace;font-size:12px;color:#60a5fa;word-break:break-all;margin:0 0 20px;">
+   447→                <a href="${inviteUrl}" style="color:#60a5fa;">${inviteUrl}</a>
+   448→              </p>
+   449→              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+   450→                <tr>
+   451→                  <td style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 14px;">
+   452→                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#fbbf24;margin:0;line-height:1.5;">
+   453→                      &#9888;&#65039; This invitation expires in <strong>7 days</strong>.
+   454→                    </p>
+   455→                  </td>
+   456→                </tr>
+   457→              </table>
+   458→            </td>
+   459→          </tr>
+   460→          <tr>
+   461→            <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid rgba(255,255,255,0.04);border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
+   462→              <div style="text-align:center;">
+   463→                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
+   464→                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;">NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted</p>
+   465→              </div>
+   466→            </td>
+   467→          </tr>
+   468→        </table>
+   469→      </td>
+   470→    </tr>
+   471→  </table>
+   472→</body>
+   473→</html>`;
+   474→      emailResult = await ctx.runAction(api.communications.sendEmail, {
+   475→        to: existing.inviteeEmail!,
+   476→        toName: existing.inviteeName,
+   477→        subject: `Reminder: ${portalLabel} Invitation on PracticePro`,
+   478→        htmlContent: htmlBody,
+   479→        firmId: existing.firmId,
+   480→      });
+   481→    }
+   482→
+   483→    let waResult: any = { success: true, simulated: true };
+   484→    if ((channel === "whatsapp" || channel === "both") && existing.inviteePhone) {
+   485→      const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 7 days.\n\n— PracticePro`;
+   486→      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+   487→        to: existing.inviteePhone,
+   488→        messageText: waText,
+   489→        firmId: existing.firmId,
+   490→      });
+   491→    }
+   492→
+   493→    return {
+   494→      token: newToken,
+   495→      emailSent: emailResult.success && !emailResult.simulated,
+   496→      emailSimulated: emailResult.simulated || false,
+   497→      whatsappSent: waResult.success && !waResult.simulated,
+   498→      whatsappSimulated: waResult.simulated || false,
+   499→    };
+   500→  },
+   501→});
+   502→
+   503→/** Internal mutation to update an invite record */
+   504→export const updateInviteRecord = mutation({
+   505→  args: {
+   506→    inviteId: v.id("portal_invites"),
+   507→    updates: v.any(),
+   508→  },
+   509→  handler: async (ctx, args) => {
+   510→    await ctx.db.patch(args.inviteId, args.updates);
+   511→  },
+   512→});
+   513→
+   514→/** Get a single invite by its ID (used by resendPortalInvite) */
+   515→export const getPortalInviteById = query({
+   516→  args: { inviteId: v.id("portal_invites") },
+   517→  handler: async (ctx, args) => {
+   518→    return await ctx.db.get(args.inviteId);
+   519→  },
+   520→});
+   521→
+   522→export const getPortalInvitesByFirm = query({
+   523→  args: { firmId: v.string() },
+   524→  handler: async (ctx, args) => {
+   525→    return await ctx.db
+   526→      .query("portal_invites")
+   527→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+   528→      .order("desc")
+   529→      .collect();
+   530→  },
+   531→});
+   532→
+   533→export const acceptPortalInvite = mutation({
+   534→  args: { inviteId: v.id("portal_invites") },
+   535→  handler: async (ctx, args) => {
+   536→    await ctx.db.patch(args.inviteId, {
+   537→      status: "accepted",
+   538→      acceptedAt: Date.now(),
+   539→      updatedAt: Date.now(),
+   540→    });
+   541→  },
+   542→});
+   543→
+   544→export const revokePortalInvite = mutation({
+   545→  args: { inviteId: v.id("portal_invites") },
+   546→  handler: async (ctx, args) => {
+   547→    await ctx.db.patch(args.inviteId, {
+   548→      status: "revoked",
+   549→      updatedAt: Date.now(),
+   550→    });
+   551→  },
+   552→});
+   553→
+   554→/** Permanently delete a portal invite record (removes it from the list entirely) */
+   555→export const deletePortalInvite = mutation({
+   556→  args: { inviteId: v.id("portal_invites") },
+   557→  handler: async (ctx, args) => {
+   558→    await ctx.db.delete(args.inviteId);
+   559→  },
+   560→});
+   561→
+   562→/**
+   563→ * deletePortalInviteAndCleanup — Permanently deletes a portal invite AND resets
+   564→ * the associated portal user account so the same email can be re-invited cleanly.
+   565→ *
+   566→ * This prevents the "invitation already accepted" error when an admin:
+   567→ * 1. Deletes a portal access record
+   568→ * 2. Creates a new invite for the same email
+   569→ *
+   570→ * Steps:
+   571→ * 1. Delete the portal_invites record
+   572→ * 2. Find the user with the matching email + Client/Tenant role
+   573→ * 3. Reset their role, verification, and password so they're treated as a brand-new invitee
+   574→ */
+   575→export const deletePortalInviteAndCleanup = mutation({
+   576→  args: {
+   577→    inviteId: v.id("portal_invites"),
+   578→    inviteeEmail: v.optional(v.string()),
+   579→  },
+   580→  handler: async (ctx, args) => {
+   581→    // 1. Delete the specified invite record
+   582→    await ctx.db.delete(args.inviteId);
+   583→
+   584→    // 2. Also delete ANY other invite records for the same email
+   585→    //    to prevent residual "already accepted" errors on re-invite
+   586→    const email = (args.inviteeEmail || "").toLowerCase().trim();
+   587→    if (!email) return;
+   588→
+   589→    const otherInvites = await ctx.db
+   590→      .query("portal_invites")
+   591→      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+   592→      .collect();
+   593→
+   594→    for (const inv of otherInvites) {
+   595→      if (String(inv._id) === String(args.inviteId)) continue; // Already deleted above
+   596→      try { await ctx.db.delete(inv._id); } catch (e) { /* ignore */ }
+   597→    }
+   598→
+   599→    // 3. Find and reset the associated portal user
+   600→    const existingUser = await ctx.db
+   601→      .query("users")
+   602→      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+   603→      .first();
+   604→
+   605→    if (!existingUser) return;
+   606→
+   607→    // Only reset if the user has a Client or Tenant role (portal user)
+   608→    const role = (existingUser as any).role;
+   609→    if (role === "Client" || role === "Tenant" || role === "Portal User") {
+   610→      // Reset the user so they can be re-invited cleanly
+   611→      // Set isVerified to false so they can't log in with old credentials
+   612→      // Remove the password so setup-password creates a fresh one
+   613→      // Clear firmId so it will be set fresh on the next invite acceptance
+   614→      await ctx.db.patch(existingUser._id, {
+   615→        isVerified: false,
+   616→        emailVerified: false,
+   617→        password: undefined,
+   618→        role: "Pending",
+   619→        firmId: undefined,
+   620→      } as any);
+   621→    }
+   622→  },
+   623→});
+   624→
+   625→/** Look up an invite by its token — used by portal login pages for magic-link flow */
+   626→export const getInviteByToken = query({
+   627→  args: { token: v.string() },
+   628→  handler: async (ctx, args) => {
+   629→    const results = await ctx.db
+   630→      .query("portal_invites")
+   631→      .withIndex("by_token", (q) => q.eq("token", args.token))
+   632→      .collect();
+   633→    return results[0] || null;
+   634→  },
+   635→});
+   636→
+   637→/** Accept an invite by token — marks it as accepted (called when invitee visits the magic link) */
+   638→export const acceptPortalInviteByToken = mutation({
+   639→  args: { token: v.string() },
+   640→  handler: async (ctx, args) => {
+   641→    const results = await ctx.db
+   642→      .query("portal_invites")
+   643→      .withIndex("by_token", (q) => q.eq("token", args.token))
+   644→      .collect();
+   645→    const invite = results[0];
+   646→    if (!invite) throw new Error("Invalid invitation link");
+   647→    if (invite.status === "accepted") return invite; // already accepted, that's fine
+   648→    if (invite.status === "revoked") throw new Error("This invitation has been revoked");
+   649→    if (invite.status === "expired" || invite.expiresAt < Date.now()) {
+   650→      await ctx.db.patch(invite._id, { status: "expired", updatedAt: Date.now() });
+   651→      throw new Error("This invitation has expired. Please request a new one.");
+   652→    }
+   653→    await ctx.db.patch(invite._id, {
+   654→      status: "accepted",
+   655→      acceptedAt: Date.now(),
+   656→      termsAcceptedAt: Date.now(),
+   657→      updatedAt: Date.now(),
+   658→    });
+   659→    return invite;
+   660→  },
+   661→});
+   662→
+   663→export const getPortalInvitesByEmail = query({
+   664→  args: { email: v.string() },
+   665→  handler: async (ctx, args) => {
+   666→    return await ctx.db
+   667→      .query("portal_invites")
+   668→      .withIndex("by_email", (q) => q.eq("inviteeEmail", args.email))
+   669→      .collect();
+   670→  },
+   671→});
+   672→
+   673→/**
+   674→ * verifyInviteToken — validates a portal invite token and returns
+   675→ * the invite details + whether the user already has an account.
+   676→ * Used by the /setup-password page to determine what to show.
+   677→ *
+   678→ * ROBUSTNESS FIX: If the invite is "accepted" but the user's role is
+   679→ * "Pending" (meaning their access was deleted via deletePortalInviteAndCleanup
+   680→ * and they need to re-setup), we allow them to proceed. This prevents the
+   681→ * "invitation already accepted" dead-end when a user is re-invited after
+   682→ * their portal access was removed.
+   683→ */
+   684→export const verifyInviteToken = query({
+   685→  args: { token: v.string() },
+   686→  handler: async (ctx, args) => {
+   687→    const results = await ctx.db
+   688→      .query("portal_invites")
+   689→      .withIndex("by_token", (q) => q.eq("token", args.token))
+   690→      .collect();
+   691→    const invite = results[0] || null;
+   692→
+   693→    if (!invite) {
+   694→      return { valid: false, reason: "not_found" } as const;
+   695→    }
+   696→
+   697→    // Check expiry (note: we don't patch status here since this is a query/read-only)
+   698→    if (invite.expiresAt < Date.now()) {
+   699→      return { valid: false, reason: "expired" } as const;
+   700→    }
+   701→
+   702→    if (invite.status === "revoked") {
+   703→      return { valid: false, reason: "revoked" } as const;
+   704→    }
+   705→
+   706→    // Check if the user exists and their current state
+   707→    const email = invite.inviteeEmail?.toLowerCase().trim();
+   708→    let existingUser: any = null;
+   709→    if (email) {
+   710→      existingUser = await ctx.db
+   711→        .query("users")
+   712→        .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+   713→        .first();
+   714→      // Case-insensitive fallback
+   715→      if (!existingUser) {
+   716→        existingUser = await ctx.db
+   717→          .query("users")
+   718→          .withIndex("by_token", (q) => q.eq("tokenIdentifier", email.toLowerCase()))
+   719→          .first();
+   720→      }
+   721→    }
+   722→
+   723→    if (invite.status === "accepted") {
+   724→      // ROBUSTNESS: If the user's role is Pending (their access was reset by
+   725→      // deletePortalInviteAndCleanup), allow them to re-accept. This invite
+   726→      // might be a stale record from before the cleanup ran. The user needs
+   727→      // to set up their password again, so we should let them through.
+   728→      const userRole = existingUser?.role;
+   729→      const isUserUnverified = existingUser && !existingUser.isVerified;
+   730→      if (userRole === "Pending" || isUserUnverified) {
+   731→        // User was reset — allow re-accepting this invite
+   732→        // Fall through to return valid: true
+   733→      } else {
+   734→        return { valid: false, reason: "already_accepted" } as const;
+   735→      }
+   736→    }
+   737→
+   738→    // Token is valid and pending — check if user already has an account
+   739→    return {
+   740→      valid: true,
+   741→      invite: {
+   742→        _id: invite._id,
+   743→        inviteeEmail: invite.inviteeEmail,
+   744→        inviteeName: invite.inviteeName,
+   745→        portalType: invite.portalType,
+   746→        firmId: invite.firmId,
+   747→        relatedId: invite.relatedId,
+   748→        expiresAt: invite.expiresAt,
+   749→      },
+   750→      hasAccount: !!existingUser,
+   751→      hasPassword: !!(existingUser as any)?.password,
+   752→    } as const;
+   753→  },
+   754→});
+   755→
+   756→// ─── Internal helpers for portal user → property linking ──────────────────
+   757→// These are used by the setupPortalPassword action, which cannot directly
+   758→// access ctx.db (actions don't have database access). Instead, they use
+   759→// ctx.runQuery / ctx.runMutation to delegate to these internal functions.
+   760→
+   761→export const findPropertyByCustomId = internalQuery({
+   762→  args: { customId: v.string() },
+   763→  handler: async (ctx, args) => {
+   764→    // Try by custom id field (using by_custom_id index)
+   765→    const byCustomId = await ctx.db
+   766→      .query("properties")
+   767→      .withIndex("by_custom_id", (q) => q.eq("id", args.customId))
+   768→      .first();
+   769→    if (byCustomId) return byCustomId;
+   770→
+   771→    // Try by Convex _id
+   772→    try {
+   773→      const byDocId = await ctx.db.get(args.customId as any);
+   774→      if (byDocId) return byDocId;
+   775→    } catch {}
+   776→
+   777→    return null;
+   778→  },
+   779→});
+   780→
+   781→export const linkPortalUserToProperty = internalMutation({
+   782→  args: {
+   783→    propertyId: v.id("properties"),
+   784→    updates: v.any(), // { units?: [...], currentTenantId?: string, tenantId?: string }
+   785→  },
+   786→  handler: async (ctx, args) => {
+   787→    await ctx.db.patch(args.propertyId, args.updates as any);
+   788→  },
+   789→});
+   790→
+   791→// ─── Setup Portal Password (Invite Acceptance) ──────────────────────────
+   792→
+   793→/**
+   794→ * setupPortalPassword — ACTION that completes the invite flow:
+   795→ * 1. Validates the invite token (must be pending + unexpired)
+   796→ * 2. If user exists → sets their password + marks verified
+   797→ * 3. If user doesn't exist → creates a new user record with the password
+   798→ * 4. Marks the invite as accepted
+   799→ * 5. Clears the token to prevent replay attacks
+   800→ */
+   801→export const setupPortalPassword = action({
+   802→  args: {
+   803→    token: v.string(),
+   804→    password: v.string(),
+   805→    name: v.optional(v.string()),
+   806→  },
+   807→  handler: async (ctx, args): Promise<{ success: boolean; message?: string; email?: string }> => {
+   808→    // 1. Validate the invite
+   809→    const invite = await ctx.runQuery(api.portals.getInviteByToken, { token: args.token });
+   810→    if (!invite) return { success: false, message: "Invalid invitation link." };
+   811→    if (invite.status === "revoked") return { success: false, message: "This invitation has been revoked." };
+   812→    if (invite.status === "expired" || invite.expiresAt < Date.now()) {
+   813→      await ctx.runMutation(api.portals.updateInviteRecord, {
+   814→        inviteId: invite._id,
+   815→        updates: { status: "expired", updatedAt: Date.now() },
+   816→      });
+   817→      return { success: false, message: "This invitation has expired. Please request a new one." };
+   818→    }
+   819→
+   820→    // ROBUSTNESS: If the invite was already accepted but the user's account was
+   821→    // reset (role=Pending, isVerified=false), allow them to re-accept. This can
+   822→    // happen when deletePortalInviteAndCleanup resets the user but a stale invite
+   823→    // record still exists with status "accepted" and a valid token.
+   824→    if (invite.status === "accepted") {
+   825→      const emailCheck = (invite.inviteeEmail || "").toLowerCase().trim();
+   826→      const existingUserCheck: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: emailCheck });
+   827→      const wasReset = existingUserCheck?.role === "Pending" || (existingUserCheck && !existingUserCheck.isVerified);
+   828→      if (!wasReset) {
+   829→        return { success: false, message: "This invitation has already been used." };
+   830→      }
+   831→      // User was reset — allow re-accepting this invite (fall through)
+   832→    }
+   833→
+   834→    const email = (invite.inviteeEmail || "").toLowerCase().trim();
+   835→    if (!email) return { success: false, message: "This invitation has no email address associated." };
+   836→
+   837→    // 1.5. For resident invites, resolve the canonical tenant name from the
+   838→    // property/tenancy record. The property record is the source of truth for
+   839→    // a tenant's name — NOT the invite. This ensures the user's name always
+   840→    // matches the property record.
+   841→    let canonicalTenantName: string | null = null;
+   842→    if (invite.portalType === "resident" && invite.relatedId) {
+   843→      try {
+   844→        const parts = invite.relatedId.split("_");
+   845→        const propertyCustomId = parts[0];
+   846→        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+   847→
+   848→        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+   849→          customId: propertyCustomId,
+   850→        });
+   851→
+   852→        if (property) {
+   853→          const units = property.units || [];
+   854→          if (units.length > 0 && unitId) {
+   855→            const unit = units.find((u: any) =>
+   856→              u.id === unitId || u.unitName === unitId || u.id === invite.relatedId
+   857→            );
+   858→            if (unit?.tenantName) {
+   859→              canonicalTenantName = unit.tenantName;
+   860→            }
+   861→          } else if (units.length > 0) {
+   862→            if (units[0]?.tenantName) {
+   863→              canonicalTenantName = units[0].tenantName;
+   864→            }
+   865→          } else {
+   866→            const propTenantName = (property as any).rentalDetails?.tenantName || (property as any).tenantName;
+   867→            if (propTenantName) {
+   868→              canonicalTenantName = propTenantName;
+   869→            }
+   870→          }
+   871→        }
+   872→      } catch (e) {
+   873→        // Non-blocking: use invite name as fallback
+   874→      }
+   875→    }
+   876→
+   877→    // 2. Hash the password
+   878→    const hashedPassword = await ctx.runAction(internal.authUtils.hashPassword, { password: args.password });
+   879→
+   880→    // 3. Check if user exists
+   881→    const existingUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: email });
+   882→
+   883→    // Track the portal user's Convex _id so we can link them to their property/unit
+   884→    let portalUserDocId: string | null = null;
+   885→
+   886→    if (existingUser) {
+   887→      // Update existing user: set password + mark verified
+   888→      // Also upgrade their role to Client/Tenant if they were a "Portal User"
+   889→      // or had no role assigned, so the frontend can route them correctly.
+   890→      const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
+   891→      const needsRoleUpdate = !existingUser.role
+   892→        || existingUser.role === "Portal User"
+   893→        || existingUser.role === "Pending";
+   894→      // Ensure firmId is always set — portal users need it for the ProductContext
+   895→      // to derive the correct product and for data loading to work properly.
+   896→      // When an existing user is re-invited after portal access deletion, their
+   897→      // firmId might have been cleared or might never have been set.
+   898→      const needsFirmId = !existingUser.firmId || existingUser.firmId !== invite.firmId;
+   899→      portalUserDocId = String(existingUser._id);
+   900→      await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+   901→        userId: existingUser._id,
+   902→        fields: {
+   903→          password: hashedPassword,
+   904→          isVerified: true,
+   905→          emailVerified: true,
+   906→          verificationCode: null,
+   907→          // For tenant users, always sync name with the property record (source of truth)
+   908→          ...(canonicalTenantName ? { name: canonicalTenantName } : (args.name && !existingUser.name ? { name: args.name } : {})),
+   909→          ...(needsRoleUpdate ? { role: portalRole } : {}),
+   910→          ...(needsFirmId ? { firmId: invite.firmId } : {}),
+   911→          // Online presence privacy: property/resident portals default to hidden
+   912→          portalPresenceHidden: invite.portalType === "resident" ? true : (existingUser as any).portalPresenceHidden ?? false,
+   913→        },
+   914→      });
+   915→    } else {
+   916→      // Create new user record for this portal user
+   917→      // Use the proper UserRole (Client / Tenant) so the frontend can route
+   918→      // them to the correct portal view automatically.
+   919→      const portalProduct = invite.portalType === "client" ? "legal" : "property";
+   920→      const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
+   921→      const userName = canonicalTenantName || args.name || invite.inviteeName || email.split("@")[0];
+   922→      const newUserId = await ctx.runMutation(internal.myFunctions.createUser, {
+   923→        tokenIdentifier: email,
+   924→        name: userName,
+   925→        email: email,
+   926→        password: hashedPassword,
+   927→        role: portalRole,
+   928→        product: portalProduct,
+   929→        onboardingCompleted: false,
+   930→        isVerified: true,
+   931→        emailVerified: true,
+   932→        firmId: invite.firmId,
+   933→        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`,
+   934→        // Online presence privacy: property/resident portals default to hidden
+   935→        // (portal users can't see if the manager is online). Legal/client portals
+   936→        // default to visible (clients can see if their lawyer is online).
+   937→        portalPresenceHidden: invite.portalType === "resident",
+   938→      });
+   939→      portalUserDocId = String(newUserId);
+   940→    }
+   941→
+   942→    // 3.5. Link portal user to property/unit if relatedId was provided
+   943→    // This is critical for getTenantInfo to find the tenant's property assignment.
+   944→    // When setupPortalPassword creates a new user, the property's unit record
+   945→    // may still point to a stale contact ID or email instead of the new Convex _id.
+   946→    if (invite.relatedId && invite.portalType === "resident" && portalUserDocId) {
+   947→      try {
+   948→        // Parse the relatedId format:
+   949→        // "propertyId_unitId" for multi-unit properties (composite key)
+   950→        // just "propertyId" for single properties
+   951→        const parts = invite.relatedId.split("_");
+   952→        const propertyCustomId = parts[0];
+   953→        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+   954→
+   955→        // Find the property using internal query (actions cannot use ctx.db directly)
+   956→        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+   957→          customId: propertyCustomId,
+   958→        });
+   959→
+   960→        if (property) {
+   961→          const units = property.units || [];
+   962→          // Use the canonical tenant name from the property record (source of truth)
+   963→          // Fall back to the portal user's name or invite data if property lookup failed
+   964→          const tenantName = canonicalTenantName || invite.inviteeName || email.split("@")[0];
+   965→
+   966→          if (units.length > 0 && unitId) {
+   967→            // Multi-unit property: update the specific unit
+   968→            let unitFound = false;
+   969→            const updatedUnits = units.map((u: any) => {
+   970→              if (u.id === unitId || u.unitName === unitId || u.id === invite.relatedId) {
+   971→                unitFound = true;
+   972→                return {
+   973→                  ...u,
+   974→                  currentTenantId: portalUserDocId,
+   975→                  tenantId: portalUserDocId,
+   976→                  tenantEmail: email,
+   977→                  tenantName: tenantName,
+   978→                };
+   979→              }
+   980→              return u;
+   981→            });
+   982→            if (unitFound) {
+   983→              await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+   984→                propertyId: property._id,
+   985→                updates: { units: updatedUnits },
+   986→              });
+   987→            }
+   988→          } else {
+   989→            // Single property (no units or no unitId): update property-level tenant
+   990→            await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+   991→              propertyId: property._id,
+   992→              updates: {
+   993→                currentTenantId: portalUserDocId,
+   994→                tenantId: portalUserDocId,
+   995→              },
+   996→            });
+   997→          }
+   998→        }
+   999→      } catch (linkErr) {
+  1000→        // Non-blocking: if linking fails, the user can still access the portal.
+  1001→        // getTenantInfo will try to find them by email as a fallback.
+  1002→        console.warn("Portal user-property linking failed:", linkErr);
+  1003→      }
+  1004→    }
+  1005→
+  1006→    // 4. Mark invite as accepted (including terms acceptance timestamp)
+  1007→    await ctx.runMutation(api.portals.updateInviteRecord, {
+  1008→      inviteId: invite._id,
+  1009→      updates: {
+  1010→        status: "accepted",
+  1011→        acceptedAt: Date.now(),
+  1012→        termsAcceptedAt: Date.now(),
+  1013→        updatedAt: Date.now(),
+  1014→        // Clear token to prevent replay attacks — the invite is now consumed
+  1015→        token: undefined,
+  1016→      },
+  1017→    });
+  1018→
+  1019→    return { success: true, email };
+  1020→  },
+  1021→});
+  1022→
+  1023→// ─── Scheduled Messages ─────────────────────────────────────────────────
+  1024→
+  1025→export const getScheduledMessagesByFirm = query({
+  1026→  args: { firmId: v.string() },
+  1027→  handler: async (ctx, args) => {
+  1028→    return await ctx.db
+  1029→      .query("scheduled_messages")
+  1030→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1031→      .order("desc")
+  1032→      .collect();
+  1033→  },
+  1034→});
+  1035→
+  1036→export const getPendingScheduledMessages = query({
+  1037→  args: { firmId: v.string() },
+  1038→  handler: async (ctx, args) => {
+  1039→    const now = Date.now();
+  1040→    const all = await ctx.db
+  1041→      .query("scheduled_messages")
+  1042→      .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "scheduled"))
+  1043→      .collect();
+  1044→    return all.filter(m => m.scheduledFor > now).sort((a, b) => a.scheduledFor - b.scheduledFor);
+  1045→  },
+  1046→});
+  1047→
+  1048→export const createScheduledMessage = mutation({
+  1049→  args: {
+  1050→    firmId: v.string(),
+  1051→    propertyId: v.optional(v.string()),
+  1052→    unitId: v.optional(v.string()),
+  1053→    tenantIds: v.optional(v.array(v.string())),
+  1054→    messageType: v.string(),
+  1055→    channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
+  1056→    content: v.string(),
+  1057→    scheduledFor: v.number(),
+  1058→    isAutomation: v.optional(v.boolean()),
+  1059→    triggeredBy: v.optional(v.string()),
+  1060→  },
+  1061→  handler: async (ctx, args) => {
+  1062→    const now = Date.now();
+  1063→    return await ctx.db.insert("scheduled_messages", {
+  1064→      ...args,
+  1065→      status: "scheduled",
+  1066→      createdAt: now,
+  1067→      updatedAt: now,
+  1068→    });
+  1069→  },
+  1070→});
+  1071→
+  1072→export const cancelScheduledMessage = mutation({
+  1073→  args: { messageId: v.id("scheduled_messages") },
+  1074→  handler: async (ctx, args) => {
+  1075→    await ctx.db.patch(args.messageId, {
+  1076→      status: "cancelled",
+  1077→      updatedAt: Date.now(),
+  1078→    });
+  1079→  },
+  1080→});
+  1081→
+  1082→// ─── Tenant Ledger for Portal ───────────────────────────────────────────
+  1083→
+  1084→/**
+  1085→ * getTenantInfo — Resolves the tenant's property/unit assignments using their
+  1086→ * user ID and email. This is critical because the tenantId stored in
+  1087→ * properties/units may be the user's Convex _id OR their email, depending
+  1088→ * on how the invite was created. This query normalizes both cases.
+  1089→ *
+  1090→ * Returns: { tenantId, properties, units } where tenantId is the canonical
+  1091→ * ID that should be used for all other portal queries.
+  1092→ */
+  1093→export const getTenantInfo = query({
+  1094→  args: { firmId: v.string(), userId: v.string(), email: v.string() },
+  1095→  handler: async (ctx, args) => {
+  1096→    const properties = await ctx.db
+  1097→      .query("properties")
+  1098→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1099→      .collect();
+  1100→
+  1101→    // Search for tenant in properties using both userId and email
+  1102→    const tenantProperties: any[] = [];
+  1103→    const tenantUnits: any[] = [];
+  1104→    let resolvedTenantId = args.userId;
+  1105→
+  1106→    for (const prop of properties) {
+  1107→      // Check property-level tenant (legacy single-tenant model)
+  1108→      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+  1109→      if (propTenantId === args.userId || propTenantId === args.email ||
+  1110→          String(propTenantId).toLowerCase() === args.email.toLowerCase()) {
+  1111→        tenantProperties.push({
+  1112→          id: String(prop._id),
+  1113→          name: (prop as any).name || prop.address || 'Unnamed Property',
+  1114→          address: prop.address,
+  1115→          tenantName: (prop as any).rentalDetails?.tenantName || (prop as any).tenantName || null,
+  1116→        });
+  1117→        if (propTenantId && propTenantId !== args.userId) {
+  1118→          resolvedTenantId = propTenantId;
+  1119→        }
+  1120→      }
+  1121→
+  1122→      // Check unit-level tenants (multi-unit model)
+  1123→      const units = (prop as any).units || [];
+  1124→      for (const unit of units) {
+  1125→        const unitTenantId = unit.currentTenantId || unit.tenantId;
+  1126→        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+  1127→        const matchesUserId = unitTenantId === args.userId;
+  1128→        const matchesEmail = unitTenantId === args.email ||
+  1129→            String(unitTenantId).toLowerCase() === args.email.toLowerCase() ||
+  1130→            (unitTenantEmail && unitTenantEmail === args.email.toLowerCase());
+  1131→
+  1132→        if (matchesUserId || matchesEmail) {
+  1133→          tenantUnits.push({
+  1134→            id: unit.id || unit._id,
+  1135→            name: unit.name || unit.unitName || unit.label,
+  1136→            unitName: unit.name || unit.unitName || unit.label,
+  1137→            propertyId: String(prop._id),
+  1138→            propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+  1139→            propertyAddress: prop.address,
+  1140→            amenities: unit.amenities || [],
+  1141→            tenantName: unit.tenantName || null,
+  1142→          });
+  1143→          if (unitTenantId && unitTenantId !== args.userId) {
+  1144→            resolvedTenantId = unitTenantId;
+  1145→          }
+  1146→        }
+  1147→      }
+  1148→    }
+  1149→
+  1150→    // Determine primary property/unit for this tenant (first match)
+  1151→    const primaryUnit = tenantUnits.length > 0 ? tenantUnits[0] : null;
+  1152→    const primaryProperty = primaryUnit
+  1153→      ? { id: primaryUnit.propertyId, name: primaryUnit.propertyName, address: primaryUnit.propertyAddress }
+  1154→      : tenantProperties.length > 0 ? tenantProperties[0] : null;
+  1155→
+  1156→    // Resolve the canonical tenant name from the property/tenancy record
+  1157→    // This is the source of truth — used by the portal to display the tenant's name
+  1158→    const resolvedTenantName = primaryUnit?.tenantName
+  1159→      || tenantProperties.find(p => p.tenantName)?.tenantName
+  1160→      || null;
+  1161→
+  1162→    return {
+  1163→      tenantId: resolvedTenantId,
+  1164→      properties: tenantProperties,
+  1165→      units: tenantUnits,
+  1166→      // Convenience fields for maintenance ticket creation
+  1167→      primaryPropertyId: primaryProperty?.id || null,
+  1168→      primaryUnitId: primaryUnit?.id || null,
+  1169→      primaryPropertyName: primaryProperty?.name || null,
+  1170→      primaryUnitName: primaryUnit?.unitName || null,
+  1171→      primaryPropertyAddress: primaryProperty?.address || null,
+  1172→      // Canonical tenant name from the property record (source of truth)
+  1173→      tenantName: resolvedTenantName,
+  1174→    };
+  1175→  },
+  1176→});
+  1177→
+  1178→export const getTenantLedger = query({
+  1179→  args: { firmId: v.string(), tenantId: v.string() },
+  1180→  handler: async (ctx, args) => {
+  1181→    // Find all properties where this tenant is assigned
+  1182→    const properties = await ctx.db
+  1183→      .query("properties")
+  1184→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1185→      .collect();
+  1186→
+  1187→    // Collect all possible tenant IDs (direct ID + IDs from matching properties/units)
+  1188→    const possibleTenantIds = new Set([args.tenantId]);
+  1189→
+  1190→    for (const prop of properties) {
+  1191→      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+  1192→      if (propTenantId === args.tenantId) {
+  1193→        // Found a property — also check if units have different IDs
+  1194→      }
+  1195→      const units = (prop as any).units || [];
+  1196→      for (const unit of units) {
+  1197→        const unitTenantId = unit.currentTenantId || unit.tenantId;
+  1198→        if (unitTenantId === args.tenantId) {
+  1199→          if (propTenantId && propTenantId !== args.tenantId) possibleTenantIds.add(propTenantId);
+  1200→        }
+  1201→      }
+  1202→    }
+  1203→
+  1204→    // Get ledger entries matching any of the possible tenant IDs
+  1205→    const allLedger = await ctx.db
+  1206→      .query("ledger_entries")
+  1207→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1208→      .collect();
+  1209→
+  1210→    return allLedger.filter(e => e.tenantId && possibleTenantIds.has(e.tenantId));
+  1211→  },
+  1212→});
+  1213→
+  1214→// ─── Inbound Messages for Tenant Portal ─────────────────────────────────
+  1215→
+  1216→export const getInboundMessagesByTenant = query({
+  1217→  args: { tenantId: v.string() },
+  1218→  handler: async (ctx, args) => {
+  1219→    const messages = await ctx.db
+  1220→      .query("atrium_inbound_messages")
+  1221→      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+  1222→      .order("desc")
+  1223→      .collect();
+  1224→
+  1225→    // Fallback: also try by user's Convex _id if the tenantId looks like an email
+  1226→    if (messages.length === 0 && args.tenantId.includes('@')) {
+  1227→      const user: any = await ctx.db
+  1228→        .query("users")
+  1229→        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tenantId.toLowerCase()))
+  1230→        .first();
+  1231→      if (user) {
+  1232→        return await ctx.db
+  1233→          .query("atrium_inbound_messages")
+  1234→          .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
+  1235→          .order("desc")
+  1236→          .collect();
+  1237→      }
+  1238→    }
+  1239→
+  1240→    return messages;
+  1241→  },
+  1242→});
+  1243→
+  1244→// ─── Client Documents for Portal ────────────────────────────────────────
+  1245→
+  1246→export const getClientDocuments = query({
+  1247→  args: { firmId: v.string(), contactId: v.string() },
+  1248→  handler: async (ctx, args) => {
+  1249→    // Find matters for this contact
+  1250→    const matters = await ctx.db
+  1251→      .query("matters")
+  1252→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1253→      .collect();
+  1254→
+  1255→    const clientMatters = matters.filter(m => m.clientId === args.contactId);
+  1256→    const matterIds = clientMatters.map(m => m._id);
+  1257→
+  1258→    if (matterIds.length === 0) return [];
+  1259→
+  1260→    // Get documents for those matters
+  1261→    const allDocs = await ctx.db
+  1262→      .query("documents")
+  1263→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1264→      .collect();
+  1265→
+  1266→    // Also build a map of matterId -> matter title for enrichment
+  1267→    const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
+  1268→
+  1269→    return allDocs
+  1270→      .filter(d => d.matterId && matterIds.includes(d.matterId as any))
+  1271→      .map(d => ({
+  1272→        _id: d._id,
+  1273→        title: d.title,
+  1274→        matterId: d.matterId,
+  1275→        matterTitle: d.matterId ? (matterMap.get(String(d.matterId)) || null) : null,
+  1276→        dateFiled: d.dateFiled,
+  1277→        isSharedWithClient: d.isSharedWithClient,
+  1278→        clientReviewStatus: d.clientReviewStatus,
+  1279→        isSignatureRequested: d.isSignatureRequested,
+  1280→        source: d.source,
+  1281→        createdAt: d.createdAt,
+  1282→      }));
+  1283→  },
+  1284→});
+  1285→
+  1286→// ─── Client Messages for Portal ─────────────────────────────────────────
+  1287→
+  1288→export const getClientMessages = query({
+  1289→  args: { firmId: v.string(), contactId: v.string() },
+  1290→  handler: async (ctx, args) => {
+  1291→    // Find matters for this contact
+  1292→    const matters = await ctx.db
+  1293→      .query("matters")
+  1294→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1295→      .collect();
+  1296→
+  1297→    const clientMatters = matters.filter(m => m.clientId === args.contactId);
+  1298→    const matterIds = clientMatters.map(m => String(m._id));
+  1299→
+  1300→    if (matterIds.length === 0) return [];
+  1301→
+  1302→    // Get client messages for those matters
+  1303→    const allMessages = await ctx.db
+  1304→      .query("clientMessages")
+  1305→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1306→      .collect();
+  1307→
+  1308→    // Build matter title map
+  1309→    const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
+  1310→
+  1311→    return allMessages
+  1312→      .filter(m => matterIds.includes(m.matterId || ""))
+  1313→      .sort((a, b) => {
+  1314→        const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+  1315→        const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+  1316→        return tB - tA;
+  1317→      })
+  1318→      .slice(0, 50)
+  1319→      .map(m => ({
+  1320→        _id: m._id,
+  1321→        matterId: m.matterId,
+  1322→        matterTitle: matterMap.get(m.matterId || "") || "",
+  1323→        authorId: m.authorId,
+  1324→        content: m.content,
+  1325→        timestamp: m.timestamp,
+  1326→        isRead: m.isRead,
+  1327→      }));
+  1328→  },
+  1329→});
+  1330→
+  1331→// ─── Client Activity for Portal ─────────────────────────────────────────
+  1332→
+  1333→export const getClientActivity = query({
+  1334→  args: { firmId: v.string(), contactId: v.string() },
+  1335→  handler: async (ctx, args) => {
+  1336→    // Find matters for this contact
+  1337→    const matters = await ctx.db
+  1338→      .query("matters")
+  1339→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1340→      .collect();
+  1341→
+  1342→    const clientMatters = matters.filter(m => m.clientId === args.contactId);
+  1343→    const matterIds = clientMatters.map(m => String(m._id));
+  1344→
+  1345→    if (matterIds.length === 0) return [];
+  1346→
+  1347→    // Get firm activity for those matters
+  1348→    const allActivity = await ctx.db
+  1349→      .query("firmActivity")
+  1350→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1351→      .collect();
+  1352→
+  1353→    return allActivity
+  1354→      .filter(a => a.matterId && matterIds.includes(a.matterId))
+  1355→      .sort((a, b) => {
+  1356→        const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+  1357→        const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+  1358→        return tB - tA;
+  1359→      })
+  1360→      .slice(0, 10)
+  1361→      .map(a => ({
+  1362→        _id: a._id,
+  1363→        userId: a.userId,
+  1364→        userName: a.userName,
+  1365→        action: a.action,
+  1366→        targetType: a.targetType,
+  1367→        targetName: a.targetName,
+  1368→        matterId: a.matterId,
+  1369→        timestamp: a.timestamp,
+  1370→      }));
+  1371→  },
+  1372→});
+  1373→
+  1374→// ─── Client Invoices for Portal ─────────────────────────────────────────
+  1375→
+  1376→export const getClientInvoices = query({
+  1377→  args: { firmId: v.string(), contactId: v.string() },
+  1378→  handler: async (ctx, args) => {
+  1379→    // Find matters for this contact
+  1380→    const matters = await ctx.db
+  1381→      .query("matters")
+  1382→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1383→      .collect();
+  1384→
+  1385→    const clientMatters = matters.filter(m => m.clientId === args.contactId);
+  1386→    const matterIds = clientMatters.map(m => String(m._id));
+  1387→
+  1388→    if (matterIds.length === 0) return [];
+  1389→
+  1390→    // Get invoices for those matters
+  1391→    const allInvoices = await ctx.db
+  1392→      .query("invoices")
+  1393→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1394→      .collect();
+  1395→
+  1396→    return allInvoices.filter(inv => {
+  1397→      const matterField = inv.matter as any;
+  1398→      const matterId = matterField?.id || matterField;
+  1399→      return matterId && matterIds.includes(String(matterId));
+  1400→    });
+  1401→  },
+  1402→});
+  1403→
+  1404→// ─── Migration: Fix legacy "Portal User" role → Client/Tenant ──────────
+  1405→// One-time migration to update any users created with the old "Portal User"
+  1406→// role. Cross-references their portal_invites records to determine whether
+  1407→// they should be Client or Tenant.
+  1408→export const migratePortalUserRoles = mutation({
+  1409→  args: {},
+  1410→  handler: async (ctx) => {
+  1411→    const allUsers = await ctx.db.query("users").collect();
+  1412→    const portalUsers = allUsers.filter((u: any) => u.role === "Portal User");
+  1413→
+  1414→    if (portalUsers.length === 0) {
+  1415→      return { migrated: 0, message: "No Portal User records found." };
+  1416→    }
+  1417→
+  1418→    let migrated = 0;
+  1419→    for (const user of portalUsers) {
+  1420→      // Look up their invite to determine portal type
+  1421→      const invites = await ctx.db
+  1422→        .query("portal_invites")
+  1423→        .withIndex("by_email", (q) => q.eq("inviteeEmail", user.email || ""))
+  1424→        .collect();
+  1425→
+  1426→      const acceptedInvite = invites.find((inv: any) => inv.status === "accepted");
+  1427→      if (acceptedInvite) {
+  1428→        const newRole = acceptedInvite.portalType === "client" ? "Client" : "Tenant";
+  1429→        await ctx.db.patch(user._id, { role: newRole });
+  1430→        migrated++;
+  1431→      } else {
+  1432→        // No invite found — default to Tenant (property portal) since that's
+  1433→        // the more common case for "Portal User" accounts
+  1434→        await ctx.db.patch(user._id, { role: "Tenant" });
+  1435→        migrated++;
+  1436→      }
+  1437→    }
+  1438→
+  1439→    return { migrated, message: `Migrated ${migrated} Portal User(s) to Client/Tenant roles.` };
+  1440→  },
+  1441→});
+  1442→
+  1443→// ─── Client Contact Lookup for Portal ──────────────────────────────────────
+  1444→
+  1445→/**
+  1446→ * getClientContactByUserId — Finds the contact record for a portal client
+  1447→ * using their user ID. This is needed because the DataProvider skips loading
+  1448→ * firm data for portal users, so matterState.contacts is empty. The
+  1449→ * ClientDashboard uses this to find the contactId needed for its portal queries.
+  1450→ *
+  1451→ * Also searches by email as a fallback — the contact's userId field might
+  1452→ * not always match the user's Convex _id (e.g. if the contact was created
+  1453→ * before the portal user account existed).
+  1454→ */
+  1455→export const getClientContactByUserId = query({
+  1456→  args: { firmId: v.string(), userId: v.string() },
+  1457→  handler: async (ctx, args) => {
+  1458→    const contacts = await ctx.db
+  1459→      .query("contacts")
+  1460→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1461→      .collect();
+  1462→
+  1463→    // First try matching by userId field
+  1464→    let contact = contacts.find(c => c.userId === args.userId) || null;
+  1465→
+  1466→    // If not found, try to match by looking up the user's email and matching
+  1467→    // the contact's email field. This handles the case where the contact was
+  1468→    // created before the portal user account existed.
+  1469→    if (!contact) {
+  1470→      // Try to look up the user by their Convex _id to get their email
+  1471→      let user: any = null;
+  1472→      try { user = await ctx.db.get(args.userId as any); } catch {}
+  1473→
+  1474→      // If that didn't work, the userId might be an email-based tokenIdentifier
+  1475→      if (!user) {
+  1476→        user = await ctx.db
+  1477→          .query("users")
+  1478→          .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.userId.toString()))
+  1479→          .first();
+  1480→      }
+  1481→
+  1482→      const userEmail = user?.email?.toLowerCase();
+  1483→      if (userEmail) {
+  1484→        contact = contacts.find(c =>
+  1485→          (c as any).email?.toLowerCase() === userEmail
+  1486→        ) || null;
+  1487→      }
+  1488→
+  1489→      // Also try matching contact by userId against the user's _id as a string
+  1490→      if (!contact && user) {
+  1491→        const userDocId = String(user._id);
+  1492→        contact = contacts.find(c => c.userId === userDocId) || null;
+  1493→      }
+  1494→    }
+  1495→
+  1496→    return contact;
+  1497→  },
+  1498→});
+  1499→
+  1500→/**
+  1501→ * getClientMattersByUserId — Returns the matters for a portal client,
+  1502→ * looking up the contact by userId first. This avoids the ClientDashboard
+  1503→ * needing to depend on matterState (which is empty for portal users).
+  1504→ *
+  1505→ * Also searches by email as a fallback for the same reason as
+  1506→ * getClientContactByUserId.
+  1507→ */
+  1508→export const getClientMattersByUserId = query({
+  1509→  args: { firmId: v.string(), userId: v.string() },
+  1510→  handler: async (ctx, args) => {
+  1511→    // Find the contact for this user
+  1512→    const contacts = await ctx.db
+  1513→      .query("contacts")
+  1514→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1515→      .collect();
+  1516→
+  1517→    let clientContact = contacts.find(c => c.userId === args.userId);
+  1518→
+  1519→    // Fallback: search by email
+  1520→    if (!clientContact) {
+  1521→      let user: any = null;
+  1522→      try { user = await ctx.db.get(args.userId as any); } catch {}
+  1523→      if (!user) {
+  1524→        user = await ctx.db
+  1525→          .query("users")
+  1526→          .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.userId.toString()))
+  1527→          .first();
+  1528→      }
+  1529→      const userEmail = user?.email?.toLowerCase();
+  1530→      if (userEmail) {
+  1531→        clientContact = contacts.find(c =>
+  1532→          (c as any).email?.toLowerCase() === userEmail
+  1533→        );
+  1534→      }
+  1535→      if (!clientContact && user) {
+  1536→        clientContact = contacts.find(c => c.userId === String(user._id));
+  1537→      }
+  1538→    }
+  1539→
+  1540→    if (!clientContact) return [];
+  1541→
+  1542→    // Find matters for this contact
+  1543→    const matters = await ctx.db
+  1544→      .query("matters")
+  1545→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1546→      .collect();
+  1547→
+  1548→    return matters
+  1549→      .filter(m => m.clientId === String(clientContact._id))
+  1550→      .map(m => ({
+  1551→        id: String(m._id),
+  1552→        title: m.title,
+  1553→        suitNumber: m.suitNumber,
+  1554→        referenceNumber: m.referenceNumber,
+  1555→        stage: m.stage,
+  1556→        status: m.status,
+  1557→        type: m.type,
+  1558→        nextAdjournedDate: m.nextAdjournedDate,
+  1559→        stageLastUpdated: m.stageLastUpdated,
+  1560→        assignedUsers: m.assignedUsers,
+  1561→        clientId: m.clientId,
+  1562→      }));
+  1563→  },
+  1564→});
+  1565→
+  1566→// ─── Portal Messaging ────────────────────────────────────────────────────
+  1567→
+  1568→/**
+  1569→ * sendPortalMessage — Allows a portal user (Tenant/Client) to send a message
+  1570→ * to their property manager / firm admin. This is only possible if the firm
+  1571→ * has enabled portal messaging in their portal settings.
+  1572→ */
+  1573→export const sendPortalMessage = mutation({
+  1574→  args: {
+  1575→    firmId: v.string(),
+  1576→    senderId: v.string(),
+  1577→    senderName: v.optional(v.string()),
+  1578→    senderEmail: v.optional(v.string()),
+  1579→    senderRole: v.string(), // "Tenant" or "Client"
+  1580→    subject: v.optional(v.string()),
+  1581→    content: v.string(),
+  1582→    attachments: v.optional(v.array(v.string())), // Convex storage IDs
+  1583→    propertyId: v.optional(v.string()),
+  1584→    unitId: v.optional(v.string()),
+  1585→  },
+  1586→  handler: async (ctx, args) => {
+  1587→    const now = Date.now();
+  1588→    return await ctx.db.insert("portal_messages", {
+  1589→      firmId: args.firmId,
+  1590→      senderId: args.senderId,
+  1591→      senderName: args.senderName,
+  1592→      senderEmail: args.senderEmail,
+  1593→      senderRole: args.senderRole,
+  1594→      subject: args.subject,
+  1595→      content: args.content,
+  1596→      attachments: args.attachments ?? [],
+  1597→      propertyId: args.propertyId,
+  1598→      unitId: args.unitId,
+  1599→      status: "unread",
+  1600→      createdAt: now,
+  1601→      updatedAt: now,
+  1602→    });
+  1603→  },
+  1604→});
+  1605→
+  1606→/**
+  1607→ * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
+  1608→ */
+  1609→export const getPortalMessagesByFirm = query({
+  1610→  args: { firmId: v.string() },
+  1611→  handler: async (ctx, args) => {
+  1612→    return await ctx.db
+  1613→      .query("portal_messages")
+  1614→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1615→      .order("desc")
+  1616→      .collect();
+  1617→  },
+  1618→});
+  1619→
+  1620→/**
+  1621→ * getPortalMessagesBySender — Gets messages sent by a specific portal user.
+  1622→ */
+  1623→export const getPortalMessagesBySender = query({
+  1624→  args: { senderId: v.string() },
+  1625→  handler: async (ctx, args) => {
+  1626→    return await ctx.db
+  1627→      .query("portal_messages")
+  1628→      .withIndex("by_sender", (q) => q.eq("senderId", args.senderId))
+  1629→      .order("desc")
+  1630→      .collect();
+  1631→  },
+  1632→});
+  1633→
+  1634→/**
+  1635→ * markPortalMessageRead — Marks a portal message as read.
+  1636→ */
+  1637→export const markPortalMessageRead = mutation({
+  1638→  args: { messageId: v.id("portal_messages") },
+  1639→  handler: async (ctx, args) => {
+  1640→    await ctx.db.patch(args.messageId, { status: "read", updatedAt: Date.now() });
+  1641→  },
+  1642→});
+  1643→
+  1644→// ─── Payment Proof Upload ────────────────────────────────────────────────
+  1645→
+  1646→/**
+  1647→ * submitPaymentProof — Allows a tenant to submit proof of payment (receipt/stub)
+  1648→ * for review by their property manager. Creates a record with the uploaded file.
+  1649→ */
+  1650→export const submitPaymentProof = mutation({
+  1651→  args: {
+  1652→    firmId: v.string(),
+  1653→    tenantId: v.string(),
+  1654→    tenantName: v.optional(v.string()),
+  1655→    tenantEmail: v.optional(v.string()),
+  1656→    propertyId: v.optional(v.string()),
+  1657→    unitId: v.optional(v.string()),
+  1658→    amount: v.optional(v.number()),
+  1659→    period: v.optional(v.string()),
+  1660→    description: v.optional(v.string()),
+  1661→    storageIds: v.array(v.string()), // Convex storage IDs for uploaded files
+  1662→  },
+  1663→  handler: async (ctx, args) => {
+  1664→    const now = Date.now();
+  1665→    return await ctx.db.insert("payment_proofs", {
+  1666→      firmId: args.firmId,
+  1667→      tenantId: args.tenantId,
+  1668→      tenantName: args.tenantName,
+  1669→      tenantEmail: args.tenantEmail,
+  1670→      propertyId: args.propertyId,
+  1671→      unitId: args.unitId,
+  1672→      amount: args.amount,
+  1673→      period: args.period,
+  1674→      description: args.description,
+  1675→      storageIds: args.storageIds,
+  1676→      status: "pending_review",
+  1677→      createdAt: now,
+  1678→      updatedAt: now,
+  1679→    });
+  1680→  },
+  1681→});
+  1682→
+  1683→/**
+  1684→ * getPaymentProofsByFirm — Gets all payment proof submissions for a firm (admin side).
+  1685→ */
+  1686→export const getPaymentProofsByFirm = query({
+  1687→  args: { firmId: v.string() },
+  1688→  handler: async (ctx, args) => {
+  1689→    return await ctx.db
+  1690→      .query("payment_proofs")
+  1691→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1692→      .order("desc")
+  1693→      .collect();
+  1694→  },
+  1695→});
+  1696→
+  1697→/**
+  1698→ * getPaymentProofsByTenant — Gets payment proof submissions by a specific tenant.
+  1699→ */
+  1700→export const getPaymentProofsByTenant = query({
+  1701→  args: { tenantId: v.string() },
+  1702→  handler: async (ctx, args) => {
+  1703→    return await ctx.db
+  1704→      .query("payment_proofs")
+  1705→      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+  1706→      .order("desc")
+  1707→      .collect();
+  1708→  },
+  1709→});
+  1710→
+  1711→/**
+  1712→ * updatePaymentProofStatus — Admin updates the status of a payment proof submission.
+  1713→ */
+  1714→export const updatePaymentProofStatus = mutation({
+  1715→  args: {
+  1716→    proofId: v.id("payment_proofs"),
+  1717→    status: v.union(v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
+  1718→    adminNote: v.optional(v.string()),
+  1719→  },
+  1720→  handler: async (ctx, args) => {
+  1721→    const { proofId, ...updates } = args;
+  1722→    await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
+  1723→  },
+  1724→});
+  1725→
+  1726→// ─── Tenant Documents for Portal ────────────────────────────────────────
+  1727→
+  1728→/**
+  1729→ * getTenantDocuments — Returns documents shared with a tenant's property.
+  1730→ * For tenants, documents come from documents linked to the property's matterId,
+  1731→ * plus any documents shared with the tenant specifically.
+  1732→ */
+  1733→export const getTenantDocuments = query({
+  1734→  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  1735→  handler: async (ctx, args) => {
+  1736→    // Find properties where this tenant is assigned
+  1737→    const properties = await ctx.db
+  1738→      .query("properties")
+  1739→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1740→      .collect();
+  1741→
+  1742→    const tenantPropertyIds: string[] = [];
+  1743→    const tenantMatterIds: string[] = [];
+  1744→
+  1745→    for (const prop of properties) {
+  1746→      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+  1747→      const matchesTenant = propTenantId === args.tenantId ||
+  1748→        propTenantId === args.email ||
+  1749→        String(propTenantId).toLowerCase() === (args.email || '').toLowerCase();
+  1750→
+  1751→      if (matchesTenant) {
+  1752→        tenantPropertyIds.push(String(prop._id));
+  1753→        if (prop.matterId) tenantMatterIds.push(prop.matterId);
+  1754→      }
+  1755→
+  1756→      // Also check unit-level tenants
+  1757→      const units = (prop as any).units || [];
+  1758→      for (const unit of units) {
+  1759→        const unitTenantId = unit.currentTenantId || unit.tenantId;
+  1760→        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+  1761→        const matchesUnit = unitTenantId === args.tenantId ||
+  1762→          unitTenantId === args.email ||
+  1763→          String(unitTenantId).toLowerCase() === (args.email || '').toLowerCase() ||
+  1764→          (unitTenantEmail && unitTenantEmail === (args.email || '').toLowerCase());
+  1765→
+  1766→        if (matchesUnit && !tenantPropertyIds.includes(String(prop._id))) {
+  1767→          tenantPropertyIds.push(String(prop._id));
+  1768→          if (prop.matterId && !tenantMatterIds.includes(prop.matterId)) {
+  1769→            tenantMatterIds.push(prop.matterId);
+  1770→          }
+  1771→        }
+  1772→      }
+  1773→    }
+  1774→
+  1775→    if (tenantMatterIds.length === 0 && tenantPropertyIds.length === 0) return [];
+  1776→
+  1777→    // Get all documents for the firm and filter by relevant matter/property
+  1778→    const allDocs = await ctx.db
+  1779→      .query("documents")
+  1780→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1781→      .collect();
+  1782→
+  1783→    // Filter documents that are shared with client or belong to the tenant's matters
+  1784→    return allDocs
+  1785→      .filter(d => {
+  1786→        const matchesMatter = d.matterId && tenantMatterIds.includes(d.matterId as any);
+  1787→        return matchesMatter;
+  1788→      })
+  1789→      .map(d => ({
+  1790→        _id: d._id,
+  1791→        title: d.title,
+  1792→        matterId: d.matterId,
+  1793→        dateFiled: d.dateFiled,
+  1794→        isSharedWithClient: d.isSharedWithClient,
+  1795→        clientReviewStatus: d.clientReviewStatus,
+  1796→        isSignatureRequested: d.isSignatureRequested,
+  1797→        source: d.source,
+  1798→        content: d.content,
+  1799→        createdAt: d.createdAt,
+  1800→      }));
+  1801→  },
+  1802→});
+  1803→
+  1804→/**
+  1805→ * getPortalUserConsentRecords — Returns consent/acceptance records for a portal user.
+  1806→ * Looks up portal_invites for the user's email and returns terms acceptance info.
+  1807→ */
+  1808→export const getPortalUserConsentRecords = query({
+  1809→  args: { email: v.string() },
+  1810→  handler: async (ctx, args) => {
+  1811→    const email = args.email.toLowerCase().trim();
+  1812→    if (!email) return [];
+  1813→
+  1814→    const invites = await ctx.db
+  1815→      .query("portal_invites")
+  1816→      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+  1817→      .collect();
+  1818→
+  1819→    return invites
+  1820→      .filter(inv => inv.status === 'accepted' && inv.termsAcceptedAt)
+  1821→      .map(inv => ({
+  1822→        _id: inv._id,
+  1823→        portalType: inv.portalType,
+  1824→        termsAcceptedAt: inv.termsAcceptedAt,
+  1825→        acceptedAt: inv.acceptedAt,
+  1826→        inviteeName: inv.inviteeName,
+  1827→        inviteeEmail: inv.inviteeEmail,
+  1828→        firmId: inv.firmId,
+  1829→        createdAt: inv.createdAt,
+  1830→      }));
+  1831→  },
+  1832→});
+  1833→
+  1834→/**
+  1835→ * getTenantLeaseDetails — Returns lease/rental details for a tenant's property.
+  1836→ * Pulls rentalDetails from the property record and tenancy information.
+  1837→ */
+  1838→export const getTenantLeaseDetails = query({
+  1839→  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  1840→  handler: async (ctx, args) => {
+  1841→    const properties = await ctx.db
+  1842→      .query("properties")
+  1843→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1844→      .collect();
+  1845→
+  1846→    const leases: any[] = [];
+  1847→
+  1848→    for (const prop of properties) {
+  1849→      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+  1850→      const matchesTenant = propTenantId === args.tenantId ||
+  1851→        propTenantId === args.email ||
+  1852→        String(propTenantId).toLowerCase() === (args.email || '').toLowerCase();
+  1853→
+  1854→      if (matchesTenant) {
+  1855→        leases.push({
+  1856→          propertyId: String(prop._id),
+  1857→          propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+  1858→          propertyAddress: prop.address,
+  1859→          propertyType: prop.propertyType,
+  1860→          ownershipType: prop.ownershipType,
+  1861→          rentalDetails: (prop as any).rentalDetails || null,
+  1862→          category: prop.category,
+  1863→          status: prop.status,
+  1864→        });
+  1865→      }
+  1866→
+  1867→      // Also check unit-level tenants
+  1868→      const units = (prop as any).units || [];
+  1869→      for (const unit of units) {
+  1870→        const unitTenantId = unit.currentTenantId || unit.tenantId;
+  1871→        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+  1872→        const matchesUnit = unitTenantId === args.tenantId ||
+  1873→          unitTenantId === args.email ||
+  1874→          String(unitTenantId).toLowerCase() === (args.email || '').toLowerCase() ||
+  1875→          (unitTenantEmail && unitTenantEmail === (args.email || '').toLowerCase());
+  1876→
+  1877→        if (matchesUnit) {
+  1878→          leases.push({
+  1879→            propertyId: String(prop._id),
+  1880→            propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+  1881→            propertyAddress: prop.address,
+  1882→            unitName: unit.name || unit.unitName || unit.label,
+  1883→            unitId: unit.id,
+  1884→            propertyType: prop.propertyType,
+  1885→            ownershipType: prop.ownershipType,
+  1886→            rentalDetails: (prop as any).rentalDetails || null,
+  1887→            unitDetails: {
+  1888→              tenantName: unit.tenantName,
+  1889→              rentAmount: unit.rentAmount,
+  1890→              leaseStart: unit.leaseStart || unit.leaseStartDate,
+  1891→              leaseEnd: unit.leaseEnd || unit.leaseEndDate,
+  1892→            },
+  1893→            category: prop.category,
+  1894→            status: prop.status,
+  1895→          });
+  1896→        }
+  1897→      }
+  1898→    }
+  1899→
+  1900→    // Also check tenancies table
+  1901→    const tenancies = await ctx.db
+  1902→      .query("tenancies")
+  1903→      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+  1904→      .collect();
+  1905→
+  1906→    for (const tenancy of tenancies) {
+  1907→      // Check if we already have this property in the leases
+  1908→      const propId = tenancy.propertyId;
+  1909→      const exists = leases.find(l => l.propertyId === propId);
+  1910→      if (!exists) {
+  1911→        const prop: any = await ctx.db.get(propId as any);
+  1912→        leases.push({
+  1913→          propertyId: propId,
+  1914→          propertyName: prop ? (prop.name || prop.address || 'Unnamed Property') : 'Unknown Property',
+  1915→          propertyAddress: prop?.address || null,
+  1916→          propertyType: prop?.propertyType || null,
+  1917→          ownershipType: prop?.ownershipType || null,
+  1918→          rentalDetails: prop?.rentalDetails || null,
+  1919→          tenancyDetails: {
+  1920→            startDate: tenancy.startDate,
+  1921→            endDate: tenancy.endDate,
+  1922→            rentAmount: tenancy.rentAmount,
+  1923→            paymentFrequency: tenancy.paymentFrequency,
+  1924→            status: tenancy.status,
+  1925→          },
+  1926→          category: prop?.category || null,
+  1927→          status: prop?.status || null,
+  1928→        });
+  1929→      }
+  1930→    }
+  1931→
+  1932→    return leases;
+  1933→  },
+  1934→});
+  1935→
+  1936→/**
+  1937→ * getClientConsentRecords — Returns consent/acceptance records for a client portal user.
+  1938→ * Uses the same portal_invites data as getPortalUserConsentRecords but named
+  1939→ * separately for semantic clarity in the client dashboard.
+  1940→ */
+  1941→export const getClientConsentRecords = query({
+  1942→  args: { email: v.string() },
+  1943→  handler: async (ctx, args) => {
+  1944→    const email = args.email.toLowerCase().trim();
+  1945→    if (!email) return [];
+  1946→
+  1947→    const invites = await ctx.db
+  1948→      .query("portal_invites")
+  1949→      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+  1950→      .collect();
+  1951→
+  1952→    return invites
+  1953→      .filter(inv => inv.status === 'accepted')
+  1954→      .map(inv => ({
+  1955→        _id: inv._id,
+  1956→        portalType: inv.portalType,
+  1957→        termsAcceptedAt: inv.termsAcceptedAt,
+  1958→        acceptedAt: inv.acceptedAt,
+  1959→        inviteeName: inv.inviteeName,
+  1960→        inviteeEmail: inv.inviteeEmail,
+  1961→        firmId: inv.firmId,
+  1962→        createdAt: inv.createdAt,
+  1963→      }));
+  1964→  },
+  1965→});
+  1966→
+  1967→// ─── Firm Portal Settings ────────────────────────────────────────────────
+  1968→
+  1969→/**
+  1970→ * getFirmPortalSettings — Gets portal settings for a firm, including
+  1971→ * whether portal messaging is enabled for tenants and clients.
+  1972→ */
+  1973→export const getFirmPortalSettings = query({
+  1974→  args: { firmId: v.string() },
+  1975→  handler: async (ctx, args) => {
+  1976→    const settings = await ctx.db
+  1977→      .query("portal_settings")
+  1978→      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+  1979→      .first();
+  1980→    // Default settings if none exist
+  1981→    if (!settings) {
+  1982→      return {
+  1983→        tenantMessagingEnabled: false,
+  1984→        clientMessagingEnabled: false,
+  1985→        paymentProofUploadEnabled: true,
+  1986→      };
+  1987→    }
+  1988→    return settings;
+  1989→  },
+  1990→});
+  1991→
+  1992→/**
+  1993→ * updateFirmPortalSettings — Updates portal settings for a firm.
+  1994→ * Admins use this to enable/disable tenant messaging, client messaging, etc.
+  1995→ */
+  1996→export const updateFirmPortalSettings = mutation({
+  1997→  args: {
+  1998→    firmId: v.string(),
+  1999→    tenantMessagingEnabled: v.optional(v.boolean()),
+  2000→    clientMessagingEnabled: v.optional(v.boolean()),
+
+[showing lines 1-2000 of 2025; use offset=2001 with limit to continue reading]

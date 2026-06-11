@@ -431,12 +431,18 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     }, [navigate, historyIndex]);
 
     const goBack = React.useCallback(() => {
-        navigate(-1);
-    }, [navigate]);
+        if (historyIndex > 0) {
+            setHistoryIndex(prev => prev - 1);
+            navigate(-1);
+        }
+    }, [navigate, historyIndex]);
 
     const goForward = React.useCallback(() => {
-        navigate(1);
-    }, [navigate]);
+        if (historyIndex < history.length - 1) {
+            setHistoryIndex(prev => prev + 1);
+            navigate(1);
+        }
+    }, [navigate, historyIndex, history.length]);
 
 
     const updateCurrentHistoryEntry = React.useCallback((updates: Partial<HistoryEntry>) => {

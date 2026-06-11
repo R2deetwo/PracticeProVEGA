@@ -1,5 +1,6 @@
 
 import { AppState, User, HistoryEntry, AloaMessage, Matter } from '../types';
+import { SignerContext } from '../contexts/ProductContext';
 import { getAIProvider } from '../utils/aiUtils';
 import * as geminiService from './geminiService';
 export const sendMessage = async (
@@ -31,7 +32,7 @@ export const streamMessage = async (
 
 export const streamDraft = async (
     history: { role: string, content: string }[],
-    context: { appState: AppState; currentUser: User; },
+    context: { appState: AppState; currentUser: User; signerContext?: SignerContext | null; },
     onChunk: (text: string) => void,
     signal?: AbortSignal
 ) => {

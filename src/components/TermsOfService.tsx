@@ -66,6 +66,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <li><a href="#section-20">Governing Law and Jurisdiction</a></li>
                                 <li><a href="#section-21">General Provisions</a></li>
                                 <li><a href="#section-22">Contact Information</a></li>
+                                <li><a href="#section-23">Portal Terms of Use</a></li>
                             </ol>
                         </div>
 
@@ -480,6 +481,29 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <p><strong>Data Protection / Privacy:</strong> <a href="mailto:practiceproindex@gmail.com">practiceproindex@gmail.com</a></p>
                                 </div>
                                 <p>We aim to respond to all formal notices and complaints within five (5) business days.</p>
+                            </div>
+                        </section>
+
+                        <section id="section-23" className="mb-20">
+                            <h2 className="text-3xl font-bold mb-8 transition-colors">23. PORTAL TERMS OF USE</h2>
+                            <div className="space-y-12">
+                                <p>23.1 <strong>Incorporation by Reference:</strong> The PracticePro Portal Terms of Use ("Portal Terms") are incorporated into and form an integral part of this Agreement. The Portal Terms apply to all users who access the PracticePro Client Portal or Residents' Portal (collectively, the "Portal"). A copy of the Portal Terms is available upon request and is presented to each User during the Portal account setup process.</p>
+                                <p>23.2 <strong>Binding Effect:</strong> By accepting an invitation to the Portal, creating a Portal account, or accessing the Portal in any capacity, you agree to be bound by the Portal Terms in addition to these Terms and Conditions of Service. In the event of a conflict between these Terms and the Portal Terms, the Portal Terms shall prevail with respect to Portal-specific matters.</p>
+                                <p>23.3 <strong>Scope of Portal Terms:</strong> The Portal Terms govern, among other things:</p>
+                                <ul>
+                                    <li>The purpose and scope of Portal access;</li>
+                                    <li>User responsibilities, including the obligation to provide accurate information and refrain from misuse;</li>
+                                    <li>Privacy and data protection obligations in accordance with the NDPA 2023;</li>
+                                    <li>Communication through the Portal, including the acknowledgment that messages are logged and not private;</li>
+                                    <li>Payment submissions and proof of payment requirements;</li>
+                                    <li>Maintenance requests and service charge information (for Residents' Portal users);</li>
+                                    <li>Intellectual property restrictions;</li>
+                                    <li>Limitation of liability specific to Portal use;</li>
+                                    <li>Termination of Portal access; and</li>
+                                    <li>Governing law and dispute resolution.</li>
+                                </ul>
+                                <p>23.4 <strong>Amendment of Portal Terms:</strong> PracticePro reserves the right to amend the Portal Terms at any time in accordance with Section 14 of this Agreement. Continued use of the Portal after any such amendment constitutes your acceptance of the revised Portal Terms.</p>
+                                <p>23.5 <strong>Portal Access as a Privilege:</strong> Access to the Portal is granted at the discretion of the User's {isVega ? 'legal service provider' : 'property manager'} and PracticePro. Portal access may be suspended or terminated in accordance with the Portal Terms and Section 18 of this Agreement.</p>
                             </div>
                         </section>
 

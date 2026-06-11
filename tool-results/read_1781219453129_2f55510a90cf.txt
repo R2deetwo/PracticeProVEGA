@@ -1,0 +1,1704 @@
+     1→
+     2→import React, { useState, useMemo, useEffect, useRef } from 'react';
+     3→import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
+     4→import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
+     5→import { formatNaira } from '../../utils/formatting';
+     6→import NairaSymbol from '../NairaSymbol';
+     7→import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
+     8→import { useUI } from '../../contexts/UIContext';
+     9→import { useQuery } from "convex/react";
+    10→import { api } from "../../../convex/_generated/api";
+    11→import { DocumentsTab } from './DocumentsTab';
+    12→import { useMatterState } from '../../contexts/MatterContext';
+    13→import { useFinanceState } from '../../contexts/FinanceContext';
+    14→import { useDocumentState } from '../../contexts/DocumentContext';
+    15→import { useCoreState } from '../../contexts/CoreContext';
+    16→import { useDataActions } from '../../contexts/DataContext';
+    17→import StatCard from '../StatCard';
+    18→import Tooltip from '../Tooltip';
+    19→import PropertyTrackingView from './PropertyTrackingView';
+    20→import { useAuth } from '../../contexts/AuthContext';
+    21→import { useProduct } from '../../contexts/ProductContext';
+    22→import ErrorBoundary from '../ErrorBoundary';
+    23→
+    24→import { getUnitDisplay } from '../../utils/propertyPayload';
+    25→import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
+    26→const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
+    27→    <div className="w-full">
+    28→        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
+    29→        <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
+    30→            {value}
+    31→        </div>
+    32→        {subText && <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-tight">{subText}</p>}
+    33→    </div>
+    34→);
+    35→
+    36→type PropertyTab = 'summary' | 'units' | 'revenue' | 'tracking' | 'docs';
+    37→const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
+    38→    if (!leaseEnd) return null;
+    39→    const endDate = new Date(leaseEnd);
+    40→    let noticeMonths = 1;
+    41→    const f = frequency?.toLowerCase() || '';
+    42→    if (f.includes('year')) noticeMonths = 6;
+    43→    else if (f.includes('6-month')) noticeMonths = 3;
+    44→    else if (f.includes('quarter')) noticeMonths = 1;
+    45→    else if (f.includes('month')) noticeMonths = 1;
+    46→
+    47→    const noticeDate = new Date(endDate);
+    48→    noticeDate.setMonth(noticeDate.getMonth() - noticeMonths);
+    49→
+    50→    const reviewDate = new Date(noticeDate);
+    51→    reviewDate.setDate(reviewDate.getDate() - 14);
+    52→    
+    53→    return reviewDate;
+    54→};
+    55→
+    56→
+    57→const PropertyDetailViewContent: React.FC = () => {
+    58→    const { openEditor, navigateTo, addToast, openModal, selectedId: propertyId } = useUI();
+    59→    const { isProperty } = useProduct();
+    60→    const { matterState } = useMatterState();
+    61→    const { financeState } = useFinanceState();
+    62→    const { documentState } = useDocumentState();
+    63→    const { coreState, isDataLoaded } = useCoreState();
+    64→    const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
+    65→    const { currentUser } = useAuth();
+    66→    const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
+    67→    const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
+    68→    const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
+    69→    const unitMenuRef = useRef<HTMLDivElement>(null);
+    70→    const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
+    71→    const [showAddUnitForm, setShowAddUnitForm] = useState(false);
+    72→    const [newUnitName, setNewUnitName] = useState('');
+    73→    const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
+    74→    const [showUnitMessaging, setShowUnitMessaging] = useState(false);
+    75→
+    76→    useEffect(() => {
+    77→        const onDocClick = (e: MouseEvent) => {
+    78→            if (unitMenuRef.current && !unitMenuRef.current.contains(e.target as Node)) {
+    79→                setOpenUnitMenuId(null);
+    80→                setOpenUnitMenuPos(null);
+    81→            }
+    82→        };
+    83→        document.addEventListener('mousedown', onDocClick);
+    84→        return () => document.removeEventListener('mousedown', onDocClick);
+    85→    }, []);
+    86→
+    87→    // On-demand fetch for deep-linking
+    88→    const onDemandProperty = useQuery(
+    89→        api.myFunctions.getPropertyDetails,
+    90→        (propertyId && currentUser?.firmId && !coreState.properties?.find(p => p.id === propertyId))
+    91→            ? { propertyId, firmId: currentUser.firmId }
+    92→            : 'skip'
+    93→    );
+    94→
+    95→    const { property, owner, allUnits } = useMemo(() => {
+    96→        let selectedProperty: Property | null = null;
+    97→        let propertyOwner: Contact | null = null;
+    98→        let units: Property[] = [];
+    99→
+   100→        if (propertyId) {
+   101→            // 1. Check standalone properties
+   102→            const standalone = (coreState.properties || []).find(p => p.id === propertyId || (p as any)._id === propertyId);
+   103→            if (standalone) {
+   104→                selectedProperty = standalone;
+   105→                propertyOwner = (matterState.contacts || []).find(c => c.id === standalone.contactId || (c as any)._id === standalone.contactId) || null;
+   106→            } else {
+   107→                // 1b. Check if it's a unit ID within a multi-unit property
+   108→                for (const p of (coreState.properties || [])) {
+   109→                    if (p.units && Array.isArray(p.units)) {
+   110→                        const unit = p.units.find(u => u.id === propertyId || (u as any)._id === propertyId);
+   111→                        if (unit) {
+   112→                            selectedProperty = { 
+   113→                                ...p, 
+   114→                                id: unit.id, 
+   115→                                address: `${p.address} (${unit.unitName || unit.name || 'Unit'})`,
+   116→                                rentalDetails: { ...(p.rentalDetails || {}), ...unit },
+   117→                                numberOfUnits: 1,
+   118→                                units: []
+   119→                            };
+   120→                            propertyOwner = (matterState.contacts || []).find(c => c.id === p.contactId || (c as any)._id === p.contactId) || null;
+   121→                            break;
+   122→                        }
+   123→                    }
+   124→                }
+   125→
+   126→                if (!selectedProperty) {
+   127→                    // 2. Check legacy properties
+   128→                    for (const c of matterState.contacts) {
+   129→                        const p = (c.properties || []).find(prop => prop.id === propertyId || (prop as any)._id === propertyId);
+   130→                        if (p) {
+   131→                            selectedProperty = p;
+   132→                            propertyOwner = c;
+   133→                            break;
+   134→                        }
+   135→                    }
+   136→                }
+   137→
+   138→                // 2b. Check on-demand result
+   139→                if (!selectedProperty && onDemandProperty) {
+   140→                    selectedProperty = onDemandProperty as any;
+   141→                    propertyOwner = (matterState.contacts || []).find(c => c.id === (onDemandProperty as any).contactId) || null;
+   142→                }
+   143→            }
+   144→
+   145→            // 3. Find sibling units (all units at this address)
+   146→            if (selectedProperty && selectedProperty.address) {
+   147→                const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+   148→                const addr = normalize(selectedProperty.address);
+   149→                const standaloneUnits = (coreState.properties || []).filter(p => normalize(p.address) === addr);
+   150→                const legacyUnits: Property[] = [];
+   151→                (matterState.contacts || []).forEach(c => {
+   152→                    (c.properties || []).forEach(p => {
+   153→                        if (normalize(p.address) === addr && !standaloneUnits.some(su => su.id === p.id)) {
+   154→                            legacyUnits.push(p);
+   155→                        }
+   156→                    });
+   157→                });
+   158→                
+   159→                // Add units from on-demand property if it has any
+   160→                const onDemandUnits = (onDemandProperty as any)?.units || [];
+   161→                
+   162→                units = [...standaloneUnits, ...legacyUnits, ...onDemandUnits];
+   163→                
+   164→                // Remove duplicates by ID
+   165→                const seen = new Set();
+   166→                units = units.filter(u => {
+   167→                    const id = u.id || (u as any)._id;
+   168→                    if (seen.has(id)) return false;
+   169→                    seen.add(id);
+   170→                    return true;
+   171→                });
+   172→            }
+   173→        }
+   174→        return { property: selectedProperty, owner: propertyOwner, allUnits: units };
+   175→    }, [matterState.contacts, coreState.properties, propertyId, onDemandProperty]);
+   176→
+   177→    // Feature Checks — computed unconditionally so hooks always run in same order
+   178→    const isLeased = property?.category === 'Tenanted Property';
+   179→    const isSale = property?.category === 'Property For Sale';
+   180→    const hasMultipleUnits = allUnits.length > 1 || ((property as any)?.units?.length > 0);
+   181→    const isDisputed = property?.category === 'Disputed Property';
+   182→
+   183→    // STRICT LINKING LOGIC:
+   184→    // 1. Must match the unit-specific property ID in specialtyData.
+   185→    // 2. Matter must not be Archived.
+   186→    const linkedMatters = useMemo(() => {
+   187→        if (!property?.id || !owner?.id) return [];
+   188→
+   189→        return matterState.matters.filter(m =>
+   190→            m.clientId === owner!.id &&
+   191→            m.status !== MatterStatus.Archived &&
+   192→            m.specialtyData?.realEstate?.propertyId === property.id
+   193→        );
+   194→    }, [matterState.matters, owner?.id, property?.id]);
+   195→
+   196→    const primaryMatter = linkedMatters[0];
+   197→
+   198→    // Financials Calculation
+   199→    const propertyInvoices = useMemo(() => {
+   200→        if (!owner || !property) return [];
+   201→        return financeState.invoices.filter(inv => {
+   202→            if (!inv || !inv.client) return false;
+   203→            if (inv.client.id !== owner?.id) return false;
+   204→            const addressPart = (property.address || '').split(',')[0];
+   205→            if (!addressPart) return linkedMatters.some(m => inv.matter && inv.matter.id === m.id);
+   206→            const hasAddressMatch = inv.lineItems && inv.lineItems.some(li => li?.description && li.description.includes(addressPart));
+   207→            const hasMatterMatch = linkedMatters.some(m => inv.matter && inv.matter.id === m.id);
+   208→            return hasAddressMatch || hasMatterMatch;
+   209→        });
+   210→    }, [financeState.invoices, owner?.id, property?.address, linkedMatters]);
+   211→
+   212→    const allPropertyLedgerEntries = useMemo(() => {
+   213→        return (coreState.ledgerEntries || [])
+   214→            .filter(e => e.propertyId === property?.id || e.unitId === property?.id);
+   215→    }, [coreState.ledgerEntries, property?.id]);
+   216→
+   217→    const propertyLedgerEntries = useMemo(() => {
+   218→        return [...allPropertyLedgerEntries]
+   219→            .sort((a, b) => b.timestamp - a.timestamp)
+   220→            .slice(0, 3);
+   221→    }, [allPropertyLedgerEntries]);
+   222→
+   223→    const propertyDocuments = useMemo(() => {
+   224→        if (isProperty && property) {
+   225→            const propPrefix = `prop_${property.id}_`;
+   226→            const addressPart = (property.address || '').split(',')[0].toLowerCase();
+   227→            return documentState.documents.filter(d => {
+   228→                if (!d) return false;
+   229→                if (d.categoryId?.startsWith(propPrefix)) return true;
+   230→                if (d.title?.toLowerCase().includes(addressPart)) return true;
+   231→                return false;
+   232→            });
+   233→        } else {
+   234→            if (linkedMatters.length === 0) return [];
+   235→            const matterIds = linkedMatters.map(m => m.id);
+   236→            return documentState.documents.filter(d => d && matterIds.includes(d.matterId!));
+   237→        }
+   238→    }, [documentState.documents, linkedMatters, isProperty, property, property?.id, property?.address]);
+   239→
+   240→    // --- Now safe to early-return after all hooks have been called ---
+   241→    if (!property) return (
+   242→        <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+   243→            <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+   244→                <OfficeBuildingIcon className="w-8 h-8 text-slate-300" />
+   245→            </div>
+   246→            <p className="text-lg font-medium">Property not found</p>
+   247→            <p className="text-sm mt-1">ID: {propertyId || 'None'}</p>
+   248→        </div>
+   249→    );
+   250→
+   251→    const onGoBack = () => navigateTo('properties');
+   252→
+   253→
+   254→    const handleDraftAction = (actionTitle: string, type: string, unit?: Property) => {
+   255→        const display = unit ? getUnitDisplay(unit) : null;
+   256→        const draftTitle = `${actionTitle} - ${display?.name || property.address.split(',')[0]}`;
+   257→        const firmId = coreState.firmDetails?.id || '';
+   258→        const sessionKey = draftSessionKey({ matterId: primaryMatter?.id, title: draftTitle });
+   259→        const existing = firmId ? loadDraftSession(firmId, sessionKey) : null;
+   260→
+   261→        if (existing?.content?.trim()) {
+   262→            openEditor(existing.documentId || null, {
+   263→                draftTitle: existing.title || draftTitle,
+   264→                draftContent: existing.content,
+   265→                matterId: primaryMatter?.id,
+   266→                disableAutoDraft: true,
+   267→            });
+   268→            return;
+   269→        }
+   270→
+   271→        addToast(`Preparing ${actionTitle}...`, { type: 'info' });
+   272→
+   273→        let prompt = `Write a formal legal document: **${actionTitle}**.\n\n`;
+   274→        prompt += `**PROPERTY DETAILS:**\n`;
+   275→        prompt += `- Address: ${property.address}\n`;
+   276→        if (display) {
+   277→            prompt += `- Unit: ${display.name} (Floor ${display.floor})\n`;
+   278→        }
+   279→        prompt += `- Description: ${property.description || 'N/A'}\n\n`;
+   280→
+   281→        prompt += `**PARTIES:**\n`;
+   282→        prompt += `- Landlord/Owner: ${owner?.name} (${owner?.address || 'Address on file'})\n`;
+   283→
+   284→        const tenantName = display?.tenantName || property.rentalDetails?.tenantName;
+   285→        const rentAmount = display?.rentAmount ?? property.rentalDetails?.rentAmount;
+   286→        const rentFreq = display?.rentFrequency || property.rentalDetails?.rentFrequency;
+   287→        const leaseEnd = display?.leaseEnd || property.rentalDetails?.leaseEnd;
+   288→
+   289→        if (isLeased && (property.rentalDetails || unit)) {
+   290→            prompt += `- Tenant: ${tenantName || '[TENANT NAME]'}\n`;
+   291→            prompt += `\n**TENANCY TERMS:**\n`;
+   292→            prompt += `- Rent: N${formatNaira(rentAmount || 0)} per ${rentFreq || 'annum'}\n`;
+   293→            prompt += `- Current Term Ends: ${leaseEnd || '[DATE]'}\n`;
+   294→        }
+   295→
+   296→        if (isSale && property.saleDetails) {
+   297→            prompt += `\n**SALE TERMS:**\n`;
+   298→            prompt += `- Consideration: N${formatNaira(property.saleDetails.targetPrice || property.value || 0)}\n`;
+   299→        }
+   300→
+   301→        if (type === 'Quit') {
+   302→            prompt += `\n**SPECIFIC INSTRUCTION:** This is a Notice to Quit. Ensure it complies with the Tenancy Law of Lagos State (or applicable State Law). Cite the expiration of the current term as the reason. Give the statutory notice period required for a ${rentFreq || 'yearly'} tenant.`;
+   303→        } else if (type === 'Demand') {
+   304→            prompt += `\n**SPECIFIC INSTRUCTION:** This is a Demand Notice for overdue rent. State clearly the arrears and the consequence of failure to pay (legal action for recovery of premises).`;
+   305→        }
+   306→
+   307→        prompt += `\n\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
+   308→
+   309→        setTimeout(() => {
+   310→            openEditor(null, {
+   311→                draftTitle,
+   312→                draftPrompt: prompt,
+   313→                matterId: primaryMatter?.id,
+   314→                openedByAloa: true,
+   315→            });
+   316→        }, 300);
+   317→    };
+   318→
+   319→    const handleApplyTemplate = (template: any, unit?: Property) => {
+   320→        addToast(`Applying template: ${template.name}...`, { type: 'info' });
+   321→        
+   322→        const addressPart = (property.address || '').split(',')[0] || 'Property';
+   323→        const display = unit ? getUnitDisplay(unit) : null;
+   324→        const tenantName = display?.tenantName || property.rentalDetails?.tenantName;
+   325→        const rentAmount = display?.rentAmount ?? property.rentalDetails?.rentAmount;
+   326→        const leaseEnd = display?.leaseEnd || property.rentalDetails?.leaseEnd;
+   327→
+   328→        const meta: Record<string, string> = {
+   329→            'TENANT NAME': tenantName || '[TENANT NAME]',
+   330→            'PROPERTY ADDRESS': property.address,
+   331→            'UNIT NAME': display?.name || (property.rentalDetails?.unitName || 'N/A'),
+   332→            'RENT AMOUNT': `₦${formatNaira(rentAmount || 0)}`,
+   333→            'LEASE END DATE': leaseEnd || '[LEASE END DATE]',
+   334→            'LANDLORD NAME': owner?.name || 'N/A',
+   335→            'DATE': new Date().toLocaleDateString('en-GB')
+   336→        };
+   337→
+   338→        // Fill placeholders in the content
+   339→        let content = template.content;
+   340→        Object.entries(meta).forEach(([key, val]) => {
+   341→            // Replace both [KEY] text and placeholder tags
+   342→            const textRegex = new RegExp(`\\[${key}\\]`, 'gi');
+   343→            content = content.replace(textRegex, val);
+   344→            
+   345→            const tagRegex = new RegExp(`<span[^>]*data-label="${key}"[^>]*><\\/span>`, 'gi');
+   346→            content = content.replace(tagRegex, `<span>${val}</span>`);
+   347→        });
+   348→
+   349→        setTimeout(() => {
+   350→            openEditor(content, {
+   351→                draftTitle: `${template.name} - ${display?.name || addressPart}`,
+   352→                matterId: primaryMatter?.id,
+   353→                openedByAloa: false,
+   354→                disableAutoDraft: true,
+   355→            });
+   356→        }, 300);
+   357→    };
+   358→
+   359→    const handleInitializeMatter = async (unit?: any, force = false) => {
+   360→        // If matters already exist, ask for confirmation
+   361→        const existingCount = unit 
+   362→            ? matterState.matters.filter(m => m.specialtyData?.realEstate?.propertyId === property.id && m.title.includes(unit.name)).length
+   363→            : linkedMatters.length;
+   364→
+   365→        if (existingCount > 0 && !force) {
+   366→            openModal('deleteConfirmation', property.id, {
+   367→                title: "Matter Already Exists",
+   368→                message: `There ${existingCount === 1 ? 'is' : 'are'} already ${existingCount} active matter(s) for this ${unit ? 'unit' : 'property'}. Do you want to initiate a new, separate matter?`,
+   369→                onConfirm: () => handleInitializeMatter(unit, true),
+   370→                confirmText: "Initialize New Matter",
+   371→                cancelText: "View Existing"
+   372→            });
+   373→            return;
+   374→        }
+   375→
+   376→        // Prepare strict context for the new matter
+   377→        const addressPart = property.address.split(',')[0];
+   378→
+   379→        // For embedded units, rental data lives in rentalDetails; for standalone properties it's top-level
+   380→        const unitRental = unit ? (unit.rentalDetails || unit) : null;
+   381→        const unitName = unit
+   382→            ? (unit.name || unit.address || unitRental?.unitName || '')
+   383→            : (property.rentalDetails?.unitName || property.description || '');
+   384→        const unitTenantName = unitRental?.tenantName || '';
+   385→        const unitTenantPhone = unitRental?.tenantPhone || '';
+   386→        const unitTenantEmail = unitRental?.tenantEmail || '';
+   387→        const unitLeaseEnd = unitRental?.leaseEndDate || unitRental?.leaseEnd || '';
+   388→
+   389→        const matterTitle = isSale
+   390→            ? `Sale: ${addressPart} ${unitName ? `(${unitName})` : ''}`
+   391→            : `Tenancy: ${addressPart}${unitName ? ` — ${unitName}` : ''}${unitTenantName ? ` [${unitTenantName}]` : ''}`;
+   392→
+   393→        const matterType = 'Real Estate';
+   394→        const subCategory = isSale ? 'Acquisition' : 'Lease/Tenancy';
+   395→
+   396→        const propValue = unit
+   397→            ? (unitRental?.value || unit.value || 0)
+   398→            : (property.value || property.saleDetails?.targetPrice || 0);
+   399→        const rentAmount = unit
+   400→            ? (unitRental?.rentAmount || unit.rentAmount || 0)
+   401→            : (property.rentalDetails?.rentAmount || 0);
+   402→        const defaultFee = isSale ? propValue * 0.1 : rentAmount * 0.1;
+   403→
+   404→        // Build a rich description with all available unit context
+   405→        const descParts = [`Property: ${property.address}`];
+   406→        if (unitName) descParts.push(`Unit: ${unitName}`);
+   407→        if (unitTenantName) descParts.push(`Tenant: ${unitTenantName}`);
+   408→        if (unitTenantPhone) descParts.push(`Phone: ${unitTenantPhone}`);
+   409→        if (unitTenantEmail) descParts.push(`Email: ${unitTenantEmail}`);
+   410→        if (rentAmount > 0) descParts.push(`Rent: ₦${rentAmount.toLocaleString()}`);
+   411→        if (unitLeaseEnd) descParts.push(`Lease Ends: ${unitLeaseEnd}`);
+   412→
+   413→        const newMatterData: any = {
+   414→            title: matterTitle,
+   415→            clientId: owner?.id,
+   416→            type: matterType,
+   417→            subCategory,
+   418→            description: descParts.join(' | '),
+   419→            status: MatterStatus.Active,
+   420→            stage: 'Intake',
+   421→            stageLastUpdated: new Date().toISOString(),
+   422→            createdAt: new Date().toISOString(),
+   423→            assignedUsers: currentUser ? [currentUser.id] : [],
+   424→            referenceNumber: `PROP-${Date.now().toString().slice(-6)}`,
+   425→            billingModel: BillingModel.FixedFee,
+   426→            fixedFeeAmount: defaultFee,
+   427→            hourlyRate: 100000,
+   428→            billingBase: isSale ? 'Value' : 'Rent',
+   429→            billingCurrency: 'NGN',
+   430→            suitNumber: '',
+   431→            court: '',
+   432→            judicialDivision: '',
+   433→            specialtyData: {
+   434→                realEstate: {
+   435→                    purchasePrice: isSale ? propValue : 0,
+   436→                    propertyId: property.id,
+   437→                    unitId: unit?.id || undefined,
+   438→                    unitName: unitName || undefined,
+   439→                    tenantName: unitTenantName || undefined,
+   440→                    tenantPhone: unitTenantPhone || undefined,
+   441→                    tenantEmail: unitTenantEmail || undefined,
+   442→                    rentAmount: rentAmount || undefined,
+   443→                    leaseEndDate: unitLeaseEnd || undefined,
+   444→                    transactionType: isSale ? 'Sale' : 'Lease'
+   445→                }
+   446→            }
+   447→        };
+   448→
+   449→        try {
+   450→            addToast('Initializing property matter...', { type: 'info' });
+   451→            const result = await onAddMatter(newMatterData, null);
+   452→            if (result && result.id) {
+   453→                addToast('Matter initialized successfully', { type: 'success' });
+   454→                navigateTo('matterDetail', result.id);
+   455→            }
+   456→        } catch (error) {
+   457→            console.error("Failed to initialize matter", error);
+   458→            addToast('Failed to initialize matter', { type: 'error' });
+   459→        }
+   460→    };
+   461→
+   462→    const handleListForSale = () => {
+   463→        openModal('deleteConfirmation', property.id, {
+   464→            title: "List for Sale?",
+   465→            message: "Are you sure you want to change this property status to 'For Sale'?",
+   466→            onConfirm: () => {
+   467→                updateItem('properties', { id: property.id, category: 'Property For Sale', status: 'Listed' }, 'Property Listed');
+   468→                addToast("Property listed for sale.", { type: 'success' });
+   469→            },
+   470→            confirmText: "List for Sale"
+   471→        });
+   472→    };
+   473→
+   474→    
+   475→
+   476→    return (
+   477→        <div className="flex flex-col bg-slate-50 dark:bg-zinc-900 h-full">
+   478→            {/* Header */}
+   479→            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 z-20 shadow-sm">
+   480→                <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
+   481→                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+   482→                    <button onClick={onGoBack} className="text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors text-xs font-bold uppercase flex items-center gap-1 flex-shrink-0">
+   483→                        &larr;
+   484→                    </button>
+   485→                    <div className="h-6 w-px bg-slate-200 dark:bg-zinc-700 flex-shrink-0"></div>
+   486→                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+   487→                        <div className={`p-1.5 rounded-lg flex-shrink-0 ${isLeased ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+   488→                            <OfficeBuildingIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+   489→                        </div>
+   490→                        <div className="min-w-0">
+   491→                            <div className="flex items-center gap-2">
+   492→                                <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-none max-w-[160px] sm:max-w-md">{property.address}</h2>
+   493→                            </div>
+   494→                            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
+   495→                                {property.propertyType || 'Property'} • {owner?.name || 'Owner'}
+   496→                            </p>
+   497→                        </div>
+   498→                    </div>
+   499→                </div>
+   500→                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+   501→                    <button
+   502→                        onClick={() => openModal('editProperty', property.id, { contactId: owner?.id })}
+   503→                        className="px-2 sm:px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors text-slate-600 dark:text-zinc-300 text-xs font-bold flex items-center gap-1 sm:gap-2"
+   504→                    >
+   505→                        <EditIcon className="w-4 h-4" /><span className="hidden sm:inline">Edit</span>
+   506→                    </button>
+   507→                </div>
+   508→            </div>
+   509→            </div>
+   510→
+   511→
+   512→            {/* Tabs — horizontally scrollable on mobile */}
+   513→            <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+   514→                <div className="max-w-7xl mx-auto px-3 sm:px-6">
+   515→                    <nav className="-mb-px flex space-x-4 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap">
+   516→                        {([
+   517→                            { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
+   518→                            ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
+   519→                            ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
+   520→                            { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> Activity & Tracking</> },
+   521→                            { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs & Financials</> },
+   522→                        ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
+   523→                            <button
+   524→                                key={tab.id}
+   525→                                onClick={() => setActiveTab(tab.id)}
+   526→                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${
+   527→                                    activeTab === tab.id
+   528→                                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+   529→                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+   530→                                }`}
+   531→                            >
+   532→                                {tab.label}
+   533→                            </button>
+   534→                        ))}
+   535→                    </nav>
+   536→                </div>
+   537→            </div>
+   538→
+   539→            <div className="flex-grow overflow-y-auto scroll-smooth-ios custom-scrollbar">
+   540→                <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
+   541→
+   542→                {activeTab === 'summary' && (
+   543→                    <div className="space-y-8 animate-fade-in">
+   544→                        
+   545→                        {/* 1. Core Information & Quick Actions Row */}
+   546→                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   547→                            {/* Identity Card */}
+   548→                            <div className={`${(isLeased || hasMultipleUnits) ? 'lg:col-span-3' : 'lg:col-span-2'} bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-4 sm:p-6 border border-slate-200 dark:border-zinc-700`}>
+   549→                                <div className="flex justify-between items-start border-b border-slate-100 dark:border-zinc-700 pb-2 mb-4">
+   550→                                    <div className="flex items-center gap-3">
+   551→                                        <h3 className="text-sm font-bold text-slate-800 dark:text-white">Property Information</h3>
+   552→                                        {allUnits.length > 1 && (
+   553→                                            <button 
+   554→                                                onClick={() => setActiveTab('units')}
+   555→                                                className="px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-[10px] font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 transition-all flex items-center gap-1"
+   556→                                            >
+   557→                                                {allUnits.length} Units Found <span className="opacity-50">&rarr;</span>
+   558→                                            </button>
+   559→                                        )}
+   560→                                    </div>
+   561→                                    <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${property.status === 'Occupied' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+   562→                                        {property.status}
+   563→                                    </span>
+   564→                                </div>
+   565→
+   566→                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-4 sm:gap-x-8">
+   567→                                    <DetailItem label="Address" value={property.address} />
+   568→                                    <DetailItem label="Type" value={`${property.propertyType || 'General'} (${property.category})`} />
+   569→
+   570→                                    {property.description && (
+   571→                                        <div className="col-span-2">
+   572→                                            <DetailItem label="Description" value={property.description} />
+   573→                                        </div>
+   574→                                    )}
+   575→
+   576→                                    {(isLeased || isSale || (property.value && property.value > 0)) && (
+   577→                                        <DetailItem
+   578→                                            label={isLeased ? "Rent Amount" : (isSale ? "Target Price" : "Valuation")}
+   579→                                            value={<><NairaSymbol />{formatNaira((isLeased ? property.rentalDetails?.rentAmount : (isSale ? property.saleDetails?.targetPrice : property.value)) || 0)} <span className="text-xs text-slate-400 font-normal">{isLeased ? '/year' : ''}</span></>}
+   580→                                        />
+   581→                                    )}
+   582→
+   583→                                    <DetailItem 
+   584→                                        label="Portfolio Type" 
+   585→                                        value={property.ownershipType === 'owned' ? 'Personal Portfolio' : 'Managed for Client'} 
+   586→                                    />
+   587→                                    {property.ownershipType !== 'owned' && (
+   588→                                        <DetailItem 
+   589→                                            label={isSale ? "Professional Fee" : "Management Fee"} 
+   590→                                            value={`${property.managementFeePercentage || 0}%`} 
+   591→                                            subText={isSale ? "of sale price" : "of collected rent"} 
+   592→                                        />
+   593→                                    )}
+   594→
+   595→                                    {/* Consolidated Rental Info */}
+   596→                                    {isLeased && property.rentalDetails && (
+   597→                                        <>
+   598→                                            <DetailItem label="Tenant" value={property.rentalDetails.tenantName || 'Unknown'} subText={property.rentalDetails.tenantPhone} />
+   599→                                            <DetailItem
+   600→                                                label="Lease Expiry"
+   601→                                                value={property.rentalDetails.leaseEnd ? new Date(property.rentalDetails.leaseEnd).toLocaleDateString('en-GB') : 'N/A'}
+   602→                                            />
+   603→                                            {property.rentalDetails.leaseEnd && (
+   604→                                                <DetailItem 
+   605→                                                    label="Next Rent Review" 
+   606→                                                    value={calculateRentReviewDate(property.rentalDetails.leaseEnd, property.rentalDetails.rentFrequency)?.toLocaleDateString('en-GB') || 'N/A'} 
+   607→                                                    subText="Auto-calculated (2 weeks before statutory notice)"
+   608→                                                />
+   609→                                            )}
+   610→                                            {(property.rentalDetails.serviceCharge || 0) > 0 && (
+   611→                                                <DetailItem label="Service Charge" value={<><NairaSymbol />{formatNaira(property.rentalDetails.serviceCharge || 0)}</>} />
+   612→                                            )}
+   613→                                            {property.minimumVendEnabled && (
+   614→                                                <DetailItem 
+   615→                                                    label={property.minimumVendLabel || 'Minimum Vend'} 
+   616→                                                    value={<><NairaSymbol />{formatNaira(property.minimumVendAmount || 0)}</>} 
+   617→                                                    subText="Estate minimum utility vend" 
+   618→                                                />
+   619→                                            )}
+   620→                                            {(property.rentalDetails.legalFee || 0) > 0 && (
+   621→                                                <DetailItem label="Legal Fee" value={<><NairaSymbol />{formatNaira(property.rentalDetails.legalFee || 0)}</>} />
+   622→                                            )}
+   623→                                            {(property.rentalDetails.agencyFee || 0) > 0 && (
+   624→                                                <DetailItem label="Agency Fee" value={<><NairaSymbol />{formatNaira(property.rentalDetails.agencyFee || 0)}</>} />
+   625→                                            )}
+   626→                                            {(property.rentalDetails.cautionDeposit || 0) > 0 && (
+   627→                                                <DetailItem label="Caution Deposit" value={<><NairaSymbol />{formatNaira(property.rentalDetails.cautionDeposit || 0)}</>} />
+   628→                                            )}
+   629→                                        </>
+   630→                                    )}
+   631→                                </div>
+   632→
+   633→
+   634→                            </div>
+   635→
+   636→                            {/* Quick Actions (Right Side) - ONLY for properties WITHOUT a Units tab */}
+   637→                            {!(isLeased || hasMultipleUnits) && (
+   638→                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700 flex flex-col">
+   639→                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Quick Actions</h3>
+   640→                                    <div className="space-y-2 flex-grow">
+   641→                                        {isLeased ? (
+   642→                                            <>
+   643→                                                <ActionButton onClick={() => openModal('collectRent', property.id)} label="Record payment & receipt" />
+   644→                                                <ActionButton onClick={() => handleDraftAction('Rent Demand Notice', 'Demand')} label="Rent Demand" />
+   645→                                                <ActionButton onClick={() => handleDraftAction('Notice to Quit', 'Quit')} label="Notice to Quit" />
+   646→                                                <ActionButton onClick={() => handleDraftAction('Tenancy Agreement', 'Agreement')} label="Tenancy Agreement" />
+   647→                                                <ActionButton onClick={() => openModal('composeEmail', null, { to: property.rentalDetails?.tenantEmail || owner?.email || '', subject: `Property Update: ${property.address}` })} label="Email Tenant" />
+   648→                                            </>
+   649→                                        ) : isSale ? (
+   650→                                            <>
+   651→                                                <ActionButton onClick={() => handleDraftAction('Contract of Sale', 'Sale')} label="Contract of Sale" />
+   652→                                                <ActionButton onClick={() => handleDraftAction('Deed of Assignment', 'Deed')} label="Deed of Assignment" />
+   653→                                            </>
+   654→                                        ) : (
+   655→                                            <ActionButton onClick={() => handleDraftAction('Letter of Intent', 'Letter')} label="Draft Letter" />
+   656→                                        )}
+   657→                                        <ActionButton onClick={handleListForSale} label="List for Sale" />
+   658→
+   659→                                        {linkedMatters.length === 0 ? (
+   660→                                            <button
+   661→                                                onClick={() => handleInitializeMatter()}
+   662→                                                className="w-full text-left px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 hover:border-blue-400 transition-all text-xs font-bold text-blue-700 dark:text-blue-300 flex justify-between items-center group mt-2"
+   663→                                            >
+   664→                                                {isProperty ? 'Initialize File' : 'Initialize Matter'} <span className="text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+   665→                                            </button>
+   666→                                        ) : (
+   667→                                            <div className="mt-2 space-y-2">
+   668→                                                <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
+   669→                                                    <p className="text-[10px] text-green-700 dark:text-green-300 font-bold mb-1">{isProperty ? 'Management File Active' : 'Matter Active'} ({linkedMatters.length})</p>
+   670→                                                    {linkedMatters.map(m => (
+   671→                                                        <p key={m.id} onClick={() => navigateTo('matterDetail', m.id)} className="text-xs text-slate-600 dark:text-zinc-400 truncate hover:text-primary-600 cursor-pointer mb-1 last:mb-0">
+   672→                                                            • {m.title}
+   673→                                                        </p>
+   674→                                                    ))}
+   675→                                                </div>
+   676→                                                <button 
+   677→                                                    onClick={() => handleInitializeMatter()}
+   678→                                                    className="w-full py-1 text-[9px] font-black uppercase text-slate-400 hover:text-primary-600 transition-colors tracking-tighter"
+   679→                                                >
+   680→                                                    + New {isProperty ? 'File' : 'Matter'}
+   681→                                                </button>
+   682→                                            </div>
+   683→                                        )}
+   684→                                    </div>
+   685→                                </div>
+   686→                            )}
+   687→                        </div>
+   688→
+   689→                        {/* 2. Automation & Reminders */}
+   690→                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   691→                            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+   692→                                <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+   693→                                    <ZapIcon className="w-4 h-4 text-amber-500" /> Active Automations
+   694→                                </h3>
+   695→                                <div className="space-y-3">
+   696→                                    {isLeased && property.automationSettings?.remindLeaseExpiry ? (
+   697→                                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
+   698→                                            <CheckCircleIcon className="w-4 h-4 text-green-600" />
+   699→                                            <div className="flex-grow">
+   700→                                                <p className="text-xs font-bold text-green-800 dark:text-green-200">Lease Expiry Reminder</p>
+   701→                                                <p className="text-[10px] text-green-700 dark:text-green-300">System will alert 90 days before lease end.</p>
+   702→                                            </div>
+   703→                                        </div>
+   704→                                    ) : isLeased ? (
+   705→                                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg border border-slate-100 dark:border-zinc-700 opacity-60">
+   706→                                            <div className="w-4 h-4 border-2 border-slate-300 rounded-full"></div>
+   707→                                            <p className="text-xs font-medium text-slate-500">Lease Expiry Reminder Disabled</p>
+   708→                                        </div>
+   709→                                    ) : isSale ? (
+   710→                                        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+   711→                                            <ZapIcon className="w-4 h-4 text-blue-600" />
+   712→                                            <div className="flex-grow">
+   713→                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-200">Sales Lead Tracking</p>
+   714→                                                <p className="text-[10px] text-blue-700 dark:text-blue-300">Auto-tracking inquiries for this listing.</p>
+   715→                                            </div>
+   716→                                        </div>
+   717→                                    ) : null}
+   718→                                </div>
+   719→                            </div>
+   720→
+   721→                            {linkedMatters.length > 0 && (
+   722→                                <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
+   723→                                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">{isProperty ? 'Portfolio Context' : 'Legal Context'}</h3>
+   724→                                    <div className="space-y-3">
+   725→                                        {linkedMatters.map(m => (
+   726→                                            <div key={m.id} className="p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors" onClick={() => navigateTo('matterDetail', m.id)}>
+   727→                                                <p className="text-xs font-bold text-primary-600 mb-1">Active {isProperty ? 'Management File' : 'Matter'}</p>
+   728→                                                <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.title}</p>
+   729→                                                <p className="text-xs text-slate-500 mt-1">{m.stage}</p>
+   730→                                            </div>
+   731→                                        ))}
+   732→                                    </div>
+   733→                                </div>
+   734→                            )}
+   735→                        </div>
+   736→                    </div>
+   737→                )}
+   738→
+   739→                {activeTab === 'units' && (() => {
+   740→                    const legacyUnits = ((property as any)?.units || [])
+   741→                        .map((u: any, idx: number) => ({ ...u, id: u.id || `temp-unit-${idx}` }))
+   742→                        .filter((u: any) => u);
+   743→                    
+   744→                    const units = [...(allUnits || [])]
+   745→                        .map(u => u && u.id ? u : null)
+   746→                        .filter((u): u is Property => u !== null);
+   747→
+   748→                    legacyUnits.forEach((lu: any) => {
+   749→                        if (!units.some(u => u.id === lu.id || (u as any).name === lu.name)) {
+   750→                            units.push(lu);
+   751→                        }
+   752→                    });
+   753→                    const isEmbeddedUnit = (unit: any) => legacyUnits.some((lu: any) => lu.id === unit.id);
+   754→                    const statusColors: Record<string, string> = {
+   755→                        'Occupied': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+   756→                        'Vacant': 'bg-slate-100 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300',
+   757→                        'Maintenance': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+   758→                    };
+   759→                    const occupiedCount = units.filter(u => u?.status === 'Occupied').length;
+   760→                    const vacantCount = units.filter(u => u?.status === 'Vacant').length;
+   761→                    const maintenanceCount = units.filter(u => u?.status === 'Maintenance').length;
+   762→                    const minimumVendEnabled = (property as any).minimumVendEnabled || false;
+   763→                    const vendLabel = (property as any).minimumVendLabel || 'Min Vend';
+   764→
+   765→                    const handleAddUnitSubmit = async () => {
+   766→                        if (!newUnitName.trim()) { addToast('Unit name is required', { type: 'error' }); return; }
+   767→                        const newUnit = {
+   768→                            id: `unit-${Date.now()}`,
+   769→                            unitName: newUnitName.trim(),
+   770→                            name: newUnitName.trim(),
+   771→                            propertyType: newUnitType,
+   772→                            status: 'Vacant',
+   773→                            rentAmount: 0,
+   774→                        };
+   775→                        try {
+   776→                            await addUnit(property.id, newUnit);
+   777→                            setNewUnitName('');
+   778→                            setNewUnitType('Residential');
+   779→                            setShowAddUnitForm(false);
+   780→                        } catch (e) { addToast('Failed to add unit.', { type: 'error' }); }
+   781→                    };
+   782→
+   783→                    const handleRemoveUnit = (unit: any, d: ReturnType<typeof getUnitDisplay>) => {
+   784→                        openModal('deleteConfirmation', unit.id, {
+   785→                            title: 'Remove Unit',
+   786→                            message: `Remove "${d.name}" from this property? This action cannot be undone.`,
+   787→                            onConfirm: async () => {
+   788→                                try {
+   789→                                    if (isEmbeddedUnit(unit)) {
+   790→                                        await removeUnit(property.id, unit.id);
+   791→                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
+   792→                                    } else {
+   793→                                        await handleDeleteProperty(unit.id, d.name, true);
+   794→                                        addToast(`Unit "${d.name}" removed.`, { type: 'success' });
+   795→                                    }
+   796→                                    setSelectedUnit(null);
+   797→                                } catch (e) { addToast('Failed to remove unit.', { type: 'error' }); }
+   798→                            },
+   799→                            confirmText: 'Remove Unit',
+   800→                        });
+   801→                    };
+   802→
+   803→                    return (
+   804→                        <div className="space-y-6 animate-fade-in">
+   805→                            {/* Header: status pills + Add Unit button */}
+   806→                            <div className="flex items-center gap-3 flex-wrap">
+   807→                                <div className="flex gap-2 flex-1 overflow-x-auto pb-1 no-scrollbar">
+   808→                                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg px-4 py-2 border border-green-100 dark:border-green-800 flex items-center gap-2 flex-shrink-0">
+   809→                                        <span className="text-xl font-black text-green-700 dark:text-green-300">{occupiedCount}</span>
+   810→                                        <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Occupied</span>
+   811→                                    </div>
+   812→                                    <div className="bg-slate-100 dark:bg-zinc-800 rounded-lg px-4 py-2 border border-slate-200 dark:border-zinc-700 flex items-center gap-2 flex-shrink-0">
+   813→                                        <span className="text-xl font-black text-slate-700 dark:text-white">{vacantCount}</span>
+   814→                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vacant</span>
+   815→                                    </div>
+   816→                                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg px-4 py-2 border border-amber-100 dark:border-amber-800 flex items-center gap-2 flex-shrink-0">
+   817→                                        <span className="text-xl font-black text-amber-700 dark:text-amber-300">{maintenanceCount}</span>
+   818→                                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Maintenance</span>
+   819→                                    </div>
+   820→                                </div>
+   821→                                <button
+   822→                                    onClick={() => { setShowAddUnitForm(v => !v); setSelectedUnit(null); }}
+   823→                                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg transition-colors"
+   824→                                >
+   825→                                    <Plus className="w-4 h-4" /> Add Unit
+   826→                                </button>
+   827→                            </div>
+   828→
+   829→                            {/* Add Unit inline form */}
+   830→                            {showAddUnitForm && (
+   831→                                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-sm p-5">
+   832→                                    <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+   833→                                        <Plus className="w-4 h-4 text-primary-500" /> Add New Unit
+   834→                                    </h4>
+   835→                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   836→                                        <div>
+   837→                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Name / Number <span className="text-rose-500">*</span></label>
+   838→                                            <input
+   839→                                                type="text"
+   840→                                                value={newUnitName}
+   841→                                                onChange={e => setNewUnitName(e.target.value)}
+   842→                                                placeholder="e.g. Unit 1A, Flat 3, Shop 2"
+   843→                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+   844→                                                onKeyDown={e => { if (e.key === 'Enter') handleAddUnitSubmit(); if (e.key === 'Escape') setShowAddUnitForm(false); }}
+   845→                                                autoFocus
+   846→                                            />
+   847→                                        </div>
+   848→                                        <div>
+   849→                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Type</label>
+   850→                                            <select
+   851→                                                value={newUnitType}
+   852→                                                onChange={e => setNewUnitType(e.target.value as 'Residential' | 'Commercial')}
+   853→                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+   854→                                            >
+   855→                                                <option value="Residential">Residential</option>
+   856→                                                <option value="Commercial">Commercial</option>
+   857→                                            </select>
+   858→                                        </div>
+   859→                                    </div>
+   860→                                    <div className="flex items-center gap-3 mt-4">
+   861→                                        <button onClick={handleAddUnitSubmit} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors">Add Unit</button>
+   862→                                        <button onClick={() => { setShowAddUnitForm(false); setNewUnitName(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-sm font-bold rounded-lg transition-colors">Cancel</button>
+   863→                                    </div>
+   864→                                </div>
+   865→                            )}
+   866→
+   867→                            {/* ── HIGH-DENSITY UNIT CARDS ── Row-grouped inline expansion layout */}
+   868→                            {(() => {
+   869→                                // Determine column count for row grouping
+   870→                                // xl:4, lg:3, sm:2, xs:1 — we use a JS-based approach
+   871→                                const COLS_XL = 4;
+   872→                                const COLS_LG = 3;
+   873→                                const COLS_SM = 2;
+   874→                                // Group units into rows for the largest breakpoint (xl=4)
+   875→                                // The expansion panel will span all columns via grid-column: 1 / -1
+   876→                                const rows: Property[][] = [];
+   877→                                const chunkSize = COLS_XL;
+   878→                                for (let i = 0; i < units.length; i += chunkSize) {
+   879→                                    rows.push(units.slice(i, i + chunkSize));
+   880→                                }
+   881→
+   882→                                // Find which row the selected unit is in
+   883→                                const selectedRowIdx = selectedUnit
+   884→                                    ? rows.findIndex(row => row.some(u => u.id === selectedUnit.id))
+   885→                                    : -1;
+   886→
+   887→                                return (
+   888→                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+   889→                                        {rows.flatMap((row, rowIdx) => {
+   890→                                            const cards = row.map((unit: Property) => {
+   891→                                                const d = getUnitDisplay(unit);
+   892→                                                const isFloor = d.name.toLowerCase().includes('floor');
+   893→                                                const menuOpen = openUnitMenuId === unit.id;
+   894→                                                const isSelected = selectedUnit?.id === unit.id;
+   895→                                                const rental = (unit as any).rentalDetails || {};
+   896→                                                const uStatus = String(unit.status || 'Vacant');
+   897→                                                const uType = (unit as any).propertyType || (unit as any).unitType || '';
+   898→
+   899→                                                // ── Visual status — contextual tooltips replace static labels ──
+   900→                                                let statusBorder = '#94A3B8';
+   901→                                                let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
+   902→                                                if (uStatus === 'Occupied') {
+   903→                                                    const hasTier1 = !!(d.tenantName && d.leaseEnd);
+   904→                                                    const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
+   905→                                                    if (hasTier1 && hasTier2) {
+   906→                                                        statusBorder = '#22C55E';
+   907→                                                        statusBadge = { label: 'Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
+   908→                                                    } else if (!hasTier1) {
+   909→                                                        statusBorder = '#EF4444';
+   910→                                                        statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
+   911→                                                    } else {
+   912→                                                        statusBorder = '#F59E0B';
+   913→                                                        statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400', tooltip: d.statusTooltip };
+   914→                                                    }
+   915→                                                }
+   916→
+   917→                                                const typeBg = uType === 'Commercial'
+   918→                                                    ? 'bg-amber-50/60 dark:bg-amber-950/20'
+   919→                                                    : 'bg-blue-50/40 dark:bg-blue-950/10';
+   920→
+   921→                                                // ── SC status badge renderer ──
+   922→                                                const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
+   923→                                                const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
+   924→                                                const scAmount = d.serviceChargeAmount || Number((unit as any).serviceCharge || (rental as any).serviceCharge || 0);
+   925→
+   926→                                                const renderScBadge = () => {
+   927→                                                    if (d.remindersPaused) {
+   928→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
+   929→                                                    }
+   930→                                                    if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
+   931→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
+   932→                                                    }
+   933→                                                    if (scStatus === 'PARTIALLY_PAID') {
+   934→                                                        return <>
+   935→                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
+   936→                                                            {scOutstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
+   937→                                                        </>;
+   938→                                                    }
+   939→                                                    if (scStatus === 'UNPAID') {
+   940→                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+   941→                                                    }
+   942→                                                    return null;
+   943→                                                };
+   944→
+   945→                                                // ── Statutory timeline milestone ──
+   946→                                                const renderTermMilestone = () => {
+   947→                                                    if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
+   948→                                                    const pct = Math.round((d.termProgress ?? 0) * 100);
+   949→                                                    return (
+   950→                                                        <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
+   951→                                                            <Scale className="w-3 h-3 text-orange-500" />
+   952→                                                            <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
+   953→                                                        </div>
+   954→                                                    );
+   955→                                                };
+   956→
+   957→                                                return (
+   958→                                                    <div
+   959→                                                        key={unit.id}
+   960→                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
+   961→                                                        style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
+   962→                                                        className={`${typeBg} rounded-xl border shadow-sm p-2.5 hover:shadow-md transition-all cursor-pointer ${isSelected ? 'border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700'}`}
+   963→                                                    >
+   964→                                                        {/* ── Card Header ── */}
+   965→                                                        <div className="flex items-start justify-between mb-1.5">
+   966→                                                            <div className="min-w-0 flex-1 pr-2">
+   967→                                                                <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
+   968→                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>}
+   969→                                                            </div>
+   970→                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[uStatus] || 'bg-slate-100 text-slate-600'}`}>
+   971→                                                                {uStatus}
+   972→                                                            </span>
+   973→                                                        </div>
+   974→
+   975→                                                        {/* ── Micro-Profile: Operational dynamics only ── */}
+   976→                                                        <div className="space-y-1 text-xs">
+   977→                                                            {d.tenantName && (
+   978→                                                                <p className="text-slate-700 dark:text-zinc-200 truncate">
+   979→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
+   980→                                                                </p>
+   981→                                                            )}
+   982→
+   983→                                                            {/* Service Charge — always show if amount > 0 */}
+   984→                                                            {scAmount > 0 && (
+   985→                                                                <div className="flex items-center gap-1.5 flex-wrap">
+   986→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">SC</span>
+   987→                                                                    <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
+   988→                                                                    {renderScBadge()}
+   989→                                                                </div>
+   990→                                                            )}
+   991→
+   992→                                                            {/* Minimum Vend — if property has MV enabled */}
+   993→                                                            {minimumVendEnabled && uStatus === 'Occupied' && (
+   994→                                                                <div className="flex items-center gap-1.5">
+   995→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
+   996→                                                                    <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
+   997→                                                                    {d.serviceChargeStatus === 'PAID_FULLY' || d.serviceChargeStatus === 'PAID'
+   998→                                                                        ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
+   999→                                                                        : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
+  1000→                                                                    }
+  1001→                                                                </div>
+  1002→                                                            )}
+  1003→
+  1004→                                                            {/* Statutory Timeline Milestone */}
+  1005→                                                            {renderTermMilestone()}
+  1006→
+  1007→                                                            {/* Lease end — compact */}
+  1008→                                                            {d.leaseEnd && (
+  1009→                                                                <p className="text-slate-500 dark:text-zinc-400">
+  1010→                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Ends</span>
+  1011→                                                                    {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
+  1012→                                                                </p>
+  1013→                                                            )}
+  1014→                                                        </div>
+  1015→
+  1016→                                                        {/* ── Card Footer: contextual badge + actions ── */}
+  1017→                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
+  1018→                                                            {statusBadge ? (
+  1019→                                                                <Tooltip text={statusBadge.tooltip} allowWrap>
+  1020→                                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
+  1021→                                                                        {statusBadge.label}
+  1022→                                                                    </span>
+  1023→                                                                </Tooltip>
+  1024→                                                            ) : (
+  1025→                                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+  1026→                                                                    Vacant
+  1027→                                                                </span>
+  1028→                                                            )}
+  1029→                                                            <div className="relative">
+  1030→                                                                <button
+  1031→                                                                    type="button"
+  1032→                                                                    onClick={(e) => {
+  1033→                                                                        e.stopPropagation();
+  1034→                                                                        if (menuOpen) {
+  1035→                                                                            setOpenUnitMenuId(null);
+  1036→                                                                            setOpenUnitMenuPos(null);
+  1037→                                                                        } else {
+  1038→                                                                            const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
+  1039→                                                                            const estimatedMenuHeight = 340;
+  1040→                                                                            const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
+  1041→                                                                            setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
+  1042→                                                                            setOpenUnitMenuId(unit.id);
+  1043→                                                                        }
+  1044→                                                                    }}
+  1045→                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+  1046→                                                                    aria-expanded={menuOpen}
+  1047→                                                                >
+  1048→                                                                    <CogIcon className="w-3.5 h-3.5" />
+  1049→                                                                </button>
+  1050→                                                                
+  1051→                                                                {openUnitMenuPos && menuOpen && (
+  1052→                                                                <div
+  1053→                                                                    style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
+  1054→                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[70vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+  1055→                                                                >
+  1056→                                                                    <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
+  1057→                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
+  1058→                                                                    </div>
+  1059→                                                                    
+  1060→                                                                    {!isFloor ? (
+  1061→                                                                        <>
+  1062→                                                                            {unit.status === 'Occupied' ? (
+  1063→                                                                                <>
+  1064→                                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && (
+  1065→                                                                                        <>
+  1066→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
+  1067→                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
+  1068→                                                                                            </button>
+  1069→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
+  1070→                                                                                                <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
+  1071→                                                                                            </button>
+  1072→                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
+  1073→                                                                                                <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
+  1074→                                                                                            </button>
+  1075→                                                                                        </>
+  1076→                                                                                    )}
+  1077→                                                                                    <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
+  1078→                                                                                        <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
+  1079→                                                                                    </button>
+  1080→                                                                                </>
+  1081→                                                                            ) : (
+  1082→                                                                                <>
+  1083→                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1084→                                                                                        <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
+  1085→                                                                                    </button>
+  1086→                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1087→                                                                                        <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
+  1088→                                                                                    </button>
+  1089→                                                                                </>
+  1090→                                                                            )}
+  1091→                                                                            
+  1092→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
+  1093→                                                                                <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
+  1094→                                                                            </button>
+  1095→                                                                            
+  1096→                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+  1097→                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
+  1098→                                                                            </button>
+  1099→
+  1100→                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
+  1101→                                                                                <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
+  1102→                                                                                    <p className="px-3 py-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
+  1103→                                                                                    {coreState.documentTemplates.slice(0, 3).map((template: any) => (
+  1104→                                                                                        <button 
+  1105→                                                                                            key={template.id} 
+  1106→                                                                                            onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
+  1107→                                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
+  1108→                                                                                        >
+  1109→                                                                                            <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
+  1110→                                                                                        </button>
+  1111→                                                                                    ))}
+  1112→                                                                                </div>
+  1113→                                                                            )}
+  1114→                                                                        </>
+  1115→                                                                    ) : (
+  1116→                                                                        <>
+  1117→                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1118→                                                                                    <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
+  1119→                                                                            </button>
+  1120→                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+  1121→                                                                                <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
+  1122→                                                                            </button>
+  1123→                                                                        </>
+  1124→                                                                    )}
+  1125→                                                                    {/* Status toggle */}
+  1126→                                                                    <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
+  1127→                                                                        {uStatus !== 'Vacant' && (
+  1128→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+  1129→                                                                                <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
+  1130→                                                                            </button>
+  1131→                                                                        )}
+  1132→                                                                        {uStatus === 'Vacant' && (
+  1133→                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
+  1134→                                                                                <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
+  1135→                                                                            </button>
+  1136→                                                                        )}
+  1137→                                                                        <button
+  1138→                                                                            onClick={(e) => {
+  1139→                                                                                e.stopPropagation();
+  1140→                                                                                setOpenUnitMenuId(null);
+  1141→                                                                                try {
+  1142→                                                                                    sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({ unitId: unit.id, unitName: d.name, tenantName: d.tenantName, tenantPhone: rental.tenantPhone || '', tenantEmail: rental.tenantEmail || '', rentAmount: d.rentAmount, propertyAddress: property.address }));
+  1143→                                                                                    sessionStorage.setItem('atrium_open_tab', 'inbox');
+  1144→                                                                                } catch (_) {}
+  1145→                                                                                navigateTo('atriumEngine');
+  1146→                                                                            }}
+  1147→                                                                            className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
+  1148→                                                                        >
+  1149→                                                                            <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
+  1150→                                                                        </button>
+  1151→                                                                        <button
+  1152→                                                                            onClick={(e) => {
+  1153→                                                                                e.stopPropagation();
+  1154→                                                                                setOpenUnitMenuId(null);
+  1155→                                                                                const details = [
+  1156→                                                                                    `Unit: ${d.name}`,
+  1157→                                                                                    `Property: ${property.address}`,
+  1158→                                                                                    `Status: ${uStatus}`,
+  1159→                                                                                    d.tenantName ? `Tenant: ${d.tenantName}` : '',
+  1160→                                                                                    rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
+  1161→                                                                                    rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
+  1162→                                                                                    d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
+  1163→                                                                                    d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
+  1164→                                                                                ].filter(Boolean).join('\n');
+  1165→                                                                                try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
+  1166→                                                                            }}
+  1167→                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
+  1168→                                                                        >
+  1169→                                                                            <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
+  1170→                                                                        </button>
+  1171→                                                                    </div>
+  1172→
+  1173→                                                                    <button
+  1174→                                                                        onClick={(e) => {
+  1175→                                                                            e.stopPropagation();
+  1176→                                                                            setOpenUnitMenuId(null);
+  1177→                                                                            setOpenUnitMenuPos(null);
+  1178→                                                                            handleRemoveUnit(unit, d);
+  1179→                                                                        }}
+  1180→                                                                        className="px-3 py-2.5 text-[10px] font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
+  1181→                                                                    >
+  1182→                                                                        <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
+  1183→                                                                    </button>
+  1184→                                                                </div>
+  1185→                                                                )}
+  1186→                                                            </div>
+  1187→                                                        </div>
+  1188→                                                    </div>
+  1189→                                                );
+  1190→                                            });
+  1191→
+  1192→                                            // After this row's cards, inject the expansion panel if selected unit is in this row
+  1193→                                            const expansionPanel = (selectedUnit && rowIdx === selectedRowIdx) ? (() => {
+  1194→                                                const sd = getUnitDisplay(selectedUnit);
+  1195→                                                const tenantPhone: string = (selectedUnit as any).rentalDetails?.tenantPhone || (selectedUnit as any).tenantPhone || '';
+  1196→                                                const tenantEmail: string = (selectedUnit as any).rentalDetails?.tenantEmail || (selectedUnit as any).tenantEmail || '';
+  1197→                                                const hasContactInfo = !!(tenantPhone || tenantEmail);
+  1198→
+  1199→                                                const handleWhatsApp = () => {
+  1200→                                                    if (!tenantPhone) return;
+  1201→                                                    const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
+  1202→                                                    const num = clean.startsWith('234') ? clean : `234${clean}`;
+  1203→                                                    const msg = encodeURIComponent(`Hello ${sd.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${sd.name} at ${property.address}.`);
+  1204→                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+  1205→                                                };
+  1206→
+  1207→                                                const handleEmailTenant = () => {
+  1208→                                                    openModal('composeEmail', null, {
+  1209→                                                        to: tenantEmail,
+  1210→                                                        subject: `Re: ${sd.name} — ${property.address}`,
+  1211→                                                    });
+  1212→                                                };
+  1213→
+  1214→                                                const handleOpenInbox = () => {
+  1215→                                                    try {
+  1216→                                                        sessionStorage.setItem('atrium_compose_prefill', JSON.stringify({
+  1217→                                                            unitId: selectedUnit.id,
+  1218→                                                            unitName: sd.name,
+  1219→                                                            tenantName: sd.tenantName,
+  1220→                                                            tenantPhone,
+  1221→                                                            tenantEmail,
+  1222→                                                            rentAmount: sd.rentAmount,
+  1223→                                                            propertyAddress: property.address,
+  1224→                                                        }));
+  1225→                                                        sessionStorage.setItem('atrium_open_tab', 'inbox');
+  1226→                                                    } catch (e) {}
+  1227→                                                    navigateTo('atriumEngine');
+  1228→                                                };
+  1229→
+  1230→                                                return (
+  1231→                                                    <div
+  1232→                                                        key={`expansion-${selectedUnit.id}`}
+  1233→                                                        className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 bg-white dark:bg-zinc-800 rounded-xl border border-primary-200 dark:border-primary-700 shadow-md p-5 animate-fade-in"
+  1234→                                                    >
+  1235→                                                        {/* Header */}
+  1236→                                                        <div className="flex items-start justify-between mb-4">
+  1237→                                                            <div>
+  1238→                                                                <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+  1239→                                                                <h4 className="text-lg font-bold text-slate-900 dark:text-white">{sd.name}</h4>
+  1240→                                                                {sd.floor && <p className="text-xs text-slate-400">Floor {sd.floor}</p>}
+  1241→                                                            </div>
+  1242→                                                            <div className="flex items-center gap-2">
+  1243→                                                                {sd.remindersPaused && (
+  1244→                                                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
+  1245→                                                                        Reminders Paused
+  1246→                                                                    </span>
+  1247→                                                                )}
+  1248→                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(selectedUnit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+  1249→                                                                    {String(selectedUnit.status || 'Vacant')}
+  1250→                                                                </span>
+  1251→                                                                <button onClick={() => { setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
+  1252→                                                                    <XIcon className="w-4 h-4" />
+  1253→                                                                </button>
+  1254→                                                            </div>
+  1255→                                                        </div>
+  1256→
+  1257→                                                        {/* Details grid — full metadata in expanded view */}
+  1258→                                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+  1259→                                                            {sd.tenantName && <DetailItem label="Tenant" value={sd.tenantName} />}
+  1260→                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && sd.rentAmount > 0 && (
+  1261→                                                                <DetailItem label="Rent" value={<>₦{sd.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{sd.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+  1262→                                                            )}
+  1263→                                                            {sd.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(sd.leaseEnd).toLocaleDateString('en-GB'); } catch { return sd.leaseEnd; } })()} />}
+  1264→                                                            {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
+  1265→                                                            {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
+  1266→                                                            {((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+  1267→                                                                <DetailItem label="Service Charge" value={
+  1268→                                                                    <>
+  1269→                                                                        ₦{Number((selectedUnit as any).serviceCharge || (selectedUnit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+  1270→                                                                        {(() => {
+  1271→                                                                            const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+  1272→                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+  1273→                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+  1274→                                                                            if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+  1275→                                                                            return null;
+  1276→                                                                        })()}
+  1277→                                                                    </>
+  1278→                                                                } />
+  1279→                                                            )}
+  1280→                                                            {(() => {
+  1281→                                                                const scSt = sd.serviceChargeStatus || (selectedUnit as any).rentalDetails?.serviceChargeStatus || (selectedUnit as any).serviceChargeStatus;
+  1282→                                                                const outstanding = sd.outstandingServiceChargeBalance || (selectedUnit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
+  1283→                                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+  1284→                                                            })()}
+  1285→                                                            {((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((selectedUnit as any).legalFee || (selectedUnit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
+  1286→                                                            {((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((selectedUnit as any).agencyFee || (selectedUnit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
+  1287→                                                            {((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((selectedUnit as any).cautionDeposit || (selectedUnit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
+  1288→                                                            {/* Term Progress */}
+  1289→                                                            {sd.termProgress !== null && (
+  1290→                                                                <DetailItem label="Term Progress" value={
+  1291→                                                                    <div className="flex items-center gap-2">
+  1292→                                                                        <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
+  1293→                                                                            <div className={`h-full rounded-full transition-all ${sd.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(sd.termProgress * 100)}%` }} />
+  1294→                                                                        </div>
+  1295→                                                                        <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(sd.termProgress * 100)}%</span>
+  1296→                                                                    </div>
+  1297→                                                                } />
+  1298→                                                            )}
+  1299→                                                        </div>
+  1300→
+  1301→                                                        {/* Message Tenant panel */}
+  1302→                                                        {showUnitMessaging && (
+  1303→                                                            <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
+  1304→                                                                <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
+  1305→                                                                    Contact {sd.tenantName || 'Tenant'}
+  1306→                                                                </p>
+  1307→                                                                <div className="flex flex-wrap items-center gap-2">
+  1308→                                                                    {tenantPhone && (
+  1309→                                                                        <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+  1310→                                                                            <MessageSquare className="w-4 h-4" /> WhatsApp
+  1311→                                                                        </button>
+  1312→                                                                    )}
+  1313→                                                                    {tenantEmail && (
+  1314→                                                                        <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+  1315→                                                                            <Mail className="w-4 h-4" /> Email
+  1316→                                                                        </button>
+  1317→                                                                    )}
+  1318→                                                                    {tenantPhone && (
+  1319→                                                                        <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
+  1320→                                                                            <Phone className="w-4 h-4" /> Call
+  1321→                                                                        </a>
+  1322→                                                                    )}
+  1323→                                                                    <button onClick={handleOpenInbox} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm ml-auto">
+  1324→                                                                        <MessageSquare className="w-4 h-4 text-emerald-500" /> Full Compose in Revenue Monitor →
+  1325→                                                                    </button>
+  1326→                                                                </div>
+  1327→                                                                {!hasContactInfo && (
+  1328→                                                                    <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
+  1329→                                                                )}
+  1330→                                                            </div>
+  1331→                                                        )}
+  1332→
+  1333→                                                        {/* Action buttons */}
+  1334→                                                        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
+  1335→                                                            <button
+  1336→                                                                onClick={() => openModal('editProperty', isEmbeddedUnit(selectedUnit) ? property.id : selectedUnit.id, { contactId: owner?.id, activeUnitId: selectedUnit.id })}
+  1337→                                                                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
+  1338→                                                            >
+  1339→                                                                <EditIcon className="w-3.5 h-3.5" /> Edit Unit
+  1340→                                                            </button>
+  1341→                                                            {selectedUnit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+  1342→                                                                <button onClick={() => openModal('collectRent', property.id, { unitName: sd.name, tenantName: sd.tenantName, rentAmount: sd.rentAmount, unitId: selectedUnit.id })} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+  1343→                                                                    <Receipt className="w-3.5 h-3.5" /> Record Payment
+  1344→                                                                </button>
+  1345→                                                            )}
+  1346→                                                            <button onClick={() => handleInitializeMatter(selectedUnit)} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
+  1347→                                                                <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+  1348→                                                            </button>
+  1349→                                                            <button
+  1350→                                                                onClick={() => setShowUnitMessaging(v => !v)}
+  1351→                                                                className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+  1352→                                                            >
+  1353→                                                                <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
+  1354→                                                            </button>
+  1355→                                                            <button onClick={() => handleRemoveUnit(selectedUnit, sd)} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
+  1356→                                                                <Trash2 className="w-3.5 h-3.5" /> Remove Unit
+  1357→                                                            </button>
+  1358→                                                        </div>
+  1359→                                                    </div>
+  1360→                                                );
+  1361→                                            })() : null;
+  1362→
+  1363→                                            return [...cards, expansionPanel];
+  1364→                                        })}
+  1365→                                    </div>
+  1366→                                );
+  1367→                            })()}
+  1368→                        </div>
+  1369→                    );
+  1370→                })()}
+  1371→                {activeTab === 'revenue' && (() => {
+  1372→                    const units = [...(allUnits || [])]
+  1373→                        .map(u => u && u.id ? u : null)
+  1374→                        .filter((u): u is Property => u !== null);
+  1375→                    const legacyUnits = ((property as any)?.units || [])
+  1376→                        .map((u: any, idx: number) => ({ ...u, id: u.id || `temp-unit-${idx}` }))
+  1377→                        .filter((u: any) => u);
+  1378→                    legacyUnits.forEach((lu: any) => {
+  1379→                        if (!units.some(u => u.id === lu.id || (u as any).name === lu.name)) {
+  1380→                            units.push(lu);
+  1381→                        }
+  1382→                    });
+  1383→
+  1384→                    return (
+  1385→                    <div className="space-y-6 animate-fade-in">
+  1386→                        {/* Revenue Summary Cards — fluid flex-grid for dark-mode containment */}
+  1387→                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  1388→                            {(() => {
+  1389→                                const allRent = units.reduce((sum: number, u: Property) => {
+  1390→                                    const rd = u.rentalDetails || {};
+  1391→                                    const rent = Number((rd as any).rentAmount || 0);
+  1392→                                    return sum + rent;
+  1393→                                }, 0);
+  1394→                                const allServiceCharge = units.reduce((sum: number, u: Property) => {
+  1395→                                    const rd = u.rentalDetails || {};
+  1396→                                    const sc = Number((rd as any).serviceChargeAmount || (rd as any).serviceCharge || 0);
+  1397→                                    return sum + sc;
+  1398→                                }, 0);
+  1399→                                const paidCount = units.filter(u => {
+  1400→                                    const rd = u.rentalDetails || {};
+  1401→                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+  1402→                                    return st === 'PAID_FULLY' || st === 'PAID' || st === 'paid';
+  1403→                                }).length;
+  1404→                                const partialCount = units.filter(u => {
+  1405→                                    const rd = u.rentalDetails || {};
+  1406→                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+  1407→                                    return st === 'PARTIALLY_PAID';
+  1408→                                }).length;
+  1409→                                const unpaidCount = units.filter(u => {
+  1410→                                    const rd = u.rentalDetails || {};
+  1411→                                    const st = (rd as any).serviceChargeStatus || (u as any).serviceChargeStatus;
+  1412→                                    return st === 'UNPAID' || st === 'unpaid';
+  1413→                                }).length;
+  1414→                                const totalAnnual = allRent + allServiceCharge;
+  1415→                                return (
+  1416→                                    <>
+  1417→                                        <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<BanknotesIcon />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
+  1418→                                        <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<BanknotesIcon />} colorClass="bg-blue-600" scrollOnOverflow={true} />
+  1419→                                        <StatCard title="Service Charges" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
+  1420→                                        <StatCard title="SC Status" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
+  1421→                                    </>
+  1422→                                );
+  1423→                            })()}
+  1424→                        </div>
+  1425→
+  1426→                        {/* Revenue Breakdown by Unit */}
+  1427→                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-slate-200 dark:border-zinc-700 overflow-hidden">
+  1428→                            <div className="px-5 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center justify-between">
+  1429→                                <h3 className="text-sm font-bold text-slate-800 dark:text-white">Revenue Breakdown by Unit</h3>
+  1430→                                <button onClick={() => navigateTo('atriumEngine')} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+  1431→                                    Full Revenue Monitor <span>&rarr;</span>
+  1432→                                </button>
+  1433→                            </div>
+  1434→                            <div className="overflow-x-auto">
+  1435→                                <table className="w-full text-sm">
+  1436→                                    <thead className="bg-slate-50 dark:bg-zinc-900/50">
+  1437→                                        <tr>
+  1438→                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit</th>
+  1439→                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tenant</th>
+  1440→                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rent</th>
+  1441→                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+  1442→                                            <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">SC Status</th>
+  1443→                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
+  1444→                                        </tr>
+  1445→                                    </thead>
+  1446→                                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+  1447→                                        {units.map((unit: Property) => {
+  1448→                                            const d = getUnitDisplay(unit);
+  1449→                                            const rd = (unit.rentalDetails || {}) as any;
+  1450→                                            const scAmount = d.serviceChargeAmount || Number(rd.serviceCharge || 0);
+  1451→                                            const scStatus = d.serviceChargeStatus || rd.serviceChargeStatus || '';
+  1452→                                            const outstanding = d.outstandingServiceChargeBalance || rd.outstandingServiceChargeBalance || 0;
+  1453→                                            const isPaidFully = scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid';
+  1454→                                            const isPartial = scStatus === 'PARTIALLY_PAID';
+  1455→                                            const isUnpaid = scStatus === 'UNPAID' || scStatus === 'unpaid';
+  1456→                                            return (
+  1457→                                                <tr key={unit.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+  1458→                                                    <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
+  1459→                                                    <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
+  1460→                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+  1461→                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+  1462→                                                    <td className="px-4 py-2.5 text-center">
+  1463→                                                        {isPaidFully && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
+  1464→                                                        {isPartial && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
+  1465→                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>}
+  1466→                                                        {!isPaidFully && !isPartial && !isUnpaid && <span className="text-[10px] text-slate-400">—</span>}
+  1467→                                                    </td>
+  1468→                                                    <td className="px-4 py-2.5 text-right">
+  1469→                                                        {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-[10px] text-slate-400">—</span>}
+  1470→                                                    </td>
+  1471→                                                </tr>
+  1472→                                            );
+  1473→                                        })}
+  1474→                                    </tbody>
+  1475→                                </table>
+  1476→                            </div>
+  1477→                        </div>
+  1478→
+  1479→                        {/* Link to Full Revenue Monitor */}
+  1480→                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+  1481→                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+  1482→                                <Wallet className="w-5 h-5" />
+  1483→                            </div>
+  1484→                            <div className="flex-1">
+  1485→                                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Portfolio Revenue Monitor</h4>
+  1486→                                <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed mb-3">
+  1487→                                    View firm-wide revenue tracking, defaulters, payment receipts, and automated reminder logs across all properties in the Revenue Monitor.
+  1488→                                </p>
+  1489→                                <button onClick={() => navigateTo('atriumEngine')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
+  1490→                                    Open Revenue Monitor <span>&rarr;</span>
+  1491→                                </button>
+  1492→                            </div>
+  1493→                        </div>
+  1494→                    </div>
+  1495→                    );
+  1496→                })()}
+  1497→
+  1498→                {activeTab === 'tracking' && (
+  1499→                    <PropertyTrackingView 
+  1500→                        property={property} 
+  1501→                        onUpdate={(updated) =>
+  1502→                            updateItem(
+  1503→                                'properties',
+  1504→                                { ...updated, _id: (updated as { _id?: string })._id ?? property._id, id: updated.id ?? property.id },
+  1505→                                'Property Updated'
+  1506→                            )
+  1507→                        } 
+  1508→                    />
+  1509→                )}
+  1510→
+  1511→                {activeTab === 'docs' && (
+  1512→                    <div className="space-y-6 animate-fade-in">
+  1513→                        <div className="flex items-center justify-between">
+  1514→                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Financial Overview</h3>
+  1515→                            <div className="flex items-center gap-3">
+  1516→                                {primaryMatter && (
+  1517→                                    <button
+  1518→                                        onClick={() => openModal('newInvoice', null, { matterId: primaryMatter.id, clientId: owner?.id })}
+  1519→                                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg flex items-center gap-2"
+  1520→                                    >
+  1521→                                        <PlusIcon className="w-4 h-4" /> Create Invoice
+  1522→                                    </button>
+  1523→                                )}
+  1524→                            </div>
+  1525→                        </div>
+  1526→
+  1527→                        {/* Summary Cards */}
+  1528→                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+  1529→                            <StatCard
+  1530→                                title={isSale ? "Target Sale Value" : "Collected YTD"}
+  1531→                                value={<><NairaSymbol />{formatNaira(isSale ? (property.saleDetails?.targetPrice || property.value || 0) : (allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0))}</>}
+  1532→                                icon={<BanknotesIcon />}
+  1533→                                colorClass="bg-green-600"
+  1534→                            />
+  1535→                            {property.ownershipType !== 'owned' && !isSale && (
+  1536→                                <StatCard
+  1537→                                    title="Management Fees Earned"
+  1538→                                    value={<><NairaSymbol />{formatNaira((allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * (property.managementFeePercentage || 0) / 100)}</>}
+  1539→                                    icon={<BanknotesIcon />}
+  1540→                                    colorClass="bg-blue-600"
+  1541→                                />
+  1542→                            )}
+  1543→                            <StatCard
+  1544→                                title={isSale ? "Offers Received" : "Pending Invoices"}
+  1545→                                value={isSale ? (property.trackingTimeline?.filter(t => t.type === 'offer').length.toString() || '0') : propertyInvoices.filter(i => i && i.status !== InvoiceStatus.Paid).length.toString()}
+  1546→                                icon={isSale ? <CurrencyDollarIcon /> : <DocumentIcon />}
+  1547→                                colorClass="bg-orange-600"
+  1548→                            />
+  1549→                        </div>
+  1550→
+  1551→                        {/* Financial Reconciliation Explanation */}
+  1552→                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
+  1553→                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+  1554→                                <BanknotesIcon className="w-5 h-5" />
+  1555→                            </div>
+  1556→                            <div className="flex-1">
+  1557→                                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Financial Reconciliation</h4>
+  1558→                                <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed mb-4">
+  1559→                                    All invoices and receipts issued for this property are automatically synchronized with the 
+  1560→                                    <button onClick={() => navigateTo('atriumEngine')} className="font-bold text-emerald-600 hover:underline mx-1">Revenue Monitor</button>. 
+  1561→                                    The monitor tracks payment discipline across your entire portfolio, ensuring that cleared income is reflected in your firm's aggregate cash flow.
+  1562→                                </p>
+  1563→
+  1564→                                {/* Mini Ledger Preview */}
+  1565→                                {propertyLedgerEntries.length > 0 && (
+  1566→                                    <div className="bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
+  1567→                                        <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
+  1568→                                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger Activity</span>
+  1569→                                            <button onClick={() => navigateTo('atriumEngine')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
+  1570→                                        </div>
+  1571→                                        <div className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
+  1572→                                            {propertyLedgerEntries.map(entry => (
+  1573→                                                <div key={entry._id} className="px-4 py-2.5 flex items-center justify-between">
+  1574→                                                    <div className="flex items-center gap-3">
+  1575→                                                        <div className={`w-1.5 h-1.5 rounded-full ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+  1576→                                                        <div>
+  1577→                                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.description || entry.type}</p>
+  1578→                                                            <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</p>
+  1579→                                                        </div>
+  1580→                                                    </div>
+  1581→                                                    <div className="text-right">
+  1582→                                                        <p className={`text-sm font-bold ${entry.status === 'cleared' ? 'text-emerald-600 dark:text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+  1583→                                                            ₦{entry.amount.toLocaleString('en-NG')}
+  1584→                                                        </p>
+  1585→                                                        <p className="text-[9px] uppercase font-bold text-slate-400">{entry.status}</p>
+  1586→                                                    </div>
+  1587→                                                </div>
+  1588→                                            ))}
+  1589→                                        </div>
+  1590→                                    </div>
+  1591→                                )}
+  1592→                            </div>
+  1593→                        </div>
+  1594→
+  1595→                        {/* Invoices List */}
+  1596→                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+  1597→                            <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
+  1598→                                <h4 className="font-bold text-sm text-slate-800 dark:text-white">Related Invoices</h4>
+  1599→                            </div>
+  1600→                            {propertyInvoices.length === 0 ? (
+  1601→                                <div className="p-12 text-center text-slate-400">
+  1602→                                    <DocumentIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+  1603→                                    <p>No invoices found linked to this property or its matter.</p>
+  1604→                                </div>
+  1605→                            ) : (
+  1606→                                <table className="w-full text-left text-sm">
+  1607→                                    <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
+  1608→                                        <tr>
+  1609→                                            <th className="px-6 py-4">Invoice #</th>
+  1610→                                            <th className="px-6 py-4">Date</th>
+  1611→                                            <th className="px-6 py-4">Status</th>
+  1612→                                            <th className="px-6 py-4">Amount</th>
+  1613→                                            <th className="px-6 py-4"></th>
+  1614→                                        </tr>
+  1615→                                    </thead>
+  1616→                                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+  1617→                                        {propertyInvoices.map(inv => (
+  1618→                                            <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => navigateTo('invoiceDetail', inv.id)}>
+  1619→                                                <td className="px-6 py-4 font-mono font-medium text-primary-600">{inv.invoiceNumber}</td>
+  1620→                                                <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{inv.issueDate}</td>
+  1621→                                                <td className="px-6 py-4">
+  1622→                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === InvoiceStatus.Paid ? 'bg-green-100 text-green-700' :
+  1623→                                                        inv.status === InvoiceStatus.Overdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
+  1624→                                                        }`}>
+  1625→                                                        {inv.status}
+  1626→                                                    </span>
+  1627→                                                </td>
+  1628→                                                <td className="px-6 py-4 font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(inv.total_amount || inv.subTotal)}</td>
+  1629→                                                <td className="px-6 py-4 text-right">
+  1630→                                                    <SearchIcon className="w-4 h-4 text-slate-400 hover:text-primary-600" />
+  1631→                                                </td>
+  1632→                                            </tr>
+  1633→                                        ))}
+  1634→                                    </tbody>
+  1635→                                </table>
+  1636→                            )}
+  1637→                        </div>
+  1638→                    </div>
+  1639→                )}
+  1640→
+  1641→                {activeTab === 'docs' && (
+  1642→                    <div className="min-h-full animate-fade-in">
+  1643→                        {isProperty ? (
+  1644→                            <DocumentsTab
+  1645→                                documents={propertyDocuments}
+  1646→                                matterId={`prop_${property.id}`}
+  1647→                                openModal={openModal}
+  1648→                                onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
+  1649→                                users={coreState.users}
+  1650→                                variant="embedded"
+  1651→                            />
+  1652→                        ) : linkedMatters.length > 0 ? (
+  1653→                            <DocumentsTab
+  1654→                                documents={propertyDocuments}
+  1655→                                matterId={primaryMatter.id}
+  1656→                                openModal={openModal}
+  1657→                                onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
+  1658→                                users={coreState.users}
+  1659→                                variant="embedded"
+  1660→                            />
+  1661→                        ) : (
+  1662→                            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-800 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700">
+  1663→                                <div className="p-4 bg-slate-100 dark:bg-zinc-900 rounded-full mb-4">
+  1664→                                    <MattersIcon className="w-10 h-10 text-slate-400" />
+  1665→                                </div>
+  1666→                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No Linked Legal Matter</h3>
+  1667→                                <p className="text-slate-500 max-w-md text-center mb-6">
+  1668→                                    To manage legal documents for this property (Deeds, Tenancy Agreements, etc.), you must first initialize a Matter.
+  1669→                                </p>
+  1670→                                <button
+  1671→                                    onClick={() => handleInitializeMatter()}
+  1672→                                    className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
+  1673→                                >
+  1674→                                    <PlusIcon className="w-5 h-5" /> Initialize Matter
+  1675→                                </button>
+  1676→                            </div>
+  1677→                        )}
+  1678→                    </div>
+  1679→                )}
+  1680→                </div>
+  1681→            </div>
+  1682→        </div>
+  1683→    );
+  1684→};
+  1685→
+  1686→const ActionButton: React.FC<{ onClick: () => void; label: string }> = ({ onClick, label }) => (
+  1687→    <button
+  1688→        onClick={onClick}
+  1689→        className="w-full text-left px-3 py-2 bg-slate-50 dark:bg-zinc-700/50 rounded-lg border border-slate-100 dark:border-zinc-600 hover:border-primary-400 dark:hover:border-primary-500 transition-all text-xs font-bold text-slate-700 dark:text-slate-200 flex justify-between items-center group hover:bg-white dark:hover:bg-zinc-700 hover:text-primary-600"
+  1690→    >
+  1691→        {label}
+  1692→        <span className="text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
+  1693→    </button>
+  1694→);
+  1695→
+  1696→
+  1697→export default function PropertyDetailViewWrapper() {
+  1698→    return (
+  1699→        <ErrorBoundary>
+  1700→            <PropertyDetailViewContent />
+  1701→        </ErrorBoundary>
+  1702→    );
+  1703→}
+  1704→

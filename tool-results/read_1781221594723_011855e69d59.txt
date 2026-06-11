@@ -1,0 +1,1145 @@
+     1→/**
+     2→ * PortalAccessSettings — Manage portal invitations for clients and/or residents
+     3→ *
+     4→ * Product-aware layout:
+     5→ * - Komplete / Unified: Shows BOTH Client Portal and Residents' Portal sections
+     6→ * - Vega (legal-only): Shows Client Portal only
+     7→ * - Atrium (property-only): Shows Residents' Portal only
+     8→ *
+     9→ * Features:
+    10→ * - Send invitations via Email, WhatsApp, or Both
+    11→ * - Auto-populate name/phone from linked matter (client) or property/unit (resident)
+    12→ * - Magic-link tokens embedded in invite URLs for setup-password flow
+    13→ * - Resend, revoke, and copy invite links with real token
+    14→ * - Track invitation status (pending / accepted / expired / revoked)
+    15→ * - Delete with confirmation + cleanup of associated portal user
+    16→ * - Preview portal as a specific client/resident
+    17→ * - Grouped property/unit dropdown (address headers + selectable units)
+    18→ */
+    19→import React, { useState, useMemo, useCallback } from 'react';
+    20→import { useQuery, useMutation, useAction } from 'convex/react';
+    21→import { api } from '../../../convex/_generated/api';
+    22→import { useAuth } from '../../contexts/AuthContext';
+    23→import { useCoreState } from '../../contexts/CoreContext';
+    24→import { useMatterState } from '../../contexts/MatterContext';
+    25→import { usePropertyGroups, PropertyGroup } from '../../hooks/usePropertyGroups';
+    26→import { useUI } from '../../contexts/UIContext';
+    27→import { useProduct } from '../../contexts/ProductContext';
+    28→import { useFeatures } from '../../hooks/useFeatures';
+    29→import {
+    30→  ShieldCheckIcon, LockClosedIcon,
+    31→  PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
+    32→  MailIcon, CheckIcon, ClockIcon,
+    33→  ExclamationTriangleIcon, SendIcon, DeviceMobileIcon,
+    34→  UsersIcon, OfficeBuildingIcon, EyeIcon,
+    35→} from '../../constants';
+    36→
+    37→// ─── Delete Confirmation Dialog ──────────────────────────────────────────
+    38→const DeleteConfirmDialog: React.FC<{
+    39→  isOpen: boolean;
+    40→  inviteName: string;
+    41→  inviteEmail: string;
+    42→  onConfirm: () => void;
+    43→  onCancel: () => void;
+    44→}> = ({ isOpen, inviteName, inviteEmail, onConfirm, onCancel }) => {
+    45→  if (!isOpen) return null;
+    46→  return (
+    47→    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    48→      <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+    49→        <div className="flex items-center gap-3 mb-4">
+    50→          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
+    51→            <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+    52→          </div>
+    53→          <div>
+    54→            <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Portal Access</h3>
+    55→            <p className="text-xs text-slate-500 dark:text-zinc-400">This action cannot be undone</p>
+    56→          </div>
+    57→        </div>
+    58→        <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed mb-4">
+    59→          Are you sure you want to permanently delete portal access for{' '}
+    60→          <strong className="text-slate-900 dark:text-white">{inviteName || inviteEmail}</strong>?
+    61→          This will also remove their portal user account, allowing them to be re-invited with a fresh invitation.
+    62→        </p>
+    63→        <div className="flex items-center gap-3 justify-end">
+    64→          <button
+    65→            onClick={onCancel}
+    66→            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 rounded-lg border border-slate-200 dark:border-zinc-600 transition-colors"
+    67→          >
+    68→            Cancel
+    69→          </button>
+    70→          <button
+    71→            onClick={onConfirm}
+    72→            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm"
+    73→          >
+    74→            Delete Permanently
+    75→          </button>
+    76→        </div>
+    77→      </div>
+    78→    </div>
+    79→  );
+    80→};
+    81→
+    82→// ─── Status Badge ──────────────────────────────────────────────────────────
+    83→const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+    84→  const cfg: Record<string, { bg: string; text: string; label: string }> = {
+    85→    pending: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400', label: 'Pending' },
+    86→    accepted: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Active' },
+    87→    expired: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-500 dark:text-zinc-400', label: 'Expired' },
+    88→    revoked: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-400', label: 'Revoked' },
+    89→    superseded: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-400 dark:text-zinc-500', label: 'Superseded' },
+    90→  };
+    91→  const c = cfg[status] || cfg.pending;
+    92→  return (
+    93→    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+    94→      {status === 'pending' && <ClockIcon className="w-3 h-3" />}
+    95→      {status === 'accepted' && <CheckIcon className="w-3 h-3" />}
+    96→      {status === 'expired' && <ExclamationTriangleIcon className="w-3 h-3" />}
+    97→      {status === 'revoked' && <XIcon className="w-3 h-3" />}
+    98→      {status === 'superseded' && <RefreshIcon className="w-3 h-3" />}
+    99→      {c.label}
+   100→    </span>
+   101→  );
+   102→};
+   103→
+   104→// ─── Channel Badge ──────────────────────────────────────────────────────────
+   105→const ChannelBadge: React.FC<{ channel?: string }> = ({ channel }) => {
+   106→  const ch = channel || 'email';
+   107→  if (ch === 'whatsapp') {
+   108→    return (
+   109→      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+   110→        <DeviceMobileIcon className="w-2.5 h-2.5" /> WhatsApp
+   111→      </span>
+   112→    );
+   113→  }
+   114→  if (ch === 'both') {
+   115→    return (
+   116→      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
+   117→        <MailIcon className="w-2.5 h-2.5" /> Email + WhatsApp
+   118→      </span>
+   119→    );
+   120→  }
+   121→  return (
+   122→    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+   123→      <MailIcon className="w-2.5 h-2.5" /> Email
+   124→    </span>
+   125→  );
+   126→};
+   127→
+   128→// ─── Portal Type Badge ──────────────────────────────────────────────────────
+   129→const PortalTypeBadge: React.FC<{ portalType: string }> = ({ portalType }) => {
+   130→  if (portalType === 'resident') {
+   131→    return (
+   132→      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400">
+   133→        <OfficeBuildingIcon className="w-2.5 h-2.5" /> Resident
+   134→      </span>
+   135→    );
+   136→  }
+   137→  return (
+   138→    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400">
+   139→      <UsersIcon className="w-2.5 h-2.5" /> Client
+   140→    </span>
+   141→  );
+   142→};
+   143→
+   144→// ─── Invite Form ─────────────────────────────────────────────────────────────
+   145→const InviteForm: React.FC<{
+   146→  firmId: string;
+   147→  inviterId: string;
+   148→  portalType: 'client' | 'resident';
+   149→  onSent: () => void;
+   150→  onCancel: () => void;
+   151→}> = ({ firmId, inviterId, portalType, onSent, onCancel }) => {
+   152→  const { addToast } = useUI();
+   153→  const sendInvite = useAction(api.portals.createPortalInvite);
+   154→  const { coreState } = useCoreState();
+   155→  const { matterState } = useMatterState();
+   156→
+   157→  const isProperty = portalType === 'resident';
+   158→
+   159→  const [email, setEmail] = useState('');
+   160→  const [name, setName] = useState('');
+   161→  const [phone, setPhone] = useState('');
+   162→  const [relatedId, setRelatedId] = useState('');
+   163→  const [channel, setChannel] = useState<'email' | 'whatsapp' | 'both'>('email');
+   164→  const [isSending, setIsSending] = useState(false);
+   165→  const [isNameAutoFilled, setIsNameAutoFilled] = useState(false);
+   166→
+   167→  // Build list of matters (client portal) or properties (resident portal) to link invite to
+   168→  const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
+   169→  const relatedItems = useMemo(() => {
+   170→    if (isProperty) {
+   171→      return flatUnits.map(u => ({
+   172→        id: u.id,
+   173→        label: u.label,
+   174→        tenantName: u.tenantName || '',
+   175→        tenantPhone: u.tenantPhone || '',
+   176→        tenantEmail: u.tenantEmail || '',
+   177→      }));
+   178→    } else {
+   179→      return (matterState.matters || []).map((m: any) => ({
+   180→        id: m.id,
+   181→        label: m.title || m.name || `Matter ${String(m.id || '').slice(-5)}`,
+   182→        clientName: m.clientName || '',
+   183→        clientEmail: m.clientEmail || '',
+   184→        clientPhone: m.clientPhone || '',
+   185→      }));
+   186→    }
+   187→  }, [isProperty, flatUnits, matterState.matters]);
+   188→
+   189→  // Auto-populate when user selects a matter/property
+   190→  const handleRelatedChange = useCallback((selectedId: string) => {
+   191→    setRelatedId(selectedId);
+   192→    if (!selectedId) {
+   193→      setIsNameAutoFilled(false);
+   194→      return;
+   195→    }
+   196→    const item = relatedItems.find((r: any) => r.id === selectedId);
+   197→    if (!item) return;
+   198→    if (isProperty) {
+   199→      // Auto-fill from property tenant data — always override if tenant data exists
+   200→      // For resident invites, the tenant name comes from the property record (source of truth)
+   201→      const propItem = item as { id: string; label: string; tenantName: string; tenantPhone: string; tenantEmail: string };
+   202→      if (propItem.tenantName) {
+   203→        setName(propItem.tenantName);
+   204→        setIsNameAutoFilled(true);
+   205→      } else {
+   206→        setIsNameAutoFilled(false);
+   207→      }
+   208→      if (propItem.tenantPhone) setPhone(propItem.tenantPhone);
+   209→      if (propItem.tenantEmail) setEmail(propItem.tenantEmail);
+   210→    } else {
+   211→      // Auto-fill from matter client data
+   212→      const matterItem = item as { id: any; label: any; clientName: any; clientEmail: any; clientPhone: any };
+   213→      if (matterItem.clientName) setName(matterItem.clientName);
+   214→      if (matterItem.clientEmail) setEmail(matterItem.clientEmail);
+   215→      if (matterItem.clientPhone) setPhone(matterItem.clientPhone);
+   216→    }
+   217→  }, [relatedItems, isProperty]);
+   218→
+   219→  const handleSubmit = async () => {
+   220→    if (!email.trim() && channel !== 'whatsapp') {
+   221→      addToast('Please enter an email address', { type: 'error' });
+   222→      return;
+   223→    }
+   224→    if ((channel === 'whatsapp' || channel === 'both') && !phone.trim()) {
+   225→      addToast('Please enter a phone number for WhatsApp delivery', { type: 'error' });
+   226→      return;
+   227→    }
+   228→    setIsSending(true);
+   229→    try {
+   230→      const result = await sendInvite({
+   231→        firmId,
+   232→        inviterId,
+   233→        inviteeEmail: email.trim().toLowerCase() || undefined,
+   234→        inviteeName: name.trim() || undefined,
+   235→        inviteePhone: phone.trim() || undefined,
+   236→        portalType,
+   237→        relatedId: relatedId || undefined,
+   238→        channel,
+   239→      });
+   240→      // Build feedback message based on result
+   241→      const parts: string[] = [];
+   242→      if (result.emailSent) parts.push('email delivered');
+   243→      else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+   244→      if (result.whatsappSent) parts.push('WhatsApp delivered');
+   245→      else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
+   246→      else if (result.whatsappSkipped && (channel === 'whatsapp' || channel === 'both')) parts.push('WhatsApp skipped (no phone number)');
+   247→
+   248→      const feedback = parts.length > 0 ? parts.join(', ') : 'invitation created';
+   249→      addToast(`Invitation sent — ${feedback}`, { type: 'success' });
+   250→      onSent();
+   251→    } catch (err: any) {
+   252→      addToast(err.message || 'Failed to send invitation', { type: 'error' });
+   253→    } finally {
+   254→      setIsSending(false);
+   255→    }
+   256→  };
+   257→
+   258→  const needsPhone = channel === 'whatsapp' || channel === 'both';
+   259→
+   260→  const portalLabel = isProperty ? 'Resident' : 'Client';
+   261→  const portalDescription = isProperty
+   262→    ? 'Invite a resident to access their payment ledger, maintenance tickets, and receipts.'
+   263→    : 'Invite a client to access their matters, documents, messages, and billing.';
+   264→
+   265→  return (
+   266→    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-6">
+   267→      <div className="flex items-center justify-between mb-4">
+   268→        <div>
+   269→          <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+   270→            {isProperty ? <OfficeBuildingIcon className="w-4 h-4 text-sky-500" /> : <UsersIcon className="w-4 h-4 text-violet-500" />}
+   271→            Invite {portalLabel} to Portal
+   272→          </h4>
+   273→          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{portalDescription}</p>
+   274→        </div>
+   275→        <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors">
+   276→          <XIcon className="w-5 h-5" />
+   277→        </button>
+   278→      </div>
+   279→
+   280→      <div className="space-y-4">
+   281→        {/* Channel Picker */}
+   282→        <div>
+   283→          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2 uppercase tracking-wider">
+   284→            Send Via
+   285→          </label>
+   286→          <div className="flex gap-2">
+   287→            {[
+   288→              { value: 'email' as const, label: 'Email', icon: MailIcon },
+   289→              { value: 'whatsapp' as const, label: 'WhatsApp', icon: DeviceMobileIcon },
+   290→              { value: 'both' as const, label: 'Both', icon: SendIcon },
+   291→            ].map(opt => (
+   292→              <button
+   293→                key={opt.value}
+   294→                onClick={() => setChannel(opt.value)}
+   295→                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition-colors ${
+   296→                  channel === opt.value
+   297→                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-400'
+   298→                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-600 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800'
+   299→                }`}
+   300→              >
+   301→                <opt.icon className="w-3.5 h-3.5" />
+   302→                {opt.label}
+   303→              </button>
+   304→            ))}
+   305→          </div>
+   306→        </div>
+   307→
+   308→        {/* Email — required unless WhatsApp-only */}
+   309→        {channel !== 'whatsapp' && (
+   310→          <div>
+   311→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+   312→              Email Address <span className="text-rose-500">*</span>
+   313→            </label>
+   314→            <div className="relative">
+   315→              <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+   316→              <input
+   317→                type="email"
+   318→                value={email}
+   319→                onChange={e => setEmail(e.target.value)}
+   320→                placeholder={isProperty ? 'resident@example.com' : 'client@example.com'}
+   321→                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+   322→              />
+   323→            </div>
+   324→          </div>
+   325→        )}
+   326→
+   327→        {/* Phone — required for WhatsApp/Both */}
+   328→        {needsPhone && (
+   329→          <div>
+   330→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+   331→              Phone / WhatsApp <span className="text-rose-500">*</span>
+   332→            </label>
+   333→            <div className="relative">
+   334→              <DeviceMobileIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+   335→              <input
+   336→                type="tel"
+   337→                value={phone}
+   338→                onChange={e => setPhone(e.target.value)}
+   339→                placeholder="e.g., +2348012345678"
+   340→                className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+   341→              />
+   342→            </div>
+   343→          </div>
+   344→        )}
+   345→
+   346→        {/* Name — auto-filled from tenant record for resident invites, optional for client invites */}
+   347→        <div>
+   348→          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+   349→            Full Name{' '}
+   350→            {isProperty && isNameAutoFilled ? (
+   351→              <span className="text-emerald-600 dark:text-emerald-400 font-normal normal-case tracking-normal">· from tenant record</span>
+   352→            ) : (
+   353→              <span className="text-slate-400">(optional)</span>
+   354→            )}
+   355→          </label>
+   356→          <input
+   357→            type="text"
+   358→            value={name}
+   359→            onChange={e => { setName(e.target.value); if (isProperty && isNameAutoFilled) setIsNameAutoFilled(false); }}
+   360→            readOnly={isProperty && isNameAutoFilled}
+   361→            placeholder={isProperty ? 'e.g., Chidi Okafor' : 'e.g., Adebayo & Associates'}
+   362→            className={`w-full px-3 py-2 rounded-lg border text-sm outline-none ${
+   363→              isProperty && isNameAutoFilled
+   364→                ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50/50 dark:bg-emerald-900/10 text-slate-800 dark:text-zinc-200 cursor-default'
+   365→                : 'border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent'
+   366→            }`}
+   367→          />
+   368→          {isProperty && isNameAutoFilled && (
+   369→            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+   370→              This name is from the property's tenant record and will be used as the official name on the portal.
+   371→              Edit only if the tenant record is incorrect.
+   372→            </p>
+   373→          )}
+   374→        </div>
+   375→
+   376→        {/* Link to matter/property — auto-fills name/phone/email */}
+   377→        <div>
+   378→          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider">
+   379→            Link to {isProperty ? 'Property' : 'Matter'} <span className="text-slate-400">(optional — auto-fills details)</span>
+   380→          </label>
+   381→          {isProperty && flatUnits.length === 0 ? (
+   382→            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
+   383→              No properties on file yet. Add properties to link them here.
+   384→            </div>
+   385→          ) : !isProperty && (matterState.matters || []).length === 0 ? (
+   386→            <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
+   387→              No matters on file yet. Create a matter to link it here.
+   388→            </div>
+   389→          ) : isProperty ? (
+   390→            /* Grouped property/unit dropdown: address as non-selectable header, units below */
+   391→            <>
+   392→              <select
+   393→                value={relatedId}
+   394→                onChange={e => handleRelatedChange(e.target.value)}
+   395→                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+   396→              >
+   397→                <option value="">Select a unit to auto-fill details</option>
+   398→                {propertyGroups.map((group: PropertyGroup) => (
+   399→                  <optgroup key={group.addressKey} label={group.shortAddress}>
+   400→                    {group.units.map(u => (
+   401→                      <option key={u.id} value={u.id}>
+   402→                        {u.unitName ? `${u.unitName}` : u.shortAddress}{u.tenantName ? ` — ${u.tenantName}` : ''}
+   403→                      </option>
+   404→                    ))}
+   405→                  </optgroup>
+   406→                ))}
+   407→              </select>
+   408→              {relatedId && (
+   409→                <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+   410→                  Name, email, and phone will be auto-filled from the selected tenant record.
+   411→                </p>
+   412→              )}
+   413→            </>
+   414→          ) : (
+   415→            <>
+   416→              <select
+   417→                value={relatedId}
+   418→                onChange={e => handleRelatedChange(e.target.value)}
+   419→                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+   420→              >
+   421→                <option value="">Select a matter to auto-fill details</option>
+   422→                {relatedItems.map((item: any) => (
+   423→                  <option key={item.id} value={item.id}>{item.label}</option>
+   424→                ))}
+   425→              </select>
+   426→              {relatedId && (
+   427→                <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+   428→                  Name, email, and phone will be auto-filled from the selected client record.
+   429→                </p>
+   430→              )}
+   431→            </>
+   432→          )}
+   433→        </div>
+   434→
+   435→        {/* Actions */}
+   436→        <div className="flex items-center gap-3 pt-2 flex-wrap">
+   437→          <button
+   438→            onClick={onCancel}
+   439→            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 transition-colors"
+   440→          >
+   441→            Cancel
+   442→          </button>
+   443→          <button
+   444→            onClick={handleSubmit}
+   445→            disabled={isSending || (!email.trim() && channel !== 'whatsapp') || (needsPhone && !phone.trim())}
+   446→            className="inline-flex items-center gap-2 px-5 py-2 bg-primary-600 text-white rounded-lg font-semibold text-sm hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+   447→          >
+   448→            {isSending ? (
+   449→              <>
+   450→                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   451→                Sending…
+   452→              </>
+   453→            ) : (
+   454→              <>
+   455→                <SendIcon className="w-4 h-4" />
+   456→                Send via {channel === 'email' ? 'Email' : channel === 'whatsapp' ? 'WhatsApp' : 'Email & WhatsApp'}
+   457→              </>
+   458→            )}
+   459→          </button>
+   460→        </div>
+   461→      </div>
+   462→    </div>
+   463→  );
+   464→};
+   465→
+   466→// ─── Invite List ────────────────────────────────────────────────────────────
+   467→const InviteList: React.FC<{
+   468→  invites: any[];
+   469→  portalType: 'client' | 'resident';
+   470→  resendingId: string | null;
+   471→  onResend: (invite: any) => void;
+   472→  onRevoke: (inviteId: string) => void;
+   473→  onDelete: (invite: any) => void;
+   474→  onCopyLink: (invite: any) => void;
+   475→  onPreview: (invite: any) => void;
+   476→  showPortalTypeBadge?: boolean;
+   477→}> = ({ invites, portalType, resendingId, onResend, onRevoke, onDelete, onCopyLink, onPreview, showPortalTypeBadge }) => {
+   478→  const isProperty = portalType === 'resident';
+   479→
+   480→  const [filterStatus, setFilterStatus] = useState<string>('all');
+   481→
+   482→  const filteredInvites = useMemo(() => {
+   483→    if (filterStatus === 'all') return invites;
+   484→    return invites.filter((inv: any) => inv.status === filterStatus);
+   485→  }, [invites, filterStatus]);
+   486→
+   487→  // Count by status
+   488→  const statusCounts = useMemo(() => {
+   489→    return {
+   490→      all: invites.length,
+   491→      pending: invites.filter((i: any) => i.status === 'pending').length,
+   492→      accepted: invites.filter((i: any) => i.status === 'accepted').length,
+   493→      expired: invites.filter((i: any) => i.status === 'expired').length,
+   494→      revoked: invites.filter((i: any) => i.status === 'revoked').length,
+   495→    };
+   496→  }, [invites]);
+   497→
+   498→  const portalLabel = isProperty ? 'resident' : 'client';
+   499→
+   500→  return (
+   501→    <div className="space-y-4">
+   502→      {/* Filter Tabs */}
+   503→      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+   504→        {[
+   505→          { key: 'all', label: 'All' },
+   506→          { key: 'pending', label: 'Pending' },
+   507→          { key: 'accepted', label: 'Active' },
+   508→          { key: 'expired', label: 'Expired' },
+   509→          { key: 'revoked', label: 'Revoked' },
+   510→        ].map(tab => (
+   511→          <button
+   512→            key={tab.key}
+   513→            onClick={() => setFilterStatus(tab.key)}
+   514→            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors whitespace-nowrap ${
+   515→              filterStatus === tab.key
+   516→                ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50'
+   517→                : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-transparent hover:bg-slate-200 dark:hover:bg-zinc-600'
+   518→            }`}
+   519→          >
+   520→            {tab.label}
+   521→            {(statusCounts as any)[tab.key] > 0 && (
+   522→              <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] ${
+   523→                filterStatus === tab.key
+   524→                  ? 'bg-primary-100 dark:bg-primary-800/40 text-primary-600 dark:text-primary-300'
+   525→                  : 'bg-slate-200 dark:bg-zinc-600 text-slate-500 dark:text-zinc-400'
+   526→              }`}>
+   527→                {(statusCounts as any)[tab.key]}
+   528→              </span>
+   529→            )}
+   530→          </button>
+   531→        ))}
+   532→      </div>
+   533→
+   534→      {/* Invitations List */}
+   535→      {filteredInvites.length === 0 ? (
+   536→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 text-center">
+   537→          <div className="w-10 h-10 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-2">
+   538→            <MailIcon className="w-5 h-5 text-slate-400 dark:text-zinc-500" />
+   539→          </div>
+   540→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">
+   541→            No {filterStatus === 'all' ? '' : filterStatus + ' '}{portalLabel} invitations
+   542→          </p>
+   543→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   544→            {filterStatus === 'all'
+   545→              ? `Click "Invite ${isProperty ? 'Resident' : 'Client'}" to send your first portal invitation.`
+   546→              : `No ${filterStatus} invitations found. Try a different filter.`}
+   547→          </p>
+   548→        </div>
+   549→      ) : (
+   550→        <div className="space-y-2">
+   551→          {filteredInvites.map((invite: any) => {
+   552→            const isPending = invite.status === 'pending';
+   553→            const isActive = invite.status === 'accepted';
+   554→            const isResending = resendingId === String(invite._id);
+   555→
+   556→            return (
+   557→              <div
+   558→                key={invite._id}
+   559→                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-3 flex flex-col sm:flex-row sm:items-center gap-3"
+   560→              >
+   561→                {/* Avatar + Info */}
+   562→                <div className="flex items-center gap-3 flex-1 min-w-0">
+   563→                  <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+   564→                    isActive
+   565→                      ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+   566→                      : isPending
+   567→                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+   568→                      : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'
+   569→                  }`}>
+   570→                    {(invite.inviteeName || invite.inviteeEmail || '?')[0].toUpperCase()}
+   571→                  </div>
+   572→                  <div className="min-w-0">
+   573→                    <div className="flex items-center gap-1.5">
+   574→                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+   575→                        {invite.inviteeName || invite.inviteeEmail}
+   576→                      </p>
+   577→                      {showPortalTypeBadge && <PortalTypeBadge portalType={invite.portalType} />}
+   578→                    </div>
+   579→                    <div className="flex items-center gap-2 flex-wrap">
+   580→                      <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+   581→                        {invite.inviteeEmail}
+   582→                      </p>
+   583→                      {invite.inviteePhone && (
+   584→                        <p className="text-xs text-slate-500 dark:text-zinc-400">· {invite.inviteePhone}</p>
+   585→                      )}
+   586→                    </div>
+   587→                  </div>
+   588→                </div>
+   589→
+   590→                {/* Status + Channel + Actions */}
+   591→                <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+   592→                  <ChannelBadge channel={invite.channel} />
+   593→                  <StatusBadge status={invite.status} />
+   594→                  {isActive && (
+   595→                    <button
+   596→                      onClick={() => onPreview(invite)}
+   597→                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+   598→                      title="Preview portal as this user"
+   599→                    >
+   600→                      <EyeIcon className="w-3.5 h-3.5" />
+   601→                      <span className="hidden sm:inline">Preview</span>
+   602→                    </button>
+   603→                  )}
+   604→                  {isPending && (
+   605→                    <>
+   606→                      <button
+   607→                        onClick={() => onCopyLink(invite)}
+   608→                        className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+   609→                        title="Copy invite link"
+   610→                      >
+   611→                        <ClipboardIcon className="w-4 h-4" />
+   612→                      </button>
+   613→                      <button
+   614→                        onClick={() => onResend(invite)}
+   615→                        disabled={isResending}
+   616→                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors disabled:opacity-50"
+   617→                        title="Resend invitation"
+   618→                      >
+   619→                        {isResending ? (
+   620→                          <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+   621→                        ) : (
+   622→                          <RefreshIcon className="w-4 h-4" />
+   623→                        )}
+   624→                      </button>
+   625→                      <button
+   626→                        onClick={() => onRevoke(String(invite._id))}
+   627→                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+   628→                        title="Revoke invitation"
+   629→                      >
+   630→                        <LockClosedIcon className="w-4 h-4" />
+   631→                      </button>
+   632→                    </>
+   633→                  )}
+   634→                  {isActive && (
+   635→                    <button
+   636→                      onClick={() => onRevoke(String(invite._id))}
+   637→                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+   638→                      title="Revoke portal access"
+   639→                    >
+   640→                      <LockClosedIcon className="w-4 h-4" />
+   641→                    </button>
+   642→                  )}
+   643→                  {/* Delete permanently — available on all statuses */}
+   644→                  <button
+   645→                    onClick={() => onDelete(invite)}
+   646→                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+   647→                    title="Delete permanently"
+   648→                  >
+   649→                    <TrashIcon className="w-4 h-4" />
+   650→                  </button>
+   651→                </div>
+   652→              </div>
+   653→            );
+   654→          })}
+   655→        </div>
+   656→      )}
+   657→    </div>
+   658→  );
+   659→};
+   660→
+   661→// ─── Portal Section ─────────────────────────────────────────────────────────
+   662→// A reusable section for one portal type (Client or Resident)
+   663→const PortalSection: React.FC<{
+   664→  portalType: 'client' | 'resident';
+   665→  invites: any[];
+   666→  firmId: string;
+   667→  inviterId: string;
+   668→  canUsePortal: boolean;
+   669→  isUnified: boolean;
+   670→  hasRelatedData: boolean;  // Has matters (client) or properties (resident)
+   671→  relatedDataHint: string;  // What to show when no related data
+   672→  resendingId: string | null;
+   673→  onResend: (invite: any) => void;
+   674→  onRevoke: (inviteId: string) => void;
+   675→  onDelete: (invite: any) => void;
+   676→  onCopyLink: (invite: any, portalType: string) => void;
+   677→  onPreview: (invite: any) => void;
+   678→}> = ({ portalType, invites, firmId, inviterId, canUsePortal, isUnified, hasRelatedData, relatedDataHint, resendingId, onResend, onRevoke, onDelete, onCopyLink, onPreview }) => {
+   679→  const isProperty = portalType === 'resident';
+   680→  const [showInviteForm, setShowInviteForm] = useState(false);
+   681→
+   682→  const title = isProperty ? "Residents' Portal" : 'Client Portal';
+   683→  const icon = isProperty ? <OfficeBuildingIcon className="w-5 h-5 text-sky-500" /> : <UsersIcon className="w-5 h-5 text-violet-500" />;
+   684→  const inviteLabel = isProperty ? 'Resident' : 'Client';
+   685→  const description = isProperty
+   686→    ? 'Grant residents self-service access to their payment ledgers, maintenance tickets, and receipts.'
+   687→    : 'Grant clients self-service access to their matters, documents, messages, and billing.';
+   688→
+   689→  // ── Plan gate ──
+   690→  if (!canUsePortal) {
+   691→    return (
+   692→      <div className="flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+   693→        <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
+   694→          <LockClosedIcon className="w-7 h-7 text-amber-500" />
+   695→        </div>
+   696→        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+   697→          {title} — Upgrade Required
+   698→        </h3>
+   699→        <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md leading-relaxed">
+   700→          Portal access management is available on <strong>Growth</strong> and <strong>Pro</strong> plans.
+   701→          Upgrade your subscription to invite {isProperty ? 'residents' : 'clients'} and grant them self-service access.
+   702→        </p>
+   703→      </div>
+   704→    );
+   705→  }
+   706→
+   707→  return (
+   708→    <div className="space-y-4">
+   709→      {/* Section header */}
+   710→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+   711→        <div>
+   712→          <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+   713→            {icon}
+   714→            {title}
+   715→          </h3>
+   716→          <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+   717→            {description}
+   718→            {!hasRelatedData && (
+   719→              <span className="block mt-1 text-amber-600 dark:text-amber-400 font-medium">
+   720→                {relatedDataHint}
+   721→              </span>
+   722→            )}
+   723→          </p>
+   724→        </div>
+   725→        {!showInviteForm && (
+   726→          <button
+   727→            onClick={() => setShowInviteForm(true)}
+   728→            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold text-sm hover:bg-primary-700 transition-colors shadow-sm whitespace-nowrap"
+   729→          >
+   730→            <PlusIcon className="w-4 h-4" />
+   731→            Invite {inviteLabel}
+   732→          </button>
+   733→        )}
+   734→      </div>
+   735→
+   736→      {/* Invite Form */}
+   737→      {showInviteForm && (
+   738→        <InviteForm
+   739→          firmId={firmId}
+   740→          inviterId={inviterId}
+   741→          portalType={portalType}
+   742→          onSent={() => setShowInviteForm(false)}
+   743→          onCancel={() => setShowInviteForm(false)}
+   744→        />
+   745→      )}
+   746→
+   747→      {/* Invite List */}
+   748→      <InviteList
+   749→        invites={invites}
+   750→        portalType={portalType}
+   751→        resendingId={resendingId}
+   752→        onResend={onResend}
+   753→        onRevoke={onRevoke}
+   754→        onDelete={onDelete}
+   755→        onCopyLink={(invite) => onCopyLink(invite, portalType)}
+   756→        onPreview={(invite) => onPreview(invite)}
+   757→      />
+   758→    </div>
+   759→  );
+   760→};
+   761→
+   762→// ─── Main Component ────────────────────────────────────────────────────────
+   763→export const PortalAccessSettings: React.FC = () => {
+   764→  const { currentUser, loginAsUser } = useAuth();
+   765→  const { addToast, navigateTo } = useUI();
+   766→  const { isProperty, isLegal, isUnified } = useProduct();
+   767→  const { canUseClientPortal, canUseTenantPortal } = useFeatures();
+   768→
+   769→  const firmId = currentUser?.firmId || '';
+   770→
+   771→  const [resendingId, setResendingId] = useState<string | null>(null);
+   772→  const [deleteTarget, setDeleteTarget] = useState<any>(null);  // The invite being deleted
+   773→
+   774→  // Fetch ALL portal invites for this firm
+   775→  const invites = useQuery(
+   776→    api.portals.getPortalInvitesByFirm,
+   777→    firmId ? { firmId } : 'skip'
+   778→  );
+   779→
+   780→  // Fetch portal settings for messaging toggles
+   781→  const portalSettings = useQuery(
+   782→    api.portals.getFirmPortalSettings,
+   783→    firmId ? { firmId } : 'skip'
+   784→  );
+   785→
+   786→  const updateSettings = useMutation(api.portals.updateFirmPortalSettings);
+   787→
+   788→  const revokeInvite = useMutation(api.portals.revokePortalInvite);
+   789→  const deleteInvite = useMutation(api.portals.deletePortalInviteAndCleanup);
+   790→  const resendInvite = useAction(api.portals.resendPortalInvite);
+   791→
+   792→  // Separate invites by portal type
+   793→  const clientInvites = useMemo(() => {
+   794→    if (!invites) return [];
+   795→    return invites.filter((inv: any) => inv.portalType === 'client');
+   796→  }, [invites]);
+   797→
+   798→  const residentInvites = useMemo(() => {
+   799→    if (!invites) return [];
+   800→    return invites.filter((inv: any) => inv.portalType === 'resident');
+   801→  }, [invites]);
+   802→
+   803→  // Check if firm has matters and properties
+   804→  const { coreState } = useCoreState();
+   805→  const { matterState } = useMatterState();
+   806→  const hasMatters = (matterState.matters || []).length > 0;
+   807→  const hasProperties = (coreState.properties || []).length > 0;
+   808→
+   809→  // Determine which portal sections to show
+   810→  const showClientPortal = isLegal;
+   811→  const showResidentPortal = isProperty;
+   812→  const showBoth = showClientPortal && showResidentPortal;
+   813→
+   814→  const handleRevoke = async (inviteId: string) => {
+   815→    try {
+   816→      await revokeInvite({ inviteId: inviteId as any });
+   817→      addToast('Portal access revoked successfully.', { type: 'success' });
+   818→    } catch (err: any) {
+   819→      addToast(err.message || 'Failed to revoke access.', { type: 'error' });
+   820→    }
+   821→  };
+   822→
+   823→  // Delete with confirmation — shows dialog, then calls cleanup mutation
+   824→  const handleDeleteRequest = (invite: any) => {
+   825→    setDeleteTarget(invite);
+   826→  };
+   827→
+   828→  const handleDeleteConfirm = async () => {
+   829→    if (!deleteTarget) return;
+   830→    const inviteId = String(deleteTarget._id);
+   831→    const inviteEmail = deleteTarget.inviteeEmail || '';
+   832→    setDeleteTarget(null);
+   833→    try {
+   834→      await deleteInvite({ inviteId: inviteId as any, inviteeEmail: inviteEmail || undefined });
+   835→      addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
+   836→    } catch (err: any) {
+   837→      addToast(err.message || 'Failed to delete invitation.', { type: 'error' });
+   838→    }
+   839→  };
+   840→
+   841→  const handleResend = async (invite: any) => {
+   842→    setResendingId(String(invite._id));
+   843→    try {
+   844→      const result = await resendInvite({ inviteId: invite._id });
+   845→      const parts: string[] = [];
+   846→      if (result.emailSent) parts.push('email delivered');
+   847→      else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+   848→      if (result.whatsappSent) parts.push('WhatsApp delivered');
+   849→      else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
+   850→      addToast(`Invitation resent — ${parts.join(', ') || 'refreshed'}`, { type: 'success' });
+   851→    } catch (err: any) {
+   852→      addToast(err.message || 'Failed to resend invitation.', { type: 'error' });
+   853→    } finally {
+   854→      setResendingId(null);
+   855→    }
+   856→  };
+   857→
+   858→  // FIX: Copy link now uses /setup-password URL (not the login page)
+   859→  // This ensures new users without accounts can create their password
+   860→  const handleCopyInviteLink = (invite: any, portalType: string) => {
+   861→    const portalBase = 'https://practice-pro-vega.vercel.app/setup-password';
+   862→    const inviteUrl = invite.token
+   863→      ? `${portalBase}?token=${invite.token}`
+   864→      : portalBase;
+   865→    navigator.clipboard.writeText(inviteUrl).then(() => {
+   866→      addToast('Invite link copied! The recipient can use this link to set up their password and access the portal.', { type: 'success' });
+   867→    }).catch(() => {
+   868→      addToast('Failed to copy link', { type: 'error' });
+   869→    });
+   870→  };
+   871→
+   872→  // Preview portal as a specific client/resident (impersonation)
+   873→  const handlePreview = (invite: any) => {
+   874→    const portalEmail = invite.inviteeEmail;
+   875→    if (!portalEmail) {
+   876→      addToast('No email on file for this portal user.', { type: 'error' });
+   877→      return;
+   878→    }
+   879→    // Use the auth system's impersonation to view the portal as this user
+   880→    const portalUser = {
+   881→      id: invite.inviteeEmail,
+   882→      firmId: firmId,
+   883→      name: invite.inviteeName || invite.inviteeEmail,
+   884→      email: invite.inviteeEmail,
+   885→      role: invite.portalType === 'client' ? 'Client' as any : 'Tenant' as any,
+   886→      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(invite.inviteeName || invite.inviteeEmail)}&background=random`,
+   887→      onboardingCompleted: true,
+   888→      showProTips: false,
+   889→      product: invite.portalType === 'client' ? 'legal' : 'property',
+   890→      portalPresenceHidden: invite.portalType === 'resident',
+   891→    };
+   892→    loginAsUser(portalUser as any);
+   893→    addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Click "Return to Admin" at the top to go back.`, { type: 'success' });
+   894→    // Navigate to root so the portal dashboard is shown (not the settings page)
+   895→    // Use navigate() to preserve in-memory state during impersonation
+   896→    navigateTo('dashboard');
+   897→  };
+   898→
+   899→  const isLoading = invites === undefined;
+   900→
+   901→  // ── Loading state ──
+   902→  if (isLoading) {
+   903→    return (
+   904→      <div className="space-y-6">
+   905→        <div>
+   906→          <div className="h-7 w-48 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse mb-2" />
+   907→          <div className="h-4 w-72 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
+   908→        </div>
+   909→        {[1, 2, 3].map(i => (
+   910→          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   911→            <div className="flex items-center gap-3">
+   912→              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700" />
+   913→              <div className="flex-1 space-y-2">
+   914→                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
+   915→                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/4" />
+   916→              </div>
+   917→            </div>
+   918→          </div>
+   919→        ))}
+   920→      </div>
+   921→    );
+   922→  }
+   923→
+   924→  // Build delete dialog info
+   925→  const deleteDialogName = deleteTarget?.inviteeName || '';
+   926→  const deleteDialogEmail = deleteTarget?.inviteeEmail || '';
+   927→
+   928→  // ── Unified/Komplete layout: dual portal sections ──
+   929→  if (showBoth) {
+   930→    return (
+   931→      <div className="space-y-8">
+   932→        <DeleteConfirmDialog
+   933→          isOpen={!!deleteTarget}
+   934→          inviteName={deleteDialogName}
+   935→          inviteEmail={deleteDialogEmail}
+   936→          onConfirm={handleDeleteConfirm}
+   937→          onCancel={() => setDeleteTarget(null)}
+   938→        />
+   939→
+   940→        {/* Page header */}
+   941→        <div>
+   942→          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+   943→            <ShieldCheckIcon className="w-5 h-5 text-primary-500" />
+   944→            Portal Access
+   945→          </h3>
+   946→          <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
+   947→            Manage portal access for your clients and residents. Send invitations via email or WhatsApp.
+   948→          </p>
+   949→        </div>
+   950→
+   951→        {/* Portal Settings Card */}
+   952→        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+   953→          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
+   954→          <div className="space-y-4">
+   955→            {/* Resident Messaging Toggle */}
+   956→            {showResidentPortal && (
+   957→              <div className="flex items-center justify-between">
+   958→                <div>
+   959→                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Resident Messaging</p>
+   960→                  <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
+   961→                </div>
+   962→                <button
+   963→                  onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+   964→                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+   965→                >
+   966→                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+   967→                </button>
+   968→              </div>
+   969→            )}
+   970→            {/* Client Messaging Toggle */}
+   971→            {showClientPortal && (
+   972→              <div className="flex items-center justify-between">
+   973→                <div>
+   974→                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Client Messaging</p>
+   975→                  <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
+   976→                </div>
+   977→                <button
+   978→                  onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+   979→                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+   980→                >
+   981→                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+   982→                </button>
+   983→              </div>
+   984→            )}
+   985→          </div>
+   986→        </div>
+   987→
+   988→        {/* Client Portal Section — primary for Komplete/lawyers */}
+   989→        <div className="bg-violet-50/30 dark:bg-violet-900/5 rounded-2xl border border-violet-100 dark:border-violet-900/20 p-4 sm:p-6">
+   990→          <PortalSection
+   991→            portalType="client"
+   992→            invites={clientInvites}
+   993→            firmId={firmId}
+   994→            inviterId={currentUser?.id || ''}
+   995→            canUsePortal={canUseClientPortal}
+   996→            isUnified={isUnified}
+   997→            hasRelatedData={hasMatters}
+   998→            relatedDataHint="No matters yet — create a matter to link it when inviting a client."
+   999→            resendingId={resendingId}
+  1000→            onResend={handleResend}
+  1001→            onRevoke={handleRevoke}
+  1002→            onDelete={handleDeleteRequest}
+  1003→            onCopyLink={handleCopyInviteLink}
+  1004→            onPreview={handlePreview}
+  1005→          />
+  1006→        </div>
+  1007→
+  1008→        {/* Residents' Portal Section — secondary for Komplete/lawyers */}
+  1009→        <div className="bg-sky-50/30 dark:bg-sky-900/5 rounded-2xl border border-sky-100 dark:border-sky-900/20 p-4 sm:p-6">
+  1010→          <PortalSection
+  1011→            portalType="resident"
+  1012→            invites={residentInvites}
+  1013→            firmId={firmId}
+  1014→            inviterId={currentUser?.id || ''}
+  1015→            canUsePortal={canUseTenantPortal}
+  1016→            isUnified={isUnified}
+  1017→            hasRelatedData={hasProperties}
+  1018→            relatedDataHint="No properties yet — add properties to link them when inviting a resident."
+  1019→            resendingId={resendingId}
+  1020→            onResend={handleResend}
+  1021→            onRevoke={handleRevoke}
+  1022→            onDelete={handleDeleteRequest}
+  1023→            onCopyLink={handleCopyInviteLink}
+  1024→            onPreview={handlePreview}
+  1025→          />
+  1026→        </div>
+  1027→
+  1028→        {/* Security Notice */}
+  1029→        <SecurityNotice isProperty={false} isUnified={true} />
+  1030→      </div>
+  1031→    );
+  1032→  }
+  1033→
+  1034→  // ── Single-product layout (Vega or Atrium) ──
+  1035→  const singlePortalType = showClientPortal ? 'client' as const : 'resident' as const;
+  1036→  const singleCanUse = showClientPortal ? canUseClientPortal : canUseTenantPortal;
+  1037→  const singleInvites = showClientPortal ? clientInvites : residentInvites;
+  1038→  const singleHasRelatedData = showClientPortal ? hasMatters : hasProperties;
+  1039→  const singleRelatedHint = showClientPortal
+  1040→    ? "No matters yet — create a matter to link it when inviting a client."
+  1041→    : "No properties yet — add properties to link them when inviting a resident.";
+  1042→
+  1043→  if (!singleCanUse) {
+  1044→    return (
+  1045→      <div className="flex flex-col items-center justify-center text-center p-8">
+  1046→        <div className="w-16 h-16 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mb-4">
+  1047→          <LockClosedIcon className="w-8 h-8 text-amber-500" />
+  1048→        </div>
+  1049→        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+  1050→          {isProperty ? "Residents' Portal" : "Client Portal"} — Upgrade Required
+  1051→        </h3>
+  1052→        <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md leading-relaxed">
+  1053→          Portal access management is available on <strong>Growth</strong> and <strong>Pro</strong> plans.
+  1054→          Upgrade your subscription to invite {isProperty ? 'residents' : 'clients'} and grant them self-service access.
+  1055→        </p>
+  1056→      </div>
+  1057→    );
+  1058→  }
+  1059→
+  1060→  return (
+  1061→    <div className="space-y-6">
+  1062→      <DeleteConfirmDialog
+  1063→        isOpen={!!deleteTarget}
+  1064→        inviteName={deleteDialogName}
+  1065→        inviteEmail={deleteDialogEmail}
+  1066→        onConfirm={handleDeleteConfirm}
+  1067→        onCancel={() => setDeleteTarget(null)}
+  1068→      />
+  1069→
+  1070→      {/* Portal Settings Card */}
+  1071→      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+  1072→        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
+  1073→        <div className="space-y-4">
+  1074→          {/* Resident Messaging Toggle */}
+  1075→          {showResidentPortal && (
+  1076→            <div className="flex items-center justify-between">
+  1077→              <div>
+  1078→                <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Resident Messaging</p>
+  1079→                <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
+  1080→              </div>
+  1081→              <button
+  1082→                onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+  1083→                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+  1084→              >
+  1085→                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+  1086→              </button>
+  1087→            </div>
+  1088→          )}
+  1089→          {/* Client Messaging Toggle */}
+  1090→          {showClientPortal && (
+  1091→            <div className="flex items-center justify-between">
+  1092→              <div>
+  1093→                <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Client Messaging</p>
+  1094→                <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
+  1095→              </div>
+  1096→              <button
+  1097→                onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+  1098→                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+  1099→              >
+  1100→                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+  1101→              </button>
+  1102→            </div>
+  1103→          )}
+  1104→        </div>
+  1105→      </div>
+  1106→
+  1107→      <PortalSection
+  1108→        portalType={singlePortalType}
+  1109→        invites={singleInvites}
+  1110→        firmId={firmId}
+  1111→        inviterId={currentUser?.id || ''}
+  1112→        canUsePortal={singleCanUse}
+  1113→        isUnified={false}
+  1114→        hasRelatedData={singleHasRelatedData}
+  1115→        relatedDataHint={singleRelatedHint}
+  1116→        resendingId={resendingId}
+  1117→        onResend={handleResend}
+  1118→        onRevoke={handleRevoke}
+  1119→        onDelete={handleDeleteRequest}
+  1120→        onCopyLink={handleCopyInviteLink}
+  1121→        onPreview={handlePreview}
+  1122→      />
+  1123→
+  1124→      <SecurityNotice isProperty={isProperty} isUnified={false} />
+  1125→    </div>
+  1126→  );
+  1127→};
+  1128→
+  1129→// ─── Security Notice ────────────────────────────────────────────────────────
+  1130→const SecurityNotice: React.FC<{ isProperty: boolean; isUnified: boolean }> = ({ isProperty, isUnified }) => (
+  1131→  <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-4">
+  1132→    <div className="flex items-start gap-3">
+  1133→      <ShieldCheckIcon className="w-5 h-5 text-slate-400 dark:text-zinc-500 flex-shrink-0 mt-0.5" />
+  1134→      <div>
+  1135→        <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Security & Data Protection</p>
+  1136→        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
+  1137→          Portal access uses token-based invitation links that expire after 7 days. Passwords are hashed with PBKDF2-SHA512
+  1138→          and never stored in plaintext. All data is encrypted in transit and at rest, compliant with NDPA 2023.
+  1139→          {isUnified && ' Both Client and Resident portals share the same security infrastructure.'}
+  1140→        </p>
+  1141→      </div>
+  1142→    </div>
+  1143→  </div>
+  1144→);
+  1145→

@@ -1,0 +1,2002 @@
+     1→/**
+     2→ * TenantPortal — Atrium Residents' Portal
+     3→ *
+     4→ * Portal for residents to view their financial ledger,
+     5→ * download rent receipts, check SC/MV status, log maintenance tickets
+     6→ * (with file attachments), submit payment proof, send messages to their
+     7→ * property manager (if enabled), and view inbound messages.
+     8→ *
+     9→ * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
+    10→ * Role-gated: Only users with role === 'Tenant'
+    11→ */
+    12→import React, { useState, useMemo, useRef } from 'react';
+    13→import { useQuery, useMutation } from 'convex/react';
+    14→import { api } from '../../../convex/_generated/api';
+    15→import { useAuth } from '../../contexts/AuthContext';
+    16→import { useUI } from '../../contexts/UIContext';
+    17→import { useFeatures } from '../../hooks/useFeatures';
+    18→import NairaSymbol from '../NairaSymbol';
+    19→import {
+    20→  EyeIcon,
+    21→  OfficeBuildingIcon,
+    22→  DownloadIcon,
+    23→  CheckIcon,
+    24→  ExclamationTriangleIcon,
+    25→  BanknotesIcon,
+    26→  DocumentIcon,
+    27→  MailIcon,
+    28→  BellIcon,
+    29→} from '../../constants';
+    30→
+    31→// ─── Local Icons ──────────────────────────────────────────────────────────────
+    32→const ReceiptIcon: React.FC<{ className?: string }> = ({ className }) => (
+    33→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    34→    <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+    35→    <path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" />
+    36→  </svg>
+    37→);
+    38→
+    39→const WrenchIcon: React.FC<{ className?: string }> = ({ className }) => (
+    40→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    41→    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    42→  </svg>
+    43→);
+    44→
+    45→const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
+    46→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    47→    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    48→  </svg>
+    49→);
+    50→
+    51→const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
+    52→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    53→    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    54→  </svg>
+    55→);
+    56→
+    57→const MoonIcon: React.FC<{ className?: string }> = ({ className }) => (
+    58→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    59→    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    60→  </svg>
+    61→);
+    62→
+    63→const UploadIcon: React.FC<{ className?: string }> = ({ className }) => (
+    64→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    65→    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    66→  </svg>
+    67→);
+    68→
+    69→const PaperclipIcon: React.FC<{ className?: string }> = ({ className }) => (
+    70→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    71→    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    72→  </svg>
+    73→);
+    74→
+    75→const XCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
+    76→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    77→    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+    78→  </svg>
+    79→);
+    80→
+    81→const SendIcon: React.FC<{ className?: string }> = ({ className }) => (
+    82→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    83→    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    84→  </svg>
+    85→);
+    86→
+    87→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    88→const formatNaira = (amount: number) => (
+    89→  <span className="inline-flex items-center">
+    90→    <NairaSymbol />{amount.toLocaleString()}
+    91→  </span>
+    92→);
+    93→
+    94→const formatDate = (ts: number) => {
+    95→  const d = new Date(ts);
+    96→  return d.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+    97→};
+    98→
+    99→// ─── Tab Type ─────────────────────────────────────────────────────────────────
+   100→type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents';
+   101→
+   102→// ─── File Upload Helper ──────────────────────────────────────────────────────
+   103→async function uploadFilesToConvex(files: File[]): Promise<string[]> {
+   104→  const storageIds: string[] = [];
+   105→  for (const file of files) {
+   106→    const postUrl = await fetch('/api/storage/upload-url');
+   107→    // Fallback: use the Convex action for upload URL
+   108→    // We'll use the Convex generateUploadUrl mutation via the hook instead
+   109→    // For now, we'll use the standard Convex file upload flow
+   110→    const { url, storageId } = await (async () => {
+   111→      // Use Convex's built-in file upload
+   112→      const uploadUrlRes = await fetch(`${window.location.origin}/api/storage/upload-url`);
+   113→      if (uploadUrlRes.ok) {
+   114→        const { url: u, storageId: s } = await uploadUrlRes.json();
+   115→        return { url: u, storageId: s };
+   116→      }
+   117→      throw new Error('Failed to get upload URL');
+   118→    })();
+   119→
+   120→    const uploadRes = await fetch(url, {
+   121→      method: 'POST',
+   122→      body: file,
+   123→    });
+   124→    if (uploadRes.ok) {
+   125→      const { storageId: sid } = await uploadRes.json();
+   126→      storageIds.push(sid);
+   127→    }
+   128→  }
+   129→  return storageIds;
+   130→}
+   131→
+   132→// ─── Main Component ──────────────────────────────────────────────────────────
+   133→const TenantPortal: React.FC = () => {
+   134→  const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
+   135→  const { addToast, theme, setTheme } = useUI();
+   136→  const { canUseTenantPortal } = useFeatures();
+   137→  const [activeTab, setActiveTab] = useState<TabId>('ledger');
+   138→
+   139→  // Resolve tenant info once at the top level — all sub-tabs can use it
+   140→  const firmId = currentUser?.firmId || '';
+   141→  const userId = currentUser?.id || '';
+   142→  const email = currentUser?.email || '';
+   143→
+   144→  const tenantInfo = useQuery(
+   145→    api.portals.getTenantInfo,
+   146→    firmId && userId ? { firmId, userId, email } : 'skip'
+   147→  );
+   148→
+   149→  // Fetch firm portal settings for messaging toggle
+   150→  const portalSettings = useQuery(
+   151→    api.portals.getFirmPortalSettings,
+   152→    firmId ? { firmId } : 'skip'
+   153→  );
+   154→
+   155→  // Access guard
+   156→  if (!currentUser) return null;
+   157→
+   158→  // SAFETY NET: Portal users with a valid Tenant role should ALWAYS be able
+   159→  // to access their portal. The canUseTenantPortal feature gate is meant to
+   160→  // control whether ADMINS can create portal invites — it should never block
+   161→  // an already-authenticated portal user from accessing their own dashboard.
+   162→  if (!canUseTenantPortal && currentUser.role !== 'Tenant') {
+   163→    return (
+   164→      <div className="flex items-center justify-center h-full p-8">
+   165→        <div className="text-center max-w-sm">
+   166→          <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+   167→            <OfficeBuildingIcon className="w-8 h-8 text-amber-500" />
+   168→          </div>
+   169→          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Residents' Portal Unavailable</h3>
+   170→          <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+   171→            The Residents' Portal is available on Growth and Pro plans. Ask your property manager to upgrade.
+   172→          </p>
+   173→        </div>
+   174→      </div>
+   175→    );
+   176→  }
+   177→
+   178→  const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+   179→    theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+   180→    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+   181→
+   182→  const toggleTheme = () => {
+   183→    setTheme(isDark ? 'light' : 'dark');
+   184→  };
+   185→
+   186→  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+   187→    { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
+   188→    { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
+   189→    { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
+   190→    ...(portalSettings?.tenantMessagingEnabled ? [
+   191→      { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
+   192→    ] : []),
+   193→    { id: 'payments', label: 'Payments', icon: <BanknotesIcon className="w-4 h-4" /> },
+   194→    { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
+   195→  ];
+   196→
+   197→  return (
+   198→    <div className="flex flex-col h-full">
+   199→      {/* Impersonation Banner — shown when admin is viewing as this tenant */}
+   200→      {originalUser && (
+   201→        <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
+   202→          <div className="flex items-center gap-2">
+   203→            <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+   204→            <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+   205→              You are previewing the portal as <strong>{tenantInfo?.tenantName || currentUser.name || currentUser.email}</strong>
+   206→            </p>
+   207→          </div>
+   208→          <button
+   209→            onClick={revertToOriginalUser}
+   210→            className="px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex-shrink-0"
+   211→          >
+   212→            Return to Admin
+   213→          </button>
+   214→        </div>
+   215→      )}
+   216→
+   217→      {/* Header */}
+   218→      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
+   219→        <div className="flex items-center justify-between">
+   220→          <div className="flex items-center gap-3">
+   221→            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+   222→              <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+   223→            </div>
+   224→            <div>
+   225→              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
+   226→              <p className="text-xs text-slate-500 dark:text-zinc-400">
+   227→                Welcome, {tenantInfo?.tenantName || currentUser.name}
+   228→              </p>
+   229→            </div>
+   230→          </div>
+   231→          <div className="flex items-center gap-2">
+   232→            {/* Theme Toggle */}
+   233→            <button
+   234→              onClick={toggleTheme}
+   235→              className="p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+   236→              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+   237→            >
+   238→              {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+   239→            </button>
+   240→            {/* Sign Out */}
+   241→            <button
+   242→              onClick={() => logout()}
+   243→              className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+   244→            >
+   245→              Sign Out
+   246→            </button>
+   247→          </div>
+   248→        </div>
+   249→        {/* Prominent Unit/Property Info */}
+   250→        {tenantInfo?.primaryUnitName && (
+   251→          <div className="mt-3 flex items-center gap-2 flex-wrap">
+   252→            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+   253→              <OfficeBuildingIcon className="w-3.5 h-3.5" />
+   254→              Unit: {tenantInfo.primaryUnitName}
+   255→            </span>
+   256→            {tenantInfo.primaryPropertyName && (
+   257→              <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
+   258→                {tenantInfo.primaryPropertyName}
+   259→              </span>
+   260→            )}
+   261→            {tenantInfo.primaryPropertyAddress && (
+   262→              <span className="text-xs text-slate-400 dark:text-zinc-500">
+   263→                — {tenantInfo.primaryPropertyAddress}
+   264→              </span>
+   265→            )}
+   266→          </div>
+   267→        )}
+   268→        {!tenantInfo?.primaryUnitName && tenantInfo?.primaryPropertyName && (
+   269→          <div className="mt-3 flex items-center gap-2 flex-wrap">
+   270→            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+   271→              <OfficeBuildingIcon className="w-3.5 h-3.5" />
+   272→              {tenantInfo.primaryPropertyName}
+   273→            </span>
+   274→            {tenantInfo.primaryPropertyAddress && (
+   275→              <span className="text-xs text-slate-400 dark:text-zinc-500">
+   276→                — {tenantInfo.primaryPropertyAddress}
+   277→              </span>
+   278→            )}
+   279→          </div>
+   280→        )}
+   281→      </div>
+   282→
+   283→      {/* Tab Bar */}
+   284→      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6">
+   285→        <div className="flex gap-0 -mb-px overflow-x-auto">
+   286→          {tabs.map(tab => (
+   287→            <button
+   288→              key={tab.id}
+   289→              onClick={() => setActiveTab(tab.id)}
+   290→              className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+   291→                activeTab === tab.id
+   292→                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
+   293→                  : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
+   294→              }`}
+   295→            >
+   296→              {tab.icon}
+   297→              <span className="hidden sm:inline">{tab.label}</span>
+   298→            </button>
+   299→          ))}
+   300→        </div>
+   301→      </div>
+   302→
+   303→      {/* Content */}
+   304→      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
+   305→        {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} />}
+   306→        {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} addToast={addToast} />}
+   307→        {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} addToast={addToast} />}
+   308→        {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} portalSettings={portalSettings} addToast={addToast} />}
+   309→        {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} addToast={addToast} />}
+   310→        {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} addToast={addToast} />}
+   311→      </div>
+   312→    </div>
+   313→  );
+   314→};
+   315→
+   316→// ─── Shared Tenant Info Hook Helper ──────────────────────────────────────────
+   317→// All sub-tabs receive tenantInfo from the parent to avoid duplicate queries
+   318→
+   319→// ─── Financial Ledger Tab ────────────────────────────────────────────────────
+   320→const LedgerTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
+   321→  const { currentUser } = useAuth();
+   322→  const firmId = currentUser?.firmId || '';
+   323→  const userId = currentUser?.id || '';
+   324→
+   325→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   326→
+   327→  // Fetch ledger entries from Convex using the resolved tenant ID
+   328→  const ledgerEntries = useQuery(
+   329→    api.portals.getTenantLedger,
+   330→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
+   331→  );
+   332→
+   333→  // Fetch service charges from Convex to compute current SC/MV
+   334→  const serviceCharges = useQuery(
+   335→    api.sentry.getServiceChargesByFirm,
+   336→    firmId ? { firmId } : 'skip'
+   337→  );
+   338→
+   339→  const isLoading = ledgerEntries === undefined || serviceCharges === undefined;
+   340→
+   341→  // Compute tenant-specific service charges
+   342→  const tenantServiceCharges = useMemo(() => {
+   343→    if (!serviceCharges || !resolvedTenantId) return [];
+   344→    return serviceCharges.filter((sc: any) => sc.tenantId === resolvedTenantId);
+   345→  }, [serviceCharges, resolvedTenantId]);
+   346→
+   347→  // Summary calculations
+   348→  const currentMonthSC = useMemo(() => {
+   349→    return tenantServiceCharges
+   350→      .filter((sc: any) => !sc.isMinimumVend)
+   351→      .reduce((sum: number, sc: any) => sum + (sc.outstandingBalance ?? sc.amount), 0);
+   352→  }, [tenantServiceCharges]);
+   353→
+   354→  const currentMonthMV = useMemo(() => {
+   355→    return tenantServiceCharges
+   356→      .filter((sc: any) => sc.isMinimumVend)
+   357→      .reduce((sum: number, sc: any) => sum + (sc.outstandingBalance ?? sc.amount), 0);
+   358→  }, [tenantServiceCharges]);
+   359→
+   360→  const outstandingBalance = useMemo(() => {
+   361→    if (!ledgerEntries) return 0;
+   362→    return ledgerEntries
+   363→      .filter((e: any) => e.status === 'pending' || e.status === 'defaulted')
+   364→      .reduce((sum: number, e: any) => sum + e.amount, 0);
+   365→  }, [ledgerEntries]);
+   366→
+   367→  const scPaid = tenantServiceCharges.filter((sc: any) => !sc.isMinimumVend && sc.serviceChargeStatus === 'PAID_FULLY').length > 0;
+   368→  const mvStatus = tenantServiceCharges.filter((sc: any) => sc.isMinimumVend).length > 0
+   369→    ? (tenantServiceCharges.filter((sc: any) => sc.isMinimumVend && sc.serviceChargeStatus === 'PAID_FULLY').length > 0 ? 'paid' : 'pending')
+   370→    : null;
+   371→
+   372→  if (isLoading) {
+   373→    return (
+   374→      <div>
+   375→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+   376→          {[1, 2, 3].map(i => (
+   377→            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
+   378→              <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24 mb-2" />
+   379→              <div className="h-7 bg-slate-200 dark:bg-zinc-700 rounded w-32 mb-1" />
+   380→              <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-16" />
+   381→            </div>
+   382→          ))}
+   383→        </div>
+   384→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+   385→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-3" />
+   386→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
+   387→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+   388→        </div>
+   389→      </div>
+   390→    );
+   391→  }
+   392→
+   393→  const hasLedgerData = ledgerEntries && ledgerEntries.length > 0;
+   394→  const hasServiceCharges = tenantServiceCharges.length > 0;
+   395→
+   396→  return (
+   397→    <div>
+   398→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Ledger</h3>
+   399→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   400→        View your rent, Service Charge (SC), and Minimum Vend (MV) obligations and payment status.
+   401→      </p>
+   402→
+   403→      {/* Summary Cards */}
+   404→      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+   405→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   406→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month SC</p>
+   407→          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+   408→            {formatNaira(currentMonthSC)}
+   409→          </p>
+   410→          {hasServiceCharges && !currentMonthSC ? (
+   411→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   412→              <CheckIcon className="w-3 h-3" /> Paid
+   413→            </span>
+   414→          ) : currentMonthSC > 0 ? (
+   415→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+   416→              <ExclamationTriangleIcon className="w-3 h-3" /> Due
+   417→            </span>
+   418→          ) : null}
+   419→        </div>
+   420→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   421→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month MV</p>
+   422→          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+   423→            {currentMonthMV > 0 ? formatNaira(currentMonthMV) : '—'}
+   424→          </p>
+   425→          {mvStatus === 'paid' ? (
+   426→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   427→              <CheckIcon className="w-3 h-3" /> Paid
+   428→            </span>
+   429→          ) : mvStatus === 'pending' ? (
+   430→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+   431→              <ExclamationTriangleIcon className="w-3 h-3" /> Pending
+   432→            </span>
+   433→          ) : null}
+   434→        </div>
+   435→        <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
+   436→          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Outstanding Balance</p>
+   437→          <p className={`text-2xl font-bold ${outstandingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+   438→            {outstandingBalance > 0 ? formatNaira(outstandingBalance) : formatNaira(0)}
+   439→          </p>
+   440→          {outstandingBalance > 0 && (
+   441→            <p className="text-[10px] text-slate-400 mt-1">
+   442→              {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length || 0} unpaid {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length === 1 ? 'entry' : 'entries'}
+   443→            </p>
+   444→          )}
+   445→          {outstandingBalance === 0 && hasLedgerData && (
+   446→            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+   447→              <CheckIcon className="w-3 h-3" /> All Clear
+   448→            </span>
+   449→          )}
+   450→        </div>
+   451→      </div>
+   452→
+   453→      {/* Service Charges Section */}
+   454→      {hasServiceCharges && (
+   455→        <div className="mb-6">
+   456→          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Service Charges</h4>
+   457→          <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+   458→            <div className="overflow-x-auto">
+   459→              <table className="w-full text-sm">
+   460→                <thead>
+   461→                  <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
+   462→                    <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Category</th>
+   463→                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
+   464→                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Outstanding</th>
+   465→                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Cycle</th>
+   466→                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
+   467→                  </tr>
+   468→                </thead>
+   469→                <tbody>
+   470→                  {tenantServiceCharges.map((sc: any) => {
+   471→                    const isMV = sc.isMinimumVend;
+   472→                    const statusLabel = sc.serviceChargeStatus === 'PAID_FULLY'
+   473→                      ? 'Paid' : sc.serviceChargeStatus === 'PARTIALLY_PAID'
+   474→                      ? 'Partial' : 'Unpaid';
+   475→                    return (
+   476→                      <tr key={sc._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
+   477→                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+   478→                          {isMV ? (sc.category === 'Other' ? 'Minimum Vend' : sc.category) : sc.category}
+   479→                          {isMV && <span className="ml-1 text-[9px] text-emerald-500 font-bold">(MV)</span>}
+   480→                        </td>
+   481→                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">{formatNaira(sc.amount)}</td>
+   482→                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+   483→                          {formatNaira(sc.outstandingBalance ?? sc.amount)}
+   484→                        </td>
+   485→                        <td className="px-4 py-3 text-center text-slate-500 dark:text-zinc-400 text-xs">{sc.cycle}</td>
+   486→                        <td className="px-4 py-3 text-center">
+   487→                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+   488→                            sc.serviceChargeStatus === 'PAID_FULLY'
+   489→                              ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+   490→                              : sc.serviceChargeStatus === 'PARTIALLY_PAID'
+   491→                              ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+   492→                              : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+   493→                          }`}>
+   494→                            {sc.serviceChargeStatus === 'PAID_FULLY'
+   495→                              ? <CheckIcon className="w-3 h-3" />
+   496→                              : <ExclamationTriangleIcon className="w-3 h-3" />}
+   497→                            {statusLabel}
+   498→                          </span>
+   499→                        </td>
+   500→                      </tr>
+   501→                    );
+   502→                  })}
+   503→                </tbody>
+   504→              </table>
+   505→            </div>
+   506→          </div>
+   507→        </div>
+   508→      )}
+   509→
+   510→      {/* Ledger Table */}
+   511→      {hasLedgerData ? (
+   512→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+   513→          <div className="overflow-x-auto">
+   514→            <table className="w-full text-sm">
+   515→              <thead>
+   516→                <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
+   517→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Period</th>
+   518→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Type</th>
+   519→                  <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
+   520→                  <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
+   521→                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Ref</th>
+   522→                </tr>
+   523→              </thead>
+   524→              <tbody>
+   525→                {ledgerEntries.map((entry: any) => (
+   526→                  <tr key={entry._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
+   527→                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+   528→                      {entry.period || formatDate(entry.timestamp)}
+   529→                    </td>
+   530→                    <td className="px-4 py-3 text-slate-600 dark:text-zinc-300 capitalize">
+   531→                      {entry.type?.replace('_', ' ')}
+   532→                    </td>
+   533→                    <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+   534→                      {formatNaira(entry.amount)}
+   535→                    </td>
+   536→                    <td className="px-4 py-3 text-center">
+   537→                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+   538→                        entry.status === 'cleared'
+   539→                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+   540→                          : entry.status === 'defaulted'
+   541→                          ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+   542→                          : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
+   543→                      }`}>
+   544→                        {entry.status === 'cleared'
+   545→                          ? <CheckIcon className="w-3 h-3" />
+   546→                          : <ExclamationTriangleIcon className="w-3 h-3" />}
+   547→                        {entry.status === 'cleared' ? 'Paid' : entry.status === 'defaulted' ? 'Defaulted' : 'Pending'}
+   548→                      </span>
+   549→                    </td>
+   550→                    <td className="px-4 py-3 text-slate-400 dark:text-zinc-500 text-xs font-mono">
+   551→                      {entry.txHash || '—'}
+   552→                    </td>
+   553→                  </tr>
+   554→                ))}
+   555→              </tbody>
+   556→            </table>
+   557→          </div>
+   558→        </div>
+   559→      ) : (
+   560→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   561→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   562→            <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   563→          </div>
+   564→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment records found</p>
+   565→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   566→            Your property manager will add ledger entries as payments become due.
+   567→          </p>
+   568→        </div>
+   569→      )}
+   570→    </div>
+   571→  );
+   572→};
+   573→
+   574→// ─── Receipts Tab ────────────────────────────────────────────────────────────
+   575→const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+   576→  const { currentUser } = useAuth();
+   577→  const firmId = currentUser?.firmId || '';
+   578→  const userId = currentUser?.id || '';
+   579→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   580→
+   581→  // Fetch ledger entries — receipts are cleared entries
+   582→  const ledgerEntries = useQuery(
+   583→    api.portals.getTenantLedger,
+   584→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
+   585→  );
+   586→
+   587→  const isLoading = ledgerEntries === undefined;
+   588→
+   589→  // Filter for cleared entries (these are receipts)
+   590→  const receipts = useMemo(() => {
+   591→    if (!ledgerEntries) return [];
+   592→    return ledgerEntries.filter((e: any) => e.status === 'cleared');
+   593→  }, [ledgerEntries]);
+   594→
+   595→  const handleDownload = (entry: any) => {
+   596→    const receiptHtml = `
+   597→      <!DOCTYPE html>
+   598→      <html>
+   599→      <head>
+   600→        <title>Payment Receipt</title>
+   601→        <style>
+   602→          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1e293b; }
+   603→          .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 20px; margin-bottom: 20px; }
+   604→          .header h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+   605→          .header p { color: #64748b; font-size: 13px; margin: 0; }
+   606→          .receipt-details { background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; }
+   607→          .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+   608→          .row:last-child { border-bottom: none; }
+   609→          .label { color: #64748b; font-size: 13px; }
+   610→          .value { font-weight: 600; font-size: 13px; }
+   611→          .amount { font-size: 28px; font-weight: 800; color: #10b981; text-align: center; margin: 20px 0; }
+   612→          .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+   613→          .badge { display: inline-block; background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+   614→          @media print { body { padding: 0; } }
+   615→        </style>
+   616→      </head>
+   617→      <body>
+   618→        <div class="header">
+   619→          <h1>Practice<span style="color:#f59e0b">Pro</span> <span style="color:#8b5cf6;font-size:13px">ATRIUM</span></h1>
+   620→          <p>Official Payment Receipt</p>
+   621→        </div>
+   622→        <div class="amount">₦${(entry.amount || 0).toLocaleString('en-NG')}</div>
+   623→        <div class="receipt-details">
+   624→          <div class="row"><span class="label">Receipt No</span><span class="value">RCP-${String(entry._id || '').slice(-8).toUpperCase()}</span></div>
+   625→          <div class="row"><span class="label">Date</span><span class="value">${new Date(entry.timestamp || Date.now()).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+   626→          <div class="row"><span class="label">Description</span><span class="value">${entry.description || entry.type?.replace(/_/g, ' ') || 'Payment'}</span></div>
+   627→          <div class="row"><span class="label">Period</span><span class="value">${entry.period || 'N/A'}</span></div>
+   628→          <div class="row"><span class="label">Type</span><span class="value">${(entry.type || 'payment').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span></div>
+   629→          <div class="row"><span class="label">Status</span><span class="value"><span class="badge">PAID</span></span></div>
+   630→          ${tenantInfo?.primaryPropertyName ? `<div class="row"><span class="label">Property</span><span class="value">${tenantInfo.primaryPropertyName}</span></div>` : ''}
+   631→          ${tenantInfo?.primaryUnitName ? `<div class="row"><span class="label">Unit</span><span class="value">${tenantInfo.primaryUnitName}</span></div>` : ''}
+   632→          <div class="row"><span class="label">Tenant</span><span class="value">${currentUser?.name || 'N/A'}</span></div>
+   633→          ${entry.paymentRef ? `<div class="row"><span class="label">Reference</span><span class="value">${entry.paymentRef}</span></div>` : ''}
+   634→        </div>
+   635→        <div class="footer">
+   636→          <p>This is an official receipt generated by PracticePro Atrium.</p>
+   637→          <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+   638→          <p>NDPA 2023 Compliant · AES-256 Encrypted</p>
+   639→        </div>
+   640→        <script>window.onload = function() { window.print(); }</script>
+   641→      </body>
+   642→      </html>
+   643→    `;
+   644→    const printWindow = window.open('', '_blank');
+   645→    if (printWindow) {
+   646→      printWindow.document.write(receiptHtml);
+   647→      printWindow.document.close();
+   648→    } else {
+   649→      addToast('Please allow popups to print your receipt.', { type: 'error' });
+   650→    }
+   651→  };
+   652→
+   653→  if (isLoading) {
+   654→    return (
+   655→      <div className="space-y-3">
+   656→        {[1, 2, 3].map(i => (
+   657→          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   658→            <div className="flex items-center gap-3">
+   659→              <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+   660→              <div className="flex-1">
+   661→                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-2" />
+   662→                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-32" />
+   663→              </div>
+   664→            </div>
+   665→          </div>
+   666→        ))}
+   667→      </div>
+   668→    );
+   669→  }
+   670→
+   671→  return (
+   672→    <div>
+   673→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Receipts</h3>
+   674→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   675→        View and download PDF receipts for your completed payments.
+   676→      </p>
+   677→
+   678→      {receipts.length > 0 ? (
+   679→        <div className="space-y-3">
+   680→          {receipts.map((r: any) => (
+   681→            <div
+   682→              key={r._id}
+   683→              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+   684→            >
+   685→              <div className="flex items-center gap-3 min-w-0">
+   686→                <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+   687→                  <ReceiptIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+   688→                </div>
+   689→                <div className="min-w-0 sm:min-w-0">
+   690→                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+   691→                    {r.description || `${r.type?.replace('_', ' ')} — ${r.period || formatDate(r.timestamp)}`}
+   692→                  </p>
+   693→                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+   694→                    {formatDate(r.timestamp)} · {formatNaira(r.amount)}
+   695→                    {r.paymentRef && <span className="ml-2">Ref: {r.paymentRef}</span>}
+   696→                  </p>
+   697→                </div>
+   698→              </div>
+   699→              <button
+   700→                onClick={() => handleDownload(r)}
+   701→                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+   702→              >
+   703→                <DownloadIcon className="w-3.5 h-3.5" /> Print Receipt
+   704→              </button>
+   705→            </div>
+   706→          ))}
+   707→        </div>
+   708→      ) : (
+   709→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+   710→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+   711→            <DownloadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+   712→          </div>
+   713→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No receipts yet</p>
+   714→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+   715→            Receipts will appear here after your payments are confirmed.
+   716→          </p>
+   717→        </div>
+   718→      )}
+   719→    </div>
+   720→  );
+   721→};
+   722→
+   723→// ─── Maintenance Tab ─────────────────────────────────────────────────────────
+   724→const MaintenanceTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+   725→  const { currentUser } = useAuth();
+   726→  const firmId = currentUser?.firmId || '';
+   727→  const userId = currentUser?.id || '';
+   728→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+   729→
+   730→  const [subject, setSubject] = useState('');
+   731→  const [description, setDescription] = useState('');
+   732→  const [category, setCategory] = useState<'plumbing' | 'electrical' | 'structural' | 'other'>('other');
+   733→  const [isSubmitting, setIsSubmitting] = useState(false);
+   734→  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+   735→  const fileInputRef = useRef<HTMLInputElement>(null);
+   736→
+   737→  // Fetch tickets from Convex
+   738→  const tickets = useQuery(
+   739→    api.portals.getMaintenanceTicketsByTenant,
+   740→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+   741→  );
+   742→
+   743→  // Mutation for creating a ticket
+   744→  const createTicket = useMutation(api.portals.createMaintenanceTicket);
+   745→  // Get upload URL mutation
+   746→  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+   747→
+   748→  // Use tenantInfo to resolve property and unit IDs
+   749→  // This is the KEY FIX: we no longer use coreState (which is empty for portal users)
+   750→  const propertyId = tenantInfo?.primaryPropertyId;
+   751→  const unitId = tenantInfo?.primaryUnitId;
+   752→
+   753→  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+   754→    const files = Array.from(e.target.files || []);
+   755→    // Validate file types: images and PDFs only
+   756→    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
+   757→    const maxSize = 10 * 1024 * 1024; // 10MB
+   758→    const validFiles = files.filter(f => {
+   759→      if (!validTypes.includes(f.type)) {
+   760→        addToast(`"${f.name}" is not a supported file type. Use images or PDFs.`, { type: 'error' });
+   761→        return false;
+   762→      }
+   763→      if (f.size > maxSize) {
+   764→        addToast(`"${f.name}" exceeds 10MB limit.`, { type: 'error' });
+   765→        return false;
+   766→      }
+   767→      return true;
+   768→    });
+   769→    setPendingFiles(prev => [...prev, ...validFiles]);
+   770→    // Reset the input
+   771→    if (fileInputRef.current) fileInputRef.current.value = '';
+   772→  };
+   773→
+   774→  const removeFile = (index: number) => {
+   775→    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+   776→  };
+   777→
+   778→  const handleSubmit = async () => {
+   779→    if (!subject.trim() || !description.trim()) {
+   780→      addToast('Please fill in all fields before submitting.', { type: 'info' });
+   781→      return;
+   782→    }
+   783→    if (!propertyId) {
+   784→      addToast('No property linked to your account. Please contact your property manager to ensure your unit is properly assigned.', { type: 'error' });
+   785→      return;
+   786→    }
+   787→
+   788→    setIsSubmitting(true);
+   789→    try {
+   790→      // Upload files to Convex storage if any
+   791→      let attachmentStorageIds: string[] = [];
+   792→      if (pendingFiles.length > 0) {
+   793→        for (const file of pendingFiles) {
+   794→          try {
+   795→            const postUrl = await generateUploadUrl();
+   796→            const res = await fetch(postUrl, {
+   797→              method: 'POST',
+   798→              body: file,
+   799→            });
+   800→            if (res.ok) {
+   801→              const { storageId } = await res.json();
+   802→              if (storageId) attachmentStorageIds.push(storageId);
+   803→            }
+   804→          } catch (uploadErr) {
+   805→            console.warn('File upload failed:', uploadErr);
+   806→          }
+   807→        }
+   808→      }
+   809→
+   810→      await createTicket({
+   811→        firmId,
+   812→        propertyId,
+   813→        unitId: unitId || undefined,
+   814→        tenantId: resolvedTenantId,
+   815→        tenantName: currentUser?.name || undefined,
+   816→        subject: subject.trim(),
+   817→        description: description.trim(),
+   818→        category,
+   819→        attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
+   820→      });
+   821→      addToast('Maintenance ticket submitted successfully. Your property manager has been notified.', { type: 'success' });
+   822→      setSubject('');
+   823→      setDescription('');
+   824→      setCategory('other');
+   825→      setPendingFiles([]);
+   826→    } catch (err: any) {
+   827→      addToast(err.message || 'Failed to submit ticket. Please try again.', { type: 'error' });
+   828→    } finally {
+   829→      setIsSubmitting(false);
+   830→    }
+   831→  };
+   832→
+   833→  const isLoading = tickets === undefined;
+   834→
+   835→  const getStatusBadge = (status: string) => {
+   836→    const config: Record<string, { bg: string; text: string; label: string }> = {
+   837→      open: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-600 dark:text-amber-400', label: 'Open' },
+   838→      in_progress: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', label: 'In Progress' },
+   839→      resolved: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', label: 'Resolved' },
+   840→      closed: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-600 dark:text-zinc-400', label: 'Closed' },
+   841→    };
+   842→    const c = config[status] || config.open;
+   843→    return (
+   844→      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+   845→        {status === 'resolved' || status === 'closed' ? <CheckIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
+   846→        {c.label}
+   847→      </span>
+   848→    );
+   849→  };
+   850→
+   851→  return (
+   852→    <div>
+   853→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Maintenance Tickets</h3>
+   854→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+   855→        Log maintenance issues directly into your property manager's workflow.
+   856→      </p>
+   857→
+   858→      {/* Property/Unit Info Banner */}
+   859→      {tenantInfo?.primaryPropertyName && (
+   860→        <div className="mb-4 px-4 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 text-sm">
+   861→          <div className="flex items-center gap-2">
+   862→            <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+   863→            <span className="text-emerald-800 dark:text-emerald-300 font-medium">
+   864→              {tenantInfo.primaryUnitName
+   865→                ? `Unit: ${tenantInfo.primaryUnitName} in ${tenantInfo.primaryPropertyName}`
+   866→                : tenantInfo.primaryPropertyName}
+   867→            </span>
+   868→          </div>
+   869→        </div>
+   870→      )}
+   871→
+   872→      {/* New Ticket Form */}
+   873→      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+   874→        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Report New Issue</h4>
+   875→        <div className="space-y-3">
+   876→          <div>
+   877→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Category</label>
+   878→            <select
+   879→              value={category}
+   880→              onChange={e => setCategory(e.target.value as any)}
+   881→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+   882→            >
+   883→              <option value="plumbing">Plumbing</option>
+   884→              <option value="electrical">Electrical</option>
+   885→              <option value="structural">Structural / Roof</option>
+   886→              <option value="other">Other</option>
+   887→            </select>
+   888→          </div>
+   889→          <div>
+   890→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Subject</label>
+   891→            <input
+   892→              value={subject}
+   893→              onChange={e => setSubject(e.target.value)}
+   894→              placeholder="e.g., Leaking roof in bedroom"
+   895→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+   896→            />
+   897→          </div>
+   898→          <div>
+   899→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description</label>
+   900→            <textarea
+   901→              value={description}
+   902→              onChange={e => setDescription(e.target.value)}
+   903→              placeholder="Describe the issue in detail..."
+   904→              rows={3}
+   905→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+   906→            />
+   907→          </div>
+   908→          {/* File Attachments */}
+   909→          <div>
+   910→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Attachments (Optional)</label>
+   911→            <div
+   912→              onClick={() => fileInputRef.current?.click()}
+   913→              className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
+   914→            >
+   915→              <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+   916→              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+   917→                Click to upload photos or PDFs
+   918→              </p>
+   919→              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+   920→                JPG, PNG, GIF, WebP, PDF · Max 10MB each
+   921→              </p>
+   922→            </div>
+   923→            <input
+   924→              ref={fileInputRef}
+   925→              type="file"
+   926→              multiple
+   927→              accept="image/jpeg,image/png,image/gif,image/webp,image/bmp,application/pdf"
+   928→              onChange={handleFileSelect}
+   929→              className="hidden"
+   930→            />
+   931→            {/* Show selected files */}
+   932→            {pendingFiles.length > 0 && (
+   933→              <div className="mt-2 space-y-1">
+   934→                {pendingFiles.map((file, idx) => (
+   935→                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+   936→                    <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
+   937→                    <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
+   938→                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+   939→                    <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
+   940→                      <XCircleIcon className="w-4 h-4" />
+   941→                    </button>
+   942→                  </div>
+   943→                ))}
+   944→              </div>
+   945→            )}
+   946→          </div>
+   947→          <button
+   948→            onClick={handleSubmit}
+   949→            disabled={isSubmitting}
+   950→            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+   951→          >
+   952→            {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+   953→          </button>
+   954→        </div>
+   955→      </div>
+   956→
+   957→      {/* Existing Tickets */}
+   958→      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Your Tickets</h4>
+   959→      {isLoading ? (
+   960→        <div className="space-y-2">
+   961→          {[1, 2].map(i => (
+   962→            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+   963→              <div className="flex items-center gap-3">
+   964→                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+   965→                <div className="flex-1">
+   966→                  <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-40 mb-2" />
+   967→                  <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+   968→                </div>
+   969→              </div>
+   970→            </div>
+   971→          ))}
+   972→        </div>
+   973→      ) : tickets && tickets.length > 0 ? (
+   974→        <div className="space-y-2">
+   975→          {tickets.map((t: any) => (
+   976→            <div
+   977→              key={t._id}
+   978→              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-row items-start sm:items-center justify-between gap-3"
+   979→            >
+   980→              <div className="flex items-center gap-3 min-w-0">
+   981→                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+   982→                  t.status === 'resolved' || t.status === 'closed'
+   983→                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+   984→                    : t.status === 'in_progress'
+   985→                    ? 'bg-blue-50 dark:bg-blue-900/20'
+   986→                    : 'bg-amber-50 dark:bg-amber-900/20'
+   987→                }`}>
+   988→                  <WrenchIcon className={`w-4 h-4 ${
+   989→                    t.status === 'resolved' || t.status === 'closed'
+   990→                      ? 'text-emerald-600 dark:text-emerald-400'
+   991→                      : t.status === 'in_progress'
+   992→                      ? 'text-blue-600 dark:text-blue-400'
+   993→                      : 'text-amber-600 dark:text-amber-400'
+   994→                  }`} />
+   995→                </div>
+   996→                <div className="min-w-0">
+   997→                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
+   998→                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+   999→                    {t.category && <span className="capitalize">{t.category}</span>}
+  1000→                    {t.category && ' · '}
+  1001→                    {formatDate(t.createdAt)}
+  1002→                    {t.attachments?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.attachments.length}</span>}
+  1003→                  </p>
+  1004→                </div>
+  1005→              </div>
+  1006→              <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
+  1007→            </div>
+  1008→          ))}
+  1009→        </div>
+  1010→      ) : (
+  1011→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+  1012→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+  1013→            <WrenchIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+  1014→          </div>
+  1015→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No maintenance tickets</p>
+  1016→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1017→            Use the form above to report any issues in your unit.
+  1018→          </p>
+  1019→        </div>
+  1020→      )}
+  1021→    </div>
+  1022→  );
+  1023→};
+  1024→
+  1025→// ─── Messages Tab ────────────────────────────────────────────────────────────
+  1026→const MessagesTab: React.FC<{ tenantInfo: any; portalSettings: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, portalSettings, addToast }) => {
+  1027→  const { currentUser } = useAuth();
+  1028→  const userId = currentUser?.id || '';
+  1029→  const firmId = currentUser?.firmId || '';
+  1030→  const email = currentUser?.email || '';
+  1031→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+  1032→
+  1033→  // Fetch inbound messages for this tenant from Convex
+  1034→  const messages = useQuery(
+  1035→    api.portals.getInboundMessagesByTenant,
+  1036→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+  1037→  );
+  1038→
+  1039→  // Fetch messages sent by this tenant
+  1040→  const sentMessages = useQuery(
+  1041→    api.portals.getPortalMessagesBySender,
+  1042→    userId ? { senderId: userId } : 'skip'
+  1043→  );
+  1044→
+  1045→  const sendMessage = useMutation(api.portals.sendPortalMessage);
+  1046→  const [messageContent, setMessageContent] = useState('');
+  1047→  const [isSending, setIsSending] = useState(false);
+  1048→
+  1049→  const handleSendMessage = async () => {
+  1050→    if (!messageContent.trim()) {
+  1051→      addToast('Please type a message before sending.', { type: 'info' });
+  1052→      return;
+  1053→    }
+  1054→    setIsSending(true);
+  1055→    try {
+  1056→      await sendMessage({
+  1057→        firmId,
+  1058→        senderId: userId,
+  1059→        senderName: currentUser?.name,
+  1060→        senderEmail: email,
+  1061→        senderRole: 'Tenant',
+  1062→        content: messageContent.trim(),
+  1063→        propertyId: tenantInfo?.primaryPropertyId || undefined,
+  1064→        unitId: tenantInfo?.primaryUnitId || undefined,
+  1065→      });
+  1066→      addToast('Message sent to your property manager.', { type: 'success' });
+  1067→      setMessageContent('');
+  1068→    } catch (err: any) {
+  1069→      addToast(err.message || 'Failed to send message.', { type: 'error' });
+  1070→    } finally {
+  1071→      setIsSending(false);
+  1072→    }
+  1073→  };
+  1074→
+  1075→  const isLoading = messages === undefined || sentMessages === undefined;
+  1076→
+  1077→  // Combine and sort inbound + sent messages
+  1078→  const allMessages = useMemo(() => {
+  1079→    const inbound = (messages || []).map((m: any) => ({ ...m, direction: 'inbound' as const }));
+  1080→    const sent = (sentMessages || []).map((m: any) => ({ ...m, direction: 'outbound' as const }));
+  1081→    return [...inbound, ...sent].sort((a, b) => (b.createdAt || b.receivedAt || 0) - (a.createdAt || a.receivedAt || 0));
+  1082→  }, [messages, sentMessages]);
+  1083→
+  1084→  const getChannelIcon = (channel: string) => {
+  1085→    switch (channel) {
+  1086→      case 'whatsapp':
+  1087→        return (
+  1088→          <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="currentColor">
+  1089→            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  1090→          </svg>
+  1091→        );
+  1092→      case 'email':
+  1093→        return <MailIcon className="w-4 h-4 text-blue-500" />;
+  1094→      default:
+  1095→        return <BellIcon className="w-4 h-4 text-slate-400" />;
+  1096→    }
+  1097→  };
+  1098→
+  1099→  if (isLoading) {
+  1100→    return (
+  1101→      <div className="space-y-3">
+  1102→        {[1, 2, 3].map(i => (
+  1103→          <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+  1104→            <div className="flex items-start gap-3">
+  1105→              <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+  1106→              <div className="flex-1">
+  1107→                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
+  1108→                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+  1109→              </div>
+  1110→            </div>
+  1111→          </div>
+  1112→        ))}
+  1113→      </div>
+  1114→    );
+  1115→  }
+  1116→
+  1117→  return (
+  1118→    <div>
+  1119→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Messages</h3>
+  1120→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+  1121→        {portalSettings?.tenantMessagingEnabled
+  1122→          ? 'Messages from your property manager and your sent messages.'
+  1123→          : 'Recent messages from your property manager.'}
+  1124→      </p>
+  1125→
+  1126→      {/* Send message form (only if messaging is enabled) */}
+  1127→      {portalSettings?.tenantMessagingEnabled && (
+  1128→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 mb-6">
+  1129→          <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Send a Message</h4>
+  1130→          <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+  1131→            Contact your property manager directly.
+  1132→          </p>
+  1133→          <div className="flex gap-2">
+  1134→            <textarea
+  1135→              value={messageContent}
+  1136→              onChange={e => setMessageContent(e.target.value)}
+  1137→              placeholder="Type your message..."
+  1138→              rows={2}
+  1139→              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+  1140→            />
+  1141→            <button
+  1142→              onClick={handleSendMessage}
+  1143→              disabled={isSending || !messageContent.trim()}
+  1144→              className="self-end px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+  1145→            >
+  1146→              <SendIcon className="w-3.5 h-3.5" />
+  1147→              {isSending ? 'Sending...' : 'Send'}
+  1148→            </button>
+  1149→          </div>
+  1150→        </div>
+  1151→      )}
+  1152→
+  1153→      {/* Message List */}
+  1154→      {allMessages.length > 0 ? (
+  1155→        <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+  1156→          {allMessages.map((msg: any) => (
+  1157→            <div
+  1158→              key={msg._id}
+  1159→              className={`bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 ${
+  1160→                msg.direction === 'outbound' ? 'border-l-4 border-l-emerald-400' :
+  1161→                !msg.isRead ? 'border-l-4 border-l-blue-400' : ''
+  1162→              }`}
+  1163→            >
+  1164→              <div className="flex items-start gap-3">
+  1165→                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${
+  1166→                  msg.direction === 'outbound'
+  1167→                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+  1168→                    : 'bg-slate-100 dark:bg-zinc-700'
+  1169→                }`}>
+  1170→                  {msg.direction === 'outbound'
+  1171→                    ? <SendIcon className="w-4 h-4 text-emerald-500" />
+  1172→                    : getChannelIcon(msg.channel)}
+  1173→                </div>
+  1174→                <div className="flex-1 min-w-0">
+  1175→                  <div className="flex items-center gap-2 mb-1">
+  1176→                    <span className={`text-xs font-bold ${
+  1177→                      msg.direction === 'outbound'
+  1178→                        ? 'text-emerald-600 dark:text-emerald-400'
+  1179→                        : 'text-slate-600 dark:text-zinc-300'
+  1180→                    }`}>
+  1181→                      {msg.direction === 'outbound' ? 'You' : (msg.senderName || 'Property Manager')}
+  1182→                    </span>
+  1183→                    <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+  1184→                      {msg.direction === 'outbound' ? 'sent' : msg.channel || 'message'}
+  1185→                    </span>
+  1186→                    {msg.direction === 'inbound' && !msg.isRead && (
+  1187→                      <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
+  1188→                    )}
+  1189→                  </div>
+  1190→                  <p className="text-sm text-slate-700 dark:text-zinc-300 break-words">{msg.content}</p>
+  1191→                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+  1192→                    {formatDate(msg.createdAt || msg.receivedAt)}
+  1193→                  </p>
+  1194→                </div>
+  1195→              </div>
+  1196→            </div>
+  1197→          ))}
+  1198→        </div>
+  1199→      ) : (
+  1200→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+  1201→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+  1202→            <ChatIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+  1203→          </div>
+  1204→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No messages</p>
+  1205→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1206→            {portalSettings?.tenantMessagingEnabled
+  1207→              ? 'Start a conversation with your property manager using the form above.'
+  1208→              : 'No messages from your property manager.'}
+  1209→          </p>
+  1210→        </div>
+  1211→      )}
+  1212→    </div>
+  1213→  );
+  1214→};
+  1215→
+  1216→// ─── Payments Tab (Upload Payment Proof) ─────────────────────────────────────
+  1217→const PaymentsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+  1218→  const { currentUser } = useAuth();
+  1219→  const firmId = currentUser?.firmId || '';
+  1220→  const userId = currentUser?.id || '';
+  1221→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+  1222→
+  1223→  const [description, setDescription] = useState('');
+  1224→  const [amount, setAmount] = useState('');
+  1225→  const [period, setPeriod] = useState('');
+  1226→  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  1227→  const [isSubmitting, setIsSubmitting] = useState(false);
+  1228→  const fileInputRef = useRef<HTMLInputElement>(null);
+  1229→
+  1230→  const submitProof = useMutation(api.portals.submitPaymentProof);
+  1231→  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+  1232→
+  1233→  // Fetch existing payment proofs
+  1234→  const paymentProofs = useQuery(
+  1235→    api.portals.getPaymentProofsByTenant,
+  1236→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+  1237→  );
+  1238→
+  1239→  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  1240→    const files = Array.from(e.target.files || []);
+  1241→    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'application/pdf'];
+  1242→    const maxSize = 10 * 1024 * 1024; // 10MB
+  1243→    const validFiles = files.filter(f => {
+  1244→      if (!validTypes.includes(f.type)) {
+  1245→        addToast(`"${f.name}" is not a supported file type. Use images or PDFs.`, { type: 'error' });
+  1246→        return false;
+  1247→      }
+  1248→      if (f.size > maxSize) {
+  1249→        addToast(`"${f.name}" exceeds 10MB limit.`, { type: 'error' });
+  1250→        return false;
+  1251→      }
+  1252→      return true;
+  1253→    });
+  1254→    setPendingFiles(prev => [...prev, ...validFiles]);
+  1255→    if (fileInputRef.current) fileInputRef.current.value = '';
+  1256→  };
+  1257→
+  1258→  const removeFile = (index: number) => {
+  1259→    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  1260→  };
+  1261→
+  1262→  const handleSubmit = async () => {
+  1263→    if (pendingFiles.length === 0) {
+  1264→      addToast('Please upload at least one payment proof file.', { type: 'info' });
+  1265→      return;
+  1266→    }
+  1267→
+  1268→    setIsSubmitting(true);
+  1269→    try {
+  1270→      // Upload files to Convex storage
+  1271→      const storageIds: string[] = [];
+  1272→      for (const file of pendingFiles) {
+  1273→        try {
+  1274→          const postUrl = await generateUploadUrl();
+  1275→          const res = await fetch(postUrl, {
+  1276→            method: 'POST',
+  1277→            body: file,
+  1278→          });
+  1279→          if (res.ok) {
+  1280→            const { storageId } = await res.json();
+  1281→            if (storageId) storageIds.push(storageId);
+  1282→          }
+  1283→        } catch (uploadErr) {
+  1284→          console.warn('File upload failed:', uploadErr);
+  1285→        }
+  1286→      }
+  1287→
+  1288→      if (storageIds.length === 0) {
+  1289→        addToast('Failed to upload files. Please try again.', { type: 'error' });
+  1290→        setIsSubmitting(false);
+  1291→        return;
+  1292→      }
+  1293→
+  1294→      await submitProof({
+  1295→        firmId,
+  1296→        tenantId: resolvedTenantId,
+  1297→        tenantName: currentUser?.name || undefined,
+  1298→        tenantEmail: currentUser?.email || undefined,
+  1299→        propertyId: tenantInfo?.primaryPropertyId || undefined,
+  1300→        unitId: tenantInfo?.primaryUnitId || undefined,
+  1301→        amount: amount ? parseFloat(amount) : undefined,
+  1302→        period: period.trim() || undefined,
+  1303→        description: description.trim() || undefined,
+  1304→        storageIds,
+  1305→      });
+  1306→
+  1307→      addToast('Payment proof submitted successfully. Your property manager will review it and issue an official receipt.', { type: 'success' });
+  1308→      setDescription('');
+  1309→      setAmount('');
+  1310→      setPeriod('');
+  1311→      setPendingFiles([]);
+  1312→    } catch (err: any) {
+  1313→      addToast(err.message || 'Failed to submit payment proof.', { type: 'error' });
+  1314→    } finally {
+  1315→      setIsSubmitting(false);
+  1316→    }
+  1317→  };
+  1318→
+  1319→  const getStatusBadge = (status: string) => {
+  1320→    switch (status) {
+  1321→      case 'approved':
+  1322→        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"><CheckIcon className="w-3 h-3" /> Approved</span>;
+  1323→      case 'rejected':
+  1324→        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> Rejected</span>;
+  1325→      default:
+  1326→        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"><ExclamationTriangleIcon className="w-3 h-3" /> Pending Review</span>;
+  1327→    }
+  1328→  };
+  1329→
+  1330→  return (
+  1331→    <div>
+  1332→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Payment Proof</h3>
+  1333→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+  1334→        Upload payment receipts or stubs for your property manager to review. Once approved, you will receive an official receipt.
+  1335→      </p>
+  1336→
+  1337→      {/* Upload Form */}
+  1338→      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 mb-6">
+  1339→        <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Submit Payment Proof</h4>
+  1340→        <div className="space-y-3">
+  1341→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1342→            <div>
+  1343→              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Amount (Optional)</label>
+  1344→              <div className="relative">
+  1345→                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
+  1346→                <input
+  1347→                  type="number"
+  1348→                  value={amount}
+  1349→                  onChange={e => setAmount(e.target.value)}
+  1350→                  placeholder="0.00"
+  1351→                  className="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+  1352→                />
+  1353→              </div>
+  1354→            </div>
+  1355→            <div>
+  1356→              <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Period (Optional)</label>
+  1357→              <input
+  1358→                type="text"
+  1359→                value={period}
+  1360→                onChange={e => setPeriod(e.target.value)}
+  1361→                placeholder="e.g., January 2025"
+  1362→                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+  1363→              />
+  1364→            </div>
+  1365→          </div>
+  1366→          <div>
+  1367→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Description (Optional)</label>
+  1368→            <input
+  1369→              type="text"
+  1370→              value={description}
+  1371→              onChange={e => setDescription(e.target.value)}
+  1372→              placeholder="e.g., Rent payment via bank transfer"
+  1373→              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+  1374→            />
+  1375→          </div>
+  1376→          {/* File Upload */}
+  1377→          <div>
+  1378→            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Upload Proof *</label>
+  1379→            <div
+  1380→              onClick={() => fileInputRef.current?.click()}
+  1381→              className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
+  1382→            >
+  1383→              <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+  1384→              <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+  1385→                Click to upload payment receipt or stub
+  1386→              </p>
+  1387→              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+  1388→                JPG, PNG, PDF · Max 10MB each
+  1389→              </p>
+  1390→            </div>
+  1391→            <input
+  1392→              ref={fileInputRef}
+  1393→              type="file"
+  1394→              multiple
+  1395→              accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+  1396→              onChange={handleFileSelect}
+  1397→              className="hidden"
+  1398→            />
+  1399→            {pendingFiles.length > 0 && (
+  1400→              <div className="mt-2 space-y-1">
+  1401→                {pendingFiles.map((file, idx) => (
+  1402→                  <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+  1403→                    <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
+  1404→                    <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
+  1405→                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+  1406→                    <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
+  1407→                      <XCircleIcon className="w-4 h-4" />
+  1408→                    </button>
+  1409→                  </div>
+  1410→                ))}
+  1411→              </div>
+  1412→            )}
+  1413→          </div>
+  1414→          <button
+  1415→            onClick={handleSubmit}
+  1416→            disabled={isSubmitting || pendingFiles.length === 0}
+  1417→            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+  1418→          >
+  1419→            <UploadIcon className="w-4 h-4" />
+  1420→            {isSubmitting ? 'Uploading...' : 'Submit Payment Proof'}
+  1421→          </button>
+  1422→        </div>
+  1423→      </div>
+  1424→
+  1425→      {/* Previous Submissions */}
+  1426→      <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Previous Submissions</h4>
+  1427→      {paymentProofs === undefined ? (
+  1428→        <div className="space-y-2">
+  1429→          {[1, 2].map(i => (
+  1430→            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+  1431→              <div className="flex items-center gap-3">
+  1432→                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+  1433→                <div className="flex-1">
+  1434→                  <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-40 mb-2" />
+  1435→                  <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+  1436→                </div>
+  1437→              </div>
+  1438→            </div>
+  1439→          ))}
+  1440→        </div>
+  1441→      ) : paymentProofs.length > 0 ? (
+  1442→        <div className="space-y-2">
+  1443→          {paymentProofs.map((proof: any) => (
+  1444→            <div
+  1445→              key={proof._id}
+  1446→              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+  1447→            >
+  1448→              <div className="flex items-center gap-3 min-w-0">
+  1449→                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+  1450→                  proof.status === 'approved'
+  1451→                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
+  1452→                    : proof.status === 'rejected'
+  1453→                    ? 'bg-rose-50 dark:bg-rose-900/20'
+  1454→                    : 'bg-amber-50 dark:bg-amber-900/20'
+  1455→                }`}>
+  1456→                  <BanknotesIcon className={`w-4 h-4 ${
+  1457→                    proof.status === 'approved'
+  1458→                      ? 'text-emerald-600 dark:text-emerald-400'
+  1459→                      : proof.status === 'rejected'
+  1460→                      ? 'text-rose-600 dark:text-rose-400'
+  1461→                      : 'text-amber-600 dark:text-amber-400'
+  1462→                  }`} />
+  1463→                </div>
+  1464→                <div className="min-w-0">
+  1465→                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+  1466→                    {proof.description || 'Payment proof'}
+  1467→                    {proof.amount && <span className="ml-2 text-emerald-600 dark:text-emerald-400">₦{proof.amount.toLocaleString()}</span>}
+  1468→                  </p>
+  1469→                  <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1470→                    {proof.period && `${proof.period} · `}
+  1471→                    {formatDate(proof.createdAt)}
+  1472→                    {proof.storageIds?.length > 0 && <span className="ml-1">· {proof.storageIds.length} file(s)</span>}
+  1473→                  </p>
+  1474→                  {proof.adminNote && (
+  1475→                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 italic">
+  1476→                      Note: {proof.adminNote}
+  1477→                    </p>
+  1478→                  )}
+  1479→                </div>
+  1480→              </div>
+  1481→              <div className="flex-shrink-0">{getStatusBadge(proof.status)}</div>
+  1482→            </div>
+  1483→          ))}
+  1484→        </div>
+  1485→      ) : (
+  1486→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+  1487→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+  1488→            <BanknotesIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+  1489→          </div>
+  1490→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment proofs submitted</p>
+  1491→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1492→            Upload a receipt or payment stub above to get an official receipt from your property manager.
+  1493→          </p>
+  1494→        </div>
+  1495→      )}
+  1496→    </div>
+  1497→  );
+  1498→};
+  1499→
+  1500→// ─── Documents Tab ───────────────────────────────────────────────────────────
+  1501→const PrinterIcon: React.FC<{ className?: string }> = ({ className }) => (
+  1502→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+  1503→    <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+  1504→  </svg>
+  1505→);
+  1506→
+  1507→const FolderOpenIcon: React.FC<{ className?: string }> = ({ className }) => (
+  1508→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+  1509→    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  1510→  </svg>
+  1511→);
+  1512→
+  1513→const ShieldCheckIcon: React.FC<{ className?: string }> = ({ className }) => (
+  1514→  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+  1515→    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+  1516→  </svg>
+  1517→);
+  1518→
+  1519→const DocumentsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+  1520→  const { currentUser } = useAuth();
+  1521→  const firmId = currentUser?.firmId || '';
+  1522→  const userId = currentUser?.id || '';
+  1523→  const email = currentUser?.email || '';
+  1524→  const resolvedTenantId = tenantInfo?.tenantId || userId;
+  1525→
+  1526→  // Fetch lease details
+  1527→  const leaseDetails = useQuery(
+  1528→    api.portals.getTenantLeaseDetails,
+  1529→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email } : 'skip'
+  1530→  );
+  1531→
+  1532→  // Fetch consent records
+  1533→  const consentRecords = useQuery(
+  1534→    api.portals.getPortalUserConsentRecords,
+  1535→    email ? { email } : 'skip'
+  1536→  );
+  1537→
+  1538→  // Fetch documents shared with the tenant
+  1539→  const tenantDocs = useQuery(
+  1540→    api.portals.getTenantDocuments,
+  1541→    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email } : 'skip'
+  1542→  );
+  1543→
+  1544→  // Fetch payment proofs (they are also documents)
+  1545→  const paymentProofs = useQuery(
+  1546→    api.portals.getPaymentProofsByTenant,
+  1547→    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+  1548→  );
+  1549→
+  1550→  // View document content in a new window
+  1551→  const handleViewDocument = (doc: any) => {
+  1552→    if (doc.content) {
+  1553→      const html = `
+  1554→        <!DOCTYPE html>
+  1555→        <html>
+  1556→        <head>
+  1557→          <title>${doc.title || 'Document'}</title>
+  1558→          <style>
+  1559→            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
+  1560→            .header { border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 24px; }
+  1561→            .header h1 { font-size: 20px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+  1562→            .header p { color: #64748b; font-size: 13px; margin: 0; }
+  1563→            .content { white-space: pre-wrap; font-size: 14px; }
+  1564→            .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+  1565→            @media print { body { padding: 0; } .no-print { display: none; } }
+  1566→          </style>
+  1567→        </head>
+  1568→        <body>
+  1569→          <div class="header">
+  1570→            <h1>${doc.title || 'Untitled Document'}</h1>
+  1571→            <p>Property: ${tenantInfo?.primaryPropertyName || 'N/A'} ${tenantInfo?.primaryUnitName ? '· Unit: ' + tenantInfo.primaryUnitName : ''}</p>
+  1572→          </div>
+  1573→          <div class="content">${doc.content}</div>
+  1574→          <div class="footer">
+  1575→            <p>PracticePro Atrium · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  1576→          </div>
+  1577→          <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
+  1578→            <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Document</button>
+  1579→          </div>
+  1580→        </body>
+  1581→        </html>
+  1582→      `;
+  1583→      const printWindow = window.open('', '_blank');
+  1584→      if (printWindow) {
+  1585→        printWindow.document.write(html);
+  1586→        printWindow.document.close();
+  1587→      } else {
+  1588→        addToast('Please allow popups to view this document.', { type: 'error' });
+  1589→      }
+  1590→    } else {
+  1591→      addToast('This document has no viewable content.', { type: 'info' });
+  1592→    }
+  1593→  };
+  1594→
+  1595→  // Print lease details
+  1596→  const handlePrintLease = (lease: any) => {
+  1597→    const rd = lease.rentalDetails || {};
+  1598→    const ud = lease.unitDetails || {};
+  1599→    const td = lease.tenancyDetails || {};
+  1600→    const html = `
+  1601→      <!DOCTYPE html>
+  1602→      <html>
+  1603→      <head>
+  1604→        <title>Lease Agreement - ${lease.propertyName || 'Property'}</title>
+  1605→        <style>
+  1606→          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 700px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
+  1607→          .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 20px; margin-bottom: 24px; }
+  1608→          .header h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+  1609→          .header .brand { color: #f59e0b; }
+  1610→          .header p { color: #64748b; font-size: 13px; margin: 0; }
+  1611→          .section { margin-bottom: 24px; }
+  1612→          .section h2 { font-size: 16px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 12px; }
+  1613→          .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+  1614→          .detail-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+  1615→          .detail-label { color: #64748b; font-size: 13px; }
+  1616→          .detail-value { font-weight: 600; font-size: 13px; }
+  1617→          .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+  1618→          .badge { display: inline-block; background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  1619→          @media print { body { padding: 0; } .no-print { display: none; } }
+  1620→        </style>
+  1621→      </head>
+  1622→      <body>
+  1623→        <div class="header">
+  1624→          <h1>Practice<span class="brand">Pro</span> <span style="color:#8b5cf6;font-size:13px">ATRIUM</span></h1>
+  1625→          <p>Lease Agreement Summary</p>
+  1626→        </div>
+  1627→
+  1628→        <div class="section">
+  1629→          <h2>Property Information</h2>
+  1630→          <div class="details-grid">
+  1631→            <div class="detail-row"><span class="detail-label">Property</span><span class="detail-value">${lease.propertyName || 'N/A'}</span></div>
+  1632→            <div class="detail-row"><span class="detail-label">Address</span><span class="detail-value">${lease.propertyAddress || 'N/A'}</span></div>
+  1633→            ${lease.unitName ? `<div class="detail-row"><span class="detail-label">Unit</span><span class="detail-value">${lease.unitName}</span></div>` : ''}
+  1634→            <div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">${lease.propertyType || lease.category || 'N/A'}</span></div>
+  1635→            <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value"><span class="badge">${lease.status || 'Active'}</span></span></div>
+  1636→          </div>
+  1637→        </div>
+  1638→
+  1639→        <div class="section">
+  1640→          <h2>Tenancy Details</h2>
+  1641→          <div class="details-grid">
+  1642→            <div class="detail-row"><span class="detail-label">Tenant</span><span class="detail-value">${rd.tenantName || ud.tenantName || currentUser?.name || 'N/A'}</span></div>
+  1643→            ${rd.rentAmount || ud.rentAmount ? `<div class="detail-row"><span class="detail-label">Rent Amount</span><span class="detail-value">₦${(rd.rentAmount || ud.rentAmount || 0).toLocaleString('en-NG')}</span></div>` : ''}
+  1644→            ${rd.paymentFrequency || td.paymentFrequency ? `<div class="detail-row"><span class="detail-label">Payment Frequency</span><span class="detail-value">${rd.paymentFrequency || td.paymentFrequency || 'Monthly'}</span></div>` : ''}
+  1645→            ${rd.leaseStart || ud.leaseStart || td.startDate ? `<div class="detail-row"><span class="detail-label">Lease Start</span><span class="detail-value">${rd.leaseStart || ud.leaseStart || td.startDate || 'N/A'}</span></div>` : ''}
+  1646→            ${rd.leaseEnd || ud.leaseEnd || td.endDate ? `<div class="detail-row"><span class="detail-label">Lease End</span><span class="detail-value">${rd.leaseEnd || ud.leaseEnd || td.endDate || 'N/A'}</span></div>` : ''}
+  1647→            ${rd.securityDeposit ? `<div class="detail-row"><span class="detail-label">Security Deposit</span><span class="detail-value">₦${rd.securityDeposit.toLocaleString('en-NG')}</span></div>` : ''}
+  1648→          </div>
+  1649→        </div>
+  1650→
+  1651→        ${rd.landlordName ? `
+  1652→        <div class="section">
+  1653→          <h2>Landlord Information</h2>
+  1654→          <div class="details-grid">
+  1655→            <div class="detail-row"><span class="detail-label">Landlord</span><span class="detail-value">${rd.landlordName}</span></div>
+  1656→            ${rd.landlordPhone ? `<div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${rd.landlordPhone}</span></div>` : ''}
+  1657→            ${rd.landlordEmail ? `<div class="detail-row"><span class="detail-label">Email</span><span class="detail-value">${rd.landlordEmail}</span></div>` : ''}
+  1658→          </div>
+  1659→        </div>
+  1660→        ` : ''}
+  1661→
+  1662→        <div class="footer">
+  1663→          <p>This is a summary of your lease details from PracticePro Atrium.</p>
+  1664→          <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+  1665→          <p>NDPA 2023 Compliant · AES-256 Encrypted</p>
+  1666→        </div>
+  1667→        <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
+  1668→          <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Lease</button>
+  1669→        </div>
+  1670→      </body>
+  1671→      </html>
+  1672→    `;
+  1673→    const printWindow = window.open('', '_blank');
+  1674→    if (printWindow) {
+  1675→      printWindow.document.write(html);
+  1676→      printWindow.document.close();
+  1677→    } else {
+  1678→      addToast('Please allow popups to print your lease.', { type: 'error' });
+  1679→    }
+  1680→  };
+  1681→
+  1682→  // Print consent record
+  1683→  const handlePrintConsent = (consent: any) => {
+  1684→    const html = `
+  1685→      <!DOCTYPE html>
+  1686→      <html>
+  1687→      <head>
+  1688→        <title>Terms Acceptance Record</title>
+  1689→        <style>
+  1690→          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
+  1691→          .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 20px; margin-bottom: 24px; }
+  1692→          .header h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+  1693→          .header .brand { color: #f59e0b; }
+  1694→          .header p { color: #64748b; font-size: 13px; margin: 0; }
+  1695→          .details { background: #f8fafc; border-radius: 12px; padding: 24px; margin: 24px 0; }
+  1696→          .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+  1697→          .row:last-child { border-bottom: none; }
+  1698→          .label { color: #64748b; font-size: 13px; }
+  1699→          .value { font-weight: 600; font-size: 13px; }
+  1700→          .badge { display: inline-block; background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  1701→          .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+  1702→          @media print { body { padding: 0; } .no-print { display: none; } }
+  1703→        </style>
+  1704→      </head>
+  1705→      <body>
+  1706→        <div class="header">
+  1707→          <h1>Practice<span class="brand">Pro</span> <span style="color:#8b5cf6;font-size:13px">ATRIUM</span></h1>
+  1708→          <p>Terms & Conditions Acceptance Record</p>
+  1709→        </div>
+  1710→        <div class="details">
+  1711→          <div class="row"><span class="label">User</span><span class="value">${consent.inviteeName || currentUser?.name || 'N/A'}</span></div>
+  1712→          <div class="row"><span class="label">Email</span><span class="value">${consent.inviteeEmail || email}</span></div>
+  1713→          <div class="row"><span class="label">Portal Type</span><span class="value">${consent.portalType === 'resident' ? "Residents' Portal" : 'Client Portal'}</span></div>
+  1714→          <div class="row"><span class="label">Terms Accepted</span><span class="value">${consent.termsAcceptedAt ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
+  1715→          <div class="row"><span class="label">Account Activated</span><span class="value">${consent.acceptedAt ? new Date(consent.acceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
+  1716→          <div class="row"><span class="label">Status</span><span class="value"><span class="badge">ACCEPTED</span></span></div>
+  1717→        </div>
+  1718→        <div class="footer">
+  1719→          <p>This record confirms your acceptance of the PracticePro portal terms and conditions.</p>
+  1720→          <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+  1721→          <p>NDPA 2023 Compliant · ISO 27001 Aligned · AES-256 Encrypted</p>
+  1722→        </div>
+  1723→        <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
+  1724→          <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Record</button>
+  1725→        </div>
+  1726→      </body>
+  1727→      </html>
+  1728→    `;
+  1729→    const printWindow = window.open('', '_blank');
+  1730→    if (printWindow) {
+  1731→      printWindow.document.write(html);
+  1732→      printWindow.document.close();
+  1733→    } else {
+  1734→      addToast('Please allow popups to print this record.', { type: 'error' });
+  1735→    }
+  1736→  };
+  1737→
+  1738→  const isLoading = leaseDetails === undefined || consentRecords === undefined || tenantDocs === undefined;
+  1739→
+  1740→  if (isLoading) {
+  1741→    return (
+  1742→      <div className="space-y-4">
+  1743→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+  1744→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
+  1745→          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
+  1746→          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
+  1747→          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+  1748→        </div>
+  1749→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
+  1750→          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
+  1751→          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
+  1752→          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
+  1753→        </div>
+  1754→      </div>
+  1755→    );
+  1756→  }
+  1757→
+  1758→  const hasLease = leaseDetails && leaseDetails.length > 0;
+  1759→  const hasConsents = consentRecords && consentRecords.length > 0;
+  1760→  const hasDocs = tenantDocs && tenantDocs.length > 0;
+  1761→  const hasProofs = paymentProofs && paymentProofs.length > 0;
+  1762→  const hasAnyContent = hasLease || hasConsents || hasDocs || hasProofs;
+  1763→
+  1764→  return (
+  1765→    <div>
+  1766→      <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">My Documents</h3>
+  1767→      <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+  1768→        View and print your lease agreement, accepted terms, consent records, and shared documents.
+  1769→      </p>
+  1770→
+  1771→      {!hasAnyContent && (
+  1772→        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+  1773→          <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+  1774→            <FolderOpenIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+  1775→          </div>
+  1776→          <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No documents available yet</p>
+  1777→          <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1778→            Your lease agreement, consent records, and shared documents will appear here.
+  1779→          </p>
+  1780→        </div>
+  1781→      )}
+  1782→
+  1783→      {/* ─── Lease Agreement Section ─────────────────────────────────────── */}
+  1784→      {hasLease && (
+  1785→        <div className="mb-6">
+  1786→          <div className="flex items-center gap-2 mb-3">
+  1787→            <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+  1788→            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Lease Agreement</h4>
+  1789→          </div>
+  1790→          <div className="space-y-3">
+  1791→            {leaseDetails.map((lease: any, idx: number) => {
+  1792→              const rd = lease.rentalDetails || {};
+  1793→              const ud = lease.unitDetails || {};
+  1794→              return (
+  1795→                <div
+  1796→                  key={lease.propertyId || idx}
+  1797→                  className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+  1798→                >
+  1799→                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+  1800→                    <div className="flex items-start gap-3 min-w-0">
+  1801→                      <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
+  1802→                        <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+  1803→                      </div>
+  1804→                      <div className="min-w-0">
+  1805→                        <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+  1806→                          {lease.propertyName}
+  1807→                        </p>
+  1808→                        <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1809→                          {lease.unitName ? `Unit: ${lease.unitName} · ` : ''}
+  1810→                          {lease.propertyAddress || 'No address'}
+  1811→                        </p>
+  1812→                        <div className="mt-2 flex flex-wrap gap-2">
+  1813→                          {lease.propertyType && (
+  1814→                            <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+  1815→                              {lease.propertyType}
+  1816→                            </span>
+  1817→                          )}
+  1818→                          {(rd.rentAmount || ud.rentAmount) && (
+  1819→                            <span className="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+  1820→                              ₦{(rd.rentAmount || ud.rentAmount || 0).toLocaleString()}/mo
+  1821→                            </span>
+  1822→                          )}
+  1823→                          {(rd.leaseStart || ud.leaseStart) && (
+  1824→                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 px-2 py-0.5 rounded-full">
+  1825→                              From {rd.leaseStart || ud.leaseStart}
+  1826→                              {(rd.leaseEnd || ud.leaseEnd) ? ` to ${rd.leaseEnd || ud.leaseEnd}` : ''}
+  1827→                            </span>
+  1828→                          )}
+  1829→                        </div>
+  1830→                      </div>
+  1831→                    </div>
+  1832→                    <div className="flex gap-2 flex-shrink-0">
+  1833→                      <button
+  1834→                        onClick={() => handlePrintLease(lease)}
+  1835→                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+  1836→                      >
+  1837→                        <PrinterIcon className="w-3.5 h-3.5" /> Print
+  1838→                      </button>
+  1839→                    </div>
+  1840→                  </div>
+  1841→                </div>
+  1842→              );
+  1843→            })}
+  1844→          </div>
+  1845→        </div>
+  1846→      )}
+  1847→
+  1848→      {/* ─── Terms & Consents Section ───────────────────────────────────── */}
+  1849→      {hasConsents && (
+  1850→        <div className="mb-6">
+  1851→          <div className="flex items-center gap-2 mb-3">
+  1852→            <ShieldCheckIcon className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+  1853→            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Terms & Consents</h4>
+  1854→          </div>
+  1855→          <div className="space-y-3">
+  1856→            {consentRecords.map((consent: any) => (
+  1857→              <div
+  1858→                key={String(consent._id)}
+  1859→                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+  1860→              >
+  1861→                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+  1862→                  <div className="flex items-start gap-3 min-w-0">
+  1863→                    <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center flex-shrink-0">
+  1864→                      <ShieldCheckIcon className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+  1865→                    </div>
+  1866→                    <div className="min-w-0">
+  1867→                      <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+  1868→                        {consent.portalType === 'resident' ? "Residents' Portal Terms & Conditions" : 'Client Portal Terms & Conditions'}
+  1869→                      </p>
+  1870→                      <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1871→                        Accepted on {consent.termsAcceptedAt
+  1872→                          ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  1873→                          : 'N/A'}
+  1874→                      </p>
+  1875→                      <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+  1876→                        <CheckIcon className="w-3 h-3" /> Accepted
+  1877→                      </span>
+  1878→                    </div>
+  1879→                  </div>
+  1880→                  <div className="flex gap-2 flex-shrink-0">
+  1881→                    <button
+  1882→                      onClick={() => handlePrintConsent(consent)}
+  1883→                      className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+  1884→                    >
+  1885→                      <PrinterIcon className="w-3.5 h-3.5" /> Print
+  1886→                    </button>
+  1887→                  </div>
+  1888→                </div>
+  1889→              </div>
+  1890→            ))}
+  1891→          </div>
+  1892→        </div>
+  1893→      )}
+  1894→
+  1895→      {/* ─── Shared Documents Section ───────────────────────────────────── */}
+  1896→      {hasDocs && (
+  1897→        <div className="mb-6">
+  1898→          <div className="flex items-center gap-2 mb-3">
+  1899→            <DocumentIcon className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+  1900→            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Shared Documents</h4>
+  1901→          </div>
+  1902→          <div className="space-y-3">
+  1903→            {tenantDocs.map((doc: any) => (
+  1904→              <div
+  1905→                key={String(doc._id)}
+  1906→                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4"
+  1907→              >
+  1908→                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+  1909→                  <div className="flex items-center gap-3 min-w-0">
+  1910→                    <div className="w-10 h-10 rounded-lg bg-sky-50 dark:bg-sky-900/20 flex items-center justify-center flex-shrink-0">
+  1911→                      <DocumentIcon className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+  1912→                    </div>
+  1913→                    <div className="min-w-0">
+  1914→                      <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+  1915→                        {doc.title || 'Untitled Document'}
+  1916→                      </p>
+  1917→                      <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1918→                        {doc.dateFiled && `${doc.dateFiled} · `}
+  1919→                        {doc.source && <span className="capitalize">{doc.source}</span>}
+  1920→                      </p>
+  1921→                      <div className="mt-1 flex flex-wrap gap-1">
+  1922→                        {doc.isSharedWithClient && (
+  1923→                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+  1924→                            <CheckIcon className="w-3 h-3" /> Shared
+  1925→                          </span>
+  1926→                        )}
+  1927→                        {doc.isSignatureRequested && (
+  1928→                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+  1929→                            <ExclamationTriangleIcon className="w-3 h-3" /> Signature Requested
+  1930→                          </span>
+  1931→                        )}
+  1932→                      </div>
+  1933→                    </div>
+  1934→                  </div>
+  1935→                  <div className="flex gap-2 flex-shrink-0">
+  1936→                    <button
+  1937→                      onClick={() => handleViewDocument(doc)}
+  1938→                      className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 rounded-lg text-xs font-bold hover:bg-sky-100 dark:hover:bg-sky-900/30 transition-colors"
+  1939→                    >
+  1940→                      <EyeIcon className="w-3.5 h-3.5" /> View
+  1941→                    </button>
+  1942→                    <button
+  1943→                      onClick={() => handleViewDocument(doc)}
+  1944→                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-600 transition-colors"
+  1945→                    >
+  1946→                      <PrinterIcon className="w-3.5 h-3.5" /> Print
+  1947→                    </button>
+  1948→                  </div>
+  1949→                </div>
+  1950→              </div>
+  1951→            ))}
+  1952→          </div>
+  1953→        </div>
+  1954→      )}
+  1955→
+  1956→      {/* ─── Payment Proof Records Section ──────────────────────────────── */}
+  1957→      {hasProofs && (
+  1958→        <div className="mb-6">
+  1959→          <div className="flex items-center gap-2 mb-3">
+  1960→            <BanknotesIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+  1961→            <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Payment Proofs</h4>
+  1962→          </div>
+  1963→          <div className="space-y-2">
+  1964→            {paymentProofs.map((proof: any) => (
+  1965→              <div
+  1966→                key={proof._id}
+  1967→                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+  1968→              >
+  1969→                <div className="flex items-center gap-3 min-w-0">
+  1970→                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+  1971→                    proof.status === 'approved'
+  1972→                      ? 'bg-emerald-50 dark:bg-emerald-900/20'
+  1973→                      : proof.status === 'rejected'
+  1974→                      ? 'bg-rose-50 dark:bg-rose-900/20'
+  1975→                      : 'bg-amber-50 dark:bg-amber-900/20'
+  1976→                  }`}>
+  1977→                    <BanknotesIcon className={`w-4 h-4 ${
+  1978→                      proof.status === 'approved'
+  1979→                        ? 'text-emerald-600 dark:text-emerald-400'
+  1980→                        : proof.status === 'rejected'
+  1981→                        ? 'text-rose-600 dark:text-rose-400'
+  1982→                        : 'text-amber-600 dark:text-amber-400'
+  1983→                    }`} />
+  1984→                  </div>
+  1985→                  <div className="min-w-0">
+  1986→                    <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+  1987→                      {proof.description || 'Payment proof'}
+  1988→                      {proof.amount && <span className="ml-2 text-emerald-600 dark:text-emerald-400">₦{proof.amount.toLocaleString()}</span>}
+  1989→                    </p>
+  1990→                    <p className="text-xs text-slate-500 dark:text-zinc-400">
+  1991→                      {proof.period && `${proof.period} · `}
+  1992→                      {formatDate(proof.createdAt)}
+  1993→                      {proof.storageIds?.length > 0 && <span className="ml-1">· {proof.storageIds.length} file(s)</span>}
+  1994→                    </p>
+  1995→                  </div>
+  1996→                </div>
+  1997→                <div className="flex items-center gap-2 flex-shrink-0">
+  1998→                  {proof.status === 'approved' && (
+  1999→                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+  2000→                      <CheckIcon className="w-3 h-3" /> Approved
+
+[showing lines 1-2000 of 2083; use offset=2001 with limit to continue reading]

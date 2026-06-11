@@ -239,7 +239,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
         // Delete from Convex (ignore "already deleted" — cascade returns success)
         await Promise.allSettled(
-            unitIds.map(id => dataHandlers.handleDeleteProperty(id, propertyAddress, true))
+            unitIds.map(id => dataHandlers.handleDeleteProperty(id, propertyAddress))
         );
 
         // Strip legacy contact properties for this address

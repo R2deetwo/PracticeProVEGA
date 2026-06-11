@@ -1,0 +1,990 @@
+     1→import React, { useState, useMemo, useRef, useEffect } from 'react';
+     2→import { useMutation, useConvex } from 'convex/react';
+     3→import { api } from '../../../convex/_generated/api';
+     4→import { useAuth } from '../../contexts/AuthContext';
+     5→import { useCoreState } from '../../contexts/CoreContext';
+     6→import { AutomationMessageType, AutomationChannel } from '../../types';
+     7→import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
+     8→import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
+     9→
+    10→// ── Icons ─────────────────────────────────────────────────────────────────
+    11→const SendIcon = ({ className = "w-4 h-4" }) => (
+    12→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    13→    <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    14→  </svg>
+    15→);
+    16→const EyeIcon = ({ className = "w-4 h-4" }) => (
+    17→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    18→    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    19→  </svg>
+    20→);
+    21→const ZapIcon = ({ className = "w-4 h-4" }) => (
+    22→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    23→    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    24→  </svg>
+    25→);
+    26→
+    27→// ── Types & Labels ────────────────────────────────────────────────────────
+    28→const MSG_TYPE_LABELS: Record<AutomationMessageType, string> = {
+    29→  custom: 'Custom Message', rent_reminder: 'Rent Reminder', late_notice: 'Late Notice', payment_receipt: 'Payment Receipt',
+    30→  service_charge_alert: 'Service Charge Alert', access_restriction: 'Access Restriction',
+    31→  penalty_notice: 'Penalty Notice', lease_renewal: 'Lease Renewal',
+    32→  welcome_note: 'Welcome Note', promotion: 'Promotion/Offer', vendor_update: 'New Vendor Alert',
+    33→  general_announcement: 'General Announcement', maintenance_update: 'Maintenance Update'
+    34→};
+    35→const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
+    36→  custom: <PenLine className="w-3.5 h-3.5" />, rent_reminder: <Calendar className="w-3.5 h-3.5" />, late_notice: <AlertTriangle className="w-3.5 h-3.5" />, payment_receipt: <Receipt className="w-3.5 h-3.5" />,
+    37→  service_charge_alert: <Zap className="w-3.5 h-3.5" />, access_restriction: <Lock className="w-3.5 h-3.5" />, penalty_notice: <Wallet className="w-3.5 h-3.5" />, lease_renewal: <ClipboardList className="w-3.5 h-3.5" />,
+    38→  welcome_note: <Users className="w-3.5 h-3.5" />, promotion: <Gift className="w-3.5 h-3.5" />, vendor_update: <Wrench className="w-3.5 h-3.5" />, general_announcement: <Megaphone className="w-3.5 h-3.5" />, maintenance_update: <Wrench className="w-3.5 h-3.5" />
+    39→};
+    40→const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    41→const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
+    42→const CHANNEL_COLORS: Record<AutomationChannel, string> = {
+    43→  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30',
+    44→  portal: 'text-emerald-400 bg-emerald-900/30',
+    45→};
+    46→
+    47→// ── Helpers ──────────────────────────────────────────────────────────────
+    48→const formatNumberWithCommas = (val: string | number) => {
+    49→    if (!val) return '';
+    50→    const num = parseFloat(val.toString().replace(/,/g, ''));
+    51→    if (isNaN(num)) return val.toString();
+    52→    return num.toLocaleString('en-US');
+    53→};
+    54→const parseFormattedNumber = (val: string) => val.replace(/,/g, '').replace(/[^\d.-]/g, '');
+    55→
+    56→export function buildMessage(
+    57→  type: AutomationMessageType, 
+    58→  unitLabel: string, 
+    59→  tenantName?: string, 
+    60→  amount?: number, 
+    61→  customText?: string, 
+    62→  customTemplates?: Record<string, string>,
+    63→  extraData?: {
+    64→    serviceCharge?: number;
+    65→    legalFee?: number;
+    66→    agencyFee?: number;
+    67→    cautionDeposit?: number;
+    68→    dueDate?: string;
+    69→    firmName?: string;
+    70→  }
+    71→): string {
+    72→  if (customText) return customText;
+    73→
+    74→  const name = tenantName || 'Tenant';
+    75→  const addr = unitLabel;
+    76→  const baseRent = amount || 0;
+    77→  
+    78→  const sc = extraData?.serviceCharge || 0;
+    79→  const lf = extraData?.legalFee || 0;
+    80→  const af = extraData?.agencyFee || 0;
+    81→  const cd = extraData?.cautionDeposit || 0;
+    82→  const totalPayable = baseRent + sc + lf + af + cd;
+    83→  
+    84→  const amtStr = `₦${baseRent.toLocaleString('en-NG')}`;
+    85→  const totalStr = `₦${totalPayable.toLocaleString('en-NG')}`;
+    86→
+    87→  let message = customTemplates?.[type];
+    88→  
+    89→  if (!message) {
+    90→    switch (type) {
+    91→      case 'rent_reminder': 
+    92→        message = `OFFICIAL DEMAND NOTICE\n\nDear {{TENANT_NAME}},\n\nThis is a formal reminder that your payment for {{PROPERTY_ADDRESS}} is due on or before {{DUE_DATE}}.\n\nFinancial Breakdown:\n- Rent: {{AMOUNT}}\n{{SERVICE_CHARGE_LINE}}{{CAUTION_DEPOSIT_LINE}}{{FEES_LINE}}\nTotal Payable: {{TOTAL_PAYABLE}}\n\nPlease ensure payment is made promptly. Thank you.\n\n— {{FIRM_NAME}}`; 
+    93→        break;
+    94→      case 'late_notice': 
+    95→        message = `URGENT: OVERDUE PAYMENT\n\nDear {{TENANT_NAME}},\n\nYour payment of {{TOTAL_PAYABLE}} for {{PROPERTY_ADDRESS}} is now OVERDUE.\n\nPlease make payment immediately to avoid late penalties or access restrictions. Contact management at {{FIRM_NAME}} to confirm your payment.\n\n— {{FIRM_NAME}}`; 
+    96→        break;
+    97→      case 'payment_receipt': 
+    98→        message = `PAYMENT RECEIPT\n\nDear {{TENANT_NAME}},\n\nWe confirm receipt of {{TOTAL_PAYABLE}} for your unit at {{PROPERTY_ADDRESS}}.\n\nThank you for your prompt payment.\n\n— {{FIRM_NAME}}`; 
+    99→        break;
+   100→      case 'service_charge_alert': 
+   101→        message = `SERVICE CHARGE ALERT\n\nDear {{TENANT_NAME}},\n\nYour service charge of ₦${sc.toLocaleString('en-NG')} for {{PROPERTY_ADDRESS}} is outstanding. Please settle this at your earliest convenience to avoid access restrictions.\n\nTotal Payable: {{TOTAL_PAYABLE}}`; 
+   102→        break;
+   103→      case 'access_restriction': 
+   104→        message = `NOTICE OF ACCESS RESTRICTION\n\nAccess to {{PROPERTY_ADDRESS}} has been restricted due to non-payment of outstanding charges totaling {{TOTAL_PAYABLE}}. Please contact {{FIRM_NAME}} immediately to resolve.`; 
+   105→        break;
+   106→      case 'penalty_notice': 
+   107→        message = `PENALTY NOTICE\n\nDear {{TENANT_NAME}},\n\nA late payment penalty has been applied to your account for {{PROPERTY_ADDRESS}}.\n\nRevised Total Payable: {{TOTAL_PAYABLE}}\n\nPlease settle the outstanding balance urgently. — {{FIRM_NAME}}`; 
+   108→        break;
+   109→      case 'lease_renewal': 
+   110→        message = `LEASE RENEWAL\n\nDear {{TENANT_NAME}},\n\nYour lease for {{PROPERTY_ADDRESS}} is expiring soon. We invite you to renew your tenancy agreement. Please contact {{FIRM_NAME}} to discuss renewal terms.`; 
+   111→        break;
+   112→      case 'welcome_note': 
+   113→        message = `Welcome to your new home at {{PROPERTY_ADDRESS}}, {{TENANT_NAME}}! We are excited to have you. Please find the tenant handbook in your portal. — {{FIRM_NAME}}`; 
+   114→        break;
+   115→      case 'promotion': 
+   116→        message = `Hello {{TENANT_NAME}}, we have a special offer for our residents! Get 10% off professional cleaning services this month. Use code: CLEAN10. — {{FIRM_NAME}}`; 
+   117→        break;
+   118→      case 'vendor_update': 
+   119→        message = `Dear {{TENANT_NAME}}, we have partnered with new verified maintenance vendors to serve you better. You can now request plumbing and electrical repairs directly from the app. — {{FIRM_NAME}}`; 
+   120→        break;
+   121→      case 'general_announcement': 
+   122→        message = `Attention residents of {{PROPERTY_ADDRESS}}: Routine maintenance will be carried out on the central generators this Saturday. Expect intermittent power supply between 10am and 2pm. — {{FIRM_NAME}}`; 
+   123→        break;
+   124→      case 'maintenance_update': 
+   125→        message = `Update on your maintenance request for {{PROPERTY_ADDRESS}}: The vendor has confirmed your appointment for tomorrow. Please ensure someone is available to grant access. — {{FIRM_NAME}}`; 
+   126→        break;
+   127→      default: 
+   128→        message = ''; 
+   129→        break;
+   130→    }
+   131→  }
+   132→
+   133→  if (!message) return '';
+   134→
+   135→  const scLine = sc > 0 ? `- Service Charge: ₦${sc.toLocaleString('en-NG')}\n` : '';
+   136→  const cdLine = cd > 0 ? `- Caution Deposit: ₦${cd.toLocaleString('en-NG')}\n` : '';
+   137→  const feesLine = (lf + af) > 0 ? `- Legal/Agency Fees: ₦${(lf + af).toLocaleString('en-NG')}\n` : '';
+   138→
+   139→  let result = message
+   140→    .replace(/\{\{TENANT_NAME\}\}/g, name)
+   141→    .replace(/\{\{AMOUNT\}\}/g, amtStr)
+   142→    .replace(/\{\{TOTAL_PAYABLE\}\}/g, totalStr)
+   143→    .replace(/\{\{SERVICE_CHARGE_LINE\}\}/g, scLine)
+   144→    .replace(/\{\{CAUTION_DEPOSIT_LINE\}\}/g, cdLine)
+   145→    .replace(/\{\{FEES_LINE\}\}/g, feesLine)
+   146→    .replace(/\{\{FIRM_NAME\}\}/g, extraData?.firmName || 'Management');
+   147→
+   148→  // Handle Unit Context smartly
+   149→  if (addr === 'General' || addr === 'All Residents') {
+   150→      result = result.replace(/ for \{\{PROPERTY_ADDRESS\}\}/g, '');
+   151→      result = result.replace(/ at \{\{PROPERTY_ADDRESS\}\}/g, '');
+   152→      result = result.replace(/\{\{PROPERTY_ADDRESS\}\}/g, 'your unit');
+   153→  } else {
+   154→      result = result.replace(/\{\{PROPERTY_ADDRESS\}\}/g, addr);
+   155→  }
+   156→  
+   157→  if (extraData) {
+   158→    result = result.replace(/\{\{SERVICE_CHARGE\}\}/g, `₦${sc.toLocaleString('en-NG')}`);
+   159→    result = result.replace(/\{\{LEGAL_FEE\}\}/g, `₦${lf.toLocaleString('en-NG')}`);
+   160→    result = result.replace(/\{\{AGENCY_FEE\}\}/g, `₦${af.toLocaleString('en-NG')}`);
+   161→    result = result.replace(/\{\{CAUTION_DEPOSIT\}\}/g, `₦${cd.toLocaleString('en-NG')}`);
+   162→    result = result.replace(/\{\{DUE_DATE\}\}/g, extraData.dueDate || 'the due date');
+   163→  }
+   164→  
+   165→  return result;
+   166→}
+   167→
+   168→export interface ComposeModalPrefill {
+   169→  unitId?: string;
+   170→  unitName?: string;
+   171→  tenantName?: string;
+   172→  tenantPhone?: string;
+   173→  tenantEmail?: string;
+   174→  rentAmount?: number;
+   175→  propertyAddress?: string;
+   176→  channel?: AutomationChannel;
+   177→}
+   178→
+   179→// ── Selectable Recipient type ────────────────────────────────────────────
+   180→interface SelectableRecipient {
+   181→  id: string;
+   182→  label: string;
+   183→  tenantName?: string;
+   184→  tenantPhone?: string;
+   185→  tenantEmail?: string;
+   186→  rentAmount?: number;
+   187→  propertyAddress?: string;
+   188→  serviceCharge?: number;
+   189→  legalFee?: number;
+   190→  agencyFee?: number;
+   191→  cautionDeposit?: number;
+   192→}
+   193→
+   194→export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
+   195→  const { coreState } = useCoreState();
+   196→  const { currentUser } = useAuth();
+   197→  const convex = useConvex();
+   198→  const logAuto = useMutation(api.sentry.logAutomation);
+   199→
+   200→  // ── State ────────────────────────────────────────────────────────────
+   201→  const [msgType, setMsgType] = useState<AutomationMessageType>('custom');
+   202→  const [channel, setChannel] = useState<AutomationChannel>(() => prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp'));
+   203→  const [selectedRecipientIds, setSelectedRecipientIds] = useState<string[]>(() => {
+   204→    if (prefill?.unitId) return [prefill.unitId];
+   205→    return [];
+   206→  });
+   207→  const [showFinancials, setShowFinancials] = useState(false);
+   208→  const [countryCode, setCountryCode] = useState('+234');
+   209→  const [amount, setAmount] = useState(() => prefill?.rentAmount ? String(prefill.rentAmount) : '');
+   210→  const [customText, setCustomText] = useState('');
+   211→  const [isEdited, setIsEdited] = useState(false);
+   212→  const [serviceCharge, setServiceCharge] = useState('');
+   213→  const [legalFee, setLegalFee] = useState('');
+   214→  const [agencyFee, setAgencyFee] = useState('');
+   215→  const [cautionDeposit, setCautionDeposit] = useState('');
+   216→  const [dueDate, setDueDate] = useState('');
+   217→  const [step, setStep] = useState<'compose' | 'preview'>('compose');
+   218→  const [loading, setLoading] = useState(false);
+   219→  const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
+   220→  const [recipientSearch, setRecipientSearch] = useState('');
+   221→  const [showUpcoming, setShowUpcoming] = useState(false);
+   222→  const [upcomingLogs, setUpcomingLogs] = useState<any[]>([]);
+   223→  const [upcomingLoading, setUpcomingLoading] = useState(false);
+   224→
+   225→  const dropdownRef = useRef<HTMLDivElement>(null);
+   226→  const searchInputRef = useRef<HTMLInputElement>(null);
+   227→
+   228→  // ── Build selectable recipients using shared grouping hook ───────────
+   229→  const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
+   230→
+   231→  // Convert UnitOptions to SelectableRecipients (only those with tenants)
+   232→  const selectableRecipients = useMemo(() =>
+   233→    flatUnits.filter(u => u.tenantName).map(u => ({
+   234→      id: u.id,
+   235→      label: u.label,
+   236→      tenantName: u.tenantName,
+   237→      tenantPhone: u.tenantPhone,
+   238→      tenantEmail: u.tenantEmail,
+   239→      rentAmount: u.rentAmount,
+   240→      propertyAddress: u.address,
+   241→      serviceCharge: u.serviceCharge,
+   242→      legalFee: u.legalFee,
+   243→      agencyFee: u.agencyFee,
+   244→      cautionDeposit: u.cautionDeposit,
+   245→    })),
+   246→    [flatUnits]
+   247→  );
+   248→
+   249→  const tenantedRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);
+   250→
+   251→  // ── Collapsible group state ─────────────────────────────────────────
+   252→  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+   253→
+   254→  const toggleGroup = (addressKey: string) => {
+   255→    setExpandedGroups(prev => {
+   256→      const next = new Set(prev);
+   257→      if (next.has(addressKey)) next.delete(addressKey); else next.add(addressKey);
+   258→      return next;
+   259→    });
+   260→  };
+   261→
+   262→  // Auto-expand groups that contain selected recipients
+   263→  useEffect(() => {
+   264→    if (selectedRecipientIds.length === 0) return;
+   265→    setExpandedGroups(prev => {
+   266→      const next = new Set(prev);
+   267→      for (const g of propertyGroups) {
+   268→        if (g.isMultiUnit && g.units.some(u => selectedRecipientIds.includes(u.id))) {
+   269→          next.add(g.addressKey);
+   270→        }
+   271→      }
+   272→      return next;
+   273→    });
+   274→  }, [selectedRecipientIds, propertyGroups]);
+   275→
+   276→  // ── Selected recipients data ─────────────────────────────────────────
+   277→  const selectedRecipients = useMemo(() => 
+   278→    selectableRecipients.filter(r => selectedRecipientIds.includes(r.id)),
+   279→    [selectableRecipients, selectedRecipientIds]
+   280→  );
+   281→
+   282→  const isMultiRecipient = selectedRecipients.length > 1;
+   283→
+   284→  // Get the "primary" recipient for template building (first selected, or "General")
+   285→  const primaryRecipient = selectedRecipients[0];
+   286→  const effectiveTenantName = isMultiRecipient 
+   287→    ? 'Resident' 
+   288→    : (primaryRecipient?.tenantName || prefill?.tenantName || '');
+   289→  const effectiveUnitLabel = isMultiRecipient 
+   290→    ? 'All Residents' 
+   291→    : (primaryRecipient?.label || primaryRecipient?.propertyAddress || prefill?.unitName || 'General');
+   292→
+   293→  // ── Auto-fill financials when a single recipient is selected ─────────
+   294→  useEffect(() => {
+   295→    if (selectedRecipients.length === 1) {
+   296→      const r = selectedRecipients[0];
+   297→      if (r.rentAmount) setAmount(r.rentAmount.toString());
+   298→      if (r.serviceCharge) setServiceCharge(r.serviceCharge.toString());
+   299→      if (r.legalFee) setLegalFee(r.legalFee.toString());
+   300→      if (r.agencyFee) setAgencyFee(r.agencyFee.toString());
+   301→      if (r.cautionDeposit) setCautionDeposit(r.cautionDeposit.toString());
+   302→    }
+   303→  }, [selectedRecipientIds]);
+   304→
+   305→  // ── Auto-generate message template ───────────────────────────────────
+   306→  useEffect(() => {
+   307→    if (!isEdited) {
+   308→      const generated = buildMessage(
+   309→        msgType, 
+   310→        effectiveUnitLabel, 
+   311→        effectiveTenantName, 
+   312→        parseFloat(amount) || 0, 
+   313→        undefined,
+   314→        coreState.firmDetails?.automationSettings?.automationTemplates,
+   315→        {
+   316→          serviceCharge: parseFloat(serviceCharge) || 0,
+   317→          legalFee: parseFloat(legalFee) || 0,
+   318→          agencyFee: parseFloat(agencyFee) || 0,
+   319→          cautionDeposit: parseFloat(cautionDeposit) || 0,
+   320→          dueDate,
+   321→          firmName: coreState.firmDetails?.name || 'Management'
+   322→        }
+   323→      );
+   324→      setCustomText(generated);
+   325→    }
+   326→  }, [msgType, effectiveUnitLabel, effectiveTenantName, amount, serviceCharge, legalFee, agencyFee, cautionDeposit, dueDate, isEdited, coreState.firmDetails?.automationSettings?.automationTemplates]);
+   327→
+   328→  // ── Close dropdown on outside click ──────────────────────────────────
+   329→  useEffect(() => {
+   330→    const handleClickOutside = (e: MouseEvent) => {
+   331→      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+   332→        setShowRecipientDropdown(false);
+   333→        setRecipientSearch('');
+   334→      }
+   335→    };
+   336→    document.addEventListener('mousedown', handleClickOutside);
+   337→    return () => document.removeEventListener('mousedown', handleClickOutside);
+   338→  }, []);
+   339→
+   340→  // ── Focus search input when dropdown opens ───────────────────────────
+   341→  useEffect(() => {
+   342→    if (showRecipientDropdown && searchInputRef.current) {
+   343→      searchInputRef.current.focus();
+   344→    }
+   345→  }, [showRecipientDropdown]);
+   346→
+   347→  // ── Load upcoming messages ───────────────────────────────────────────
+   348→  useEffect(() => {
+   349→    if (showUpcoming && firmId) {
+   350→      setUpcomingLoading(true);
+   351→      convex.query(api.sentry.getAutomationLogs, { firmId, limit: 10 })
+   352→        .then((logs: any[]) => {
+   353→          setUpcomingLogs(logs.filter((l: any) => l.status === 'simulated' || l.status === 'sent'));
+   354→          setUpcomingLoading(false);
+   355→        })
+   356→        .catch(() => setUpcomingLoading(false));
+   357→    }
+   358→  }, [showUpcoming, firmId]);
+   359→
+   360→  // ── Toggle recipient selection ────────────────────────────────────────
+   361→  const toggleRecipient = (id: string) => {
+   362→    setSelectedRecipientIds(prev => 
+   363→      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+   364→    );
+   365→  };
+   366→
+   367→  const selectAllTenanted = () => {
+   368→    const allTenantedIds = tenantedRecipients.map(r => r.id);
+   369→    const allSelected = allTenantedIds.every(id => selectedRecipientIds.includes(id));
+   370→    if (allSelected) {
+   371→      setSelectedRecipientIds(prev => prev.filter(id => !allTenantedIds.includes(id)));
+   372→    } else {
+   373→      setSelectedRecipientIds(prev => {
+   374→        const existing = prev.filter(id => !allTenantedIds.includes(id));
+   375→        return [...existing, ...allTenantedIds];
+   376→      });
+   377→    }
+   378→  };
+   379→
+   380→  const removeRecipient = (id: string) => {
+   381→    setSelectedRecipientIds(prev => prev.filter(x => x !== id));
+   382→  };
+   383→
+   384→  // ── Filtered recipients for dropdown search ──────────────────────────
+   385→  const filteredRecipients = useMemo(() => {
+   386→    if (!recipientSearch) return selectableRecipients;
+   387→    const lower = recipientSearch.toLowerCase();
+   388→    return selectableRecipients.filter(r => 
+   389→      r.label.toLowerCase().includes(lower) || 
+   390→      (r.tenantName && r.tenantName.toLowerCase().includes(lower)) ||
+   391→      (r.propertyAddress && r.propertyAddress.toLowerCase().includes(lower))
+   392→    );
+   393→  }, [selectableRecipients, recipientSearch]);
+   394→
+   395→  // ── Build per-recipient messages for preview ─────────────────────────
+   396→  const previewMessages = useMemo(() => {
+   397→    if (selectedRecipients.length === 0) return [];
+   398→    return selectedRecipients.map(r => {
+   399→      const name = r.tenantName || 'Resident';
+   400→      const label = r.label || r.propertyAddress || 'General';
+   401→      const msg = buildMessage(
+   402→        msgType,
+   403→        label,
+   404→        name,
+   405→        parseFloat(amount) || 0,
+   406→        undefined,
+   407→        coreState.firmDetails?.automationSettings?.automationTemplates,
+   408→        {
+   409→          serviceCharge: parseFloat(serviceCharge) || 0,
+   410→          legalFee: parseFloat(legalFee) || 0,
+   411→          agencyFee: parseFloat(agencyFee) || 0,
+   412→          cautionDeposit: parseFloat(cautionDeposit) || 0,
+   413→          dueDate,
+   414→          firmName: coreState.firmDetails?.name || 'Management'
+   415→        }
+   416→      );
+   417→      return { recipient: r, message: msg };
+   418→    });
+   419→  }, [selectedRecipients, msgType, amount, serviceCharge, legalFee, agencyFee, cautionDeposit, dueDate, coreState.firmDetails?.automationSettings?.automationTemplates]);
+   420→
+   421→  // ── Send handler ─────────────────────────────────────────────────────
+   422→  const handleSend = async () => {
+   423→    if (selectedRecipients.length === 0) return;
+   424→    setLoading(true);
+   425→
+   426→    try {
+   427→      let successCount = 0;
+   428→      let failCount = 0;
+   429→      let simulatedCount = 0;
+   430→
+   431→      for (const r of selectedRecipients) {
+   432→        if (channel === 'portal') {
+   433→          // Portal doesn't need phone/email, just a valid unit/recipient
+   434→          if (!r.id) {
+   435→            failCount++;
+   436→            continue;
+   437→          }
+   438→        } else {
+   439→          const recipient = channel === 'email' 
+   440→            ? (r.tenantEmail || '') 
+   441→            : (r.tenantPhone || '');
+   442→          
+   443→          if (!recipient) {
+   444→            failCount++;
+   445→            continue;
+   446→          }
+   447→        }
+   448→
+   449→        const finalRecipient = channel === 'portal'
+   450→          ? (r.id || '')
+   451→          : channel === 'email'
+   452→            ? (r.tenantEmail || '')
+   453→            : `${countryCode}${(r.tenantPhone || '').replace(/^0+/, '')}`;
+   454→
+   455→        // Build personalized message for this recipient
+   456→        const name = r.tenantName || 'Resident';
+   457→        const label = r.label || r.propertyAddress || 'General';
+   458→        const personalizedMessage = buildMessage(
+   459→          msgType,
+   460→          label,
+   461→          name,
+   462→          parseFloat(amount) || 0,
+   463→          undefined,
+   464→          coreState.firmDetails?.automationSettings?.automationTemplates,
+   465→          {
+   466→            serviceCharge: parseFloat(serviceCharge) || 0,
+   467→            legalFee: parseFloat(legalFee) || 0,
+   468→            agencyFee: parseFloat(agencyFee) || 0,
+   469→            cautionDeposit: parseFloat(cautionDeposit) || 0,
+   470→            dueDate,
+   471→            firmName: coreState.firmDetails?.name || 'Management'
+   472→          }
+   473→        );
+   474→
+   475→        let sendResult: { success: boolean; simulated?: boolean; error?: string } = { success: true, simulated: true };
+   476→
+   477→        try {
+   478→          if (channel === 'portal') {
+   479→            // Send message to tenant's portal inbox
+   480→            try {
+   481→              await convex.mutation(api.portals.sendPortalMessage, {
+   482→                firmId,
+   483→                senderId: currentUser?.id || '',
+   484→                senderName: currentUser?.name || 'Property Manager',
+   485→                senderRole: 'admin',
+   486→                subject: getMsgTypeLabel(msgType),
+   487→                content: personalizedMessage,
+   488→                unitId: r.id || undefined,
+   489→              });
+   490→              sendResult = { success: true, simulated: false };
+   491→            } catch (portalErr: any) {
+   492→              sendResult = { success: false, error: portalErr.message };
+   493→            }
+   494→          } else if (channel === 'whatsapp') {
+   495→            sendResult = await convex.action(api.communications.sendWhatsApp, {
+   496→              to: finalRecipient,
+   497→              messageText: personalizedMessage,
+   498→              firmId,
+   499→            });
+   500→          } else if (channel === 'email') {
+   501→            sendResult = await convex.action(api.communications.sendEmail, {
+   502→              to: finalRecipient,
+   503→              subject: `${getMsgTypeLabel(msgType)} — ${coreState.firmDetails?.name || 'Atrium OS'}`,
+   504→              htmlContent: `<p style="font-family:sans-serif;line-height:1.6">${personalizedMessage.replace(/\n/g, '<br/>')}</p>`,
+   505→              firmId,
+   506→            });
+   507→          } else if (channel === 'sms') {
+   508→            // SMS: log as simulated for now
+   509→            sendResult = { success: true, simulated: true };
+   510→          }
+   511→
+   512→          const status = sendResult.simulated ? 'simulated' : sendResult.success ? 'sent' : 'failed';
+   513→          await logAuto({ 
+   514→            firmId, 
+   515→            unitId: r.id || undefined, 
+   516→            messageType: msgType as any, 
+   517→            channel, 
+   518→            recipient: finalRecipient, 
+   519→            messagePreview: personalizedMessage, 
+   520→            status, 
+   521→            triggeredBy: currentUser?.id 
+   522→          });
+   523→
+   524→          if (sendResult.success) {
+   525→            if (sendResult.simulated) {
+   526→              simulatedCount++;
+   527→            } else {
+   528→              successCount++;
+   529→            }
+   530→          } else {
+   531→            failCount++;
+   532→          }
+   533→        } catch {
+   534→          failCount++;
+   535→        }
+   536→      }
+   537→
+   538→      // Summary toast
+   539→      const totalSent = successCount + simulatedCount;
+   540→      if (failCount === 0) {
+   541→        if (simulatedCount > 0) {
+   542→          onToast(`${totalSent} message(s) logged (channel not configured). ${simulatedCount} simulated.`);
+   543→        } else {
+   544→          onToast(`${successCount} message(s) delivered successfully!`);
+   545→        }
+   546→      } else {
+   547→        onToast(`${totalSent} sent, ${failCount} failed. Check logs for details.`);
+   548→      }
+   549→      onClose();
+   550→    } catch (e: any) {
+   551→      console.error("Error during send:", e);
+   552→      onToast(`Error: ${e.message || 'Validation failed'}`);
+   553→    } finally { 
+   554→      setLoading(false); 
+   555→    }
+   556→  };
+   557→
+   558→  // ── Recipient chip component ─────────────────────────────────────────
+   559→  const RecipientChip: React.FC<{ recipient: SelectableRecipient }> = ({ recipient }) => (
+   560→    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700/80 border border-slate-600 text-xs text-white font-medium max-w-[200px]">
+   561→      <span className="truncate">{recipient.label}</span>
+   562→      <button
+   563→        onClick={(e) => { e.stopPropagation(); removeRecipient(recipient.id); }}
+   564→        className="ml-0.5 text-slate-400 hover:text-white flex-shrink-0"
+   565→      >
+   566→        <X className="w-3 h-3" />
+   567→      </button>
+   568→    </span>
+   569→  );
+   570→
+   571→  // ── Render ───────────────────────────────────────────────────────────
+   572→  return (
+   573→    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4 text-white">
+   574→      <div className="bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92vh]">
+   575→        {/* ── Header ─────────────────────────────────────────────────── */}
+   576→        <div className="flex items-center justify-between p-5 border-b border-slate-800 flex-shrink-0">
+   577→          <div>
+   578→            <h3 className="font-bold text-white text-lg">Compose Message</h3>
+   579→            <p className="text-xs text-slate-500">Preview before sending — all sends are logged</p>
+   580→          </div>
+   581→          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none p-1">×</button>
+   582→        </div>
+   583→
+   584→        {step === 'compose' ? (
+   585→          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+   586→            {/* ── Row 1: Message Type + Channel ──────────────────────── */}
+   587→            <div className="grid grid-cols-2 gap-3">
+   588→              <div>
+   589→                <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Message Type</label>
+   590→                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+   591→                  <optgroup label="Standard" className="bg-slate-900">
+   592→                    {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+   593→                  </optgroup>
+   594→                  {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
+   595→                    <optgroup label="Custom Templates" className="bg-slate-900">
+   596→                      {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
+   597→                        <option key={k} value={k}>{getMsgTypeLabel(k)}</option>
+   598→                      ))}
+   599→                    </optgroup>
+   600→                  )}
+   601→                </select>
+   602→              </div>
+   603→              <div>
+   604→                <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Channel</label>
+   605→                <div className="flex gap-1.5">
+   606→                  {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => (
+   607→                    <button
+   608→                      key={ch}
+   609→                      onClick={() => setChannel(ch)}
+   610→                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
+   611→                        channel === ch 
+   612→                          ? CHANNEL_COLORS[ch] + ' ring-1 ring-white/20' 
+   613→                          : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+   614→                      }`}
+   615→                    >
+   616→                      {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : ch === 'portal' ? '🏠 Portal' : '💬 SMS'}
+   617→                    </button>
+   618→                  ))}
+   619→                </div>
+   620→              </div>
+   621→            </div>
+   622→
+   623→            {/* ── Recipients (multi-select chip input) ────────────────── */}
+   624→            <div ref={dropdownRef} className="relative">
+   625→              <div className="flex items-center justify-between mb-1">
+   626→                <label className="block text-xs text-slate-500 uppercase tracking-wider">
+   627→                  Recipients {selectedRecipients.length > 0 && <span className="text-emerald-400">({selectedRecipients.length})</span>}
+   628→                </label>
+   629→                {tenantedRecipients.length > 1 && (
+   630→                  <button
+   631→                    onClick={selectAllTenanted}
+   632→                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50 transition-colors"
+   633→                  >
+   634→                    {tenantedRecipients.every(r => selectedRecipientIds.includes(r.id)) ? 'Deselect All' : 'Select All Tenanted'}
+   635→                  </button>
+   636→                )}
+   637→              </div>
+   638→
+   639→              {/* Chip area + search input */}
+   640→              <div 
+   641→                className="min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-2 focus-within:ring-emerald-500"
+   642→                onClick={() => setShowRecipientDropdown(true)}
+   643→              >
+   644→                {selectedRecipients.map(r => (
+   645→                  <RecipientChip key={r.id} recipient={r} />
+   646→                ))}
+   647→                <input
+   648→                  ref={searchInputRef}
+   649→                  value={recipientSearch}
+   650→                  onChange={e => { setRecipientSearch(e.target.value); setShowRecipientDropdown(true); }}
+   651→                  placeholder={selectedRecipients.length === 0 ? 'Search units or tenants…' : 'Add more…'}
+   652→                  className="flex-1 min-w-[100px] bg-transparent text-sm text-white outline-none placeholder:text-slate-600 py-1"
+   653→                />
+   654→              </div>
+   655→
+   656→              {/* Dropdown list — grouped by building with collapsible sections */}
+   657→              {showRecipientDropdown && (
+   658→                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
+   659→                  {filteredRecipients.length === 0 && (
+   660→                    <div className="px-3 py-2 text-xs text-slate-500">No recipients found</div>
+   661→                  )}
+   662→                  {(() => {
+   663→                    // Build grouped list from filtered recipients
+   664→                    const filteredSet = new Set(filteredRecipients.map(r => r.id));
+   665→
+   666→                    return propertyGroups
+   667→                      .filter(g => g.units.some(u => u.tenantName && filteredSet.has(u.id)))
+   668→                      .map(g => {
+   669→                        const groupUnits = g.units.filter(u => u.tenantName && filteredSet.has(u.id));
+   670→                        if (groupUnits.length === 0) return null;
+   671→
+   672→                        // Single-unit building — show as flat item (no group header needed)
+   673→                        if (!g.isMultiUnit) {
+   674→                          const u = groupUnits[0];
+   675→                          const r = selectableRecipients.find(sr => sr.id === u.id);
+   676→                          if (!r) return null;
+   677→                          return (
+   678→                            <button
+   679→                              key={r.id}
+   680→                              onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
+   681→                              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+   682→                                selectedRecipientIds.includes(r.id) ? 'bg-slate-700/60' : ''
+   683→                              }`}
+   684→                            >
+   685→                              <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+   686→                                selectedRecipientIds.includes(r.id) 
+   687→                                  ? 'bg-emerald-500 border-emerald-500' 
+   688→                                  : 'border-slate-500'
+   689→                              }`}>
+   690→                                {selectedRecipientIds.includes(r.id) && (
+   691→                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+   692→                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+   693→                                  </svg>
+   694→                                )}
+   695→                              </span>
+   696→                              <div className="flex-1 min-w-0">
+   697→                                <div className="text-white truncate">{r.label}</div>
+   698→                                {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+   699→                              </div>
+   700→                            </button>
+   701→                          );
+   702→                        }
+   703→
+   704→                        // Multi-unit building — show collapsible group
+   705→                        const isExpanded = expandedGroups.has(g.addressKey);
+   706→                        const allGroupIds = groupUnits.map(u => u.id);
+   707→                        const allSelected = allGroupIds.every(id => selectedRecipientIds.includes(id));
+   708→                        const someSelected = allGroupIds.some(id => selectedRecipientIds.includes(id));
+   709→
+   710→                        return (
+   711→                          <div key={g.addressKey}>
+   712→                            {/* Group header — clickable to expand/collapse, with select-all checkbox */}
+   713→                            <button
+   714→                              onClick={() => {
+   715→                                if (!isExpanded) toggleGroup(g.addressKey);
+   716→                                else toggleGroup(g.addressKey);
+   717→                              }}
+   718→                              className="w-full text-left px-3 py-2 hover:bg-slate-700/40 transition-colors flex items-center gap-2 border-b border-slate-700/50"
+   719→                            >
+   720→                              <span
+   721→                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center cursor-pointer ${
+   722→                                  allSelected
+   723→                                    ? 'bg-emerald-500 border-emerald-500'
+   724→                                    : someSelected
+   725→                                    ? 'bg-emerald-500/40 border-emerald-500/60'
+   726→                                    : 'border-slate-500'
+   727→                                }`}
+   728→                                onClick={(e) => {
+   729→                                  e.stopPropagation();
+   730→                                  if (allSelected) {
+   731→                                    setSelectedRecipientIds(prev => prev.filter(id => !allGroupIds.includes(id)));
+   732→                                  } else {
+   733→                                    setSelectedRecipientIds(prev => {
+   734→                                      const existing = prev.filter(id => !allGroupIds.includes(id));
+   735→                                      return [...existing, ...allGroupIds];
+   736→                                    });
+   737→                                  }
+   738→                                }}
+   739→                              >
+   740→                                {(allSelected || someSelected) && (
+   741→                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+   742→                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+   743→                                  </svg>
+   744→                                )}
+   745→                              </span>
+   746→                              <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+   747→                              <div className="flex-1 min-w-0">
+   748→                                <span className="text-xs font-semibold text-slate-300 truncate block">{g.shortAddress}</span>
+   749→                                <span className="text-[10px] text-slate-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
+   750→                              </div>
+   751→                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+   752→                            </button>
+   753→
+   754→                            {/* Expanded units */}
+   755→                            {isExpanded && groupUnits.map(u => {
+   756→                              const r = selectableRecipients.find(sr => sr.id === u.id);
+   757→                              if (!r) return null;
+   758→                              return (
+   759→                                <button
+   760→                                  key={r.id}
+   761→                                  onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
+   762→                                  className={`w-full text-left pl-9 pr-3 py-1.5 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+   763→                                    selectedRecipientIds.includes(r.id) ? 'bg-slate-700/40' : ''
+   764→                                  }`}
+   765→                                >
+   766→                                  <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
+   767→                                    selectedRecipientIds.includes(r.id) 
+   768→                                      ? 'bg-emerald-500 border-emerald-500' 
+   769→                                      : 'border-slate-500'
+   770→                                  }`}>
+   771→                                    {selectedRecipientIds.includes(r.id) && (
+   772→                                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+   773→                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+   774→                                      </svg>
+   775→                                    )}
+   776→                                  </span>
+   777→                                  <div className="flex-1 min-w-0">
+   778→                                    <div className="text-white truncate text-xs">{r.label}</div>
+   779→                                    {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+   780→                                  </div>
+   781→                                </button>
+   782→                              );
+   783→                            })}
+   784→                          </div>
+   785→                        );
+   786→                      });
+   787→                  })()}
+   788→                </div>
+   789→              )}
+   790→
+   791→              {isMultiRecipient && (
+   792→                <p className="text-[10px] text-amber-400/80 mt-1 flex items-center gap-1">
+   793→                  <Radio className="w-3 h-3" /> Bulk send: each recipient gets a personalized message
+   794→                </p>
+   795→              )}
+   796→            </div>
+   797→
+   798→            {/* ── Financial Details (collapsible) ────────────────────── */}
+   799→            <div className="border border-slate-800 rounded-xl overflow-hidden">
+   800→              <button
+   801→                onClick={() => setShowFinancials(!showFinancials)}
+   802→                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-400 hover:bg-slate-800/50 transition-colors"
+   803→              >
+   804→                <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
+   805→                  <Receipt className="w-3.5 h-3.5" />
+   806→                  {showFinancials ? 'Hide' : 'Show'} Financial Details
+   807→                </span>
+   808→                {showFinancials ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+   809→              </button>
+   810→              {showFinancials && (
+   811→                <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+   812→                  <div>
+   813→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Rent Amount (₦)</label>
+   814→                    <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+   815→                  </div>
+   816→                  <div>
+   817→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Service Charge (₦)</label>
+   818→                    <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => setServiceCharge(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+   819→                  </div>
+   820→                  <div>
+   821→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Caution Deposit (₦)</label>
+   822→                    <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => setCautionDeposit(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+   823→                  </div>
+   824→                  <div>
+   825→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Legal Fee (₦)</label>
+   826→                    <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => setLegalFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+   827→                  </div>
+   828→                  <div>
+   829→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Agency Fee (₦)</label>
+   830→                    <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => setAgencyFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+   831→                  </div>
+   832→                  <div>
+   833→                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Due Date</label>
+   834→                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" />
+   835→                  </div>
+   836→                </div>
+   837→              )}
+   838→            </div>
+   839→
+   840→            {/* ── Message Content ────────────────────────────────────── */}
+   841→            <div className="pt-2 border-t border-slate-800">
+   842→              <div className="flex items-center justify-between mb-2">
+   843→                <label className="block text-xs text-slate-500 uppercase tracking-wider">Message Content</label>
+   844→                <button 
+   845→                  onClick={() => setIsEdited(false)} 
+   846→                  className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-emerald-400 bg-emerald-900/30 hover:bg-emerald-900/50' : 'text-slate-600 opacity-50 cursor-not-allowed'}`}
+   847→                  disabled={!isEdited}
+   848→                >
+   849→                  Reset Template
+   850→                </button>
+   851→              </div>
+   852→              <textarea 
+   853→                value={customText} 
+   854→                onChange={e => { setCustomText(e.target.value); setIsEdited(true); }} 
+   855→                rows={7}
+   856→                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-sm text-white focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-600 font-mono leading-relaxed resize-none"
+   857→                placeholder="Type your message here..."
+   858→              />
+   859→            </div>
+   860→
+   861→            {/* ── Action Buttons ──────────────────────────────────────── */}
+   862→            <div className="flex gap-3 pt-2">
+   863→              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+   864→              <button 
+   865→                onClick={() => setStep('preview')} 
+   866→                disabled={selectedRecipients.length === 0} 
+   867→                className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+   868→              >
+   869→                <EyeIcon /> Preview {isMultiRecipient ? `(${selectedRecipients.length})` : ''}
+   870→              </button>
+   871→            </div>
+   872→
+   873→            {/* ── Upcoming Messages Panel ─────────────────────────────── */}
+   874→            <div className="border border-slate-800 rounded-xl overflow-hidden">
+   875→              <button
+   876→                onClick={() => setShowUpcoming(!showUpcoming)}
+   877→                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-400 hover:bg-slate-800/50 transition-colors"
+   878→              >
+   879→                <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
+   880→                  <Clock className="w-3.5 h-3.5" />
+   881→                  Upcoming Messages
+   882→                </span>
+   883→                {showUpcoming ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+   884→              </button>
+   885→              {showUpcoming && (
+   886→                <div className="px-4 pb-3">
+   887→                  <div className="flex items-center gap-1 mb-2">
+   888→                    <Clock className="w-3 h-3 text-amber-400" />
+   889→                    <span className="text-[10px] text-amber-400/80">Scheduled message queue coming soon.</span>
+   890→                  </div>
+   891→                  {upcomingLoading ? (
+   892→                    <div className="text-xs text-slate-500 py-2 text-center">Loading…</div>
+   893→                  ) : upcomingLogs.length === 0 ? (
+   894→                    <div className="text-xs text-slate-600 py-2 text-center">No recent messages found</div>
+   895→                  ) : (
+   896→                    <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar">
+   897→                      {upcomingLogs.map((log: any) => (
+   898→                        <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/60 border border-slate-700/50">
+   899→                          <span className="text-slate-400">{getMsgTypeIcon(log.messageType)}</span>
+   900→                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel as AutomationChannel]}`}>
+   901→                            {log.channel?.toUpperCase()}
+   902→                          </span>
+   903→                          <span className="text-xs text-white truncate flex-1">{getMsgTypeLabel(log.messageType)}</span>
+   904→                          <span className="text-[10px] text-slate-500 flex-shrink-0">
+   905→                            {log.sentAt ? new Date(log.sentAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+   906→                          </span>
+   907→                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+   908→                            log.status === 'sent' ? 'bg-green-900/30 text-green-400' 
+   909→                            : log.status === 'simulated' ? 'bg-amber-900/30 text-amber-400' 
+   910→                            : 'bg-red-900/30 text-red-400'
+   911→                          }`}>
+   912→                            {log.status}
+   913→                          </span>
+   914→                        </div>
+   915→                      ))}
+   916→                    </div>
+   917→                  )}
+   918→                </div>
+   919→              )}
+   920→            </div>
+   921→          </div>
+   922→        ) : (
+   923→          /* ── Preview Step ────────────────────────────────────────────── */
+   924→          <div className="p-5 overflow-y-auto flex-1">
+   925→            {/* Recipients summary for multi-send */}
+   926→            {isMultiRecipient && (
+   927→              <div className="mb-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700">
+   928→                <div className="flex items-center gap-2 mb-2">
+   929→                  <Users className="w-4 h-4 text-emerald-400" />
+   930→                  <span className="text-sm font-bold text-white">Sending to {selectedRecipients.length} recipients</span>
+   931→                </div>
+   932→                <div className="flex flex-wrap gap-1">
+   933→                  {selectedRecipients.map(r => (
+   934→                    <span key={r.id} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-700 text-slate-300 truncate max-w-[160px]">
+   935→                      {r.label}
+   936→                    </span>
+   937→                  ))}
+   938→                </div>
+   939→              </div>
+   940→            )}
+   941→
+   942→            {/* Message preview(s) */}
+   943→            {!isMultiRecipient ? (
+   944→              /* Single recipient — show full message */
+   945→              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 mb-4">
+   946→                <div className="flex items-center gap-2 mb-3">
+   947→                  <span className="text-lg">{MSG_TYPE_ICONS[msgType]}</span>
+   948→                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
+   949→                  {primaryRecipient && <span className="text-xs text-slate-500">→ {primaryRecipient.tenantPhone || primaryRecipient.tenantEmail || primaryRecipient.label}</span>}
+   950→                </div>
+   951→                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{customText}</p>
+   952→              </div>
+   953→            ) : (
+   954→              /* Multiple recipients — show first full + count */
+   955→              <div className="space-y-2 mb-4">
+   956→                {previewMessages.slice(0, 3).map((pm, i) => (
+   957→                  <div key={pm.recipient.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+   958→                    <div className="flex items-center gap-2 mb-2">
+   959→                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
+   960→                      <span className="text-xs text-slate-400 font-medium">{pm.recipient.label}</span>
+   961→                      {pm.recipient.tenantPhone && <span className="text-[10px] text-slate-600">→ {pm.recipient.tenantPhone}</span>}
+   962→                      {pm.recipient.tenantEmail && !pm.recipient.tenantPhone && <span className="text-[10px] text-slate-600">→ {pm.recipient.tenantEmail}</span>}
+   963→                    </div>
+   964→                    <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap line-clamp-4">{pm.message}</p>
+   965→                  </div>
+   966→                ))}
+   967→                {previewMessages.length > 3 && (
+   968→                  <div className="text-xs text-slate-500 text-center py-1">
+   969→                    + {previewMessages.length - 3} more personalized messages
+   970→                  </div>
+   971→                )}
+   972→              </div>
+   973→            )}
+   974→
+   975→            <p className="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
+   976→              <ZapIcon className="w-3 h-3" /> Review message carefully before sending. Logs are always recorded.
+   977→            </p>
+   978→            <div className="flex gap-3">
+   979→              <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">← Edit</button>
+   980→              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+   981→                <SendIcon /> {loading ? 'Sending…' : `Confirm & Send${isMultiRecipient ? ` (${selectedRecipients.length})` : ''}`}
+   982→              </button>
+   983→            </div>
+   984→          </div>
+   985→        )}
+   986→      </div>
+   987→    </div>
+   988→  );
+   989→};
+   990→
