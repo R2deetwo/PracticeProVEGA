@@ -2,12 +2,10 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { useMatterState } from '../../contexts/MatterContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
-import { Matter } from '../../types';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon, BanknotesIcon,
@@ -124,7 +122,6 @@ const FilterSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
 const ClientDashboard: React.FC = () => {
     // ── ALL HOOKS CALLED FIRST (before any conditional returns) ──────────
     const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
-    const { matterState } = useMatterState();
     const { coreState } = useCoreState();
     const { navigateTo, openModal, addToast } = useUI();
     const { canUseClientPortal } = useFeatures();
@@ -136,21 +133,41 @@ const ClientDashboard: React.FC = () => {
     const [selectedMatterForMessage, setSelectedMatterForMessage] = useState<string>('');
     const [isComposing, setIsComposing] = useState(false);
 
-    // ── Data Derivation ──────────────────────────────────────────────────
-    const clientContact = matterState.contacts.find(c => c.userId === currentUser?.id);
-    const clientMatters = clientContact
-        ? matterState.matters.filter(m => m.clientId === clientContact.id)
-        : [];
+    // ── Data Derivation via direct Convex queries ──────────────────────────
+    // Portal users don't have matterState (DataProvider skips firm data),
+    // so we use dedicated portal queries that look up the contact by userId.
+
+    // 1. Look up the client's contact record by userId
+    const clientContactResult = useQuery(
+        api.portals.getClientContactByUserId,
+        (currentUser?.id && currentUser?.firmId)
+            ? { firmId: currentUser.firmId, userId: currentUser.id }
+            : 'skip'
+    );
+
+    // 2. Get the client's matters directly from Convex
+    const clientMattersResult = useQuery(
+        api.portals.getClientMattersByUserId,
+        (currentUser?.id && currentUser?.firmId)
+            ? { firmId: currentUser.firmId, userId: currentUser.id }
+            : 'skip'
+    );
+
+    // Derive contactId for the other portal queries
+    const clientContactId = clientContactResult?._id ? String(clientContactResult._id) : null;
 
     // Convex queries — always called, use "skip" when args not ready
-    const portalQueryArgs = (clientContact?.id && currentUser?.firmId)
-        ? { firmId: currentUser.firmId, contactId: clientContact.id }
+    const portalQueryArgs = (clientContactId && currentUser?.firmId)
+        ? { firmId: currentUser.firmId, contactId: clientContactId }
         : 'skip';
 
     const clientDocs = useQuery(api.portals.getClientDocuments, portalQueryArgs);
     const clientMessages = useQuery(api.portals.getClientMessages, portalQueryArgs);
     const clientActivity = useQuery(api.portals.getClientActivity, portalQueryArgs);
     const clientInvoices = useQuery(api.portals.getClientInvoices, portalQueryArgs);
+
+    // Use the Convex-queried matters (not matterState which is empty for portal users)
+    const clientMatters = (clientMattersResult || []) as any[];
 
     // ── Access Control (after all hooks) ─────────────────────────────────
     if (!currentUser || currentUser.role !== 'Client') {
@@ -191,13 +208,13 @@ const ClientDashboard: React.FC = () => {
     }, [clientInvoices]);
 
     const getUserName = (userId: string): string => {
-        const user = coreState.users.find(u => u.id === userId);
+        const user = coreState.users?.find(u => u.id === userId);
         return user?.name || 'Unknown';
     };
 
-    const getLawyerNames = (matter: Matter): string[] => {
+    const getLawyerNames = (matter: any): string[] => {
         if (!matter.assignedUsers || matter.assignedUsers.length === 0) return [];
-        return matter.assignedUsers.map(uid => getUserName(uid)).filter(n => n !== 'Unknown');
+        return matter.assignedUsers.map((uid: string) => getUserName(uid)).filter((n: string) => n !== 'Unknown');
     };
 
     const getUpcomingDeadlines = (matterId: string): string[] => {

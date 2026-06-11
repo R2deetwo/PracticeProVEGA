@@ -70,10 +70,10 @@ const TenantPortalLogin: React.FC = () => {
                     }
                 }
                 addToast("Welcome to the Residents' Portal.", { type: 'success' });
-                // Full page reload ensures clean state initialization for the portal session
-                // Using window.location instead of navigate() avoids race conditions with
-                // auth state loading and the flow state machine
-                window.location.href = '/';
+                // Use React Router navigate instead of window.location.href to preserve
+                // in-memory React state (sessionToken, currentUser). A full page reload
+                // destroys all state, causing the user to fall back to the LandingPage.
+                navigate('/', { replace: true });
             } else {
                 if (result.isLocked) {
                     setError('Your account has been locked. Please contact your property manager.');

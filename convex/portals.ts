@@ -269,6 +269,32 @@ export const insertInviteRecord = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+
+    // Clean up any existing invites for the same email + firm + portal type.
+    // This prevents "invitation already accepted" errors when re-inviting
+    // after a previous invite was deleted via the simple deletePortalInvite
+    // (which doesn't clean up). We mark old invites as "superseded" rather
+    // than deleting them, so there's an audit trail.
+    const email = (args.inviteeEmail || "").toLowerCase().trim();
+    if (email) {
+      const existingInvites = await ctx.db
+        .query("portal_invites")
+        .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+        .collect();
+
+      for (const inv of existingInvites) {
+        // Only supersede invites for the same firm and portal type
+        if (inv.firmId === args.firmId && inv.portalType === args.portalType) {
+          if (inv.status === "pending" || inv.status === "accepted") {
+            await ctx.db.patch(inv._id, {
+              status: "superseded",
+              updatedAt: now,
+            });
+          }
+        }
+      }
+    }
+
     return await ctx.db.insert("portal_invites", {
       firmId: args.firmId,
       inviterId: args.inviterId,
@@ -703,6 +729,8 @@ export const setupPortalPassword = action({
           ...(args.name && !existingUser.name ? { name: args.name } : {}),
           ...(needsRoleUpdate ? { role: portalRole } : {}),
           ...(needsFirmId ? { firmId: invite.firmId } : {}),
+          // Online presence privacy: property/resident portals default to hidden
+          portalPresenceHidden: invite.portalType === "resident" ? true : (existingUser as any).portalPresenceHidden ?? false,
         },
       });
     } else {
@@ -724,6 +752,10 @@ export const setupPortalPassword = action({
         emailVerified: true,
         firmId: invite.firmId,
         avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`,
+        // Online presence privacy: property/resident portals default to hidden
+        // (portal users can't see if the manager is online). Legal/client portals
+        // default to visible (clients can see if their lawyer is online).
+        portalPresenceHidden: invite.portalType === "resident",
       });
     }
 
@@ -1035,5 +1067,66 @@ export const migratePortalUserRoles = mutation({
     }
 
     return { migrated, message: `Migrated ${migrated} Portal User(s) to Client/Tenant roles.` };
+  },
+});
+
+// ─── Client Contact Lookup for Portal ──────────────────────────────────────
+
+/**
+ * getClientContactByUserId — Finds the contact record for a portal client
+ * using their user ID. This is needed because the DataProvider skips loading
+ * firm data for portal users, so matterState.contacts is empty. The
+ * ClientDashboard uses this to find the contactId needed for its portal queries.
+ */
+export const getClientContactByUserId = query({
+  args: { firmId: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    return contacts.find(c => c.userId === args.userId) || null;
+  },
+});
+
+/**
+ * getClientMattersByUserId — Returns the matters for a portal client,
+ * looking up the contact by userId first. This avoids the ClientDashboard
+ * needing to depend on matterState (which is empty for portal users).
+ */
+export const getClientMattersByUserId = query({
+  args: { firmId: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    // Find the contact for this user
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    const clientContact = contacts.find(c => c.userId === args.userId);
+    if (!clientContact) return [];
+
+    // Find matters for this contact
+    const matters = await ctx.db
+      .query("matters")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    return matters
+      .filter(m => m.clientId === String(clientContact._id))
+      .map(m => ({
+        id: String(m._id),
+        title: m.title,
+        suitNumber: m.suitNumber,
+        referenceNumber: m.referenceNumber,
+        stage: m.stage,
+        status: m.status,
+        type: m.type,
+        nextAdjournedDate: m.nextAdjournedDate,
+        stageLastUpdated: m.stageLastUpdated,
+        assignedUsers: m.assignedUsers,
+        clientId: m.clientId,
+      }));
   },
 });

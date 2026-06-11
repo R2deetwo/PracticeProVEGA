@@ -75,7 +75,12 @@ const RoleBadge: React.FC<{ role: UserRole, isPrimaryAdmin: boolean }> = ({ role
     }
 
     return (
-        <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded-md ${classes}`}>
+        <span className={`px-2 py-0.5 text-xs font-bold uppercase tracking-wider rounded-md ${classes} inline-flex items-center gap-1`}>
+            {isPortalUser && (
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+            )}
             {label}
         </span>
     );

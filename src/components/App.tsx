@@ -571,16 +571,16 @@ export const App: React.FC = () => {
         // navigates to the login page while already logged in.
         if (location.pathname === '/portal/client/login') {
             if (currentUser && currentUser.role === UserRole.Client) {
-                // Already logged in as client — redirect to portal
-                window.location.href = '/';
+                // Already logged in as client — redirect to portal dashboard via React Router
+                navigate('/', { replace: true });
                 return null;
             }
             return <ClientPortalLogin />;
         }
         if (location.pathname === '/portal/tenant/login') {
             if (currentUser && currentUser.role === UserRole.Tenant) {
-                // Already logged in as tenant — redirect to portal
-                window.location.href = '/';
+                // Already logged in as tenant — redirect to portal dashboard via React Router
+                navigate('/', { replace: true });
                 return null;
             }
             return <TenantPortalLogin />;

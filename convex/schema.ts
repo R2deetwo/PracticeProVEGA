@@ -1122,7 +1122,7 @@ export default defineSchema({
     relatedId: v.optional(v.string()),      // matterId for client, propertyId for resident
     token: v.optional(v.string()),           // unique invite token for magic-link URL (old invites may lack this)
     channel: v.optional(v.string()),        // "email" | "whatsapp" | "both" — how the invite was sent
-    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked")),
+    status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked"), v.literal("superseded")),
     message: v.optional(v.string()),
     acceptedAt: v.optional(v.number()),
     expiresAt: v.number(),

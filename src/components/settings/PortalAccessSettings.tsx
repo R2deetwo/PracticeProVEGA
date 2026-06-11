@@ -86,6 +86,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     accepted: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400', label: 'Active' },
     expired: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-500 dark:text-zinc-400', label: 'Expired' },
     revoked: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-400', label: 'Revoked' },
+    superseded: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-400 dark:text-zinc-500', label: 'Superseded' },
   };
   const c = cfg[status] || cfg.pending;
   return (
@@ -94,6 +95,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
       {status === 'accepted' && <CheckIcon className="w-3 h-3" />}
       {status === 'expired' && <ExclamationTriangleIcon className="w-3 h-3" />}
       {status === 'revoked' && <XIcon className="w-3 h-3" />}
+      {status === 'superseded' && <RefreshIcon className="w-3 h-3" />}
       {c.label}
     </span>
   );
@@ -734,7 +736,7 @@ const PortalSection: React.FC<{
 // ─── Main Component ────────────────────────────────────────────────────────
 export const PortalAccessSettings: React.FC = () => {
   const { currentUser, loginAsUser } = useAuth();
-  const { addToast } = useUI();
+  const { addToast, navigateTo } = useUI();
   const { isProperty, isLegal, isUnified } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
 
@@ -851,12 +853,13 @@ export const PortalAccessSettings: React.FC = () => {
       onboardingCompleted: true,
       showProTips: false,
       product: invite.portalType === 'client' ? 'legal' : 'property',
+      portalPresenceHidden: invite.portalType === 'resident',
     };
     loginAsUser(portalUser as any);
     addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Click "Return to Admin" at the top to go back.`, { type: 'success' });
     // Navigate to root so the portal dashboard is shown (not the settings page)
-    // Using window.location for a clean state reset during impersonation
-    setTimeout(() => { window.location.href = '/'; }, 300);
+    // Use navigate() to preserve in-memory state during impersonation
+    navigateTo('dashboard');
   };
 
   const isLoading = invites === undefined;
