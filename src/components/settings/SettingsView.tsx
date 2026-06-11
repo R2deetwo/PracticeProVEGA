@@ -111,7 +111,7 @@ export const SettingsView: React.FC = () => {
     const permissions = usePermissions();
 
     const isDemo = currentUser?.email === 'demo@practicepro.ng';
-    const { isLegal, isProperty } = useProduct();
+    const { isLegal, isProperty, isUnified } = useProduct();
     const selectedWorkflowId = currentHistoryEntry.context?.selectedWorkflowId;
     const selectedSubCategory = currentHistoryEntry.context?.selectedSubCategory;
 
@@ -298,7 +298,7 @@ export const SettingsView: React.FC = () => {
                                 }
                                 <NavItem label="Billing & Plans" icon={<div className="font-serif font-bold px-1">₦</div>} isActive={activeTab === 'subscription'} onClick={() => handleNavClick('subscription')} />
                                 <NavItem label="Communications" icon={<MessagingIcon />} isActive={activeTab === 'communications'} onClick={() => handleNavClick('communications')} />
-                                <NavItem label={isProperty ? "Residents' Portal" : 'Client Portal'} icon={<ShieldCheckIcon className="text-primary-500" />} id="portal-access" isActive={activeTab === 'portal'} onClick={() => handleNavClick('portal')} />
+                                <NavItem label={isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal'} icon={<ShieldCheckIcon className="text-primary-500" />} id="portal-access" isActive={activeTab === 'portal'} onClick={() => handleNavClick('portal')} />
                                 {permissions.canManageTemplates && <NavItem label={isProperty ? 'Portfolio Configuration' : 'Firm Configuration'} icon={<ClipboardListIcon />} isActive={activeTab === 'templates'} onClick={() => handleNavClick('templates')} />}
 
 
