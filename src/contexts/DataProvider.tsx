@@ -362,8 +362,39 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [isPortalUser, isDataLoaded]);
 
+    // ── Portal-specific: Lightweight firm info ──────────────────────────
+    // Portal users need firmDetails (subscriptionPlan, product) so that
+    // useFeatures() can evaluate feature gates correctly. Without this,
+    // the portal dashboard shows "Portal Unavailable" because useFeatures
+    // defaults to Core plan when firmDetails is empty.
+    const shouldLoadFirmBasicInfo = !isDemo && isPortalUser && !!currentUser?.firmId;
+    const firmBasicInfo = useQuery(
+        api.myFunctions.getFirmBasicInfo,
+        shouldLoadFirmBasicInfo ? { firmId: currentUser!.firmId! } : 'skip'
+    );
+
+    // Merge firm basic info into appState for portal users
+    React.useEffect(() => {
+        if (isPortalUser && firmBasicInfo && currentUser?.firmId) {
+            setAppState(prev => ({
+                ...prev,
+                firmDetails: {
+                    ...prev.firmDetails,
+                    _id: (firmBasicInfo as any)._id,
+                    id: (firmBasicInfo as any).id || (firmBasicInfo as any)._id,
+                    name: (firmBasicInfo as any).name || prev.firmDetails.name,
+                    subscriptionPlan: (firmBasicInfo as any).subscriptionPlan || prev.firmDetails.subscriptionPlan,
+                    product: (firmBasicInfo as any).product || prev.firmDetails.product,
+                    address: (firmBasicInfo as any).address || prev.firmDetails.address,
+                    inviteCode: (firmBasicInfo as any).inviteCode || prev.firmDetails.inviteCode,
+                    aiSettings: (firmBasicInfo as any).aiSettings || prev.firmDetails.aiSettings,
+                },
+            }));
+        }
+    }, [isPortalUser, firmBasicInfo, currentUser?.firmId]);
+
     // Phase A — fast metadata (lists only)
-    // Portal users don't need firm data — skip these heavy queries
+    // Portal users don't need full firm data — skip these heavy queries
     const shouldLoadFirmData = !isDemo && !isPortalUser && !!currentUser?.firmId;
     const firmMetadata = useQuery(
         api.myFunctions.getFirmMetadata,

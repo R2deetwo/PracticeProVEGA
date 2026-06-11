@@ -1,12 +1,24 @@
 
 import { useDataState } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
 import { SubscriptionPlan } from '../types';
 import { isPropertyCapable, isLegalCapable, isKomplete } from '../constants/tiers';
 
 export const useFeatures = () => {
     const { appState } = useDataState();
-    const plan = appState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
-    const product = appState.firmDetails.product || 'legal';
+    const { currentUser } = useAuth();
+
+    // Derive plan and product from firm details, with fallback to currentUser
+    // for portal users (Client/Tenant) whose firm data may not be loaded yet.
+    // This prevents portal users from seeing "Portal Unavailable" when
+    // DataProvider hasn't loaded firmDetails for them.
+    const plan = appState.firmDetails.subscriptionPlan
+        || (currentUser?.role === 'Client' || currentUser?.role === 'Tenant'
+            ? SubscriptionPlan.Komplete  // Portal users: assume full access until firm data loads
+            : SubscriptionPlan.Core);
+    const product = appState.firmDetails.product
+        || currentUser?.product
+        || 'legal';
 
     // ─── Product Mode ────────────────────────────────────────────────────
     const isPropertyFirm = isPropertyCapable(product);

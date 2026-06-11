@@ -174,7 +174,14 @@ const ClientDashboard: React.FC = () => {
         return <div>Access Denied.</div>;
     }
 
-    if (!canUseClientPortal) {
+    // SAFETY NET: Portal users with a valid Client role should ALWAYS be able
+    // to access their portal. The canUseClientPortal feature gate is meant to
+    // control whether ADMINS can create portal invites — it should never block
+    // an already-authenticated portal user from accessing their own dashboard.
+    // If the firm data hasn't loaded yet, we skip the gate entirely rather than
+    // showing a misleading "Portal Unavailable" screen.
+    // Only show the upgrade prompt if the user is NOT a Client role (e.g. admin previewing).
+    if (!canUseClientPortal && currentUser.role !== 'Client') {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
                 <div className="max-w-md bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-xl border border-slate-100 dark:border-zinc-800 flex flex-col items-center">

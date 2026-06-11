@@ -74,7 +74,12 @@ const TenantPortal: React.FC = () => {
   // Access guard
   if (!currentUser) return null;
 
-  if (!canUseTenantPortal) {
+  // SAFETY NET: Portal users with a valid Tenant role should ALWAYS be able
+  // to access their portal. The canUseTenantPortal feature gate is meant to
+  // control whether ADMINS can create portal invites — it should never block
+  // an already-authenticated portal user from accessing their own dashboard.
+  // Only show the upgrade prompt if the user is NOT a Tenant role (e.g. admin previewing).
+  if (!canUseTenantPortal && currentUser.role !== 'Tenant') {
     return (
       <div className="flex items-center justify-center h-full p-8">
         <div className="text-center max-w-sm">

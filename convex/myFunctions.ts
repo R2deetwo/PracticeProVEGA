@@ -408,6 +408,36 @@ export const getFirmData = query({
 });
 
 // --- ============================================================== ---
+// ---  PORTAL-SPECIFIC: Lightweight firm info for portal users       ---
+// ---  getFirmBasicInfo: returns just firm record (plan, product)    ---
+// ---  so portal dashboards can evaluate feature gates correctly.    ---
+// --- ============================================================== ---
+
+/**
+ * getFirmBasicInfo — Ultra-lightweight query that returns only the firm record.
+ * Used by portal users (Client/Tenant) who don't need the full data pipeline
+ * but DO need firmDetails.subscriptionPlan and firmDetails.product so that
+ * useFeatures() can evaluate feature gates correctly.
+ *
+ * Without this, portal users see "Portal Unavailable" because DataProvider
+ * skips firm data loading for them, causing useFeatures to default to Core plan.
+ */
+export const getFirmBasicInfo = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    if (!args.firmId) return null;
+    try {
+      const firm = await ctx.db.get(args.firmId as any);
+      return firm || null;
+    } catch (e) {
+      // Fallback: scan by string ID match
+      const allFirms = await ctx.db.query("firms").take(50);
+      return allFirms.find((f: any) => String(f._id) === args.firmId) || null;
+    }
+  },
+});
+
+// --- ============================================================== ---
 // ---  PERFORMANCE OVERHAUL: METADATA-FIRST HYDRATION               ---
 // ---  getFirmMetadata: lightweight index-only data for list views.  ---
 // ---  getMatterDetails / getPropertyDetails: on-demand full state.  ---

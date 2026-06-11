@@ -608,6 +608,12 @@ export const getPortalInvitesByEmail = query({
  * verifyInviteToken — validates a portal invite token and returns
  * the invite details + whether the user already has an account.
  * Used by the /setup-password page to determine what to show.
+ *
+ * ROBUSTNESS FIX: If the invite is "accepted" but the user's role is
+ * "Pending" (meaning their access was deleted via deletePortalInviteAndCleanup
+ * and they need to re-setup), we allow them to proceed. This prevents the
+ * "invitation already accepted" dead-end when a user is re-invited after
+ * their portal access was removed.
  */
 export const verifyInviteToken = query({
   args: { token: v.string() },
@@ -631,13 +637,9 @@ export const verifyInviteToken = query({
       return { valid: false, reason: "revoked" } as const;
     }
 
-    if (invite.status === "accepted") {
-      return { valid: false, reason: "already_accepted" } as const;
-    }
-
-    // Token is valid and pending — check if user already has an account
+    // Check if the user exists and their current state
     const email = invite.inviteeEmail?.toLowerCase().trim();
-    let existingUser = null;
+    let existingUser: any = null;
     if (email) {
       existingUser = await ctx.db
         .query("users")
@@ -652,6 +654,22 @@ export const verifyInviteToken = query({
       }
     }
 
+    if (invite.status === "accepted") {
+      // ROBUSTNESS: If the user's role is Pending (their access was reset by
+      // deletePortalInviteAndCleanup), allow them to re-accept. This invite
+      // might be a stale record from before the cleanup ran. The user needs
+      // to set up their password again, so we should let them through.
+      const userRole = existingUser?.role;
+      const isUserUnverified = existingUser && !existingUser.isVerified;
+      if (userRole === "Pending" || isUserUnverified) {
+        // User was reset — allow re-accepting this invite
+        // Fall through to return valid: true
+      } else {
+        return { valid: false, reason: "already_accepted" } as const;
+      }
+    }
+
+    // Token is valid and pending — check if user already has an account
     return {
       valid: true,
       invite: {
@@ -688,13 +706,26 @@ export const setupPortalPassword = action({
     const invite = await ctx.runQuery(api.portals.getInviteByToken, { token: args.token });
     if (!invite) return { success: false, message: "Invalid invitation link." };
     if (invite.status === "revoked") return { success: false, message: "This invitation has been revoked." };
-    if (invite.status === "accepted") return { success: false, message: "This invitation has already been used." };
     if (invite.status === "expired" || invite.expiresAt < Date.now()) {
       await ctx.runMutation(api.portals.updateInviteRecord, {
         inviteId: invite._id,
         updates: { status: "expired", updatedAt: Date.now() },
       });
       return { success: false, message: "This invitation has expired. Please request a new one." };
+    }
+
+    // ROBUSTNESS: If the invite was already accepted but the user's account was
+    // reset (role=Pending, isVerified=false), allow them to re-accept. This can
+    // happen when deletePortalInviteAndCleanup resets the user but a stale invite
+    // record still exists with status "accepted" and a valid token.
+    if (invite.status === "accepted") {
+      const emailCheck = (invite.inviteeEmail || "").toLowerCase().trim();
+      const existingUserCheck: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: emailCheck });
+      const wasReset = existingUserCheck?.role === "Pending" || (existingUserCheck && !existingUserCheck.isVerified);
+      if (!wasReset) {
+        return { success: false, message: "This invitation has already been used." };
+      }
+      // User was reset — allow re-accepting this invite (fall through)
     }
 
     const email = (invite.inviteeEmail || "").toLowerCase().trim();
