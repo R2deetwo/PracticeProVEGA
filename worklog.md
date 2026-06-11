@@ -26,3 +26,35 @@ Stage Summary:
 - Admin can preview the portal as a specific client/resident via impersonation
 - Impersonation revert banner appears in portal views when previewing
 - Dev server running on http://localhost:5000
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix portal login and routing - comprehensive portal system overhaul
+
+Work Log:
+- Diagnosed portal login failure: after login, navigate('/') caused race conditions with auth state loading and flow state machine
+- Changed portal login pages to use window.location.href = '/' instead of navigate('/') for robust full-page reload
+- Added redirect for authenticated portal users who revisit login pages (ClientPortalLogin, TenantPortalLogin)
+- Added portal user bypass in App.tsx flow state machine: skip splash screen, skip data loading wait
+- Set isDataLoaded=true immediately for portal users in DataProvider (they don't need full firm data)
+- Skipped firm data queries (getFirmMetadata, getFirmData) for portal users to avoid unnecessary loading
+- Added ProductContext fallback for portal users using currentUser.product when firmDetails not loaded
+- Fixed setupPortalPassword in convex/portals.ts to always set firmId for existing users (was missing before)
+- Fixed deletePortalInviteAndCleanup to also delete all other invites for same email and clear firmId
+- Added online presence privacy: Tenant (property portal) users are hidden from getActivePeers by default
+- Added portalPresenceHidden field to User type and AuthContext
+- Added visual indicators for portal users: RoleBadge shows "Client Portal" / "Resident Portal" labels
+- Added "Portal" badge next to portal user names in FirmSettings team list with camera icon
+- Enhanced portal preview button in PortalAccessSettings with text label and navigation after impersonation
+- Added Sign Out button to both TenantPortal and ClientDashboard headers
+- Moved hasInitialSplashFinished and splashAnimationComplete state declarations above their first usage
+- Built and deployed successfully: Vite build ✓, Convex deploy ✓
+
+Stage Summary:
+- Portal login should now work: uses full page reload + skips splash/data loading for portal users
+- firmId is always set for portal users (critical for ProductContext and data loading)
+- Delete portal access now fully cleans up (all invites + user reset)
+- Tenant presence is hidden by default from admin view
+- Portal users have visual indicators distinguishing them from team members
+- Preview portal button navigates to portal view after impersonation
+- Sign out buttons added to both portal dashboards

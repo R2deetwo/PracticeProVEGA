@@ -65,7 +65,7 @@ type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
-  const { currentUser, originalUser, revertToOriginalUser } = useAuth();
+  const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { canUseTenantPortal } = useFeatures();
@@ -118,16 +118,24 @@ const TenantPortal: React.FC = () => {
       )}
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-            <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+              <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">
+                Welcome, {currentUser.name}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
-            <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Welcome, {currentUser.name}
-            </p>
-          </div>
+          <button
+            onClick={() => logout()}
+            className="px-3 py-1.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </div>
 

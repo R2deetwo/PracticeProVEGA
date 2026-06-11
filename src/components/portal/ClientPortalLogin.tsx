@@ -69,8 +69,10 @@ const ClientPortalLogin: React.FC = () => {
                     }
                 }
                 addToast('Welcome to the Client Portal.', { type: 'success' });
-                // Navigate to the main app — the router will detect Client role and show ClientDashboard
-                navigate('/', { replace: true });
+                // Full page reload ensures clean state initialization for the portal session
+                // Using window.location instead of navigate() avoids race conditions with
+                // auth state loading and the flow state machine
+                window.location.href = '/';
             } else {
                 if (result.isLocked) {
                     setError('Your account has been locked. Please contact your firm administrator.');

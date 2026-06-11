@@ -123,7 +123,7 @@ const FilterSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
 // ─── Main Component ─────────────────────────────────────────────────────
 const ClientDashboard: React.FC = () => {
     // ── ALL HOOKS CALLED FIRST (before any conditional returns) ──────────
-    const { currentUser, originalUser, revertToOriginalUser } = useAuth();
+    const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
     const { matterState } = useMatterState();
     const { coreState } = useCoreState();
     const { navigateTo, openModal, addToast } = useUI();
@@ -743,13 +743,21 @@ const ClientDashboard: React.FC = () => {
                             Your legal matters portal &mdash; stay informed and connected
                         </p>
                     </div>
-                    <button
-                        onClick={() => openModal('newLead', null, { name: currentUser.name, email: currentUser.email, isClientRequest: true })}
-                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 text-sm transition-colors shadow-sm flex-shrink-0"
-                    >
-                        <PlusIcon className="w-4 h-4" />
-                        Request Another Service
-                    </button>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                            onClick={() => openModal('newLead', null, { name: currentUser.name, email: currentUser.email, isClientRequest: true })}
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 text-sm transition-colors shadow-sm"
+                        >
+                            <PlusIcon className="w-4 h-4" />
+                            Request Service
+                        </button>
+                        <button
+                            onClick={() => logout()}
+                            className="px-3 py-2.5 text-xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
                 </div>
             </div>
 

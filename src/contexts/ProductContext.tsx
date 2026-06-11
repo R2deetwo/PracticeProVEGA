@@ -60,6 +60,13 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     } else if (currentUser && isDataLoaded && appState?.firmDetails) {
       // Fall back to firm's saved product setting
       rawProduct = (appState.firmDetails as any).product || "unified";
+    } else if (currentUser?.product) {
+      // Portal users may not have firmDetails loaded (firm data queries are skipped for them),
+      // so fall back to the user's own product field (set during portal invite acceptance)
+      const userProduct = currentUser.product;
+      if (userProduct === 'legal' || userProduct === 'vega') rawProduct = 'vega';
+      else if (userProduct === 'property' || userProduct === 'atrium') rawProduct = 'atrium';
+      else rawProduct = userProduct;
     }
 
     const aliases: Record<string, ProductType> = { sentry: 'atrium', property: 'atrium', legal: 'vega' };

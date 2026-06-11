@@ -566,10 +566,11 @@ const InviteList: React.FC<{
                   {isActive && (
                     <button
                       onClick={() => onPreview(invite)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
                       title="Preview portal as this user"
                     >
-                      <EyeIcon className="w-4 h-4" />
+                      <EyeIcon className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Preview</span>
                     </button>
                   )}
                   {isPending && (
@@ -852,7 +853,10 @@ export const PortalAccessSettings: React.FC = () => {
       product: invite.portalType === 'client' ? 'legal' : 'property',
     };
     loginAsUser(portalUser as any);
-    addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Use "Revert" in settings to return.`, { type: 'success' });
+    addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Click "Return to Admin" at the top to go back.`, { type: 'success' });
+    // Navigate to root so the portal dashboard is shown (not the settings page)
+    // Using window.location for a clean state reset during impersonation
+    setTimeout(() => { window.location.href = '/'; }, 300);
   };
 
   const isLoading = invites === undefined;

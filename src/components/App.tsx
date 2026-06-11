@@ -428,6 +428,8 @@ export const App: React.FC = () => {
     const [visualsComplete, setVisualsComplete] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("Initializing System...");
     const [sessionLoadTimedOut, setSessionLoadTimedOut] = useState(false);
+    const [hasInitialSplashFinished, setHasInitialSplashFinished] = useState(false);
+    const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
     const isEditorMode = view === 'editor';
 
     // #3 — Auto-open login modal when arriving via a password-reset magic link
@@ -477,6 +479,15 @@ export const App: React.FC = () => {
 
     useEffect(() => {
         if (currentUser && !hasInitialized) {
+            // Portal users skip the splash screen entirely — they go straight to their portal view
+            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+            if (isPortal) {
+                setFlowState('app');
+                setHasInitialized(true);
+                setVisualsComplete(true);
+                setHasInitialSplashFinished(true);
+                return;
+            }
             setFlowState('splash');
             setVisualsComplete(false);
             setLoadingMessage("Welcome back");
@@ -509,6 +520,14 @@ export const App: React.FC = () => {
 
     useEffect(() => {
         if (currentUser && visualsComplete) {
+            // Portal users skip the data loading wait — their data comes from dedicated portal queries
+            const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
+            if (isPortal) {
+                setFlowState('app');
+                setHasInitialized(true);
+                setHasInitialSplashFinished(true);
+                return;
+            }
             if (isDataLoaded || forceEntry) {
                 setLoadingMessage("Ready");
                 const t = setTimeout(() => {
@@ -543,10 +562,29 @@ export const App: React.FC = () => {
         }
     }, [flowState, currentUser, startTour]);
 
+    const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
+
     const renderAppContent = () => {
-        // Portal login routes — accessible without authentication
-        if (location.pathname === '/portal/client/login') return <ClientPortalLogin />;
-        if (location.pathname === '/portal/tenant/login') return <TenantPortalLogin />;
+        // ── Portal login routes ──
+        // If user is already authenticated as a portal user, redirect them to their dashboard
+        // instead of showing the login page again. This handles the case where a portal user
+        // navigates to the login page while already logged in.
+        if (location.pathname === '/portal/client/login') {
+            if (currentUser && currentUser.role === UserRole.Client) {
+                // Already logged in as client — redirect to portal
+                window.location.href = '/';
+                return null;
+            }
+            return <ClientPortalLogin />;
+        }
+        if (location.pathname === '/portal/tenant/login') {
+            if (currentUser && currentUser.role === UserRole.Tenant) {
+                // Already logged in as tenant — redirect to portal
+                window.location.href = '/';
+                return null;
+            }
+            return <TenantPortalLogin />;
+        }
         if (location.pathname === '/setup-password') return <SetupPassword />;
 
         if (!currentUser && !isLoadingSession) {
@@ -621,9 +659,6 @@ export const App: React.FC = () => {
             </>
         );
     };
-
-    const [hasInitialSplashFinished, setHasInitialSplashFinished] = useState(false);
-    const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
 
     useEffect(() => {
         const timer = setTimeout(() => {

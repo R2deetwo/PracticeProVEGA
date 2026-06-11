@@ -32,7 +32,39 @@ export const getActivePeers = query({
     if (!args.firmId) return [];
     const THRESHOLD = Date.now() - 60 * 1000;
     const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
-    return allPresence.filter((p: any) => p.updatedAt > THRESHOLD).map((p: any) => p.userId);
+    const activePresence = allPresence.filter((p: any) => p.updatedAt > THRESHOLD);
+
+    // Check for portal users who have hidden their online status
+    // Property portal users (Tenants) have presence hidden by default
+    const activeUserIds = activePresence.map((p: any) => p.userId);
+    if (activeUserIds.length === 0) return [];
+
+    // Fetch users to check their visibility preferences
+    const users: any[] = [];
+    for (const userId of activeUserIds) {
+      try {
+        const user = await ctx.db.get(userId as any);
+        if (user) users.push(user);
+      } catch (e) { /* skip invalid IDs */ }
+    }
+
+    // Build a set of user IDs that should be hidden from presence
+    const hiddenUserIds = new Set<string>();
+    for (const user of users) {
+      // Property portal users (Tenants) have presence hidden by default
+      // unless they explicitly opted in via portalPresenceHidden: false
+      if (user.role === 'Tenant' && user.portalPresenceHidden !== false) {
+        hiddenUserIds.add(user._id.toString());
+      }
+      // Any user who explicitly set portalPresenceHidden: true
+      if (user.portalPresenceHidden === true) {
+        hiddenUserIds.add(user._id.toString());
+      }
+    }
+
+    return activePresence
+      .map((p: any) => p.userId)
+      .filter((id: string) => !hiddenUserIds.has(id));
   },
 });
 

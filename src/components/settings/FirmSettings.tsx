@@ -32,6 +32,7 @@ const RoleBadge: React.FC<{ role: UserRole, isPrimaryAdmin: boolean }> = ({ role
     const { isProperty } = useProduct();
     let classes = "";
     let label = role.toString();
+    let isPortalUser = role === UserRole.Client || role === UserRole.Tenant;
 
     // Primary Admin (Purple/Royal)
     if (isPrimaryAdmin) {
@@ -52,6 +53,16 @@ const RoleBadge: React.FC<{ role: UserRole, isPrimaryAdmin: boolean }> = ({ role
     else if (role === UserRole.Paralegal) {
         classes = "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800";
         label = isProperty ? "Associate" : "Paralegal";
+    }
+    // Client (Violet with portal icon)
+    else if (role === UserRole.Client) {
+        classes = "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border border-violet-200 dark:border-violet-800";
+        label = "Client Portal";
+    }
+    // Tenant (Sky with portal icon)
+    else if (role === UserRole.Tenant) {
+        classes = "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-800";
+        label = "Resident Portal";
     }
     // Pending (Amber)
     else if (role === UserRole.Pending) {
@@ -371,6 +382,12 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                                     <span className="flex items-center gap-1.5 text-sm">
                                                         {user.name}
                                                         {isMe && <span className="text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">You</span>}
+                                                        {(user.role === UserRole.Client || user.role === UserRole.Tenant) && (
+                                                            <span className="text-[9px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5">
+                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                                                Portal
+                                                            </span>
+                                                        )}
                                                     </span>
                                                     {isInAnotherFirm && (
                                                         <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">

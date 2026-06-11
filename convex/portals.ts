@@ -487,14 +487,25 @@ export const deletePortalInviteAndCleanup = mutation({
     inviteeEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // 1. Delete the invite record
+    // 1. Delete the specified invite record
     await ctx.db.delete(args.inviteId);
 
-    // 2. Find and reset the associated portal user
+    // 2. Also delete ANY other invite records for the same email
+    //    to prevent residual "already accepted" errors on re-invite
     const email = (args.inviteeEmail || "").toLowerCase().trim();
     if (!email) return;
 
-    // Look up user by email (tokenIdentifier)
+    const otherInvites = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+      .collect();
+
+    for (const inv of otherInvites) {
+      if (String(inv._id) === String(args.inviteId)) continue; // Already deleted above
+      try { await ctx.db.delete(inv._id); } catch (e) { /* ignore */ }
+    }
+
+    // 3. Find and reset the associated portal user
     const existingUser = await ctx.db
       .query("users")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
@@ -508,11 +519,13 @@ export const deletePortalInviteAndCleanup = mutation({
       // Reset the user so they can be re-invited cleanly
       // Set isVerified to false so they can't log in with old credentials
       // Remove the password so setup-password creates a fresh one
+      // Clear firmId so it will be set fresh on the next invite acceptance
       await ctx.db.patch(existingUser._id, {
         isVerified: false,
         emailVerified: false,
         password: undefined,
         role: "Pending",
+        firmId: undefined,
       } as any);
     }
   },
@@ -675,6 +688,11 @@ export const setupPortalPassword = action({
       const needsRoleUpdate = !existingUser.role
         || existingUser.role === "Portal User"
         || existingUser.role === "Pending";
+      // Ensure firmId is always set — portal users need it for the ProductContext
+      // to derive the correct product and for data loading to work properly.
+      // When an existing user is re-invited after portal access deletion, their
+      // firmId might have been cleared or might never have been set.
+      const needsFirmId = !existingUser.firmId || existingUser.firmId !== invite.firmId;
       await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
         userId: existingUser._id,
         fields: {
@@ -684,6 +702,7 @@ export const setupPortalPassword = action({
           verificationCode: null,
           ...(args.name && !existingUser.name ? { name: args.name } : {}),
           ...(needsRoleUpdate ? { role: portalRole } : {}),
+          ...(needsFirmId ? { firmId: invite.firmId } : {}),
         },
       });
     } else {

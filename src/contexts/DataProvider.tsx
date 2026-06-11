@@ -351,17 +351,29 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     //          once it resolves — no UI freeze, just a silent state update.
 
     const isDemo = currentUser?.email === 'demo@practicepro.ng';
+    const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+
+    // Portal users don't need the full firm data loading pipeline.
+    // Their data comes from dedicated portal queries (getClientDocuments, getTenantLedger, etc.).
+    // Set isDataLoaded immediately so the app doesn't hang on the splash screen.
+    React.useEffect(() => {
+        if (isPortalUser && !isDataLoaded) {
+            setIsDataLoaded(true);
+        }
+    }, [isPortalUser, isDataLoaded]);
 
     // Phase A — fast metadata (lists only)
+    // Portal users don't need firm data — skip these heavy queries
+    const shouldLoadFirmData = !isDemo && !isPortalUser && !!currentUser?.firmId;
     const firmMetadata = useQuery(
         api.myFunctions.getFirmMetadata,
-        (currentUser?.firmId && !isDemo) ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData ? { firmId: currentUser.firmId } : 'skip'
     );
 
     // Phase B — full data (runs in parallel, merges when ready)
     const firmData = useQuery(
         api.myFunctions.getFirmData,
-        (currentUser?.firmId && !isDemo) ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData ? { firmId: currentUser.firmId } : 'skip'
     );
 
     // Track which phase we're in so UI can show a subtle secondary loader

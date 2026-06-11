@@ -139,6 +139,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             notificationSettings: data.notificationSettings,
             accessibleMatterIds: data.accessibleMatterIds,
             isMfaEnabled: data.isMfaEnabled,
+            portalPresenceHidden: data.portalPresenceHidden,
             // Explicitly excluded: password, mfaCode, verificationCode, failedLoginAttempts, lockedUntil
             ...localUserOverrides
         };
