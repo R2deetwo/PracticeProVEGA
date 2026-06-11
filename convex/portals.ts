@@ -468,6 +468,56 @@ export const deletePortalInvite = mutation({
   },
 });
 
+/**
+ * deletePortalInviteAndCleanup — Permanently deletes a portal invite AND resets
+ * the associated portal user account so the same email can be re-invited cleanly.
+ *
+ * This prevents the "invitation already accepted" error when an admin:
+ * 1. Deletes a portal access record
+ * 2. Creates a new invite for the same email
+ *
+ * Steps:
+ * 1. Delete the portal_invites record
+ * 2. Find the user with the matching email + Client/Tenant role
+ * 3. Reset their role, verification, and password so they're treated as a brand-new invitee
+ */
+export const deletePortalInviteAndCleanup = mutation({
+  args: {
+    inviteId: v.id("portal_invites"),
+    inviteeEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // 1. Delete the invite record
+    await ctx.db.delete(args.inviteId);
+
+    // 2. Find and reset the associated portal user
+    const email = (args.inviteeEmail || "").toLowerCase().trim();
+    if (!email) return;
+
+    // Look up user by email (tokenIdentifier)
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!existingUser) return;
+
+    // Only reset if the user has a Client or Tenant role (portal user)
+    const role = (existingUser as any).role;
+    if (role === "Client" || role === "Tenant" || role === "Portal User") {
+      // Reset the user so they can be re-invited cleanly
+      // Set isVerified to false so they can't log in with old credentials
+      // Remove the password so setup-password creates a fresh one
+      await ctx.db.patch(existingUser._id, {
+        isVerified: false,
+        emailVerified: false,
+        password: undefined,
+        role: "Pending",
+      } as any);
+    }
+  },
+});
+
 /** Look up an invite by its token — used by portal login pages for magic-link flow */
 export const getInviteByToken = query({
   args: { token: v.string() },

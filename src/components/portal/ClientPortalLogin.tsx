@@ -9,6 +9,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -17,6 +18,7 @@ import { Logo, LockClosedIcon, ShieldCheckIcon, MailIcon } from '../../constants
 const ClientPortalLogin: React.FC = () => {
     const { login } = useAuth();
     const { addToast } = useUI();
+    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +69,8 @@ const ClientPortalLogin: React.FC = () => {
                     }
                 }
                 addToast('Welcome to the Client Portal.', { type: 'success' });
+                // Navigate to the main app — the router will detect Client role and show ClientDashboard
+                navigate('/', { replace: true });
             } else {
                 if (result.isLocked) {
                     setError('Your account has been locked. Please contact your firm administrator.');

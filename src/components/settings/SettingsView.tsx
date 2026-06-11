@@ -23,7 +23,7 @@ import DataManagementSettings from './DataManagementSettings';
 import ChangelogSettings from './ChangelogSettings';
 import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
-import PortalAccessSettings from './PortalAccessSettings';
+import { PortalAccessSettings } from './PortalAccessSettings';
 
 
 import { useFeatures } from '../../hooks/useFeatures';

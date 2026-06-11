@@ -9,9 +9,12 @@
  * Features:
  * - Send invitations via Email, WhatsApp, or Both
  * - Auto-populate name/phone from linked matter (client) or property/unit (resident)
- * - Magic-link tokens embedded in invite URLs for auto-fill on portal login
+ * - Magic-link tokens embedded in invite URLs for setup-password flow
  * - Resend, revoke, and copy invite links with real token
  * - Track invitation status (pending / accepted / expired / revoked)
+ * - Delete with confirmation + cleanup of associated portal user
+ * - Preview portal as a specific client/resident
+ * - Grouped property/unit dropdown (address headers + selectable units)
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
@@ -19,7 +22,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useMatterState } from '../../contexts/MatterContext';
-import { usePropertyGroups } from '../../hooks/usePropertyGroups';
+import { usePropertyGroups, PropertyGroup } from '../../hooks/usePropertyGroups';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
@@ -28,8 +31,53 @@ import {
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
   MailIcon, CheckIcon, ClockIcon,
   ExclamationTriangleIcon, SendIcon, DeviceMobileIcon,
-  UsersIcon, OfficeBuildingIcon,
+  UsersIcon, OfficeBuildingIcon, EyeIcon,
 } from '../../constants';
+
+// ─── Delete Confirmation Dialog ──────────────────────────────────────────
+const DeleteConfirmDialog: React.FC<{
+  isOpen: boolean;
+  inviteName: string;
+  inviteEmail: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}> = ({ isOpen, inviteName, inviteEmail, onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
+            <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Portal Access</h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">This action cannot be undone</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed mb-4">
+          Are you sure you want to permanently delete portal access for{' '}
+          <strong className="text-slate-900 dark:text-white">{inviteName || inviteEmail}</strong>?
+          This will also remove their portal user account, allowing them to be re-invited with a fresh invitation.
+        </p>
+        <div className="flex items-center gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 rounded-lg border border-slate-200 dark:border-zinc-600 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm"
+          >
+            Delete Permanently
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── Status Badge ──────────────────────────────────────────────────────────
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -114,7 +162,7 @@ const InviteForm: React.FC<{
   const [isSending, setIsSending] = useState(false);
 
   // Build list of matters (client portal) or properties (resident portal) to link invite to
-  const { flatUnits } = usePropertyGroups(coreState.properties || []);
+  const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
   const relatedItems = useMemo(() => {
     if (isProperty) {
       return flatUnits.map(u => ({
@@ -142,19 +190,19 @@ const InviteForm: React.FC<{
     const item = relatedItems.find((r: any) => r.id === selectedId);
     if (!item) return;
     if (isProperty) {
-      // Auto-fill from property tenant data
+      // Auto-fill from property tenant data — always override if tenant data exists
       const propItem = item as { id: string; label: string; tenantName: string; tenantPhone: string; tenantEmail: string };
-      if (propItem.tenantName && !name) setName(propItem.tenantName);
-      if (propItem.tenantPhone && !phone) setPhone(propItem.tenantPhone);
-      if (propItem.tenantEmail && !email) setEmail(propItem.tenantEmail);
+      if (propItem.tenantName) setName(propItem.tenantName);
+      if (propItem.tenantPhone) setPhone(propItem.tenantPhone);
+      if (propItem.tenantEmail) setEmail(propItem.tenantEmail);
     } else {
       // Auto-fill from matter client data
       const matterItem = item as { id: any; label: any; clientName: any; clientEmail: any; clientPhone: any };
-      if (matterItem.clientName && !name) setName(matterItem.clientName);
-      if (matterItem.clientEmail && !email) setEmail(matterItem.clientEmail);
-      if (matterItem.clientPhone && !phone) setPhone(matterItem.clientPhone);
+      if (matterItem.clientName) setName(matterItem.clientName);
+      if (matterItem.clientEmail) setEmail(matterItem.clientEmail);
+      if (matterItem.clientPhone) setPhone(matterItem.clientPhone);
     }
-  }, [relatedItems, isProperty, name, phone, email]);
+  }, [relatedItems, isProperty]);
 
   const handleSubmit = async () => {
     if (!email.trim() && channel !== 'whatsapp') {
@@ -310,6 +358,31 @@ const InviteForm: React.FC<{
             <div className="w-full px-3 py-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-400 dark:text-zinc-500 italic">
               No matters on file yet. Create a matter to link it here.
             </div>
+          ) : isProperty ? (
+            /* Grouped property/unit dropdown: address as non-selectable header, units below */
+            <>
+              <select
+                value={relatedId}
+                onChange={e => handleRelatedChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+              >
+                <option value="">Select a unit to auto-fill details</option>
+                {propertyGroups.map((group: PropertyGroup) => (
+                  <optgroup key={group.addressKey} label={group.shortAddress}>
+                    {group.units.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.unitName ? `${u.unitName}` : u.shortAddress}{u.tenantName ? ` — ${u.tenantName}` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              {relatedId && (
+                <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+                  Name, email, and phone will be auto-filled from the selected tenant record.
+                </p>
+              )}
+            </>
           ) : (
             <>
               <select
@@ -317,14 +390,14 @@ const InviteForm: React.FC<{
                 onChange={e => handleRelatedChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
               >
-                <option value="">Select {isProperty ? 'a property' : 'a matter'} to auto-fill details</option>
+                <option value="">Select a matter to auto-fill details</option>
                 {relatedItems.map((item: any) => (
                   <option key={item.id} value={item.id}>{item.label}</option>
                 ))}
               </select>
               {relatedId && (
                 <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
-                  Name, email, and phone will be auto-filled from the selected {isProperty ? 'tenant' : 'client'} record.
+                  Name, email, and phone will be auto-filled from the selected client record.
                 </p>
               )}
             </>
@@ -369,10 +442,11 @@ const InviteList: React.FC<{
   resendingId: string | null;
   onResend: (invite: any) => void;
   onRevoke: (inviteId: string) => void;
-  onDelete: (inviteId: string) => void;
+  onDelete: (invite: any) => void;
   onCopyLink: (invite: any) => void;
+  onPreview: (invite: any) => void;
   showPortalTypeBadge?: boolean;
-}> = ({ invites, portalType, resendingId, onResend, onRevoke, onDelete, onCopyLink, showPortalTypeBadge }) => {
+}> = ({ invites, portalType, resendingId, onResend, onRevoke, onDelete, onCopyLink, onPreview, showPortalTypeBadge }) => {
   const isProperty = portalType === 'resident';
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -489,6 +563,15 @@ const InviteList: React.FC<{
                 <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                   <ChannelBadge channel={invite.channel} />
                   <StatusBadge status={invite.status} />
+                  {isActive && (
+                    <button
+                      onClick={() => onPreview(invite)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                      title="Preview portal as this user"
+                    >
+                      <EyeIcon className="w-4 h-4" />
+                    </button>
+                  )}
                   {isPending && (
                     <>
                       <button
@@ -530,7 +613,7 @@ const InviteList: React.FC<{
                   )}
                   {/* Delete permanently — available on all statuses */}
                   <button
-                    onClick={() => onDelete(String(invite._id))}
+                    onClick={() => onDelete(invite)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                     title="Delete permanently"
                   >
@@ -560,9 +643,10 @@ const PortalSection: React.FC<{
   resendingId: string | null;
   onResend: (invite: any) => void;
   onRevoke: (inviteId: string) => void;
-  onDelete: (inviteId: string) => void;
+  onDelete: (invite: any) => void;
   onCopyLink: (invite: any, portalType: string) => void;
-}> = ({ portalType, invites, firmId, inviterId, canUsePortal, isUnified, hasRelatedData, relatedDataHint, resendingId, onResend, onRevoke, onDelete, onCopyLink }) => {
+  onPreview: (invite: any) => void;
+}> = ({ portalType, invites, firmId, inviterId, canUsePortal, isUnified, hasRelatedData, relatedDataHint, resendingId, onResend, onRevoke, onDelete, onCopyLink, onPreview }) => {
   const isProperty = portalType === 'resident';
   const [showInviteForm, setShowInviteForm] = useState(false);
 
@@ -640,6 +724,7 @@ const PortalSection: React.FC<{
         onRevoke={onRevoke}
         onDelete={onDelete}
         onCopyLink={(invite) => onCopyLink(invite, portalType)}
+        onPreview={(invite) => onPreview(invite)}
       />
     </div>
   );
@@ -647,7 +732,7 @@ const PortalSection: React.FC<{
 
 // ─── Main Component ────────────────────────────────────────────────────────
 export const PortalAccessSettings: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, loginAsUser } = useAuth();
   const { addToast } = useUI();
   const { isProperty, isLegal, isUnified } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
@@ -655,6 +740,7 @@ export const PortalAccessSettings: React.FC = () => {
   const firmId = currentUser?.firmId || '';
 
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);  // The invite being deleted
 
   // Fetch ALL portal invites for this firm
   const invites = useQuery(
@@ -663,7 +749,7 @@ export const PortalAccessSettings: React.FC = () => {
   );
 
   const revokeInvite = useMutation(api.portals.revokePortalInvite);
-  const deleteInvite = useMutation(api.portals.deletePortalInvite);
+  const deleteInvite = useMutation(api.portals.deletePortalInviteAndCleanup);
   const resendInvite = useAction(api.portals.resendPortalInvite);
 
   // Separate invites by portal type
@@ -684,12 +770,9 @@ export const PortalAccessSettings: React.FC = () => {
   const hasProperties = (coreState.properties || []).length > 0;
 
   // Determine which portal sections to show
-  // - Unified/Komplete: Both sections (Client first, then Resident)
-  // - Vega (legal-only): Client Portal only
-  // - Atrium (property-only): Residents' Portal only
-  const showClientPortal = isLegal;      // Vega or Unified
-  const showResidentPortal = isProperty;  // Atrium or Unified
-  const showBoth = showClientPortal && showResidentPortal; // Unified/Komplete
+  const showClientPortal = isLegal;
+  const showResidentPortal = isProperty;
+  const showBoth = showClientPortal && showResidentPortal;
 
   const handleRevoke = async (inviteId: string) => {
     try {
@@ -700,10 +783,19 @@ export const PortalAccessSettings: React.FC = () => {
     }
   };
 
-  const handleDelete = async (inviteId: string) => {
+  // Delete with confirmation — shows dialog, then calls cleanup mutation
+  const handleDeleteRequest = (invite: any) => {
+    setDeleteTarget(invite);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const inviteId = String(deleteTarget._id);
+    const inviteEmail = deleteTarget.inviteeEmail || '';
+    setDeleteTarget(null);
     try {
-      await deleteInvite({ inviteId: inviteId as any });
-      addToast('Invitation deleted permanently.', { type: 'success' });
+      await deleteInvite({ inviteId: inviteId as any, inviteeEmail: inviteEmail || undefined });
+      addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to delete invitation.', { type: 'error' });
     }
@@ -726,19 +818,41 @@ export const PortalAccessSettings: React.FC = () => {
     }
   };
 
+  // FIX: Copy link now uses /setup-password URL (not the login page)
+  // This ensures new users without accounts can create their password
   const handleCopyInviteLink = (invite: any, portalType: string) => {
-    const isResident = portalType === 'resident';
-    const portalBase = isResident
-      ? 'https://practice-pro-vega.vercel.app/portal/tenant/login'
-      : 'https://practice-pro-vega.vercel.app/portal/client/login';
+    const portalBase = 'https://practice-pro-vega.vercel.app/setup-password';
     const inviteUrl = invite.token
       ? `${portalBase}?token=${invite.token}`
       : portalBase;
     navigator.clipboard.writeText(inviteUrl).then(() => {
-      addToast('Invite link copied! The link includes a token that will auto-fill their email on the portal login page.', { type: 'success' });
+      addToast('Invite link copied! The recipient can use this link to set up their password and access the portal.', { type: 'success' });
     }).catch(() => {
       addToast('Failed to copy link', { type: 'error' });
     });
+  };
+
+  // Preview portal as a specific client/resident (impersonation)
+  const handlePreview = (invite: any) => {
+    const portalEmail = invite.inviteeEmail;
+    if (!portalEmail) {
+      addToast('No email on file for this portal user.', { type: 'error' });
+      return;
+    }
+    // Use the auth system's impersonation to view the portal as this user
+    const portalUser = {
+      id: invite.inviteeEmail,
+      firmId: firmId,
+      name: invite.inviteeName || invite.inviteeEmail,
+      email: invite.inviteeEmail,
+      role: invite.portalType === 'client' ? 'Client' as any : 'Tenant' as any,
+      avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(invite.inviteeName || invite.inviteeEmail)}&background=random`,
+      onboardingCompleted: true,
+      showProTips: false,
+      product: invite.portalType === 'client' ? 'legal' : 'property',
+    };
+    loginAsUser(portalUser as any);
+    addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Use "Revert" in settings to return.`, { type: 'success' });
   };
 
   const isLoading = invites === undefined;
@@ -766,10 +880,22 @@ export const PortalAccessSettings: React.FC = () => {
     );
   }
 
+  // Build delete dialog info
+  const deleteDialogName = deleteTarget?.inviteeName || '';
+  const deleteDialogEmail = deleteTarget?.inviteeEmail || '';
+
   // ── Unified/Komplete layout: dual portal sections ──
   if (showBoth) {
     return (
       <div className="space-y-8">
+        <DeleteConfirmDialog
+          isOpen={!!deleteTarget}
+          inviteName={deleteDialogName}
+          inviteEmail={deleteDialogEmail}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+        />
+
         {/* Page header */}
         <div>
           <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -795,8 +921,9 @@ export const PortalAccessSettings: React.FC = () => {
             resendingId={resendingId}
             onResend={handleResend}
             onRevoke={handleRevoke}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
+            onPreview={handlePreview}
           />
         </div>
 
@@ -814,8 +941,9 @@ export const PortalAccessSettings: React.FC = () => {
             resendingId={resendingId}
             onResend={handleResend}
             onRevoke={handleRevoke}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
+            onPreview={handlePreview}
           />
         </div>
 
@@ -853,6 +981,14 @@ export const PortalAccessSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <DeleteConfirmDialog
+        isOpen={!!deleteTarget}
+        inviteName={deleteDialogName}
+        inviteEmail={deleteDialogEmail}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
       <PortalSection
         portalType={singlePortalType}
         invites={singleInvites}
@@ -865,8 +1001,9 @@ export const PortalAccessSettings: React.FC = () => {
         resendingId={resendingId}
         onResend={handleResend}
         onRevoke={handleRevoke}
-        onDelete={handleDelete}
+        onDelete={handleDeleteRequest}
         onCopyLink={handleCopyInviteLink}
+        onPreview={handlePreview}
       />
 
       <SecurityNotice isProperty={isProperty} isUnified={false} />
@@ -882,17 +1019,11 @@ const SecurityNotice: React.FC<{ isProperty: boolean; isUnified: boolean }> = ({
       <div>
         <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">Security & Data Protection</p>
         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-          Each invitation contains a unique token that auto-fills the recipient's email on the portal login page.
-          Invite links expire after 7 days. All portal data is encrypted at rest (AES-256) and in transit (TLS 1.3).
-          {isUnified
-            ? ' Clients and residents can only see information specifically shared with them.'
-            : isProperty
-            ? " Residents can only see information specifically shared with them."
-            : ' Clients can only see information specifically shared with them.'}
+          Portal access uses token-based invitation links that expire after 7 days. Passwords are hashed with PBKDF2-SHA512
+          and never stored in plaintext. All data is encrypted in transit and at rest, compliant with NDPA 2023.
+          {isUnified && ' Both Client and Resident portals share the same security infrastructure.'}
         </p>
       </div>
     </div>
   </div>
 );
-
-export default PortalAccessSettings;

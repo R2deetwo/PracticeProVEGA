@@ -17,6 +17,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import NairaSymbol from '../NairaSymbol';
 import {
+  EyeIcon,
   OfficeBuildingIcon,
   DownloadIcon,
   CheckIcon,
@@ -64,7 +65,7 @@ type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, originalUser, revertToOriginalUser } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { canUseTenantPortal } = useFeatures();
@@ -98,6 +99,23 @@ const TenantPortal: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Impersonation Banner — shown when admin is viewing as this tenant */}
+      {originalUser && (
+        <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+              You are previewing the portal as <strong>{currentUser.name || currentUser.email}</strong>
+            </p>
+          </div>
+          <button
+            onClick={revertToOriginalUser}
+            className="px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex-shrink-0"
+          >
+            Return to Admin
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex items-center gap-3 mb-1">

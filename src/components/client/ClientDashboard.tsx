@@ -123,7 +123,7 @@ const FilterSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
 // ─── Main Component ─────────────────────────────────────────────────────
 const ClientDashboard: React.FC = () => {
     // ── ALL HOOKS CALLED FIRST (before any conditional returns) ──────────
-    const { currentUser } = useAuth();
+    const { currentUser, originalUser, revertToOriginalUser } = useAuth();
     const { matterState } = useMatterState();
     const { coreState } = useCoreState();
     const { navigateTo, openModal, addToast } = useUI();
@@ -715,6 +715,23 @@ const ClientDashboard: React.FC = () => {
 
     return (
         <div className="min-h-full">
+            {/* Impersonation Banner — shown when admin is viewing as this client */}
+            {originalUser && (
+                <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <p className="text-sm text-amber-800 dark:text-amber-300 font-medium">
+                            You are previewing the portal as <strong>{currentUser.name || currentUser.email}</strong>
+                        </p>
+                    </div>
+                    <button
+                        onClick={revertToOriginalUser}
+                        className="px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors flex-shrink-0"
+                    >
+                        Return to Admin
+                    </button>
+                </div>
+            )}
             {/* Header */}
             <div className="mb-6">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-2">

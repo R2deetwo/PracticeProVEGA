@@ -170,9 +170,12 @@ const SetupPassword: React.FC = () => {
     };
 
     // Determine product branding from invite data
-    const productName = inviteData?.invite?.portalType === 'client' ? 'VEGA' : 'ATRIUM';
-    const productColor = inviteData?.invite?.portalType === 'client' ? 'violet' : 'amber';
-    const portalLabel = inviteData?.invite?.portalType === 'client' ? 'Client Portal' : "Residents' Portal";
+    const isClientPortal = inviteData?.invite?.portalType === 'client';
+    const productName = isClientPortal ? 'VEGA' : 'ATRIUM';
+    const portalLabel = isClientPortal ? 'Client Portal' : "Residents' Portal";
+    // Use concrete classes instead of dynamic template strings — Tailwind JIT can't compile bg-${color}-500
+    const glowClass = isClientPortal ? 'bg-violet-500/10' : 'bg-amber-500/10';
+    const brandTextClass = isClientPortal ? 'text-violet-400' : 'text-amber-400';
 
     // ─── Invalid token screen ─────────────────────────────────────────────
     if (step === 'invalid') {
@@ -304,7 +307,7 @@ const SetupPassword: React.FC = () => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
             {/* Ambient glow */}
-            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-${productColor}-500/10 pointer-events-none`} />
+            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] ${glowClass} pointer-events-none`} />
 
             {/* Brand header */}
             <div className="relative z-10 flex-shrink-0">
@@ -313,7 +316,7 @@ const SetupPassword: React.FC = () => {
                         <Logo className="h-7 w-7 text-primary-500" />
                         <span className="text-[19px] font-bold tracking-tight text-white flex items-center">
                             Practice<span className="text-primary-500">Pro</span>
-                            <span className={`ml-2 text-[15px] font-black uppercase tracking-tight text-${productColor}-400`}>
+                            <span className={`ml-2 text-[15px] font-black uppercase tracking-tight ${brandTextClass}`}>
                                 {productName}
                             </span>
                         </span>
