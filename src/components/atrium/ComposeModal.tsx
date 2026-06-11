@@ -225,10 +225,19 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
   // ── Build selectable recipients ──────────────────────────────────────
   const selectableRecipients = useMemo(() => {
+    const allProperties = coreState.properties || [];
     const result: SelectableRecipient[] = [];
-    for (const p of coreState.properties || []) {
+
+    // Detect multi-unit buildings: count how many property records share each address
+    const addressCount = new Map<string, number>();
+    for (const p of allProperties) {
+      const addr = (p.address || '').trim().toLowerCase();
+      if (addr) addressCount.set(addr, (addressCount.get(addr) || 0) + 1);
+    }
+
+    for (const p of allProperties) {
       if (p.units && p.units.length > 0) {
-        // Multi-unit property — list each unit
+        // Property has a nested units array — list each unit
         for (const unit of p.units) {
           const tenantName = unit.tenantName || p.rentalDetails?.tenantName || '';
           result.push({
@@ -246,11 +255,29 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           });
         }
       } else if (p.rentalDetails?.tenantName) {
-        // Single-tenant property
+        // Single property record with tenant info
+        const addr = (p.address || '').trim().toLowerCase();
+        const isMultiUnit = addr && (addressCount.get(addr) || 0) > 1;
+        const unitName = p.rentalDetails.unitName || p.description?.match(/\((.*?)\)/)?.[1] || '';
+        const tenantName = p.rentalDetails.tenantName;
+        const shortAddr = p.address?.split(',')[0] || 'Property';
+
+        let label: string;
+        if (isMultiUnit && unitName) {
+          // Multi-unit building — show unit name + tenant (address is redundant)
+          label = `${unitName} — ${tenantName}`;
+        } else if (isMultiUnit) {
+          // Multi-unit but no unitName — use a short address + tenant (better than full address repeat)
+          label = `${shortAddr}${tenantName ? ` — ${tenantName}` : ''}`;
+        } else {
+          // Standalone single-tenant property — show address + tenant
+          label = `${shortAddr} — ${tenantName}`;
+        }
+
         result.push({
           id: p.id,
-          label: `${p.address?.split(',')[0] || 'Property'} — ${p.rentalDetails.tenantName}`,
-          tenantName: p.rentalDetails.tenantName,
+          label,
+          tenantName,
           tenantPhone: p.rentalDetails.tenantPhone || '',
           tenantEmail: p.rentalDetails.tenantEmail || '',
           rentAmount: p.rentalDetails.rentAmount,
@@ -648,7 +675,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="text-white truncate">{r.label}</div>
-                        {r.tenantPhone && <div className="text-[10px] text-slate-500 truncate">{r.tenantPhone}</div>}
+                        <div className="flex items-center gap-2">
+                          {r.propertyAddress && !r.label.includes(r.propertyAddress.split(',')[0]) && <span className="text-[10px] text-slate-500 truncate">{r.propertyAddress.split(',')[0]}</span>}
+                          {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate">{r.tenantPhone}</span>}
+                        </div>
                       </div>
                     </button>
                   ))}
