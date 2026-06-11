@@ -95,6 +95,28 @@ const IconTheme: React.FC = () => (
     </IconPill>
 );
 
+// Portal / Doorway
+const IconPortal: React.FC = () => (
+    <IconPill color="59, 130, 246">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(96,165,250)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+            <path d="M9 9h6" />
+            <path d="M9 15h4" />
+        </svg>
+    </IconPill>
+);
+
+// Pen / Drafting
+const IconPen: React.FC = () => (
+    <IconPill color="245, 158, 11">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(251,191,36)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            <path d="m15 5 4 4" />
+        </svg>
+    </IconPill>
+);
+
 // Icon map — use these in CHANGELOG entries by name
 export const FEATURE_ICONS: Record<string, React.FC> = {
     brain: IconBrain,
@@ -104,12 +126,38 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
     calendar: IconCalendar,
     bolt: IconBolt,
     theme: IconTheme,
+    portal: IconPortal,
+    pen: IconPen,
 };
 
 // ─── CHANGELOG DATA ──────────────────────────────────────────────────────────
 // Add new entries at the TOP. Bump the version for every release.
 // Use 'icon' to pick from FEATURE_ICONS above.
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        id: 'v1.14.0',
+        version: '1.14.0',
+        date: '2026-06-11',
+        title: 'DraftPro Clipboard Fix & Portal Login Overhaul',
+        description: 'DraftPro now copies cleanly to Microsoft Word and Google Docs with bold, italic, and underline formatting preserved — no more dark background rectangles. Portal login pages now authenticate directly and sport a refined brand-consistent header.',
+        features: [
+            { icon: 'pen', label: 'Clean Copy to Word', text: 'Select text in DraftPro, copy it, and paste directly into Word or Google Docs. Formatting carries over cleanly — bold, italic, underline, font family, and font size are all preserved. No need for "Paste Plain Text" anymore.' },
+            { icon: 'shield', label: 'Placeholder Print Guard', text: 'DraftPro now blocks printing until every blank placeholder in your document is filled. You will never accidentally print or send a document with unfilled fields — the Smart Fill modal opens automatically.' },
+            { icon: 'portal', label: 'Direct Portal Login', text: 'The Client Portal and Residents\' Portal login pages now sign you in directly using the email and password fields on the page — no extra modal popup. Enter your credentials and go straight to your portal.' },
+        ],
+    },
+    {
+        id: 'v1.13.0',
+        version: '1.13.0',
+        date: '2026-05-28',
+        title: 'Brand Consistency & DraftPro Description Refresh',
+        description: 'We unified the PracticePro brand across every surface — the landing page, portal headers, and app footer now use identical logo sizing, typography, and product badge colours. The DraftPro feature description now accurately reflects its placeholder safety guardrails.',
+        features: [
+            { icon: 'theme', label: 'Unified Brand Header', text: 'Portal login pages now display the PracticePro VEGA / ATRIUM brand in the same size and position as the main landing page header. Logo, text sizing, and product badge colours are pixel-consistent across all surfaces.' },
+            { icon: 'pen', label: 'DraftPro Description Update', text: 'The landing page now describes DraftPro\'s placeholder guardrails instead of the old "what you see is what you print" phrasing. The new copy highlights the safety feature: printing is blocked until all blanks are filled.' },
+            { icon: 'bolt', label: 'Selection Colour Fix', text: 'Fixed the dark selection highlight in DraftPro that was causing text selection to appear as a dark rectangle. The editor now uses a standard light-blue selection colour that matches the always-white page background.' },
+        ],
+    },
     {
         id: 'v1.12.0',
         version: '1.12.0',
