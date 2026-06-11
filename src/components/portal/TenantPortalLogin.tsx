@@ -55,13 +55,13 @@ const TenantPortalLogin: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
             {/* Ambient glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
 
             {/* Brand header — top-left, matches landing page header positioning */}
             <div className="relative z-10 flex-shrink-0">
-                <div className="container mx-auto px-6 h-16 flex items-center">
+                <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
                     <div className="flex items-center gap-2.5">
                         <Logo className="h-7 w-7 text-primary-500" />
                         <span className="text-[19px] font-bold tracking-tight text-white flex items-center">
@@ -75,17 +75,17 @@ const TenantPortalLogin: React.FC = () => {
             </div>
 
             {/* Login card — centred in remaining space */}
-            <div className="flex-1 flex items-center justify-center p-6">
+            <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
                 <div className="relative z-10 w-full max-w-md">
-                    <div className="text-center mb-8">
-                        <h1 className="text-2xl font-bold text-white mb-2">Residents' Portal</h1>
+                    <div className="text-center mb-6 sm:mb-8">
+                        <h1 className="text-xl sm:text-2xl font-bold text-white mb-2">Residents' Portal</h1>
                         <p className="text-sm text-slate-400 leading-relaxed">
                             View your SC/MV payment status, download rent receipts, and log maintenance issues.
                         </p>
                     </div>
 
                     {/* Login card */}
-                    <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-8 shadow-2xl">
+                    <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
                         <div className="space-y-4">
                             {error && (
                                 <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
@@ -145,7 +145,7 @@ const TenantPortalLogin: React.FC = () => {
                     </div>
 
                     {/* Trust badges */}
-                    <div className="flex items-center justify-center gap-4 mt-6">
+                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <ShieldCheckIcon className="w-3.5 h-3.5" />
                             <span className="text-[10px] font-semibold uppercase tracking-wider">NDPA 2023</span>

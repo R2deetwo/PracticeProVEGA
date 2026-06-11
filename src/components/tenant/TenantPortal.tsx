@@ -99,7 +99,7 @@ const TenantPortal: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-5">
+      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
         <div className="flex items-center gap-3 mb-1">
           <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
             <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -142,8 +142,8 @@ const TenantPortal: React.FC = () => {
       </div>
 
       {/* Trust Badges */}
-      <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-6 py-3">
-        <div className="flex items-center justify-center gap-4 text-[10px] text-slate-400 dark:text-zinc-500">
+      <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] text-slate-400 dark:text-zinc-500">
           <span className="flex items-center gap-1">
             <CheckIcon className="w-3 h-3 text-emerald-500" /> Secure Portal
           </span>
@@ -467,13 +467,13 @@ const ReceiptsTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => vo
           {receipts.map((r: any) => (
             <div
               key={r._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex items-center justify-between"
+              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
                   <ReceiptIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <div>
+                <div className="min-w-0 sm:min-w-0">
                   <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
                     {r.description || `${r.type?.replace('_', ' ')} — ${r.period || formatDate(r.timestamp)}`}
                   </p>
@@ -660,9 +660,9 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
           {tickets.map((t: any) => (
             <div
               key={t._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex items-center justify-between"
+              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-row items-start sm:items-center justify-between gap-3"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                   t.status === 'resolved' || t.status === 'closed'
                     ? 'bg-emerald-50 dark:bg-emerald-900/20'
@@ -678,8 +678,8 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
                       : 'text-amber-600 dark:text-amber-400'
                   }`} />
                 </div>
-                <div>
-                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">{t.subject}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
                   <p className="text-xs text-slate-500 dark:text-zinc-400">
                     {t.category && <span className="capitalize">{t.category}</span>}
                     {t.category && ' · '}
@@ -687,7 +687,7 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
                   </p>
                 </div>
               </div>
-              {getStatusBadge(t.status)}
+              <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
             </div>
           ))}
         </div>

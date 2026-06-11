@@ -110,6 +110,50 @@ export const acceptPortalInvite = mutation({
   },
 });
 
+export const revokePortalInvite = mutation({
+  args: { inviteId: v.id("portal_invites") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.inviteId, {
+      status: "revoked",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const resendPortalInvite = mutation({
+  args: { inviteId: v.id("portal_invites") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db.get(args.inviteId);
+    if (!existing) throw new Error("Invitation not found");
+    // Create a new invite with same details and fresh expiry
+    const now = Date.now();
+    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
+    return await ctx.db.insert("portal_invites", {
+      firmId: existing.firmId,
+      inviterId: existing.inviterId,
+      inviteeEmail: existing.inviteeEmail,
+      inviteeName: existing.inviteeName,
+      inviteePhone: existing.inviteePhone,
+      portalType: existing.portalType,
+      relatedId: existing.relatedId,
+      status: "pending",
+      expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const getPortalInvitesByEmail = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", args.email))
+      .collect();
+  },
+});
+
 // ─── Scheduled Messages ─────────────────────────────────────────────────
 
 export const getScheduledMessagesByFirm = query({

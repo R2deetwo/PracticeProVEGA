@@ -23,13 +23,14 @@ import DataManagementSettings from './DataManagementSettings';
 import ChangelogSettings from './ChangelogSettings';
 import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
+import PortalAccessSettings from './PortalAccessSettings';
 
 
 import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
 import { useProduct } from '../../contexts/ProductContext';
 
-type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications';
+type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'portal';
 
 
 const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' }> = {
@@ -54,7 +55,8 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'automation-settings': { main: 'templates', sub: 'automations' },
     'help-and-support': { main: 'help' },
     'data-management': { main: 'data' },
-    'account-recovery': { main: 'recovery' }
+    'account-recovery': { main: 'recovery' },
+    'portal-access': { main: 'portal' }
 };
 
 const NavItem: React.FC<{
@@ -67,15 +69,15 @@ const NavItem: React.FC<{
     <button
         id={id}
         onClick={onClick}
-        className={`flex items-center p-3 rounded-lg transition-all duration-200 text-left whitespace-nowrap lg:w-full lg:mb-1 flex-shrink-0 ${isActive
+        className={`flex items-center p-2 sm:p-3 rounded-lg transition-all duration-200 text-left whitespace-nowrap lg:w-full lg:mb-1 flex-shrink-0 ${isActive
             ? 'bg-white dark:bg-zinc-700 text-primary-600 dark:text-primary-400 shadow-sm border border-slate-200 dark:border-zinc-600 lg:border-none lg:border-l-4 lg:border-primary-500'
             : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700/50 hover:text-slate-900 dark:hover:text-zinc-200'
             }`}
     >
-        <div className={`w-5 h-5 mr-2 lg:mr-3 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-zinc-500'}`}>
+        <div className={`w-5 h-5 mr-1.5 sm:mr-2 lg:mr-3 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-zinc-500'}`}>
             {icon}
         </div>
-        <span className="font-medium text-sm">{label}</span>
+        <span className="font-medium text-xs sm:text-sm">{label}</span>
     </button>
 );
 
@@ -231,6 +233,7 @@ export const SettingsView: React.FC = () => {
             case 'legalIntel': return <LegalIntelligenceHub firmId={props.firmDetails?.id || ''} />;
             case 'recovery': return <AccountRecoverySettings />;
             case 'communications': return <IntegrationSettings />;
+            case 'portal': return <PortalAccessSettings />;
             default: return null;
 
         }
@@ -251,7 +254,7 @@ export const SettingsView: React.FC = () => {
                 <nav className="
                     flex-shrink-0 
                     flex lg:flex-col gap-2 lg:gap-0
-                    overflow-x-auto lg:overflow-y-auto custom-scrollbar
+                    overflow-x-auto lg:overflow-y-auto custom-scrollbar scrollbar-none
                     bg-slate-50 dark:bg-zinc-800/50 
                     p-2 lg:p-4 
                     rounded-xl border border-slate-200 dark:border-zinc-700 
@@ -295,6 +298,7 @@ export const SettingsView: React.FC = () => {
                                 }
                                 <NavItem label="Billing & Plans" icon={<div className="font-serif font-bold px-1">₦</div>} isActive={activeTab === 'subscription'} onClick={() => handleNavClick('subscription')} />
                                 <NavItem label="Communications" icon={<MessagingIcon />} isActive={activeTab === 'communications'} onClick={() => handleNavClick('communications')} />
+                                <NavItem label={isProperty ? "Residents' Portal" : 'Client Portal'} icon={<ShieldCheckIcon className="text-primary-500" />} id="portal-access" isActive={activeTab === 'portal'} onClick={() => handleNavClick('portal')} />
                                 {permissions.canManageTemplates && <NavItem label={isProperty ? 'Portfolio Configuration' : 'Firm Configuration'} icon={<ClipboardListIcon />} isActive={activeTab === 'templates'} onClick={() => handleNavClick('templates')} />}
 
 

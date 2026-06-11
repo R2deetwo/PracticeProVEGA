@@ -176,10 +176,12 @@ export const HelpSettings: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">How to Activate the Portal</h4>
                                     <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                        <li><strong>Check your plan:</strong> Portals are available on Growth and Pro plans only. If you're on Core, navigate to <code>Settings → Subscription</code> to upgrade.</li>
-                                        <li><strong>Ensure {isProperty ? 'tenant' : 'client'} records exist:</strong> {isProperty ? 'Each tenant must have a profile with an email address in your Atrium system before they can access the portal.' : 'Each client must have a contact record with an email address linked to at least one active matter before they can access the portal.'}</li>
-                                        <li><strong>Generate portal credentials:</strong> Navigate to the {isProperty ? 'tenant' : 'client'}'s detail page and click <strong>"Enable Portal Access"</strong>. The system will generate a unique, secure login for that {isProperty ? 'tenant' : 'client'}.</li>
-                                        <li><strong>Share login details:</strong> After generating credentials, you'll see a <strong>"Share Login Details"</strong> button. This allows you to send the portal URL and their login credentials directly to the {isProperty ? 'tenant' : 'client'} via their registered email address. You can also copy the details manually to share through your preferred secure channel.</li>
+                                        <li><strong>Check your plan:</strong> Portals are available on Growth and Pro plans only. If you're on Core, navigate to <code>Settings → Billing & Plans</code> to upgrade.</li>
+                                        <li><strong>Open Portal Access settings:</strong> Navigate to <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> to manage all portal invitations from one place. This is the central hub for inviting, monitoring, and revoking portal access.</li>
+                                        <li><strong>Invite {isProperty ? 'residents' : 'clients'}:</strong> Click <strong>"Invite {isProperty ? 'Resident' : 'Client'}"</strong> and enter their email address (required), full name, phone/WhatsApp number (optional), and optionally link them to a specific {isProperty ? 'property' : 'matter'}. You can also add a personal message that will be included in the invitation.</li>
+                                        <li><strong>Share the portal URL:</strong> After sending an invitation, share the portal login URL directly with the {isProperty ? 'resident' : 'client'}. The URL is displayed at the top of the Portal Access settings page and can be copied with one click. {isProperty ? 'Residents' : 'Clients'} will log in using their email and the password they set during first access.</li>
+                                        <li><strong>Monitor invitation status:</strong> The Portal Access page shows all invitations with their status — <strong>Pending</strong> (sent but not yet accepted), <strong>Active</strong> (accepted and in use), <strong>Expired</strong> (7-day window passed), or <strong>Revoked</strong> (manually cancelled). Filter by status to quickly find what you need.</li>
+                                        <li><strong>Revoke access if needed:</strong> If a {isProperty ? 'resident' : 'client'} should no longer have portal access (e.g., they moved out or the matter is closed), click the revoke button next to their invitation. This immediately disables their portal login.</li>
                                     </ol>
                                 </div>
 
@@ -189,9 +191,9 @@ export const HelpSettings: React.FC = () => {
                                         <strong>Important:</strong> {isProperty ? "Residents'" : 'Client'} portal credentials provide access to sensitive {isProperty ? 'financial and property' : 'legal and personal'} information. Always share login details through secure, encrypted channels.
                                     </div>
                                     <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                        <li><strong>Recommended:</strong> Use the built-in "Share Login Details" feature, which sends credentials directly to the {isProperty ? 'tenant' : 'client'}'s registered email address. This avoids manual handling of sensitive credentials.</li>
-                                        <li><strong>Alternative:</strong> Copy the portal URL and temporary password, then share via a secure messaging platform (e.g., encrypted email, secure WhatsApp). <strong>Never share credentials via unencrypted SMS or public channels.</strong></li>
-                                        <li><strong>First login:</strong> {isProperty ? 'Tenants' : 'Clients'} will be prompted to set their own password on first login. The temporary password you share will expire after 7 days for security.</li>
+                                        <li><strong>Recommended:</strong> Use the Portal Access settings page in <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> to send invitations. The invitation system generates a unique, secure link that the {isProperty ? 'resident' : 'client'} can use to set up their own password — you never need to share a temporary password manually.</li>
+                                        <li><strong>Copy the portal URL:</strong> The Portal Access settings page shows the portal login URL with a one-click copy button. Share this URL with the {isProperty ? 'resident' : 'client'} via your preferred secure channel (encrypted email, secure WhatsApp, etc.).</li>
+                                        <li><strong>First login:</strong> {isProperty ? 'Residents' : 'Clients'} will authenticate with their email and a password they set during their first visit. If they already have an account, they can use their existing credentials.</li>
                                         <li><strong>Legal consideration:</strong> {isVega && 'As a legal practitioner, you have a professional obligation to protect client data under NDPA 2023 and NBA professional standards. The client portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that privileged and confidential information remains protected at all times.'}{isProperty && "The Residents' Portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that financial and personal data remains protected at all times in compliance with NDPA 2023."}</li>
                                     </ul>
                                 </div>
@@ -199,21 +201,22 @@ export const HelpSettings: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">Portal URL</h4>
                                     <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                                        {isProperty ? 'Tenants' : 'Clients'} can access the portal at:
+                                        {isProperty ? 'Residents' : 'Clients'} can access the portal at:
                                     </p>
                                     <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg font-mono text-sm text-primary-600 dark:text-primary-400 break-all">
-                                        {isProperty ? 'https://practicepro.ng/portal/tenant/login' : 'https://practicepro.ng/portal/client/login'}
+                                        {isProperty ? 'https://practice-pro-vega.vercel.app/portal/tenant/login' : 'https://practice-pro-vega.vercel.app/portal/client/login'}
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                        This URL is also available in the footer of your product landing page. {isProperty ? 'Tenants' : 'Clients'} can bookmark it for direct access.
+                                        This URL is also available in the footer of your product landing page and in <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code>. {isProperty ? 'Residents' : 'Clients'} can bookmark it for direct access.
                                     </p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">Managing Portal Access</h4>
                                     <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                        <li><strong>Revoking access:</strong> Navigate to the {isProperty ? 'tenant' : 'client'}'s detail page and click <strong>"Revoke Portal Access"</strong>. This immediately disables their login credentials. They will see a "Access Revoked" message when attempting to log in.</li>
-                                        <li><strong>Resetting a password:</strong> If a {isProperty ? 'tenant' : 'client'} forgets their password, click <strong>"Reset Portal Password"</strong> on their detail page. A new temporary password will be generated that you can share securely.</li>
+                                        <li><strong>Sending invitations:</strong> Go to <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code> and click <strong>"Invite {isProperty ? 'Resident' : 'Client'}"</strong>. Fill in the email and optional details, then send. The invitation will appear in the list with a "Pending" status.</li>
+                                        <li><strong>Revoking access:</strong> From the same Portal Access page, click the revoke icon (lock) next to any active or pending invitation. This immediately disables their login credentials. They will see an "Access Revoked" message when attempting to log in.</li>
+                                        <li><strong>Resending invitations:</strong> If an invitation has expired (after 7 days), you can send a new one to the same email address from the Portal Access page.</li>
                                         <li><strong>Viewing access logs:</strong> The {isProperty ? 'tenant' : 'client'} detail page shows the last login timestamp and total number of portal sessions, helping you monitor engagement and detect unauthorized access.</li>
                                     </ul>
                                 </div>

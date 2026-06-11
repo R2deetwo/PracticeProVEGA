@@ -180,9 +180,9 @@ const NavBar: React.FC<{
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
 const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
-    <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-16">
-        <div className="container mx-auto px-6">
-            <div className="grid md:grid-cols-4 gap-10 mb-12">
+    <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-10 md:py-16">
+        <div className="container mx-auto px-4 sm:px-6">
+            <div className={`grid grid-cols-1 gap-8 md:gap-10 mb-12 transition-all duration-500 ${productChosen ? 'md:grid-cols-4' : 'md:grid-cols-2'}`}>
                 {/* Brand */}
                 <div>
                     <div className="flex items-center gap-2.5 mb-4">
@@ -191,14 +191,14 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             Practice<span className="text-primary-500">Pro</span>
                             {productChosen && (
                                 <span
-                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
+                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight transition-all duration-300 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                                 >
                                     {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                                 </span>
                             )}
                         </span>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">Building systems for Nigerian Firms.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">Building systems for Nigerian organizations.</p>
                     {productChosen && (
                         <div className="mt-4 flex items-center gap-3">
                             <button
@@ -210,8 +210,8 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         </div>
                     )}
                 </div>
-                {/* Product */}
-                <div>
+                {/* Product — only shown when a product is chosen */}
+                <div className={`transition-all duration-500 overflow-hidden ${productChosen ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'}`}>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Product</p>
                     <div className="flex flex-col gap-2.5">
                         <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
@@ -220,22 +220,20 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Changelog</button>
                     </div>
                 </div>
-                {/* Portals — only shown when a product is chosen; Vega→Client, Atrium→Tenant, Komplete→both */}
-                {productChosen && (
-                    <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
-                        <div className="flex flex-col gap-2.5">
-                            {activeProduct === 'vega' && (
-                                <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
-                            )}
-                            {activeProduct === 'atrium' && (
-                                <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Residents' Portal</a>
-                            )}
-                        </div>
+                {/* Portals — only shown when a product is chosen */}
+                <div className={`transition-all duration-500 overflow-hidden ${productChosen ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0'}`}>
+                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
+                    <div className="flex flex-col gap-2.5">
+                        {activeProduct === 'vega' && (
+                            <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
+                        )}
+                        {activeProduct === 'atrium' && (
+                            <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Residents' Portal</a>
+                        )}
                     </div>
-                )}
-                {/* Company */}
-                <div>
+                </div>
+                {/* Company — always visible; shifts right when product chosen */}
+                <div className="transition-all duration-500">
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
                     <div className="flex flex-col gap-2.5">
                         <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Privacy Policy</span>

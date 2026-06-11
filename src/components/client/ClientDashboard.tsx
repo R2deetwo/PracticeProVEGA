@@ -50,13 +50,13 @@ const SummaryCard: React.FC<{
     value: number | string;
     accent?: string;
 }> = ({ icon, label, value, accent = 'text-emerald-600 dark:text-emerald-400' }) => (
-    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 flex items-start gap-4">
+    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-50 dark:bg-emerald-900/20 ${accent}`}>
             {icon}
         </div>
         <div>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
-            <p className="text-sm text-slate-500 dark:text-zinc-400 mt-0.5">{label}</p>
+            <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">{label}</p>
         </div>
     </div>
 );
@@ -74,16 +74,16 @@ const TabButton: React.FC<{
 }> = ({ label, tab, active, onClick, icon, badge }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-2 whitespace-nowrap py-3 px-4 border-b-2 font-semibold text-sm transition-colors ${
+        className={`flex items-center gap-1.5 sm:gap-2 whitespace-nowrap py-3 px-2 sm:px-4 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
             active === tab
                 ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
         }`}
     >
         <span className="w-4 h-4">{icon}</span>
-        {label}
+        <span className="hidden sm:inline">{label}</span>
         {badge !== undefined && badge > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+            <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
                 {badge}
             </span>
         )}
@@ -512,28 +512,30 @@ const ClientDashboard: React.FC = () => {
                         {docs.map((doc: any) => (
                             <div
                                 key={String(doc._id)}
-                                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex items-center gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
+                                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
                             >
-                                <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
-                                    <FileTypeIcon source={doc.source} title={doc.title} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
-                                        {doc.title || 'Untitled Document'}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-zinc-400">
-                                        {doc.matterTitle && (
-                                            <span className="truncate max-w-[200px]">{doc.matterTitle}</span>
-                                        )}
-                                        {doc.dateFiled && (
-                                            <>
-                                                <span>&middot;</span>
-                                                <span>{doc.dateFiled}</span>
-                                            </>
-                                        )}
+                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                                    <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                        <FileTypeIcon source={doc.source} title={doc.title} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h4 className="font-semibold text-sm text-slate-900 dark:text-white truncate">
+                                            {doc.title || 'Untitled Document'}
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-zinc-400">
+                                            {doc.matterTitle && (
+                                                <span className="truncate max-w-[120px] sm:max-w-[200px]">{doc.matterTitle}</span>
+                                            )}
+                                            {doc.dateFiled && (
+                                                <>
+                                                    <span>&middot;</span>
+                                                    <span>{doc.dateFiled}</span>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0 pl-12 sm:pl-0">
                                     {doc.isSignatureRequested && (
                                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                                             <ExclamationTriangleIcon className="w-3 h-3" />
@@ -736,7 +738,7 @@ const ClientDashboard: React.FC = () => {
 
             {/* Tabs */}
             <div className="mb-6 border-b border-slate-200 dark:border-zinc-700 overflow-x-auto">
-                <nav className="-mb-px flex space-x-1 sm:space-x-4">
+                <nav className="-mb-px flex space-x-0 sm:space-x-1 md:space-x-4">
                     <TabButton
                         label="Overview"
                         tab="overview"
