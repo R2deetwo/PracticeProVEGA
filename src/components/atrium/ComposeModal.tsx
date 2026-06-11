@@ -41,6 +41,7 @@ const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30',
+  portal: 'text-emerald-400 bg-emerald-900/30',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -428,18 +429,28 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       let simulatedCount = 0;
 
       for (const r of selectedRecipients) {
-        const recipient = channel === 'email' 
-          ? (r.tenantEmail || '') 
-          : (r.tenantPhone || '');
-        
-        if (!recipient) {
-          failCount++;
-          continue;
+        if (channel === 'portal') {
+          // Portal doesn't need phone/email, just a valid unit/recipient
+          if (!r.id) {
+            failCount++;
+            continue;
+          }
+        } else {
+          const recipient = channel === 'email' 
+            ? (r.tenantEmail || '') 
+            : (r.tenantPhone || '');
+          
+          if (!recipient) {
+            failCount++;
+            continue;
+          }
         }
 
-        const finalRecipient = channel === 'email' 
-          ? recipient 
-          : `${countryCode}${recipient.replace(/^0+/, '')}`;
+        const finalRecipient = channel === 'portal'
+          ? (r.id || '')
+          : channel === 'email'
+            ? (r.tenantEmail || '')
+            : `${countryCode}${(r.tenantPhone || '').replace(/^0+/, '')}`;
 
         // Build personalized message for this recipient
         const name = r.tenantName || 'Resident';
@@ -464,7 +475,23 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         let sendResult: { success: boolean; simulated?: boolean; error?: string } = { success: true, simulated: true };
 
         try {
-          if (channel === 'whatsapp') {
+          if (channel === 'portal') {
+            // Send message to tenant's portal inbox
+            try {
+              await convex.mutation(api.portals.sendPortalMessage, {
+                firmId,
+                senderId: currentUser?.id || '',
+                senderName: currentUser?.name || 'Property Manager',
+                senderRole: 'admin',
+                subject: getMsgTypeLabel(msgType),
+                content: personalizedMessage,
+                unitId: r.id || undefined,
+              });
+              sendResult = { success: true, simulated: false };
+            } catch (portalErr: any) {
+              sendResult = { success: false, error: portalErr.message };
+            }
+          } else if (channel === 'whatsapp') {
             sendResult = await convex.action(api.communications.sendWhatsApp, {
               to: finalRecipient,
               messageText: personalizedMessage,
@@ -576,7 +603,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               <div>
                 <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Channel</label>
                 <div className="flex gap-1.5">
-                  {(['whatsapp', 'email', 'sms'] as AutomationChannel[]).map(ch => (
+                  {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => (
                     <button
                       key={ch}
                       onClick={() => setChannel(ch)}
@@ -586,7 +613,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                           : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                       }`}
                     >
-                      {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '💬 SMS'}
+                      {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : ch === 'portal' ? '🏠 Portal' : '💬 SMS'}
                     </button>
                   ))}
                 </div>

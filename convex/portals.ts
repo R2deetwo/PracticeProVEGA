@@ -1,4 +1,4 @@
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
@@ -710,6 +710,43 @@ export const verifyInviteToken = query({
   },
 });
 
+// ─── Internal helpers for portal user → property linking ──────────────────
+// These are used by the setupPortalPassword action, which cannot directly
+// access ctx.db (actions don't have database access). Instead, they use
+// ctx.runQuery / ctx.runMutation to delegate to these internal functions.
+
+export const findPropertyByCustomId = internalQuery({
+  args: { customId: v.string() },
+  handler: async (ctx, args) => {
+    // Try by custom id field (using by_custom_id index)
+    const byCustomId = await ctx.db
+      .query("properties")
+      .withIndex("by_custom_id", (q) => q.eq("id", args.customId))
+      .first();
+    if (byCustomId) return byCustomId;
+
+    // Try by Convex _id
+    try {
+      const byDocId = await ctx.db.get(args.customId as any);
+      if (byDocId) return byDocId;
+    } catch {}
+
+    return null;
+  },
+});
+
+export const linkPortalUserToProperty = internalMutation({
+  args: {
+    propertyId: v.id("properties"),
+    updates: v.any(), // { units?: [...], currentTenantId?: string, tenantId?: string }
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.propertyId, args.updates as any);
+  },
+});
+
+// ─── Setup Portal Password (Invite Acceptance) ──────────────────────────
+
 /**
  * setupPortalPassword — ACTION that completes the invite flow:
  * 1. Validates the invite token (must be pending + unexpired)
@@ -760,6 +797,9 @@ export const setupPortalPassword = action({
     // 3. Check if user exists
     const existingUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: email });
 
+    // Track the portal user's Convex _id so we can link them to their property/unit
+    let portalUserDocId: string | null = null;
+
     if (existingUser) {
       // Update existing user: set password + mark verified
       // Also upgrade their role to Client/Tenant if they were a "Portal User"
@@ -773,6 +813,7 @@ export const setupPortalPassword = action({
       // When an existing user is re-invited after portal access deletion, their
       // firmId might have been cleared or might never have been set.
       const needsFirmId = !existingUser.firmId || existingUser.firmId !== invite.firmId;
+      portalUserDocId = String(existingUser._id);
       await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
         userId: existingUser._id,
         fields: {
@@ -794,7 +835,7 @@ export const setupPortalPassword = action({
       const portalProduct = invite.portalType === "client" ? "legal" : "property";
       const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
       const userName = args.name || invite.inviteeName || email.split("@")[0];
-      await ctx.runMutation(internal.myFunctions.createUser, {
+      const newUserId = await ctx.runMutation(internal.myFunctions.createUser, {
         tokenIdentifier: email,
         name: userName,
         email: email,
@@ -811,6 +852,71 @@ export const setupPortalPassword = action({
         // default to visible (clients can see if their lawyer is online).
         portalPresenceHidden: invite.portalType === "resident",
       });
+      portalUserDocId = String(newUserId);
+    }
+
+    // 3.5. Link portal user to property/unit if relatedId was provided
+    // This is critical for getTenantInfo to find the tenant's property assignment.
+    // When setupPortalPassword creates a new user, the property's unit record
+    // may still point to a stale contact ID or email instead of the new Convex _id.
+    if (invite.relatedId && invite.portalType === "resident" && portalUserDocId) {
+      try {
+        // Parse the relatedId format:
+        // "propertyId_unitId" for multi-unit properties (composite key)
+        // just "propertyId" for single properties
+        const parts = invite.relatedId.split("_");
+        const propertyCustomId = parts[0];
+        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+
+        // Find the property using internal query (actions cannot use ctx.db directly)
+        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+          customId: propertyCustomId,
+        });
+
+        if (property) {
+          const units = property.units || [];
+          // Look up the user for their name (best-effort; use invite data as fallback)
+          const portalUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: email });
+          const tenantName = portalUser?.name || invite.inviteeName || email.split("@")[0];
+
+          if (units.length > 0 && unitId) {
+            // Multi-unit property: update the specific unit
+            let unitFound = false;
+            const updatedUnits = units.map((u: any) => {
+              if (u.id === unitId || u.unitName === unitId || u.id === invite.relatedId) {
+                unitFound = true;
+                return {
+                  ...u,
+                  currentTenantId: portalUserDocId,
+                  tenantId: portalUserDocId,
+                  tenantEmail: email,
+                  tenantName: tenantName,
+                };
+              }
+              return u;
+            });
+            if (unitFound) {
+              await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+                propertyId: property._id,
+                updates: { units: updatedUnits },
+              });
+            }
+          } else {
+            // Single property (no units or no unitId): update property-level tenant
+            await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+              propertyId: property._id,
+              updates: {
+                currentTenantId: portalUserDocId,
+                tenantId: portalUserDocId,
+              },
+            });
+          }
+        }
+      } catch (linkErr) {
+        // Non-blocking: if linking fails, the user can still access the portal.
+        // getTenantInfo will try to find them by email as a fallback.
+        console.warn("Portal user-property linking failed:", linkErr);
+      }
     }
 
     // 4. Mark invite as accepted
@@ -931,8 +1037,13 @@ export const getTenantInfo = query({
       const units = (prop as any).units || [];
       for (const unit of units) {
         const unitTenantId = unit.currentTenantId || unit.tenantId;
-        if (unitTenantId === args.userId || unitTenantId === args.email ||
-            String(unitTenantId).toLowerCase() === args.email.toLowerCase()) {
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        const matchesUserId = unitTenantId === args.userId;
+        const matchesEmail = unitTenantId === args.email ||
+            String(unitTenantId).toLowerCase() === args.email.toLowerCase() ||
+            (unitTenantEmail && unitTenantEmail === args.email.toLowerCase());
+
+        if (matchesUserId || matchesEmail) {
           tenantUnits.push({
             id: unit.id || unit._id,
             name: unit.name || unit.unitName || unit.label,

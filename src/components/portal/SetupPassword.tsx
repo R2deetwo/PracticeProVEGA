@@ -17,7 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { Logo, LockClosedIcon, ShieldCheckIcon, EyeIcon, EyeOffIcon, CheckCircleIcon } from '../../constants';
+import { Logo, LockClosedIcon, ShieldCheckIcon, EyeIcon, EyeOffIcon, CheckCircleIcon, XIcon } from '../../constants';
 
 // Inline icons that aren't in constants
 const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -47,6 +47,8 @@ const SetupPassword: React.FC = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [error, setError] = useState('');
     const [loginError, setLoginError] = useState('');
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [showTerms, setShowTerms] = useState(false);
 
     // Extract token from URL on mount
     useEffect(() => {
@@ -470,10 +472,33 @@ const SetupPassword: React.FC = () => {
                                 )}
                             </div>
 
+                            {/* Terms & Conditions */}
+                            <div className="mt-4 p-3 rounded-xl bg-white/[0.04] border border-white/[0.08]">
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={e => setAgreedToTerms(e.target.checked)}
+                                        className="mt-0.5 h-4 w-4 rounded border-slate-300 dark:border-zinc-600 text-primary-600 focus:ring-primary-500 accent-amber-500"
+                                    />
+                                    <span className="text-xs text-slate-400 leading-relaxed">
+                                        I acknowledge and agree to the{' '}
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowTerms(true)}
+                                            className="text-amber-400 underline hover:text-amber-300 font-medium"
+                                        >
+                                            Terms and Conditions of Use
+                                        </button>
+                                        {' '}for the PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal, including the Privacy Policy and Data Processing Agreement.
+                                    </span>
+                                </label>
+                            </div>
+
                             {/* Submit */}
                             <button
                                 onClick={handleSubmit}
-                                disabled={step === 'submitting' || !password || !confirmPassword || password !== confirmPassword}
+                                disabled={step === 'submitting' || !password || !confirmPassword || password !== confirmPassword || !agreedToTerms}
                                 className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                             >
                                 {step === 'submitting' ? (
@@ -498,6 +523,49 @@ const SetupPassword: React.FC = () => {
                             </button>
                         </div>
                     </div>
+
+                    {/* Terms & Conditions overlay */}
+                    {showTerms && (
+                        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                            <div className="bg-slate-900 border border-white/[0.08] rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-lg font-bold text-white">Portal Terms and Conditions</h3>
+                                    <button onClick={() => setShowTerms(false)} className="text-slate-400 hover:text-slate-200">
+                                        <XIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="prose prose-sm prose-invert max-w-none text-slate-400 space-y-3">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">PracticePro {isClientPortal ? 'Client' : "Residents'"} Portal — Terms of Use</p>
+                                    <p>By accessing this portal, you agree to the following terms:</p>
+                                    <h4 className="text-sm font-bold text-slate-200">1. Portal Access</h4>
+                                    <p>Your access to this portal is granted by your {isClientPortal ? 'legal service provider' : 'property manager'} through PracticePro. Access can be revoked at any time.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">2. Account Security</h4>
+                                    <p>You are responsible for maintaining the confidentiality of your login credentials. Do not share your password with anyone. Notify your administrator immediately if you suspect unauthorized access.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">3. Information Accuracy</h4>
+                                    <p>The information displayed in this portal is provided for your convenience. While we strive for accuracy, {isClientPortal ? 'your law firm' : 'your property manager'} is the final authority on all records.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">4. Data Protection</h4>
+                                    <p>Your personal data is processed in accordance with the Nigeria Data Protection Act 2023 (NDPA 2023). PracticePro employs AES-256 encryption and ISO 27001-aligned security practices to protect your information.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">5. Acceptable Use</h4>
+                                    <p>You agree not to misuse the portal, attempt to access unauthorized areas, or upload malicious content. All portal activities are logged for security and audit purposes.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">6. Communications</h4>
+                                    <p>Messages sent through the portal are intended for communication with your {isClientPortal ? 'legal service provider' : 'property manager'}. These communications are not encrypted end-to-end and should not contain highly sensitive information.</p>
+                                    <h4 className="text-sm font-bold text-slate-200">7. Modifications</h4>
+                                    <p>These terms may be updated from time to time. Continued use of the portal constitutes acceptance of any changes.</p>
+                                    <div className="mt-4 pt-4 border-t border-white/[0.08]">
+                                        <p className="text-xs text-slate-500">For full details, see the PracticePro <a href="/terms-of-service" target="_blank" className="text-amber-400 underline">Terms of Service</a>, <a href="/privacy-policy" target="_blank" className="text-amber-400 underline">Privacy Policy</a>, and <a href="/data-processing-agreement" target="_blank" className="text-amber-400 underline">Data Processing Agreement</a>.</p>
+                                    </div>
+                                </div>
+                                <div className="mt-4 flex justify-end">
+                                    <button
+                                        onClick={() => setShowTerms(false)}
+                                        className="px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-bold hover:bg-amber-400 transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Trust badges */}
                     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">

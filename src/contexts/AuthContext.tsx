@@ -5,6 +5,17 @@ import { useQuery, useMutation, useAction, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
+const PORTAL_SESSION_KEY = 'practicepro_portal_session';
+
+// Helper to determine if we're on a portal route
+const isPortalRoute = () => {
+    try {
+        return window.location.pathname.startsWith('/portal/') ||
+               sessionStorage.getItem('practicepro_portal_type') !== null;
+    } catch {
+        return false;
+    }
+};
 
 export interface AuthContextType {
     isAuthenticated: boolean;
@@ -40,17 +51,32 @@ export const useAuth = () => {
 
 const getInitialToken = () => {
     try {
-        // 1. Priority: Check sessionStorage (current active session)
+        // If on a portal route, prioritize portal session
+        if (isPortalRoute()) {
+            const portalSession = sessionStorage.getItem(PORTAL_SESSION_KEY) || localStorage.getItem(PORTAL_SESSION_KEY);
+            if (portalSession) {
+                const session = JSON.parse(portalSession);
+                if (session && session.token) return session.token.toLowerCase();
+            }
+        }
+
+        // Check app session
         const sessionStored = sessionStorage.getItem(LOCAL_STORAGE_USER_KEY);
         if (sessionStored) {
             const session = JSON.parse(sessionStored);
             if (session && session.token) return session.token.toLowerCase();
         }
-
-        // 2. Fallback: Check localStorage (persistent session)
         const localStored = localStorage.getItem(LOCAL_STORAGE_USER_KEY);
         if (localStored) {
             const session = JSON.parse(localStored);
+            if (session && session.token) return session.token.toLowerCase();
+        }
+
+        // Fallback: check portal session even if not on portal route
+        // (handles the case where isPortalRoute() returns false on initial load)
+        const portalSession = sessionStorage.getItem(PORTAL_SESSION_KEY) || localStorage.getItem(PORTAL_SESSION_KEY);
+        if (portalSession) {
+            const session = JSON.parse(portalSession);
             if (session && session.token) return session.token.toLowerCase();
         }
     } catch (e) {
@@ -211,12 +237,31 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setSessionToken(token);
             
             const sessionData = JSON.stringify({ token });
-            sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData);
             
-            if (rememberMe) {
-                localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData);
-            } else {
+            // Store in appropriate key based on portal context
+            const isPortal = sessionStorage.getItem('practicepro_portal_type') ||
+                (typeof window !== 'undefined' && window.location.pathname.startsWith('/portal/'));
+            
+            if (isPortal) {
+                sessionStorage.setItem(PORTAL_SESSION_KEY, sessionData);
+                if (rememberMe) {
+                    localStorage.setItem(PORTAL_SESSION_KEY, sessionData);
+                } else {
+                    localStorage.removeItem(PORTAL_SESSION_KEY);
+                }
+                // Clear app session to prevent conflict
+                sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
                 localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            } else {
+                sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData);
+                if (rememberMe) {
+                    localStorage.setItem(LOCAL_STORAGE_USER_KEY, sessionData);
+                } else {
+                    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                }
+                // Clear portal session to prevent conflict
+                sessionStorage.removeItem(PORTAL_SESSION_KEY);
+                localStorage.removeItem(PORTAL_SESSION_KEY);
             }
             
             setOriginalSessionToken(null);
@@ -328,7 +373,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
         }
         sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-        localStorage.removeItem(LOCAL_STORAGE_USER_KEY); // Also remove legacy local storage just in case
+        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+        sessionStorage.removeItem(PORTAL_SESSION_KEY);
+        localStorage.removeItem(PORTAL_SESSION_KEY);
         localStorage.removeItem('practicepro_session_locked');
         sessionStorage.removeItem('practicepro_portal_type');
 
@@ -427,6 +474,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     console.warn("[Auth] Session load timed out after retry. Falling back to landing page.");
                     setHasTimedOut(true);
                     sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                    sessionStorage.removeItem(PORTAL_SESSION_KEY);
+                    localStorage.removeItem(PORTAL_SESSION_KEY);
                 }
             }, timeoutMs);
             return () => clearTimeout(timer);

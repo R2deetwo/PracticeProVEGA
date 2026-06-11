@@ -20,6 +20,7 @@ const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', 
   email: 'text-blue-400 bg-blue-900/30', 
   sms: 'text-purple-400 bg-purple-900/30',
+  portal: 'text-emerald-400 bg-emerald-900/30',
 };
 
 export const AtriumInbox: React.FC = () => {

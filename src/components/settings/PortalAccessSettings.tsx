@@ -751,6 +751,14 @@ export const PortalAccessSettings: React.FC = () => {
     firmId ? { firmId } : 'skip'
   );
 
+  // Fetch portal settings for messaging toggles
+  const portalSettings = useQuery(
+    api.portals.getFirmPortalSettings,
+    firmId ? { firmId } : 'skip'
+  );
+
+  const updateSettings = useMutation(api.portals.updateFirmPortalSettings);
+
   const revokeInvite = useMutation(api.portals.revokePortalInvite);
   const deleteInvite = useMutation(api.portals.deletePortalInviteAndCleanup);
   const resendInvite = useAction(api.portals.resendPortalInvite);
@@ -914,6 +922,43 @@ export const PortalAccessSettings: React.FC = () => {
           </p>
         </div>
 
+        {/* Portal Settings Card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
+          <div className="space-y-4">
+            {/* Resident Messaging Toggle */}
+            {showResidentPortal && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Resident Messaging</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
+                </div>
+                <button
+                  onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            )}
+            {/* Client Messaging Toggle */}
+            {showClientPortal && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Client Messaging</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
+                </div>
+                <button
+                  onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Client Portal Section — primary for Komplete/lawyers */}
         <div className="bg-violet-50/30 dark:bg-violet-900/5 rounded-2xl border border-violet-100 dark:border-violet-900/20 p-4 sm:p-6">
           <PortalSection
@@ -995,6 +1040,43 @@ export const PortalAccessSettings: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {/* Portal Settings Card */}
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Portal Settings</h3>
+        <div className="space-y-4">
+          {/* Resident Messaging Toggle */}
+          {showResidentPortal && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Resident Messaging</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">Allow residents to send messages to their property manager through the portal. Off by default.</p>
+              </div>
+              <button
+                onClick={() => updateSettings({ firmId, tenantMessagingEnabled: !portalSettings?.tenantMessagingEnabled })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.tenantMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.tenantMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          )}
+          {/* Client Messaging Toggle */}
+          {showClientPortal && (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Client Messaging</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">Allow clients to send messages to their firm through the portal. Off by default.</p>
+              </div>
+              <button
+                onClick={() => updateSettings({ firmId, clientMessagingEnabled: !portalSettings?.clientMessagingEnabled })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${portalSettings?.clientMessagingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.clientMessagingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <PortalSection
         portalType={singlePortalType}

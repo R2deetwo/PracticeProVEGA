@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { Logo, LockClosedIcon, ShieldCheckIcon, MailIcon } from '../../constants';
+import { Logo, MailIcon } from '../../constants';
 
 const TenantPortalLogin: React.FC = () => {
     const { login } = useAuth();
@@ -219,18 +219,6 @@ const TenantPortalLogin: React.FC = () => {
                             >
                                 Back to PracticePro
                             </button>
-                        </div>
-                    </div>
-
-                    {/* Trust badges */}
-                    <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <ShieldCheckIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">NDPA 2023</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <LockClosedIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">AES-256</span>
                         </div>
                     </div>
                 </div>

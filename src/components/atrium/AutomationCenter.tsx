@@ -47,7 +47,7 @@ const MSG_TYPE_ICONS: Record<string, React.ReactNode> = {
 const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
-  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30',
+  whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30', sms: 'text-purple-400 bg-purple-900/30', portal: 'text-emerald-400 bg-emerald-900/30',
 };
 const STATUS_COLORS = { sent: 'text-emerald-400', failed: 'text-rose-400', simulated: 'text-amber-400' };
 

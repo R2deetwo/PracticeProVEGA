@@ -592,7 +592,7 @@ export type ServiceChargeCategory = 'Diesel' | 'Security' | 'Cleaning' | 'Water'
 export type ServiceChargeCycle = 'Monthly' | 'Quarterly' | 'Annually';
 export type LeadPipelineStage = 'Inquiry' | 'Vetted' | 'Lease_Generated' | 'Closed';
 export type AutomationMessageType = 'rent_reminder' | 'late_notice' | 'payment_receipt' | 'service_charge_alert' | 'access_restriction' | 'penalty_notice' | 'lease_renewal' | 'welcome_note' | 'promotion' | 'vendor_update' | 'general_announcement' | 'maintenance_update' | 'custom';
-export type AutomationChannel = 'whatsapp' | 'email' | 'sms';
+export type AutomationChannel = 'whatsapp' | 'email' | 'sms' | 'portal';
 
 // ── Communication Integration ────────────────────────────────────────────
 export type CommunicationProvider = 'chakra' | 'twilio' | 'manual' | 'none';

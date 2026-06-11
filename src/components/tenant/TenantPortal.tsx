@@ -193,13 +193,6 @@ const TenantPortal: React.FC = () => {
     { id: 'payments', label: 'Payments', icon: <BanknotesIcon className="w-4 h-4" /> },
   ];
 
-  // Build location description from tenant info
-  const locationLabel = tenantInfo?.primaryUnitName
-    ? `${tenantInfo.primaryUnitName}, ${tenantInfo.primaryPropertyName}`
-    : tenantInfo?.primaryPropertyName
-    ? tenantInfo.primaryPropertyName
-    : null;
-
   return (
     <div className="flex flex-col h-full">
       {/* Impersonation Banner — shown when admin is viewing as this tenant */}
@@ -222,7 +215,7 @@ const TenantPortal: React.FC = () => {
 
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
               <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
@@ -231,20 +224,7 @@ const TenantPortal: React.FC = () => {
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
               <p className="text-xs text-slate-500 dark:text-zinc-400">
                 Welcome, {currentUser.name}
-                {locationLabel && (
-                  <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                    {' '}&middot; {locationLabel}
-                  </span>
-                )}
               </p>
-              {/* Show full unit/property info if available */}
-              {tenantInfo?.primaryUnitName && (
-                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
-                  Unit: {tenantInfo.primaryUnitName}
-                  {tenantInfo.primaryPropertyName && ` in ${tenantInfo.primaryPropertyName}`}
-                  {tenantInfo.primaryPropertyAddress && ` — ${tenantInfo.primaryPropertyAddress}`}
-                </p>
-              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -265,6 +245,38 @@ const TenantPortal: React.FC = () => {
             </button>
           </div>
         </div>
+        {/* Prominent Unit/Property Info */}
+        {tenantInfo?.primaryUnitName && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+              <OfficeBuildingIcon className="w-3.5 h-3.5" />
+              Unit: {tenantInfo.primaryUnitName}
+            </span>
+            {tenantInfo.primaryPropertyName && (
+              <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
+                {tenantInfo.primaryPropertyName}
+              </span>
+            )}
+            {tenantInfo.primaryPropertyAddress && (
+              <span className="text-xs text-slate-400 dark:text-zinc-500">
+                — {tenantInfo.primaryPropertyAddress}
+              </span>
+            )}
+          </div>
+        )}
+        {!tenantInfo?.primaryUnitName && tenantInfo?.primaryPropertyName && (
+          <div className="mt-3 flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+              <OfficeBuildingIcon className="w-3.5 h-3.5" />
+              {tenantInfo.primaryPropertyName}
+            </span>
+            {tenantInfo.primaryPropertyAddress && (
+              <span className="text-xs text-slate-400 dark:text-zinc-500">
+                — {tenantInfo.primaryPropertyAddress}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tab Bar */}
@@ -579,7 +591,61 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, 
   }, [ledgerEntries]);
 
   const handleDownload = (entry: any) => {
-    addToast('PDF generation coming soon. Your receipt details are visible below.', { type: 'info' });
+    const receiptHtml = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Payment Receipt</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; color: #1e293b; }
+          .header { text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 20px; margin-bottom: 20px; }
+          .header h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; color: #1e293b; }
+          .header p { color: #64748b; font-size: 13px; margin: 0; }
+          .receipt-details { background: #f8fafc; border-radius: 12px; padding: 20px; margin: 20px 0; }
+          .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
+          .row:last-child { border-bottom: none; }
+          .label { color: #64748b; font-size: 13px; }
+          .value { font-weight: 600; font-size: 13px; }
+          .amount { font-size: 28px; font-weight: 800; color: #10b981; text-align: center; margin: 20px 0; }
+          .footer { text-align: center; color: #94a3b8; font-size: 11px; margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          .badge { display: inline-block; background: #ecfdf5; color: #059669; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Practice<span style="color:#f59e0b">Pro</span> <span style="color:#8b5cf6;font-size:13px">ATRIUM</span></h1>
+          <p>Official Payment Receipt</p>
+        </div>
+        <div class="amount">₦${(entry.amount || 0).toLocaleString('en-NG')}</div>
+        <div class="receipt-details">
+          <div class="row"><span class="label">Receipt No</span><span class="value">RCP-${String(entry._id || '').slice(-8).toUpperCase()}</span></div>
+          <div class="row"><span class="label">Date</span><span class="value">${new Date(entry.timestamp || Date.now()).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
+          <div class="row"><span class="label">Description</span><span class="value">${entry.description || entry.type?.replace(/_/g, ' ') || 'Payment'}</span></div>
+          <div class="row"><span class="label">Period</span><span class="value">${entry.period || 'N/A'}</span></div>
+          <div class="row"><span class="label">Type</span><span class="value">${(entry.type || 'payment').replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}</span></div>
+          <div class="row"><span class="label">Status</span><span class="value"><span class="badge">PAID</span></span></div>
+          ${tenantInfo?.primaryPropertyName ? `<div class="row"><span class="label">Property</span><span class="value">${tenantInfo.primaryPropertyName}</span></div>` : ''}
+          ${tenantInfo?.primaryUnitName ? `<div class="row"><span class="label">Unit</span><span class="value">${tenantInfo.primaryUnitName}</span></div>` : ''}
+          <div class="row"><span class="label">Tenant</span><span class="value">${currentUser?.name || 'N/A'}</span></div>
+          ${entry.paymentRef ? `<div class="row"><span class="label">Reference</span><span class="value">${entry.paymentRef}</span></div>` : ''}
+        </div>
+        <div class="footer">
+          <p>This is an official receipt generated by PracticePro Atrium.</p>
+          <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+          <p>NDPA 2023 Compliant · AES-256 Encrypted</p>
+        </div>
+        <script>window.onload = function() { window.print(); }</script>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(receiptHtml);
+      printWindow.document.close();
+    } else {
+      addToast('Please allow popups to print your receipt.', { type: 'error' });
+    }
   };
 
   if (isLoading) {
@@ -630,9 +696,9 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, 
               </div>
               <button
                 onClick={() => handleDownload(r)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
               >
-                <DownloadIcon className="w-3.5 h-3.5" /> PDF
+                <DownloadIcon className="w-3.5 h-3.5" /> Print Receipt
               </button>
             </div>
           ))}
@@ -676,7 +742,6 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNod
   const createTicket = useMutation(api.portals.createMaintenanceTicket);
   // Get upload URL mutation
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
-  const getUrl = useQuery(api.myFunctions.getUrl, 'skip' as any);
 
   // Use tenantInfo to resolve property and unit IDs
   // This is the KEY FIX: we no longer use coreState (which is empty for portal users)

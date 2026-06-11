@@ -598,13 +598,17 @@ export const App: React.FC = () => {
         if (!currentUser && !isLoadingSession) {
             // Check if a portal user session is being restored — if so, show a loading
             // state instead of the LandingPage to prevent the jarring flash
-            const hasRememberedPortal = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_portal_type');
+            const hasRememberedPortal = typeof sessionStorage !== 'undefined' && (
+                sessionStorage.getItem('practicepro_portal_type') !== null ||
+                sessionStorage.getItem('practicepro_portal_session') !== null ||
+                localStorage.getItem('practicepro_portal_session') !== null
+            );
             if (hasRememberedPortal && !portalRememberTimedOut) {
                 // Session might still be loading (e.g. slow Convex query). Show a minimal
                 // portal-themed loading screen rather than the public LandingPage.
-                // Auto-timeout after 10s: if the session truly isn't valid, clear the
+                // Auto-timeout after 15s: if the session truly isn't valid, clear the
                 // remembered portal type and fall through to the LandingPage.
-                setTimeout(() => setPortalRememberTimedOut(true), 10000);
+                setTimeout(() => setPortalRememberTimedOut(true), 15000);
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
                         <div className="text-center">
