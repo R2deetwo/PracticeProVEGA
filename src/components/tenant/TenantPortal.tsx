@@ -195,12 +195,23 @@ const LedgerTab: React.FC = () => {
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const firmId = currentUser?.firmId || '';
-  const tenantId = currentUser?.id || '';
+  const userId = currentUser?.id || '';
+  const email = currentUser?.email || '';
 
-  // Fetch ledger entries from Convex
+  // First, resolve the correct tenant ID using getTenantInfo
+  // This handles the case where properties store tenantId as email instead of Convex _id
+  const tenantInfo = useQuery(
+    api.portals.getTenantInfo,
+    firmId && userId ? { firmId, userId, email } : 'skip'
+  );
+
+  // Use the resolved tenantId from getTenantInfo, or fall back to currentUser.id
+  const resolvedTenantId = tenantInfo?.tenantId || userId;
+
+  // Fetch ledger entries from Convex using the resolved tenant ID
   const ledgerEntries = useQuery(
     api.portals.getTenantLedger,
-    firmId && tenantId ? { firmId, tenantId } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
   );
 
   // Fetch service charges from Convex to compute current SC/MV
@@ -213,9 +224,9 @@ const LedgerTab: React.FC = () => {
 
   // Compute tenant-specific service charges
   const tenantServiceCharges = useMemo(() => {
-    if (!serviceCharges || !tenantId) return [];
-    return serviceCharges.filter((sc: any) => sc.tenantId === tenantId);
-  }, [serviceCharges, tenantId]);
+    if (!serviceCharges || !resolvedTenantId) return [];
+    return serviceCharges.filter((sc: any) => sc.tenantId === resolvedTenantId);
+  }, [serviceCharges, resolvedTenantId]);
 
   // Summary calculations
   const currentMonthSC = useMemo(() => {
@@ -448,12 +459,20 @@ const LedgerTab: React.FC = () => {
 const ReceiptsTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ addToast }) => {
   const { currentUser } = useAuth();
   const firmId = currentUser?.firmId || '';
-  const tenantId = currentUser?.id || '';
+  const userId = currentUser?.id || '';
+  const email = currentUser?.email || '';
+
+  // Resolve the correct tenant ID
+  const tenantInfo = useQuery(
+    api.portals.getTenantInfo,
+    firmId && userId ? { firmId, userId, email } : 'skip'
+  );
+  const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   // Fetch ledger entries — receipts are cleared entries
   const ledgerEntries = useQuery(
     api.portals.getTenantLedger,
-    firmId && tenantId ? { firmId, tenantId } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId } : 'skip'
   );
 
   const isLoading = ledgerEntries === undefined;
@@ -543,7 +562,15 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const firmId = currentUser?.firmId || '';
-  const tenantId = currentUser?.id || '';
+  const userId = currentUser?.id || '';
+  const email = currentUser?.email || '';
+
+  // Resolve the correct tenant ID
+  const tenantInfo = useQuery(
+    api.portals.getTenantInfo,
+    firmId && userId ? { firmId, userId, email } : 'skip'
+  );
+  const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
@@ -553,7 +580,7 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
   // Fetch tickets from Convex
   const tickets = useQuery(
     api.portals.getMaintenanceTicketsByTenant,
-    tenantId ? { tenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
   );
 
   // Mutation for creating a ticket
@@ -563,9 +590,9 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
   const tenantProperty = useMemo(() => {
     if (!coreState?.properties) return null;
     return coreState.properties.find(
-      (p: any) => p.currentTenantId === tenantId || p.tenantId === tenantId
+      (p: any) => p.currentTenantId === resolvedTenantId || p.tenantId === resolvedTenantId
     );
-  }, [coreState?.properties, tenantId]);
+  }, [coreState?.properties, resolvedTenantId]);
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
@@ -582,7 +609,7 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
       await createTicket({
         firmId,
         propertyId: tenantProperty.id,
-        tenantId,
+        tenantId: resolvedTenantId,
         tenantName: currentUser?.name || undefined,
         subject: subject.trim(),
         description: description.trim(),
@@ -740,12 +767,21 @@ const MaintenanceTab: React.FC<{ addToast: (msg: React.ReactNode, opts?: any) =>
 // ─── Messages Tab ────────────────────────────────────────────────────────────
 const MessagesTab: React.FC = () => {
   const { currentUser } = useAuth();
-  const tenantId = currentUser?.id || '';
+  const userId = currentUser?.id || '';
+  const firmId = currentUser?.firmId || '';
+  const email = currentUser?.email || '';
+
+  // Resolve the correct tenant ID
+  const tenantInfo = useQuery(
+    api.portals.getTenantInfo,
+    firmId && userId ? { firmId, userId, email } : 'skip'
+  );
+  const resolvedTenantId = tenantInfo?.tenantId || userId;
 
   // Fetch inbound messages for this tenant from Convex
   const messages = useQuery(
     api.portals.getInboundMessagesByTenant,
-    tenantId ? { tenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
   );
 
   const isLoading = messages === undefined;

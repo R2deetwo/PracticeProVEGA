@@ -69,6 +69,8 @@ const ClientPortalLogin: React.FC = () => {
                     }
                 }
                 addToast('Welcome to the Client Portal.', { type: 'success' });
+                // Store portal type so App.tsx knows to show portal loading instead of LandingPage
+                sessionStorage.setItem('practicepro_portal_type', 'client');
                 // Use React Router navigate instead of window.location.href to preserve
                 // in-memory React state (sessionToken, currentUser). A full page reload
                 // destroys all state, causing the user to fall back to the LandingPage.

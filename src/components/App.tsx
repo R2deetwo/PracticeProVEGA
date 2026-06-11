@@ -428,6 +428,7 @@ export const App: React.FC = () => {
     const [visualsComplete, setVisualsComplete] = useState(false);
     const [loadingMessage, setLoadingMessage] = useState("Initializing System...");
     const [sessionLoadTimedOut, setSessionLoadTimedOut] = useState(false);
+    const [portalRememberTimedOut, setPortalRememberTimedOut] = useState(false);
     const [hasInitialSplashFinished, setHasInitialSplashFinished] = useState(false);
     const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
     const isEditorMode = view === 'editor';
@@ -451,9 +452,16 @@ export const App: React.FC = () => {
     // Safety valve: if the session has been loading for 6 seconds and the user has no
     // stored session, abandon the splash and show the landing page immediately.
     // #4 — Redirect unauthenticated users away from protected routes to keep URL clean
+    // IMPORTANT: Portal users who have a saved session should NEVER be redirected away
+    // during the brief window while auth is loading. We detect this by checking
+    // sessionStorage for a stored portal type.
     useEffect(() => {
         const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/setup-password'];
+        const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type');
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
+            // If user has a remembered portal but no currentUser, they might be in a
+            // loading state — don't redirect them away from their portal
+            if (hasRememberedPortal) return;
             console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
             navigate('/', { replace: true });
         }
@@ -588,6 +596,24 @@ export const App: React.FC = () => {
         if (location.pathname === '/setup-password') return <SetupPassword />;
 
         if (!currentUser && !isLoadingSession) {
+            // Check if a portal user session is being restored — if so, show a loading
+            // state instead of the LandingPage to prevent the jarring flash
+            const hasRememberedPortal = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_portal_type');
+            if (hasRememberedPortal && !portalRememberTimedOut) {
+                // Session might still be loading (e.g. slow Convex query). Show a minimal
+                // portal-themed loading screen rather than the public LandingPage.
+                // Auto-timeout after 10s: if the session truly isn't valid, clear the
+                // remembered portal type and fall through to the LandingPage.
+                setTimeout(() => setPortalRememberTimedOut(true), 10000);
+                return (
+                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-slate-400 text-sm">Loading your portal...</p>
+                        </div>
+                    </div>
+                );
+            }
             if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;

@@ -137,12 +137,20 @@ const SetupPassword: React.FC = () => {
             if (result.success) {
                 setStep('success');
 
+                // Store portal type immediately so App.tsx knows this is a portal user
+                // during the auth loading phase (prevents flash of LandingPage)
+                const portalType = inviteData?.invite?.portalType;
+                if (portalType === 'client') {
+                    sessionStorage.setItem('practicepro_portal_type', 'client');
+                } else if (portalType === 'resident') {
+                    sessionStorage.setItem('practicepro_portal_type', 'tenant');
+                }
+
                 // Auto-login after a short delay
                 setTimeout(async () => {
                     try {
                         const loginResult = await login(result.email!, password);
                         if (loginResult.success) {
-                            // Redirect to the appropriate portal login page
                             // Redirect to the main app — the router will detect the user's
                             // Client/Tenant role and show the correct portal view automatically.
                             navigate('/', { replace: true });

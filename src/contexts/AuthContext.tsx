@@ -147,6 +147,18 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         return combined;
     }, [userData, sessionToken, localUserOverrides]);
 
+    // Persist portal type to sessionStorage so we can redirect correctly on refresh/logout.
+    // This is a side-effect of currentUser changing, not part of the memo.
+    React.useEffect(() => {
+        if (currentUser) {
+            if (currentUser.role === UserRole.Client) {
+                sessionStorage.setItem('practicepro_portal_type', 'client');
+            } else if (currentUser.role === UserRole.Tenant) {
+                sessionStorage.setItem('practicepro_portal_type', 'tenant');
+            }
+        }
+    }, [currentUser?.role]);
+
     const originalUser: User | null = React.useMemo(() => {
         if (!originalUserData) return null;
         return {
@@ -299,6 +311,10 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }
 
     const logout = async () => {
+        // Capture portal type BEFORE clearing session so we can redirect to the right login page
+        const portalType = sessionStorage.getItem('practicepro_portal_type');
+        const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
+
         if (currentUser && currentUser.email !== 'demo@practicepro.ng') {
             try {
                 await trackEventMutation({
@@ -314,7 +330,20 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
         localStorage.removeItem(LOCAL_STORAGE_USER_KEY); // Also remove legacy local storage just in case
         localStorage.removeItem('practicepro_session_locked');
-        window.location.href = '/';
+        sessionStorage.removeItem('practicepro_portal_type');
+
+        // Redirect portal users to their specific login page, not the main landing page
+        if (isPortalUser) {
+            if (portalType === 'client' || currentUser?.role === 'Client') {
+                window.location.href = '/portal/client/login';
+            } else if (portalType === 'tenant' || currentUser?.role === 'Tenant') {
+                window.location.href = '/portal/tenant/login';
+            } else {
+                window.location.href = '/';
+            }
+        } else {
+            window.location.href = '/';
+        }
     };
 
     const markOnboardingComplete = (firmId: string) => {

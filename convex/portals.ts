@@ -30,11 +30,31 @@ export const createMaintenanceTicket = mutation({
 export const getMaintenanceTicketsByTenant = query({
   args: { tenantId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const tickets = await ctx.db
       .query("maintenance_tickets")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .order("desc")
       .collect();
+
+    // Also try matching by email in case the tenantId stored is the user's email
+    // This handles the case where the invite was created with the email as the tenant ID
+    if (tickets.length === 0 && args.tenantId.includes('@')) {
+      // The tenantId looks like an email, also search by the user's Convex _id
+      const user: any = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tenantId.toLowerCase()))
+        .first();
+      if (user) {
+        const byUserId = await ctx.db
+          .query("maintenance_tickets")
+          .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
+          .order("desc")
+          .collect();
+        return byUserId;
+      }
+    }
+
+    return tickets;
   },
 });
 
@@ -867,6 +887,70 @@ export const cancelScheduledMessage = mutation({
 
 // ─── Tenant Ledger for Portal ───────────────────────────────────────────
 
+/**
+ * getTenantInfo — Resolves the tenant's property/unit assignments using their
+ * user ID and email. This is critical because the tenantId stored in
+ * properties/units may be the user's Convex _id OR their email, depending
+ * on how the invite was created. This query normalizes both cases.
+ *
+ * Returns: { tenantId, properties, units } where tenantId is the canonical
+ * ID that should be used for all other portal queries.
+ */
+export const getTenantInfo = query({
+  args: { firmId: v.string(), userId: v.string(), email: v.string() },
+  handler: async (ctx, args) => {
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Search for tenant in properties using both userId and email
+    const tenantProperties: any[] = [];
+    const tenantUnits: any[] = [];
+    let resolvedTenantId = args.userId;
+
+    for (const prop of properties) {
+      // Check property-level tenant (legacy single-tenant model)
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      if (propTenantId === args.userId || propTenantId === args.email ||
+          String(propTenantId).toLowerCase() === args.email.toLowerCase()) {
+        tenantProperties.push({
+          id: String(prop._id),
+          name: (prop as any).name || prop.address || 'Unnamed Property',
+          address: prop.address,
+        });
+        if (propTenantId && propTenantId !== args.userId) {
+          resolvedTenantId = propTenantId;
+        }
+      }
+
+      // Check unit-level tenants (multi-unit model)
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantId = unit.currentTenantId || unit.tenantId;
+        if (unitTenantId === args.userId || unitTenantId === args.email ||
+            String(unitTenantId).toLowerCase() === args.email.toLowerCase()) {
+          tenantUnits.push({
+            id: unit.id || unit._id,
+            name: unit.name || unit.unitName,
+            propertyId: String(prop._id),
+            propertyName: (prop as any).name || prop.address || 'Unnamed Property',
+          });
+          if (unitTenantId && unitTenantId !== args.userId) {
+            resolvedTenantId = unitTenantId;
+          }
+        }
+      }
+    }
+
+    return {
+      tenantId: resolvedTenantId,
+      properties: tenantProperties,
+      units: tenantUnits,
+    };
+  },
+});
+
 export const getTenantLedger = query({
   args: { firmId: v.string(), tenantId: v.string() },
   handler: async (ctx, args) => {
@@ -876,16 +960,30 @@ export const getTenantLedger = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    const tenantProperties = properties.filter(p => p.currentTenantId === args.tenantId || p.tenantId === args.tenantId);
+    // Collect all possible tenant IDs (direct ID + IDs from matching properties/units)
+    const possibleTenantIds = new Set([args.tenantId]);
 
-    // Get ledger entries for those properties/units
+    for (const prop of properties) {
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      if (propTenantId === args.tenantId) {
+        // Found a property — also check if units have different IDs
+      }
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantId = unit.currentTenantId || unit.tenantId;
+        if (unitTenantId === args.tenantId) {
+          if (propTenantId && propTenantId !== args.tenantId) possibleTenantIds.add(propTenantId);
+        }
+      }
+    }
+
+    // Get ledger entries matching any of the possible tenant IDs
     const allLedger = await ctx.db
       .query("ledger_entries")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    const tenantEntries = allLedger.filter(e => e.tenantId === args.tenantId);
-    return tenantEntries;
+    return allLedger.filter(e => e.tenantId && possibleTenantIds.has(e.tenantId));
   },
 });
 
@@ -894,11 +992,28 @@ export const getTenantLedger = query({
 export const getInboundMessagesByTenant = query({
   args: { tenantId: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const messages = await ctx.db
       .query("atrium_inbound_messages")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
       .order("desc")
       .collect();
+
+    // Fallback: also try by user's Convex _id if the tenantId looks like an email
+    if (messages.length === 0 && args.tenantId.includes('@')) {
+      const user: any = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tenantId.toLowerCase()))
+        .first();
+      if (user) {
+        return await ctx.db
+          .query("atrium_inbound_messages")
+          .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
+          .order("desc")
+          .collect();
+      }
+    }
+
+    return messages;
   },
 });
 
@@ -1108,6 +1223,10 @@ export const migratePortalUserRoles = mutation({
  * using their user ID. This is needed because the DataProvider skips loading
  * firm data for portal users, so matterState.contacts is empty. The
  * ClientDashboard uses this to find the contactId needed for its portal queries.
+ *
+ * Also searches by email as a fallback — the contact's userId field might
+ * not always match the user's Convex _id (e.g. if the contact was created
+ * before the portal user account existed).
  */
 export const getClientContactByUserId = query({
   args: { firmId: v.string(), userId: v.string() },
@@ -1117,7 +1236,40 @@ export const getClientContactByUserId = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    return contacts.find(c => c.userId === args.userId) || null;
+    // First try matching by userId field
+    let contact = contacts.find(c => c.userId === args.userId) || null;
+
+    // If not found, try to match by looking up the user's email and matching
+    // the contact's email field. This handles the case where the contact was
+    // created before the portal user account existed.
+    if (!contact) {
+      // Try to look up the user by their Convex _id to get their email
+      let user: any = null;
+      try { user = await ctx.db.get(args.userId as any); } catch {}
+
+      // If that didn't work, the userId might be an email-based tokenIdentifier
+      if (!user) {
+        user = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.userId.toString()))
+          .first();
+      }
+
+      const userEmail = user?.email?.toLowerCase();
+      if (userEmail) {
+        contact = contacts.find(c =>
+          (c as any).email?.toLowerCase() === userEmail
+        ) || null;
+      }
+
+      // Also try matching contact by userId against the user's _id as a string
+      if (!contact && user) {
+        const userDocId = String(user._id);
+        contact = contacts.find(c => c.userId === userDocId) || null;
+      }
+    }
+
+    return contact;
   },
 });
 
@@ -1125,6 +1277,9 @@ export const getClientContactByUserId = query({
  * getClientMattersByUserId — Returns the matters for a portal client,
  * looking up the contact by userId first. This avoids the ClientDashboard
  * needing to depend on matterState (which is empty for portal users).
+ *
+ * Also searches by email as a fallback for the same reason as
+ * getClientContactByUserId.
  */
 export const getClientMattersByUserId = query({
   args: { firmId: v.string(), userId: v.string() },
@@ -1135,7 +1290,29 @@ export const getClientMattersByUserId = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    const clientContact = contacts.find(c => c.userId === args.userId);
+    let clientContact = contacts.find(c => c.userId === args.userId);
+
+    // Fallback: search by email
+    if (!clientContact) {
+      let user: any = null;
+      try { user = await ctx.db.get(args.userId as any); } catch {}
+      if (!user) {
+        user = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.userId.toString()))
+          .first();
+      }
+      const userEmail = user?.email?.toLowerCase();
+      if (userEmail) {
+        clientContact = contacts.find(c =>
+          (c as any).email?.toLowerCase() === userEmail
+        );
+      }
+      if (!clientContact && user) {
+        clientContact = contacts.find(c => c.userId === String(user._id));
+      }
+    }
+
     if (!clientContact) return [];
 
     // Find matters for this contact
