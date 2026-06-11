@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
+import { useUnitDropdownOptions } from '../../hooks/usePropertyGroups';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const AlertIcon = ({ className = "w-4 h-4" }) => (
@@ -61,7 +62,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void }> = ({ fir
   const [form, setForm] = useState({ unitId: '', category: 'Diesel' as ServiceChargeCategory, amount: '', cycle: 'Annually' as 'Monthly' | 'Quarterly' | 'Annually', notes: '', nextDueDays: '0' });
   const [loading, setLoading] = useState(false);
 
-  const units = useMemo(() => (coreState.properties || []).map(p => ({ id: p.id, label: p.address })), [coreState.properties]);
+  const units = useUnitDropdownOptions(coreState.properties || []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

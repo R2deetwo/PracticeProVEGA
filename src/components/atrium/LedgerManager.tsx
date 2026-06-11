@@ -6,6 +6,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
 import { formatNaira, formatLargeNumber } from '../../utils/formatting';
 import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
+import { useUnitDropdownOptions } from '../../hooks/usePropertyGroups';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -59,11 +60,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const units = useMemo(() => {
-    const list: { id: string; label: string }[] = [];
-    (coreState.properties || []).forEach(p => list.push({ id: p.id, label: p.address }));
-    return list;
-  }, [coreState.properties]);
+  const units = useUnitDropdownOptions(coreState.properties || []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

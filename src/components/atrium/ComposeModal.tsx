@@ -4,7 +4,8 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
-import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio } from 'lucide-react';
+import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
+import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const SendIcon = ({ className = "w-4 h-4" }) => (
@@ -223,76 +224,53 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Build selectable recipients ──────────────────────────────────────
-  const selectableRecipients = useMemo(() => {
-    const allProperties = coreState.properties || [];
-    const result: SelectableRecipient[] = [];
+  // ── Build selectable recipients using shared grouping hook ───────────
+  const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
 
-    // Detect multi-unit buildings: count how many property records share each address
-    const addressCount = new Map<string, number>();
-    for (const p of allProperties) {
-      const addr = (p.address || '').trim().toLowerCase();
-      if (addr) addressCount.set(addr, (addressCount.get(addr) || 0) + 1);
-    }
+  // Convert UnitOptions to SelectableRecipients (only those with tenants)
+  const selectableRecipients = useMemo(() =>
+    flatUnits.filter(u => u.tenantName).map(u => ({
+      id: u.id,
+      label: u.label,
+      tenantName: u.tenantName,
+      tenantPhone: u.tenantPhone,
+      tenantEmail: u.tenantEmail,
+      rentAmount: u.rentAmount,
+      propertyAddress: u.address,
+      serviceCharge: u.serviceCharge,
+      legalFee: u.legalFee,
+      agencyFee: u.agencyFee,
+      cautionDeposit: u.cautionDeposit,
+    })),
+    [flatUnits]
+  );
 
-    for (const p of allProperties) {
-      if (p.units && p.units.length > 0) {
-        // Property has a nested units array — list each unit
-        for (const unit of p.units) {
-          const tenantName = unit.tenantName || p.rentalDetails?.tenantName || '';
-          result.push({
-            id: `${p.id}_${unit.id || unit.unitName}`,
-            label: `Unit ${unit.unitName || unit.id || '?'}${tenantName ? ` — ${tenantName}` : ''}`,
-            tenantName,
-            tenantPhone: unit.tenantPhone || p.rentalDetails?.tenantPhone || '',
-            tenantEmail: unit.tenantEmail || p.rentalDetails?.tenantEmail || '',
-            rentAmount: unit.rentAmount || p.rentalDetails?.rentAmount,
-            propertyAddress: p.address,
-            serviceCharge: unit.serviceCharge || p.rentalDetails?.serviceCharge,
-            legalFee: unit.legalFee || p.rentalDetails?.legalFee,
-            agencyFee: unit.agencyFee || p.rentalDetails?.agencyFee,
-            cautionDeposit: unit.cautionDeposit || p.rentalDetails?.cautionDeposit,
-          });
+  const tenantedRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);
+
+  // ── Collapsible group state ─────────────────────────────────────────
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+
+  const toggleGroup = (addressKey: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(addressKey)) next.delete(addressKey); else next.add(addressKey);
+      return next;
+    });
+  };
+
+  // Auto-expand groups that contain selected recipients
+  useEffect(() => {
+    if (selectedRecipientIds.length === 0) return;
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      for (const g of propertyGroups) {
+        if (g.isMultiUnit && g.units.some(u => selectedRecipientIds.includes(u.id))) {
+          next.add(g.addressKey);
         }
-      } else if (p.rentalDetails?.tenantName) {
-        // Single property record with tenant info
-        const addr = (p.address || '').trim().toLowerCase();
-        const isMultiUnit = addr && (addressCount.get(addr) || 0) > 1;
-        const unitName = p.rentalDetails.unitName || p.description?.match(/\((.*?)\)/)?.[1] || '';
-        const tenantName = p.rentalDetails.tenantName;
-        const shortAddr = p.address?.split(',')[0] || 'Property';
-
-        let label: string;
-        if (isMultiUnit && unitName) {
-          // Multi-unit building — show unit name + tenant (address is redundant)
-          label = `${unitName} — ${tenantName}`;
-        } else if (isMultiUnit) {
-          // Multi-unit but no unitName — use a short address + tenant (better than full address repeat)
-          label = `${shortAddr}${tenantName ? ` — ${tenantName}` : ''}`;
-        } else {
-          // Standalone single-tenant property — show address + tenant
-          label = `${shortAddr} — ${tenantName}`;
-        }
-
-        result.push({
-          id: p.id,
-          label,
-          tenantName,
-          tenantPhone: p.rentalDetails.tenantPhone || '',
-          tenantEmail: p.rentalDetails.tenantEmail || '',
-          rentAmount: p.rentalDetails.rentAmount,
-          propertyAddress: p.address,
-          serviceCharge: p.rentalDetails.serviceCharge,
-          legalFee: p.rentalDetails.legalFee,
-          agencyFee: p.rentalDetails.agencyFee,
-          cautionDeposit: p.rentalDetails.cautionDeposit,
-        });
       }
-    }
-    return result;
-  }, [coreState.properties]);
-
-  const tenantedRecipients = useMemo(() => selectableRecipients.filter(r => r.tenantName), [selectableRecipients]);
+      return next;
+    });
+  }, [selectedRecipientIds, propertyGroups]);
 
   // ── Selected recipients data ─────────────────────────────────────────
   const selectedRecipients = useMemo(() => 
@@ -648,40 +626,138 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 />
               </div>
 
-              {/* Dropdown list */}
+              {/* Dropdown list — grouped by building with collapsible sections */}
               {showRecipientDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-h-52 overflow-y-auto custom-scrollbar">
+                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
                   {filteredRecipients.length === 0 && (
                     <div className="px-3 py-2 text-xs text-slate-500">No recipients found</div>
                   )}
-                  {filteredRecipients.map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
-                        selectedRecipientIds.includes(r.id) ? 'bg-slate-700/60' : ''
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
-                        selectedRecipientIds.includes(r.id) 
-                          ? 'bg-emerald-500 border-emerald-500' 
-                          : 'border-slate-500'
-                      }`}>
-                        {selectedRecipientIds.includes(r.id) && (
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white truncate">{r.label}</div>
-                        <div className="flex items-center gap-2">
-                          {r.propertyAddress && !r.label.includes(r.propertyAddress.split(',')[0]) && <span className="text-[10px] text-slate-500 truncate">{r.propertyAddress.split(',')[0]}</span>}
-                          {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate">{r.tenantPhone}</span>}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                  {(() => {
+                    // Build grouped list from filtered recipients
+                    const filteredSet = new Set(filteredRecipients.map(r => r.id));
+
+                    return propertyGroups
+                      .filter(g => g.units.some(u => u.tenantName && filteredSet.has(u.id)))
+                      .map(g => {
+                        const groupUnits = g.units.filter(u => u.tenantName && filteredSet.has(u.id));
+                        if (groupUnits.length === 0) return null;
+
+                        // Single-unit building — show as flat item (no group header needed)
+                        if (!g.isMultiUnit) {
+                          const u = groupUnits[0];
+                          const r = selectableRecipients.find(sr => sr.id === u.id);
+                          if (!r) return null;
+                          return (
+                            <button
+                              key={r.id}
+                              onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                                selectedRecipientIds.includes(r.id) ? 'bg-slate-700/60' : ''
+                              }`}
+                            >
+                              <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                                selectedRecipientIds.includes(r.id) 
+                                  ? 'bg-emerald-500 border-emerald-500' 
+                                  : 'border-slate-500'
+                              }`}>
+                                {selectedRecipientIds.includes(r.id) && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white truncate">{r.label}</div>
+                                {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+                              </div>
+                            </button>
+                          );
+                        }
+
+                        // Multi-unit building — show collapsible group
+                        const isExpanded = expandedGroups.has(g.addressKey);
+                        const allGroupIds = groupUnits.map(u => u.id);
+                        const allSelected = allGroupIds.every(id => selectedRecipientIds.includes(id));
+                        const someSelected = allGroupIds.some(id => selectedRecipientIds.includes(id));
+
+                        return (
+                          <div key={g.addressKey}>
+                            {/* Group header — clickable to expand/collapse, with select-all checkbox */}
+                            <button
+                              onClick={() => {
+                                if (!isExpanded) toggleGroup(g.addressKey);
+                                else toggleGroup(g.addressKey);
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-700/40 transition-colors flex items-center gap-2 border-b border-slate-700/50"
+                            >
+                              <span
+                                className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center cursor-pointer ${
+                                  allSelected
+                                    ? 'bg-emerald-500 border-emerald-500'
+                                    : someSelected
+                                    ? 'bg-emerald-500/40 border-emerald-500/60'
+                                    : 'border-slate-500'
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (allSelected) {
+                                    setSelectedRecipientIds(prev => prev.filter(id => !allGroupIds.includes(id)));
+                                  } else {
+                                    setSelectedRecipientIds(prev => {
+                                      const existing = prev.filter(id => !allGroupIds.includes(id));
+                                      return [...existing, ...allGroupIds];
+                                    });
+                                  }
+                                }}
+                              >
+                                {(allSelected || someSelected) && (
+                                  <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </span>
+                              <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs font-semibold text-slate-300 truncate block">{g.shortAddress}</span>
+                                <span className="text-[10px] text-slate-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
+                              </div>
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                            </button>
+
+                            {/* Expanded units */}
+                            {isExpanded && groupUnits.map(u => {
+                              const r = selectableRecipients.find(sr => sr.id === u.id);
+                              if (!r) return null;
+                              return (
+                                <button
+                                  key={r.id}
+                                  onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
+                                  className={`w-full text-left pl-9 pr-3 py-1.5 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
+                                    selectedRecipientIds.includes(r.id) ? 'bg-slate-700/40' : ''
+                                  }`}
+                                >
+                                  <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
+                                    selectedRecipientIds.includes(r.id) 
+                                      ? 'bg-emerald-500 border-emerald-500' 
+                                      : 'border-slate-500'
+                                  }`}>
+                                    {selectedRecipientIds.includes(r.id) && (
+                                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-white truncate text-xs">{r.label}</div>
+                                    {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      });
+                  })()}
                 </div>
               )}
 

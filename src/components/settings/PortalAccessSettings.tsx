@@ -14,6 +14,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useMatterState } from '../../contexts/MatterContext';
+import { usePropertyGroups } from '../../hooks/usePropertyGroups';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
@@ -90,14 +91,15 @@ const InviteForm: React.FC<{
   const [isSending, setIsSending] = useState(false);
 
   // Build list of matters (Vega) or properties (Atrium) to link invite to
+  const { flatUnits } = usePropertyGroups(coreState.properties || []);
   const relatedItems = useMemo(() => {
     if (isProperty) {
-      return (coreState.properties || []).map((p: any) => ({
-        id: p.id,
-        label: p.address || p.name || `Property ${String(p.id || '').slice(-5)}`,
-        tenantName: p.tenantName || p.currentTenantName || '',
-        tenantPhone: p.tenantPhone || p.currentTenantPhone || '',
-        tenantEmail: p.tenantEmail || p.currentTenantEmail || '',
+      return flatUnits.map(u => ({
+        id: u.id,
+        label: u.label,
+        tenantName: u.tenantName || '',
+        tenantPhone: u.tenantPhone || '',
+        tenantEmail: u.tenantEmail || '',
       }));
     } else {
       return (matterState.matters || []).map((m: any) => ({
@@ -108,7 +110,7 @@ const InviteForm: React.FC<{
         clientPhone: m.clientPhone || '',
       }));
     }
-  }, [isProperty, coreState.properties, matterState.matters]);
+  }, [isProperty, flatUnits, matterState.matters]);
 
   // Auto-populate when user selects a matter/property
   const handleRelatedChange = useCallback((selectedId: string) => {
@@ -118,14 +120,16 @@ const InviteForm: React.FC<{
     if (!item) return;
     if (isProperty) {
       // Auto-fill from property tenant data
-      if (item.tenantName && !name) setName(item.tenantName);
-      if (item.tenantPhone && !phone) setPhone(item.tenantPhone);
-      if (item.tenantEmail && !email) setEmail(item.tenantEmail);
+      const propItem = item as { id: string; label: string; tenantName: string; tenantPhone: string; tenantEmail: string };
+      if (propItem.tenantName && !name) setName(propItem.tenantName);
+      if (propItem.tenantPhone && !phone) setPhone(propItem.tenantPhone);
+      if (propItem.tenantEmail && !email) setEmail(propItem.tenantEmail);
     } else {
       // Auto-fill from matter client data
-      if (item.clientName && !name) setName(item.clientName);
-      if (item.clientEmail && !email) setEmail(item.clientEmail);
-      if (item.clientPhone && !phone) setPhone(item.clientPhone);
+      const matterItem = item as { id: any; label: any; clientName: any; clientEmail: any; clientPhone: any };
+      if (matterItem.clientName && !name) setName(matterItem.clientName);
+      if (matterItem.clientEmail && !email) setEmail(matterItem.clientEmail);
+      if (matterItem.clientPhone && !phone) setPhone(matterItem.clientPhone);
     }
   }, [relatedItems, isProperty, name, phone, email]);
 

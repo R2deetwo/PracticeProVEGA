@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { LeadPipelineEntry, LeadPipelineStage } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
+import { usePropertyGroups } from '../../hooks/usePropertyGroups';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const UserPlusIcon = ({ className = "w-4 h-4" }) => (
@@ -76,7 +77,8 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
   const { coreState } = useCoreState();
   const [form, setForm] = useState({ unitId: '', applicantName: '', contactInfo: '', proposedRent: '', vettingScore: '', notes: '' });
   const [loading, setLoading] = useState(false);
-  const units = useMemo(() => (coreState.properties || []).filter(p => p.status !== 'Occupied').map(p => ({ id: p.id, label: p.address })), [coreState.properties]);
+  const { flatUnits } = usePropertyGroups(coreState.properties || []);
+  const units = useMemo(() => flatUnits.filter(u => u._raw && u._raw.status !== 'Occupied').map(u => ({ id: u.id, label: u.label })), [flatUnits]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -54,3 +54,32 @@ Stage Summary:
 - Auto-populate from linked records reduces form filling
 - Resend works properly — no more duplicates, refreshes existing record
 - All changes pushed to origin/main
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix repeated property addresses in dropdowns, make ComposeModal intuitive with collapsible building groups, set email env vars
+
+Work Log:
+- Created shared `usePropertyGroups` hook (`/home/z/my-project/src/hooks/usePropertyGroups.ts`) that groups properties by address, detects multi-unit buildings, and generates smart labels (unit name + tenant instead of repeated full address)
+- Also created `useUnitDropdownOptions` convenience hook for simple `<select>` dropdowns
+- Rewrote ComposeModal recipient dropdown with collapsible building groups:
+  - Multi-unit buildings appear as a group header (short address + unit count) with expand/collapse chevron
+  - Expanding reveals individual units listed by unit name + tenant name
+  - Group header has a select-all checkbox for bulk selection
+  - Single-unit properties appear as flat list items
+  - Auto-expands groups containing already-selected recipients
+- Fixed ServiceChargeMonitor dropdown to use `useUnitDropdownOptions` instead of raw `p.address`
+- Fixed VacancyPipeline dropdown to use `usePropertyGroups` with vacancy filter
+- Fixed LedgerManager dropdown to use `useUnitDropdownOptions` instead of raw `p.address`
+- Fixed PortalAccessSettings dropdown to use `usePropertyGroups` instead of raw `p.address`
+- Verified env vars on Convex deployment: `PracticePro_Vega_Mailer` and `BREVO_SENDER_EMAIL` are both set
+- Deployed Convex backend successfully
+- Frontend build passes with no TypeScript errors in changed files
+
+Stage Summary:
+- All property/unit dropdowns now show smart labels: "Flat 2A — John Doe" instead of "12 Marina Close" repeated 5 times
+- ComposeModal has a polished grouped UI with collapsible building sections and bulk-select
+- 5 components fixed: ComposeModal, ServiceChargeMonitor, VacancyPipeline, LedgerManager, PortalAccessSettings
+- Shared hook ensures consistent behavior across all dropdowns
+- Email env vars confirmed working on Convex deployment
