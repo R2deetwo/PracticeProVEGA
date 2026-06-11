@@ -1115,12 +1115,12 @@ export default defineSchema({
   portal_invites: defineTable({
     firmId: v.string(),
     inviterId: v.string(),                  // userId of the person who sent the invite
-    inviteeEmail: v.string(),
+    inviteeEmail: v.optional(v.string()),
     inviteeName: v.optional(v.string()),
     inviteePhone: v.optional(v.string()),
     portalType: v.union(v.literal("client"), v.literal("resident")),
     relatedId: v.optional(v.string()),      // matterId for client, propertyId for resident
-    token: v.string(),                      // unique invite token for magic-link URL
+    token: v.optional(v.string()),           // unique invite token for magic-link URL (old invites may lack this)
     channel: v.optional(v.string()),        // "email" | "whatsapp" | "both" — how the invite was sent
     status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("expired"), v.literal("revoked")),
     message: v.optional(v.string()),

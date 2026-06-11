@@ -143,7 +143,7 @@ const InviteForm: React.FC<{
       const result = await sendInvite({
         firmId,
         inviterId,
-        inviteeEmail: email.trim().toLowerCase() || 'no-email@placeholder.com',
+        inviteeEmail: email.trim().toLowerCase() || undefined,
         inviteeName: name.trim() || undefined,
         inviteePhone: phone.trim() || undefined,
         portalType,

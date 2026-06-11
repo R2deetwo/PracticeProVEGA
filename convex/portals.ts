@@ -86,7 +86,7 @@ export const createPortalInvite = action({
   args: {
     firmId: v.string(),
     inviterId: v.string(),
-    inviteeEmail: v.string(),
+    inviteeEmail: v.optional(v.string()),
     inviteeName: v.optional(v.string()),
     inviteePhone: v.optional(v.string()),
     portalType: v.union(v.literal("client"), v.literal("resident")),
@@ -101,7 +101,7 @@ export const createPortalInvite = action({
     const channel = args.channel || "email";
 
     // 1. Insert the invite record
-    const inviteId = await ctx.runMutation(api.portals._insertInviteRecord, {
+    const inviteId = await ctx.runMutation(api.portals.insertInviteRecord, {
       firmId: args.firmId,
       inviterId: args.inviterId,
       inviteeEmail: args.inviteeEmail,
@@ -124,8 +124,8 @@ export const createPortalInvite = action({
     const inviteeGreeting = args.inviteeName ? args.inviteeName : args.inviteeEmail;
     const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
 
-    // 3. Send via email
-    const shouldSendEmail = channel === "email" || channel === "both";
+    // 3. Send via email (skip if no email address provided)
+    const shouldSendEmail = (channel === "email" || channel === "both") && args.inviteeEmail;
     let emailResult: any = { success: true, simulated: true };
     if (shouldSendEmail) {
       const htmlBody = `
@@ -156,7 +156,7 @@ export const createPortalInvite = action({
         </div>
       `;
       emailResult = await ctx.runAction(api.communications.sendEmail, {
-        to: args.inviteeEmail,
+        to: args.inviteeEmail!,
         toName: args.inviteeName,
         subject: `You're Invited: ${portalLabel} on PracticePro`,
         htmlContent: htmlBody,
@@ -193,16 +193,16 @@ export const createPortalInvite = action({
  * Internal mutation — only used by createPortalInvite action to write the DB record.
  * Not exported for direct frontend use.
  */
-export const _insertInviteRecord = mutation({
+export const insertInviteRecord = mutation({
   args: {
     firmId: v.string(),
     inviterId: v.string(),
-    inviteeEmail: v.string(),
+    inviteeEmail: v.optional(v.string()),
     inviteeName: v.optional(v.string()),
     inviteePhone: v.optional(v.string()),
     portalType: v.union(v.literal("client"), v.literal("resident")),
     relatedId: v.optional(v.string()),
-    token: v.string(),
+    token: v.optional(v.string()),
     channel: v.optional(v.string()),
     message: v.optional(v.string()),
     expiresAt: v.number(),
@@ -217,7 +217,7 @@ export const _insertInviteRecord = mutation({
       inviteePhone: args.inviteePhone,
       portalType: args.portalType,
       relatedId: args.relatedId,
-      token: args.token,
+      token: args.token ?? undefined,
       channel: args.channel,
       message: args.message,
       status: "pending",
@@ -245,7 +245,7 @@ export const resendPortalInvite = action({
     const newToken = generateToken();
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
-    await ctx.runMutation(api.portals._updateInviteRecord, {
+    await ctx.runMutation(api.portals.updateInviteRecord, {
       inviteId: args.inviteId,
       updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
     });
@@ -311,7 +311,7 @@ export const resendPortalInvite = action({
 });
 
 /** Internal mutation to update an invite record */
-export const _updateInviteRecord = mutation({
+export const updateInviteRecord = mutation({
   args: {
     inviteId: v.id("portal_invites"),
     updates: v.any(),
