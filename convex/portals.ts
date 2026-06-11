@@ -94,14 +94,14 @@ export const createPortalInvite = action({
     channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
     message: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean }> => {
     const now = Date.now();
     const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
     const token = generateToken();
     const channel = args.channel || "email";
 
     // 1. Insert the invite record
-    const inviteId = await ctx.runMutation(api.portals.insertInviteRecord, {
+    const inviteId: string = await ctx.runMutation(api.portals.insertInviteRecord, {
       firmId: args.firmId,
       inviterId: args.inviterId,
       inviteeEmail: args.inviteeEmail,
@@ -284,7 +284,7 @@ export const resendPortalInvite = action({
         </div>
       `;
       emailResult = await ctx.runAction(api.communications.sendEmail, {
-        to: existing.inviteeEmail,
+        to: existing.inviteeEmail!,
         toName: existing.inviteeName,
         subject: `Reminder: ${portalLabel} Invitation on PracticePro`,
         htmlContent: htmlBody,

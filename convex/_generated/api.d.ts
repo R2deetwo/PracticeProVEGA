@@ -29,11 +29,13 @@ import type * as migrations from "../migrations.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as portals from "../portals.js";
 import type * as productPermissions from "../productPermissions.js";
+import type * as salesInquiries from "../salesInquiries.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
 import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as test from "../test.js";
+import type * as tierLimits from "../tierLimits.js";
 
 import type {
   ApiFromModules,
@@ -63,11 +65,13 @@ declare const fullApi: ApiFromModules<{
   myFunctions: typeof myFunctions;
   portals: typeof portals;
   productPermissions: typeof productPermissions;
+  salesInquiries: typeof salesInquiries;
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;
   sentry: typeof sentry;
   sentryWebhook: typeof sentryWebhook;
   test: typeof test;
+  tierLimits: typeof tierLimits;
 }>;
 
 /**
