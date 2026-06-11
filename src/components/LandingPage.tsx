@@ -182,7 +182,7 @@ const NavBar: React.FC<{
 const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
     <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-10 md:py-16">
         <div className="container mx-auto px-4 sm:px-6">
-            <div className={`grid grid-cols-1 gap-8 md:gap-10 mb-12 ${productChosen ? 'md:grid-cols-4' : 'md:grid-cols-2'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10 mb-12">
                 {/* Brand */}
                 <div>
                     <div className="flex items-center gap-2.5 mb-4">
@@ -236,8 +236,8 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         </div>
                     </div>
                 )}
-                {/* Company — always visible */}
-                <div>
+                {/* Company — always on the far right (column 4) */}
+                <div className={productChosen ? '' : 'md:col-start-4'}>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
                     <div className="flex flex-col gap-2.5">
                         <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Privacy Policy</span>
