@@ -3,6 +3,7 @@ import { Property } from '../types';
 export interface UnitRentalInput {
   id: string;
   unitName: string;
+  unitDescription?: string;
   rentAmount: number;
   rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
   leaseStart: string;
@@ -88,7 +89,10 @@ export function buildPropertyRecord(
 
   if (unit._id) (pd as Property & { _id?: string })._id = unit._id;
 
+  // Use unit-level description if provided, otherwise fall back to property-level + unitName
+  const unitDesc = normalized.unitDescription?.trim();
   pd.description =
+    unitDesc ||
     normalized.unitName ||
     (propertyData.description ? `${propertyData.description} (${normalized.unitName})` : normalized.unitName);
 

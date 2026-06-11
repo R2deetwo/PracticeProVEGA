@@ -91,6 +91,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         status: p.status || 'Occupied',
                         _id: (p as any)._id,
                         unitName: rd.unitName || p.description?.match(/\((.*?)\)/)?.[1] || "Unit",
+                        unitDescription: (rd as any).unitDescription || p.description?.replace(/\s*\(.*?\)\s*$/, '') || '',
                         legalFee: lf,
                         legalFeePercentage: legalPct,
                         agencyFee: af,
@@ -121,6 +122,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         return [{
             id: uuidv4(),
             unitName: 'Unit 1',
+            unitDescription: '',
             rentAmount: 0,
             rentFrequency: 'Monthly',
             leaseStart: '',
@@ -177,6 +179,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     added.push({
                         id: uuidv4(),
                         unitName: `Unit ${i + 1}`,
+                        unitDescription: '',
                         rentAmount: 0,
                         rentFrequency: 'Monthly' as const,
                         leaseStart: '',
@@ -303,7 +306,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const generalFields = [
                     'rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled',
                     'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'serviceChargeAmount', 'serviceChargeStatus', 'outstandingServiceChargeBalance', 'cautionDeposit',
-                    'isLegalNA', 'isAgencyNA', 'isCautionNA'
+                    'isLegalNA', 'isAgencyNA', 'isCautionNA',
+                    'unitDescription'
                 ];
                 if (generalFields.includes(field)) {
                     for (let i = 1; i < newUnits.length; i++) {
@@ -685,14 +689,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
 
                         <div className="space-y-2 group">
-                            <label className={labelClass}>Description</label>
+                            <label className={labelClass}>Property Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(shared fallback)</span></label>
                             <input autoComplete="off" data-lpignore="true" 
                                 type="text"
                                 value={description}
                                 onChange={e => setDescription(e.target.value)}
                                 className={commonInputClass}
-                                placeholder="e.g. 4-Bedroom Maisonette with BQ"
+                                placeholder="e.g. Block of Flats, Victoria Island"
                             />
+                            <p className="text-[9px] text-slate-400 dark:text-zinc-500 px-1">Used as a fallback when individual unit descriptions are empty. Set specific descriptions per unit below.</p>
                         </div>
                     </div>
                 </div>
@@ -980,6 +985,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         )}
 
                         <div className="space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Unit Description</label>
+                                <input autoComplete="off" data-lpignore="true" 
+                                    type="text"
+                                    value={unitsData[activeUnitIndex].unitDescription || ''}
+                                    onChange={e => updateUnit(activeUnitIndex, 'unitDescription', e.target.value)}
+                                    className={commonInputClass}
+                                    placeholder="e.g. 4-Bedroom Maisonette with BQ"
+                                />
+                                <p className="text-[9px] text-slate-400 dark:text-zinc-500 px-1">Describe this specific unit's style, layout, or features. {autoSyncUnits && activeUnitIndex === 0 && unitsData.length > 1 ? 'Auto-copied to other units.' : ''}</p>
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>

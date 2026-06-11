@@ -54,7 +54,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     const displayInvoices = showTabs ? activeTab === 'invoices' : showInvoices;
     const value = displayInvoices ? outstandingRevenue : propertyRevenue;
     const label = displayInvoices ? 'Outstanding Invoices' : 'Outstanding Rent';
-    const nav: View = displayInvoices ? 'billing' : 'revenueEngine';
+    const nav: View = displayInvoices ? 'billing' : 'atriumEngine';
     const colorClass = displayInvoices ? 'bg-yellow-500' : 'bg-amber-500';
     const textClass = displayInvoices ? 'text-yellow-500' : 'text-amber-500';
 

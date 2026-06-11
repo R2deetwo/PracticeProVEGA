@@ -20,7 +20,7 @@ export const AppContextProvider: React.FC<{ children?: React.ReactNode }> = ({ c
         if (view === 'propertyDetail' || view === 'properties' || view === 'atriumEngine') {
             setActiveContext('property');
             setContextId(selectedId || null);
-        } else if (view === 'matterDetail' || view === 'matters' || view === 'vegaEngine') {
+        } else if (view === 'matterDetail' || view === 'matters' || view === 'compliance' || view === 'research') {
             setActiveContext('matter');
             setContextId(selectedId || null);
         } else {

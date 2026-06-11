@@ -57,7 +57,8 @@ const NavItemLink: React.FC<{
     counts: any;
     id?: string;
     locked?: boolean;
-}> = ({ item, setView, currentView, isSidebarRetracted, counts, id, locked }) => {
+    onLockedClick?: () => void;
+}> = ({ item, setView, currentView, isSidebarRetracted, counts, id, locked, onLockedClick }) => {
     const isActive = currentView === item.view || (item.view === 'matters' && currentView === 'matterDetail') || (item.view === 'contacts' && currentView === 'contactDetail');
 
     // Badge Logic
@@ -77,7 +78,13 @@ const NavItemLink: React.FC<{
     return (
         <button
             id={id}
-            onClick={() => setView(item.view, null)}
+            onClick={() => {
+                if (locked && onLockedClick) {
+                    onLockedClick();
+                    return;
+                }
+                setView(item.view, null);
+            }}
             data-tour-id={`nav-${item.view}`}
             className={`
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-xl transition-all duration-200 relative
@@ -359,6 +366,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             item={{ view: 'research', text: 'Research', icon: <ResearchIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                             locked={!features.canUseResearchStudio}
+                            onLockedClick={() => openModal('upgradePlan')}
                         />
                     )}
                     {isHighTier && showAloaX && (
@@ -385,11 +393,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         item={{ view: 'billing', text: 'Financials', icon: <BillingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         locked={!features.canUseAdvancedBilling}
+                        onLockedClick={() => openModal('upgradePlan')}
                     />
                     <NavItemLink
                         item={{ view: 'reporting', text: 'Analytics', icon: <ReportingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         locked={!features.canUseReportGenerator}
+                        onLockedClick={() => openModal('upgradePlan')}
                     />
                     <NavItemLink
                         id="nav-settings-sidebar"
