@@ -144,15 +144,15 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem title={isProperty ? "Tenant Portal Guide" : "Client Portal Guide"}>
+                        <AccordionItem title={isProperty ? "Residents' Portal Guide" : "Client Portal Guide"}>
                             <div className="space-y-6">
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl">
                                     <h4 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
                                         <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[10px] uppercase tracking-wider">Portal</span>
-                                        {isProperty ? 'Tenant Portal Overview' : 'Client Portal Overview'}
+                                        {isProperty ? "Residents' Portal Overview" : 'Client Portal Overview'}
                                     </h4>
                                     <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 leading-relaxed">
-                                        The {isProperty ? 'Tenant' : 'Client'} Portal is a secure, self-service web interface that gives your {isProperty ? 'tenants' : 'clients'} controlled access to their {isProperty ? 'financial and maintenance' : 'matter and document'} information — without needing to contact your office for every update. Portals are available on <strong>Growth</strong> and <strong>Pro</strong> plans. Core tier users will see an upgrade prompt instead.
+                                        The {isProperty ? "Residents'" : 'Client'} Portal is a secure, self-service web interface that gives your {isProperty ? 'residents' : 'clients'} controlled access to their {isProperty ? 'financial and maintenance' : 'matter and document'} information — without needing to contact your office for every update. Portals are available on <strong>Growth</strong> and <strong>Pro</strong> plans. Core tier users will see an upgrade prompt instead.
                                     </p>
                                 </div>
 
@@ -186,13 +186,13 @@ export const HelpSettings: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">Sharing Login Details Securely</h4>
                                     <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg text-sm text-amber-800 dark:text-amber-300 mb-3">
-                                        <strong>Important:</strong> {isProperty ? 'Tenant' : 'Client'} portal credentials provide access to sensitive {isProperty ? 'financial and property' : 'legal and personal'} information. Always share login details through secure, encrypted channels.
+                                        <strong>Important:</strong> {isProperty ? "Residents'" : 'Client'} portal credentials provide access to sensitive {isProperty ? 'financial and property' : 'legal and personal'} information. Always share login details through secure, encrypted channels.
                                     </div>
                                     <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
                                         <li><strong>Recommended:</strong> Use the built-in "Share Login Details" feature, which sends credentials directly to the {isProperty ? 'tenant' : 'client'}'s registered email address. This avoids manual handling of sensitive credentials.</li>
                                         <li><strong>Alternative:</strong> Copy the portal URL and temporary password, then share via a secure messaging platform (e.g., encrypted email, secure WhatsApp). <strong>Never share credentials via unencrypted SMS or public channels.</strong></li>
                                         <li><strong>First login:</strong> {isProperty ? 'Tenants' : 'Clients'} will be prompted to set their own password on first login. The temporary password you share will expire after 7 days for security.</li>
-                                        <li><strong>Legal consideration:</strong> {isVega && 'As a legal practitioner, you have a professional obligation to protect client data under NDPA 2023 and NBA professional standards. The client portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that privileged and confidential information remains protected at all times.'}{isProperty && 'The tenant portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that financial and personal data remains protected at all times in compliance with NDPA 2023.'}</li>
+                                        <li><strong>Legal consideration:</strong> {isVega && 'As a legal practitioner, you have a professional obligation to protect client data under NDPA 2023 and NBA professional standards. The client portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that privileged and confidential information remains protected at all times.'}{isProperty && "The Residents' Portal uses the same encryption standards (AES-256 at rest, TLS 1.3 in transit) as your main PracticePro workspace, ensuring that financial and personal data remains protected at all times in compliance with NDPA 2023."}</li>
                                     </ul>
                                 </div>
 

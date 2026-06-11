@@ -57,7 +57,7 @@ export const useFeatures = () => {
 
         // Portal Features (Growth+)
         canUseClientPortal: isGrowthOrAbove,   // Client Portal gated to Growth+ (Core = no portal)
-        canUseTenantPortal: isGrowthOrAbove && isPropertyFirm,  // Tenant Portal: Atrium Growth+ only
+        canUseTenantPortal: isGrowthOrAbove && isPropertyFirm,  // Residents' Portal: Atrium Growth+ only
 
         // Legal Intelligence (Growth+)
         canUseCourtIntelligence: isGrowthOrAbove && isLegalFirm,  // Court rules & procedural intelligence

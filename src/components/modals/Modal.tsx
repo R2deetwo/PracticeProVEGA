@@ -18,18 +18,18 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
     let unmountTimer: number;
 
     if (isOpen) {
+      // Mount immediately and start animation in the same render cycle
+      // Using a single rAF to ensure the DOM has painted the initial state
+      // before triggering the transition — this feels instant to the user
       setIsMounted(true);
-      // Double-rAF for immediate paint trigger — no perceptible delay
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setIsAnimatingIn(true);
-        });
+        setIsAnimatingIn(true);
       });
     } else {
       setIsAnimatingIn(false);
       unmountTimer = window.setTimeout(() => {
         setIsMounted(false);
-      }, 300);
+      }, 200);
     }
 
     return () => {
@@ -65,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
 
   const modalAnimation = isAnimatingIn
     ? 'opacity-100 translate-y-0 scale-100'
-    : 'opacity-0 translate-y-8 scale-[0.98]';
+    : 'opacity-0 translate-y-4 scale-[0.99]';
 
   return (
     <div
@@ -75,13 +75,13 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       aria-modal="true"
     >
       <div
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-200 ease-in-out ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-150 ease-out ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
         aria-hidden="true"
         onClick={() => onClose()}
       />
       
       <div
-        className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] flex flex-col overflow-hidden border border-white/20 dark:border-zinc-800/50 ${modalWidthClass} ${modalAnimation}`}
+        className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-white/20 dark:border-zinc-800/50 ${modalWidthClass} ${modalAnimation}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Brand Accent Bar */}
@@ -101,9 +101,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         </div>
 
         <div className={`flex-1 overflow-y-auto custom-scrollbar ${size === 'xl' ? 'p-0' : 'px-4 py-4 sm:px-6 sm:py-5'}`}>
-          <div className="animate-in fade-in slide-in-from-bottom-2 duration-200 fill-mode-both">
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     </div>

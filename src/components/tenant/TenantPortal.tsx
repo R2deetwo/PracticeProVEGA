@@ -1,7 +1,7 @@
 /**
- * TenantPortal — Atrium Tenant Dashboard
+ * TenantPortal — Atrium Residents' Portal
  *
- * Read-only portal for tenants to view their financial ledger,
+ * Read-only portal for residents to view their financial ledger,
  * download rent receipts, check SC/MV status, and log maintenance tickets.
  *
  * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
@@ -56,9 +56,9 @@ const TenantPortal: React.FC = () => {
           <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
             <OfficeBuildingIcon className="w-8 h-8 text-amber-500" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Tenant Portal Unavailable</h3>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Residents' Portal Unavailable</h3>
           <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-            The Tenant Portal is available on Growth and Pro plans. Ask your property manager to upgrade.
+            The Residents' Portal is available on Growth and Pro plans. Ask your property manager to upgrade.
           </p>
         </div>
       </div>
@@ -80,7 +80,7 @@ const TenantPortal: React.FC = () => {
             <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Tenant Portal</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
               Welcome, {currentUser.name}
             </p>

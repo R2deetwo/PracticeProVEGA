@@ -191,7 +191,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             Practice<span className="text-primary-500">Pro</span>
                             {productChosen && (
                                 <span
-                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight text-primary-500`}
+                                    className={`ml-2 text-[15px] font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                                 >
                                     {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                                 </span>
@@ -229,7 +229,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                                 <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
                             )}
                             {activeProduct === 'atrium' && (
-                                <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Tenant Portal</a>
+                                <a href="/portal/tenant/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Residents' Portal</a>
                             )}
                         </div>
                     </div>
@@ -476,7 +476,7 @@ const VEGA_FEATURE_CATEGORIES = [
         items: [
             { title: 'Matter Management', desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.' },
             { title: 'Task Board', desc: 'Kanban-style task management with assignments, due dates, priority levels, and matter linking. Track every deliverable from intake to resolution.' },
-            { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
+            { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, upload and access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
             { title: 'Contacts & Parties', desc: 'Structured contact management with party grouping, witness tracking, and counsel records. Link contacts to matters and documents automatically.' },
         ],
     },
@@ -508,7 +508,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         items: [
             { title: 'Property Portfolio', desc: 'Manage residential, commercial, and mixed-use properties from a single dashboard. Track occupancy, upload photos, organize by location, and link to tenancy records.' },
             { title: 'Tenant Management', desc: 'Complete tenant profiles with KYC fields, lease agreements, and communication history. Manage tenant lifecycles from application through to departure.' },
-            { title: 'Tenant Portal', desc: 'Self-service portal where tenants view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.', badge: 'Growth+' },
+            { title: "Residents' Portal", desc: "Self-service portal where residents view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.", badge: 'Growth+' },
             { title: 'Revenue Monitor', desc: 'Real-time defaulter dashboard, rent collection tracking, and portfolio-level financial analytics. Know which tenants are overdue and which properties are underperforming.' },
         ],
     },

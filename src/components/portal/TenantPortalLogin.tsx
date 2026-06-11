@@ -1,7 +1,7 @@
 /**
- * TenantPortalLogin — Standalone login page for Atrium Tenant Portal
+ * TenantPortalLogin — Standalone login page for Atrium Residents' Portal
  *
- * External-facing login at /portal/tenant/login for tenants
+ * External-facing login at /portal/tenant/login for residents
  * to access their SC/MV financial ledger, download receipts,
  * and log maintenance tickets.
  *
@@ -33,17 +33,16 @@ const TenantPortalLogin: React.FC = () => {
                 <div className="text-center mb-8">
                     <div className="inline-flex flex-col items-center gap-3 mb-4">
                         <div className="flex items-center gap-2.5">
-                            <Logo className="h-6 w-6 text-amber-500" />
+                            <Logo className="h-6 w-6 text-primary-500" />
                             <span className="text-xl font-bold text-white tracking-tight flex items-center">
-                                Practice<span className="text-amber-500">Pro</span>
-                                <span className="ml-2 text-[11px] font-black uppercase tracking-tight text-amber-500">
+                                Practice<span className="text-primary-500">Pro</span>
+                                <span className="ml-2 text-[11px] font-black uppercase tracking-tight text-violet-400">
                                     ATRIUM
                                 </span>
                             </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 tracking-wide">Building systems for Nigerian Firms.</p>
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Tenant Portal</h1>
+                    <h1 className="text-2xl font-bold text-white mb-2">Residents' Portal</h1>
                     <p className="text-sm text-slate-400 leading-relaxed">
                         View your SC/MV payment status, download rent receipts, and log maintenance issues.
                     </p>
@@ -79,7 +78,7 @@ const TenantPortalLogin: React.FC = () => {
                             onClick={() => openModal('login')}
                             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
                         >
-                            Sign In to Tenant Portal
+                            Sign In to Residents' Portal
                         </button>
 
                         <button
