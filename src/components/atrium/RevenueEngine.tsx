@@ -101,8 +101,8 @@ const RevenueEngine: React.FC = () => {
         </div>
 
         {/* Stats — 4-col on desktop, 2x2 on mobile, more compact */}
-        <div className="px-3 sm:px-6 pb-2 sm:pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 landscape-compact-stats">
-          <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-2 sm:p-2.5">
+        <div className="px-3 sm:px-6 pb-2 sm:pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 landscape-compact-stats min-w-0">
+          <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Collected</p>
             <p className="text-sm sm:text-base font-black text-emerald-400">
               ₦{((coreState.ledgerEntries || []).filter(e => {
@@ -112,17 +112,17 @@ const RevenueEngine: React.FC = () => {
               }).reduce((s, e) => s + (e.amount || 0), 0) || 0).toLocaleString('en-NG', { notation: 'compact', maximumFractionDigits: 1 })}
             </p>
           </div>
-          <div className="bg-slate-900 border border-amber-900/40 rounded-xl p-2 sm:p-2.5">
+          <div className="bg-slate-900 border border-amber-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Outstanding</p>
             <p className="text-sm sm:text-base font-black text-amber-400">
               ₦{((coreState.ledgerEntries || []).filter(e => e.status === 'pending').reduce((s, e) => s + (e.amount || 0), 0) || 0).toLocaleString('en-NG', { notation: 'compact', maximumFractionDigits: 1 })}
             </p>
           </div>
-          <div className="bg-slate-900 border border-rose-900/40 rounded-xl p-2 sm:p-2.5">
+          <div className="bg-slate-900 border border-rose-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Defaults</p>
             <p className="text-sm sm:text-base font-black text-rose-400">{criticalCount}</p>
           </div>
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 sm:p-2.5">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 sm:p-2.5 min-w-0">
             <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Vacant</p>
             <p className="text-sm sm:text-base font-black text-slate-300">{activePipeline}</p>
           </div>
