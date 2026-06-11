@@ -238,3 +238,29 @@ Stage Summary:
 - CTA: "Explore Komplete" → instant sign-up modal (unified product pre-selected), no scroll friction
 - Anti-regression: All 6 guardrail checks PASS (LAKE-NUWA label is backend-only, not frontend)
 
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix slow modal opening delay, correct portal branding to match footer layout
+
+Work Log:
+- ROOT CAUSE FOUND: ModalManager was gated behind a 12-second timeout for unauthenticated users
+  - App.tsx line 652: `(!currentUser && hasInitialSplashFinished)` required a 12s timeout
+  - For new visitors, splashAnimationComplete never fires (no splash shown), isDataLoaded never fires (no Convex queries)
+  - Only path: 12000ms setTimeout → hasInitialSplashFinished = true → ModalManager mounts
+- FIX: Removed hasInitialSplashFinished gate for unauthenticated users — ModalManager always mounts when !currentUser
+- Modal.tsx: Replaced 20ms setTimeout with double-rAF for instant paint; reduced all animation durations from 500-700ms to 200ms; removed delay-150 on content fade-in
+- ModalManager.tsx: Reduced login↔signup switch delay from 100ms to 10ms
+- Client Portal: Rebuilt header to match footer layout (Logo + PracticePro green Pro + VEGA badge + tagline)
+- Tenant Portal: Rebuilt header to match footer layout (Logo + PracticePro amber Pro + ATRIUM badge + tagline)
+- Tenant Portal: Restored amber/orange hue for product differentiation (ambient glow, focus rings, CTA all amber)
+- Both portals: Replaced product-specific icons (ScalesIcon, OfficeBuildingIcon) with brand Logo
+- Build passes clean (12.74s), pushed to GitHub (d6f80cb)
+
+Stage Summary:
+- Modal delay eliminated: 12,000ms+ → near-instant (<50ms perceived)
+- Portal branding now matches footer style exactly
+- Tenant Portal restored to amber/orange accent as requested
+- Both portals use Logo + PracticePro + product badge + tagline pattern
+
