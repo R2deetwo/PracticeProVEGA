@@ -470,7 +470,7 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is DraftPro?</h4>
-                                    <p>DraftPro is PracticePro's built-in legal document editor with AI-powered drafting assistance. Create professional legal documents without leaving the app.</p>
+                                    <p>DraftPro is PracticePro's built-in legal document editor with AI-powered drafting assistance. Create professional legal documents without leaving the app — then save to a matter, print, or copy to your preferred word processor.</p>
                                 </div>
 
                                 <div>
@@ -478,9 +478,10 @@ const HelpView: React.FC = () => {
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers</li>
                                         <li><strong>AI Drafting:</strong> Use ALOA to generate document sections</li>
+                                        <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
                                         <li><strong>Template System:</strong> Start from pre-built legal templates</li>
                                         <li><strong>Auto-Save:</strong> Your work is saved automatically</li>
-                                        <li><strong>Export Options:</strong> Save to matters, PDF export, or copy to clipboard</li>
+                                        <li><strong>Export Options:</strong> Save to matters, print, or copy to Word or Google Docs with formatting preserved</li>
                                     </ul>
                                 </div>
 
@@ -490,8 +491,14 @@ const HelpView: React.FC = () => {
                                         <li>Click <strong>Draft</strong> in the navigation to open DraftPro.</li>
                                         <li>Choose a template or start from scratch.</li>
                                         <li>Use the toolbar for formatting or click "Ask ALOA" to generate content.</li>
-                                        <li>When finished, save to a matter or export as PDF.</li>
+                                        <li>Fill any placeholder blanks — printing is blocked until they are all resolved.</li>
+                                        <li>When finished, save to a matter, print, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
                                     </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
                                 </div>
                             </div>
                         </AccordionItem>

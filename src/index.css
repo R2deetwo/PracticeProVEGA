@@ -717,6 +717,16 @@ body.aloax-is-processing .aloax-nav-badge {
   color: #000000;
 }
 
+/* DraftPro editor: always use a light selection colour so that copying
+   text never carries a dark background into external apps like Word.
+   The page sheets are always white, so a light-blue selection is correct
+   regardless of dark/light mode. */
+.draftpro-editor-content ::selection,
+.draftpro-editor-content::selection {
+  background-color: #b4d5fe !important;
+  color: #000000 !important;
+}
+
 /* Hide scrollbar utility */
 @layer utilities {
 

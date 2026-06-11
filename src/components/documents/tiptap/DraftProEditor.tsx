@@ -20,6 +20,7 @@ import React, {
     useMemo,
 } from 'react';
 import { useEditor, EditorContent, Editor } from '@tiptap/react';
+import { DOMSerializer } from 'prosemirror-model';
 import { StarterKit } from '@tiptap/starter-kit';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { TextAlign } from '@tiptap/extension-text-align';
@@ -108,6 +109,84 @@ const FONTS = [
     { label: 'Courier New', value: "'Courier New', monospace" },
     { label: 'Verdana', value: 'Verdana, sans-serif' },
 ];
+
+// ─── Clipboard HTML Cleaner ──────────────────────────────────────────────────
+// Strips background colours, dark-mode artifacts, and DraftPro-specific
+// attributes from copied HTML so that pasting into Word / Google Docs
+// produces clean text with bold / italic / underline preserved and
+// NO dark-rectangle background.
+const CLEAN_PRESERVE_STYLES = new Set([
+    'font-weight', 'font-style', 'font-family', 'font-size',
+    'text-decoration', 'text-decoration-line', 'text-align',
+    'text-indent', 'line-height', 'list-style-type',
+    'margin-left', 'margin-right', 'text-transform',
+]);
+
+function cleanForClipboard(html: string): string {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    // 1. Convert DraftPro placeholder / context atoms to readable plain text
+    doc.querySelectorAll('span[data-type="legal-placeholder"]').forEach(el => {
+        const label = el.getAttribute('data-label') || 'PLACEHOLDER';
+        el.replaceWith(doc.createTextNode(`[${label}]`));
+    });
+    doc.querySelectorAll('span[data-type="legal-context"]').forEach(el => {
+        const label = el.getAttribute('data-label') || '';
+        el.replaceWith(doc.createTextNode(label));
+    });
+
+    // 2. Walk every element — strip classes, data-attrs, and non-essential styles
+    doc.body.querySelectorAll('*').forEach(el => {
+        // Remove Tailwind class attrs (meaningless outside the app)
+        el.removeAttribute('class');
+
+        // Remove DraftPro data-* attributes
+        Array.from(el.attributes).forEach(attr => {
+            if (attr.name.startsWith('data-')) el.removeAttribute(attr.name);
+        });
+
+        // Keep only formatting styles; drop background-color, background, color: white, etc.
+        if (el.hasAttribute('style')) {
+            const raw = el.getAttribute('style') || '';
+            const kept: string[] = [];
+
+            raw.split(';').forEach(decl => {
+                const trimmed = decl.trim();
+                if (!trimmed) return;
+                const colonIdx = trimmed.indexOf(':');
+                if (colonIdx === -1) return;
+                const prop = trimmed.substring(0, colonIdx).trim().toLowerCase();
+                const val   = trimmed.substring(colonIdx + 1).trim().toLowerCase();
+
+                // Always drop background and background-color
+                if (prop === 'background' || prop === 'background-color') return;
+
+                // Drop colour styles that would be invisible on a white page
+                if (prop === 'color') {
+                    const invisible = ['#fff', '#ffffff', 'white', 'rgb(255, 255, 255)', 'rgba(255,255,255'];
+                    if (invisible.some(c => val.includes(c))) return;
+                }
+
+                if (CLEAN_PRESERVE_STYLES.has(prop)) kept.push(trimmed);
+            });
+
+            if (kept.length > 0) {
+                el.setAttribute('style', kept.join('; ') + ';');
+            } else {
+                el.removeAttribute('style');
+            }
+        }
+    });
+
+    // 3. Remove empty <span> wrappers left after attribute stripping
+    doc.body.querySelectorAll('span').forEach(el => {
+        if (!el.attributes.length && !el.children.length && el.textContent === '') {
+            el.remove();
+        }
+    });
+
+    return doc.body.innerHTML;
+}
 
 const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 36, 48, 72];
 
@@ -390,7 +469,42 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     return true;
                 }
                 return false;
-            }
+            },
+            // ── Clean Copy Handler ────────────────────────────────────────────
+            // Intercepts copy to strip dark-mode backgrounds and DraftPro-specific
+            // attributes from the clipboard HTML so that pasting into Word, Google
+            // Docs, etc. produces clean text with bold/italic/underline preserved
+            // and NO dark-rectangle background.
+            handleDOMEvents: {
+                copy: (view, event) => {
+                    const { empty } = view.state.selection;
+                    if (empty) return false; // let default handle empty selection
+
+                    event.preventDefault();
+
+                    const slice = view.state.selection.content();
+                    const serializer = DOMSerializer.fromSchema(view.state.schema);
+                    const fragment = serializer.serializeFragment(slice.content);
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.appendChild(fragment);
+
+                    const html = cleanForClipboard(tempDiv.innerHTML);
+
+                    // Derive plain text from the cleaned HTML
+                    const textDiv = document.createElement('div');
+                    textDiv.innerHTML = html;
+                    const plainText = textDiv.textContent || '';
+
+                    const clipboardData = event.clipboardData;
+                    if (clipboardData) {
+                        clipboardData.setData('text/html', html);
+                        clipboardData.setData('text/plain', plainText);
+                    }
+
+                    return true;
+                },
+            },
         },
         onUpdate: ({ editor: e }) => {
             setIsSaved(false);
