@@ -716,47 +716,49 @@ const PropertyDetailViewContent: React.FC = () => {
                             )}
                         </div>
 
-                        {/* 2. Automation & Reminders */}
+                        {/* 2. Linked Matters & Automation Status */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Automation Status — compact summary */}
                             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
-                                <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                                    <ZapIcon className="w-4 h-4 text-amber-500" /> Active Automations
+                                <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+                                    <ZapIcon className="w-4 h-4 text-amber-500" /> Automation Status
                                 </h3>
-                                <div className="space-y-3">
-                                    {isLeased && property.automationSettings?.remindLeaseExpiry ? (
-                                        <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-800">
-                                            <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                                            <div className="flex-grow">
-                                                <p className="text-xs font-bold text-green-800 dark:text-green-200">Lease Expiry Reminder</p>
-                                                <p className="text-[10px] text-green-700 dark:text-green-300">System will alert 90 days before lease end.</p>
+                                <div className="space-y-2">
+                                    {isLeased && (
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-100 dark:border-zinc-700">
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${property.automationSettings?.remindLeaseExpiry ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Lease Expiry Reminders</p>
+                                                <p className="text-[10px] text-slate-400">{property.automationSettings?.remindLeaseExpiry ? 'Active — alerts 90 days before expiry' : 'Not enabled'}</p>
                                             </div>
                                         </div>
-                                    ) : isLeased ? (
-                                        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg border border-slate-100 dark:border-zinc-700 opacity-60">
-                                            <div className="w-4 h-4 border-2 border-slate-300 rounded-full"></div>
-                                            <p className="text-xs font-medium text-slate-500">Lease Expiry Reminder Disabled</p>
-                                        </div>
-                                    ) : isSale ? (
-                                        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
-                                            <ZapIcon className="w-4 h-4 text-blue-600" />
-                                            <div className="flex-grow">
-                                                <p className="text-xs font-bold text-blue-800 dark:text-blue-200">Sales Lead Tracking</p>
-                                                <p className="text-[10px] text-blue-700 dark:text-blue-300">Auto-tracking inquiries for this listing.</p>
+                                    )}
+                                    {isLeased && (
+                                        <div className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-100 dark:border-zinc-700">
+                                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${property.automationSettings?.autoRentDemand ? 'bg-green-500' : 'bg-slate-300'}`} />
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Auto Rent Demands</p>
+                                                <p className="text-[10px] text-slate-400">{property.automationSettings?.autoRentDemand ? 'Active — demands sent on arrears' : 'Not enabled'}</p>
                                             </div>
                                         </div>
-                                    ) : null}
+                                    )}
+                                    {!isLeased && !isSale && (
+                                        <p className="text-xs text-slate-400 italic">No automations configured for this property type.</p>
+                                    )}
                                 </div>
                             </div>
 
                             {linkedMatters.length > 0 && (
                                 <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-sm p-5 border border-slate-200 dark:border-zinc-700">
-                                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">{isProperty ? 'Portfolio Context' : 'Legal Context'}</h3>
-                                    <div className="space-y-3">
+                                    <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-3">{isProperty ? 'Linked Files' : 'Linked Matters'}</h3>
+                                    <div className="space-y-2">
                                         {linkedMatters.map(m => (
-                                            <div key={m.id} className="p-3 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors" onClick={() => navigateTo('matterDetail', m.id)}>
-                                                <p className="text-xs font-bold text-primary-600 mb-1">Active {isProperty ? 'Management File' : 'Matter'}</p>
-                                                <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.title}</p>
-                                                <p className="text-xs text-slate-500 mt-1">{m.stage}</p>
+                                            <div key={m.id} className="p-2.5 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between" onClick={() => navigateTo('matterDetail', m.id)}>
+                                                <div>
+                                                    <p className="text-xs font-bold text-primary-600">{m.title}</p>
+                                                    <p className="text-[10px] text-slate-500">{m.stage} • {m.type}</p>
+                                                </div>
+                                                <span className="text-[10px] text-slate-400">&rarr;</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1559,20 +1561,15 @@ const PropertyDetailViewContent: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Link to Full Revenue Monitor */}
-                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                                <Wallet className="w-5 h-5" />
+                        {/* Link to Full Revenue Monitor — compact */}
+                        <div className="flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-xl px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <Wallet className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                <span className="text-sm font-bold text-slate-700 dark:text-zinc-200">Firm-wide Revenue Monitor</span>
                             </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Portfolio Revenue Monitor</h4>
-                                <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed mb-3">
-                                    View firm-wide revenue tracking, defaulters, payment receipts, and automated reminder logs across all properties in the Revenue Monitor.
-                                </p>
-                                <button onClick={() => navigateTo('atriumEngine')} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
-                                    Open Revenue Monitor <span>&rarr;</span>
-                                </button>
-                            </div>
+                            <button onClick={() => navigateTo('atriumEngine')} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors">
+                                Open &rarr;
+                            </button>
                         </div>
                     </div>
                     );
