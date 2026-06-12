@@ -49,3 +49,35 @@ Stage Summary:
 - 4 git commits pushed: b205943, 0a4f8da, a4ec966, ce52eb8
 - Build passes, TypeScript clean, braces/parens balanced
 - All changes pushed to remote
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Accounting overhaul + UI polish for Atrium property app ship readiness
+
+Work Log:
+- Analyzed user screenshot of CollectRentModal showing: management fee deducted from source (Net to Client), address truncated in Property/Unit display, Receipt icon used for payment action
+- Read CollectRentModal.tsx, PropertyDetailView.tsx, PropertyForm.tsx, propertyPayload.ts, DataProvider.tsx, Convex schema/mutations
+- Identified 6 issues to fix and implemented all
+
+Changes Implemented:
+1. **Accounting overhaul (CollectRentModal)**: Receipts now reflect FULL amount paid — no deductions shown. Management fees are invoiced separately to the landlord (not deducted from source). The financial breakdown panel shows receipt amount at full, with an informational section showing management fee and net-to-client. Added `transactionRef` to link receipt, invoice, and ledger entries. Management fee invoice is NOT auto-marked as paid.
+
+2. **Fix address cropping**: Removed `truncate` from Property/Unit display in CollectRentModal. Now uses `break-words` so the full address is always visible.
+
+3. **Fix edit modal save**: Commented out `onSave(contact.id, [])` in PropertyForm that was wiping the contact's properties array after save, causing stale unit data and broken status updates.
+
+4. **Fix updateEvictionTracker scope bug**: Changed from `units.find()` (out of scope) to `(coreState.properties || []).find()` for the full unit record lookup.
+
+5. **Replace Copy with Export**: Replaced "Copy Unit Details" (clipboard) with "Export Unit Report" (FileDown icon) in both the cog menu and Tier 2 expanded card. Placeholder toast for now.
+
+6. **Replace Receipt icon**: Changed from `Receipt` to `BanknotesIcon` for rent payment actions (Pay button and cog menu entry) — more appropriate for payment/receipt context.
+
+7. **Scroll fix**: Added `overscroll-contain` to main content scroll area.
+
+8. **Schema update**: Added `management_fee` type to Convex `ledger_entries` schema and `addLedgerEntry` mutation.
+
+Stage Summary:
+- Commit: 590155a
+- Build passes, Vite build successful
+- Pre-existing TS errors remain (autoRentDemand, PropertyForm rentalDetails types) — not introduced by this work
