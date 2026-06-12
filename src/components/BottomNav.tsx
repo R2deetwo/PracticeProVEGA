@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCoreState } from '../contexts/CoreContext';
@@ -39,8 +39,8 @@ const navItemsList: NavItemDef[] = [
     { view: 'research', text: 'Research', icon: <ResearchIcon />, permission: () => true },
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },
-    { view: 'documents', text: 'Docs', icon: <DocumentsIcon />, permission: () => true },
-    { view: 'billing', text: 'Finance', icon: <BillingIcon />, permission: (p) => p.canViewBilling },
+    { view: 'documents', text: 'Documents', icon: <DocumentsIcon />, permission: () => true },
+    { view: 'billing', text: 'Financials', icon: <BillingIcon />, permission: (p) => p.canViewBilling },
     { view: 'reporting', text: 'Analytics', icon: <ReportingIcon />, permission: (p) => p.canViewBilling },
     { view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon />, permission: () => true },
     { view: 'messaging', text: 'Messages', icon: <MessagingIcon />, permission: (p) => p.canViewMessaging },
@@ -173,6 +173,19 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         e.stopPropagation();
         setIsMoreMenuOpen(prev => !prev);
     };
+
+    // Close More menu on Escape key
+    useEffect(() => {
+        if (!isMoreMenuOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setIsMoreMenuOpen(false);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isMoreMenuOpen]);
 
     return (
         <>

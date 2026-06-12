@@ -67,7 +67,16 @@ const ClientMatterDetailViewContent: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { handleClientUploadDocument, handleClientMarkDocumentAsReviewed, handleUpdateClientActionItem, handleSendClientMessage } = useDataActions();
     const { currentUser } = useAuth();
-    const [activeTab, setActiveTab] = useState<ClientTab>('overview');
+    const [activeTab, setActiveTab] = useState<ClientTab>(() => {
+        const hash = window.location.hash.replace('#', '');
+        if (['overview', 'documents', 'action_items', 'messages', 'billing'].includes(hash)) return hash as ClientTab;
+        return 'overview';
+    });
+
+    const handleTabChange = (tab: ClientTab) => {
+        setActiveTab(tab);
+        window.location.hash = tab;
+    };
     const [clientMessage, setClientMessage] = useState('');
     const clientMessagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -79,7 +88,34 @@ const ClientMatterDetailViewContent: React.FC = () => {
     const invoices = financeState.invoices;
     const onGoBack = () => navigateTo('dashboard');
 
-    if (!currentUser || !matter) return null;
+    if (!currentUser) return null;
+
+    if (!matter) {
+        if (!isDataLoaded) {
+            return (
+                <div className="animate-pulse space-y-6">
+                    <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
+                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
+                        <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                    </div>
+                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 space-y-4">
+                        <div className="h-6 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
+                        <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
+                        <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-12 text-center">
+                <div className="text-4xl mb-4">📋</div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Matter Not Found</h3>
+                <p className="text-slate-500 dark:text-zinc-400 mb-6">This matter may have been removed or you don't have access to it.</p>
+                <button onClick={() => navigateTo('dashboard')} className="px-4 py-2 bg-primary-500 text-white rounded-lg font-semibold text-sm hover:bg-primary-600 transition-colors">Back to Dashboard</button>
+            </div>
+        );
+    }
 
     const documents = documentState.documents.filter(d => d.matter?.id === matter.id);
     const clientMessages = matterState.clientMessages.filter(m => m.matterId === matter.id);
@@ -103,6 +139,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
         if (clientMessage.trim()) {
             handleSendClientMessage(matter.id, clientMessage.trim());
             setClientMessage('');
+            addToast('Message sent', { type: 'success' });
         }
     };
 
@@ -117,13 +154,53 @@ const ClientMatterDetailViewContent: React.FC = () => {
                     handleClientMarkDocumentAsReviewed={handleClientMarkDocumentAsReviewed}
                     isNew={isNew}
                 />;
-            case 'action_items':
-                return (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
-                        <h3 className="text-xl font-bold mb-4">Your Action Items</h3>
-                        {/* ... Action items logic ... */}
-                    </div>
-                );
+            case 'action_items': {
+                    const pendingActionItems = matter.clientActionItems?.filter(i => !i.completed) ?? [];
+                    const reviewDocs = documents.filter(d => (d.clientReviewStatus === 'review_requested' || d.isSignatureRequested) && !d.signatureData);
+                    const hasItems = pendingActionItems.length > 0 || reviewDocs.length > 0;
+                    return (
+                        <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6">
+                            <h3 className="text-xl font-bold mb-4">Your Action Items</h3>
+                            {!hasItems ? (
+                                <div className="text-center py-8">
+                                    <div className="text-3xl mb-3">✅</div>
+                                    <p className="text-slate-500 dark:text-zinc-400">No action items right now. Your lawyer will add items here when needed.</p>
+                                </div>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {pendingActionItems.map(item => (
+                                        <li key={item.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-700/50">
+                                            <input
+                                                type="checkbox"
+                                                checked={item.completed}
+                                                onChange={() => handleUpdateClientActionItem(matter.id, item.id, true)}
+                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-500 focus:ring-primary-500"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-slate-800 dark:text-zinc-200">{item.title}</p>
+                                                {item.description && <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">{item.description}</p>}
+                                            </div>
+                                        </li>
+                                    ))}
+                                    {reviewDocs.map(doc => (
+                                        <li key={doc.id} className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40">
+                                            <span className="text-lg">{doc.isSignatureRequested ? '✍️' : '📄'}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-slate-800 dark:text-zinc-200">{doc.isSignatureRequested ? 'Signature requested' : 'Review requested'}: {doc.title}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleTabChange('documents')}
+                                                className="text-xs font-semibold text-primary-600 dark:text-primary-400 hover:underline whitespace-nowrap"
+                                            >
+                                                Go to Documents →
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    );
+                }
             case 'messages':
                 return (
                     <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md flex flex-col h-[70vh]">
@@ -177,13 +254,13 @@ const ClientMatterDetailViewContent: React.FC = () => {
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white">{matter.title}</h2>
                 <p className="text-slate-500 dark:text-zinc-400 mt-1">Reference: {matter.referenceNumber}</p>
             </div>
-            <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+            <div className="mb-6 border-b border-slate-200 dark:border-zinc-700">
                 <nav className="-mb-px flex space-x-6 overflow-x-auto">
-                    <TabButton label="Overview" isActive={activeTab === 'overview'} onClick={() => setActiveTab('overview')} />
-                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => setActiveTab('documents')} hasNotification={hasNewDocuments} />
-                    <TabButton label="Action Items" isActive={activeTab === 'action_items'} onClick={() => setActiveTab('action_items')} hasNotification={hasNewActionItems} />
-                    <TabButton label="Messages" isActive={activeTab === 'messages'} onClick={() => setActiveTab('messages')} hasNotification={hasNewMessages} />
-                    <TabButton label="Billing" isActive={activeTab === 'billing'} onClick={() => setActiveTab('billing')} hasNotification={hasNewBillingItems} />
+                    <TabButton label="Overview" isActive={activeTab === 'overview'} onClick={() => handleTabChange('overview')} />
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => handleTabChange('documents')} hasNotification={hasNewDocuments} />
+                    <TabButton label="Action Items" isActive={activeTab === 'action_items'} onClick={() => handleTabChange('action_items')} hasNotification={hasNewActionItems} />
+                    <TabButton label="Messages" isActive={activeTab === 'messages'} onClick={() => handleTabChange('messages')} hasNotification={hasNewMessages} />
+                    <TabButton label="Billing" isActive={activeTab === 'billing'} onClick={() => handleTabChange('billing')} hasNotification={hasNewBillingItems} />
                 </nav>
             </div>
             {renderTabContent()}

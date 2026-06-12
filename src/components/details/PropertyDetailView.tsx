@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
-import { formatNaira } from '../../utils/formatting';
+import { formatNaira, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
@@ -150,13 +150,12 @@ const PropertyDetailViewContent: React.FC = () => {
 
             // 3. Find sibling units (all units at this address)
             if (selectedProperty && selectedProperty.address) {
-                const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
-                const addr = normalize(selectedProperty.address);
-                const standaloneUnits = (coreState.properties || []).filter(p => normalize(p.address) === addr);
+                const addr = normalizeAddress(selectedProperty.address);
+                const standaloneUnits = (coreState.properties || []).filter(p => normalizeAddress(p.address) === addr);
                 const legacyUnits: Property[] = [];
                 (matterState.contacts || []).forEach(c => {
                     (c.properties || []).forEach(p => {
-                        if (normalize(p.address) === addr && !standaloneUnits.some(su => su.id === p.id)) {
+                        if (normalizeAddress(p.address) === addr && !standaloneUnits.some(su => su.id === p.id)) {
                             legacyUnits.push(p);
                         }
                     });

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MoreVertical, ListChecks } from 'lucide-react';
 import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType } from '../../types';
-import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon } from '../../constants';
+import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon, EditIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -33,6 +33,7 @@ import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { MatterBrief } from './MatterBrief';
 import ErrorBoundary from '../ErrorBoundary';
+import { MattersSkeleton } from '../toolkit/Skeleton';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number }> = ({ label, isActive, onClick, badgeCount }) => (
     <button
@@ -82,6 +83,9 @@ const MatterDetailViewContent: React.FC = () => {
             ? { matterId: selectedId, firmId: currentUser.firmId } 
             : 'skip'
     );
+
+    // Track whether the on-demand query is still loading (undefined = loading, null = not found)
+    const isOnDemandLoading = selectedId && onDemandMatter === undefined;
 
     // ── Derived helpers wired to contexts ──────────────────────────────────────
     const users = coreState.users;
@@ -291,9 +295,9 @@ const MatterDetailViewContent: React.FC = () => {
                 isPrivate: !(matterData as any).isPrivate,
                 requestUserId: currentUser.id,
             });
-            addToast({ type: 'success', message: (matterData as any).isPrivate ? 'Matter is now visible to all firm members.' : 'Matter is now private — only assigned team members can access it.' });
+            addToast((matterData as any).isPrivate ? 'Matter is now visible to all firm members.' : 'Matter is now private — only assigned team members can access it.', { type: 'success' });
         } catch (err: any) {
-            addToast({ type: 'error', message: err?.message || 'Could not update matter privacy.' });
+            addToast(err?.message || 'Could not update matter privacy.', { type: 'error' });
         } finally {
             setPrivacyLoading(false);
         }
@@ -305,7 +309,10 @@ const MatterDetailViewContent: React.FC = () => {
         try { return new Date(matterData.createdAt || matterData.stageLastUpdated || '').toLocaleDateString('en-GB'); } catch (e) { return 'Invalid Date'; }
     }, [matterData?.createdAt, matterData?.stageLastUpdated]);
 
-    // All hooks have now been called; safe to execute early return if matter was not found.
+    // All hooks have now been called; safe to execute early returns.
+    if (isOnDemandLoading) {
+        return <MattersSkeleton />;
+    }
     if (!matterData) {
         return <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8"><p className="text-lg font-medium">Matter not found</p></div>;
     }
@@ -342,6 +349,12 @@ const MatterDetailViewContent: React.FC = () => {
                                         <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
                                         <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
                                             <button
+                                                onClick={() => { setShowMoreMenu(false); openModal('editMatter', matterData.id); }}
+                                                className="w-full px-3 py-2.5 text-[11px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                            >
+                                                <EditIcon className="w-3.5 h-3.5 shrink-0" /> Edit Matter
+                                            </button>
+                                            <button
                                                 onClick={() => { setShowMoreMenu(false); handleTogglePrivacy(); }}
                                                 disabled={privacyLoading}
                                                 className={`w-full px-3 py-2.5 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 ${(matterData as any).isPrivate ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-zinc-300'}`}
@@ -370,7 +383,6 @@ const MatterDetailViewContent: React.FC = () => {
                                 )}
                             </div>
 
-                            <button onClick={() => openModal('editMatter', matterData.id)} className="text-xs font-bold text-primary-600 hover:underline px-1">Edit</button>
                         </div>
                     </div>
                     <div className="mb-1">

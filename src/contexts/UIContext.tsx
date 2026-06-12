@@ -252,7 +252,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         const prevId = prevUserIdRef.current;
         const nextId = currentUser?.id;
         if (prevId && nextId && prevId !== nextId) {
-            console.log(`[UIProvider] User changed. Resetting history.`);
+            if (import.meta.env.DEV) console.log(`[UIProvider] User changed. Resetting history.`);
             setHistory([{ view: 'dashboard', selectedId: null }]);
             setHistoryIndex(0);
             setModal(null);
@@ -274,7 +274,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                 firmId: currentUser.firmId!,
                 userId: currentUser.id,
                 userName: currentUser.name
-            }).catch(e => console.error("Heartbeat failed", e));
+            }).catch(() => { /* Heartbeat failure is non-critical; retry on next interval */ });
         };
 
         // Send immediately

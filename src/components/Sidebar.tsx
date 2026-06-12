@@ -30,7 +30,6 @@ interface SidebarProps {
     currentView: View;
     setView: (view: View, targetId?: string | null, context?: any) => void;
     currentUser: any;
-    appMode: any;
 }
 
 const NavSection: React.FC<{ title?: string; children: React.ReactNode; isRetracted?: boolean }> = ({ title, children, isRetracted }) => (
@@ -217,6 +216,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         setAvailableWorkspaces(result.availableFirms);
                     }
                 })
+                .catch(() => {
+                    setAvailableWorkspaces([]);
+                })
                 .finally(() => setIsLoadingWorkspaces(false));
         }
     }, [isWorkspaceOpen, currentUser?.email, diagnoseMutation, canUseMultiFirm]);
@@ -228,7 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
             await repairMutation({ email: currentUser.email, targetFirmId });
             window.location.reload();
         } catch (e) {
-            console.error("Failed to switch workspace", e);
+            // Error handled silently — user stays on current workspace
         }
     };
 
@@ -290,6 +292,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
 
                             {isLoadingWorkspaces ? (
                                 <div className="px-3 py-2 text-xs text-slate-500 dark:text-zinc-400">Loading...</div>
+                            ) : availableWorkspaces.length === 0 ? (
+                                <p className="px-3 py-2 text-xs text-slate-500 dark:text-zinc-400">No other workspaces found.</p>
                             ) : (
                                 availableWorkspaces.map((firm: any) => {
                                     const isActive = firm.id === coreState.firmDetails.id;
@@ -419,30 +423,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     />
                 </NavSection>
 
-            </div>
-
-            {/* Plan Tier Footer */}
-            <div className={`p-4 border-t border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 ${isSidebarRetracted ? 'flex justify-center px-0' : ''}`}>
-                {!isSidebarRetracted ? (
-                    <div className="bg-white dark:bg-zinc-800 rounded-xl p-3 border border-slate-200 dark:border-zinc-700 shadow-sm">
-                        <div className="flex items-center gap-3">
-                            <div className={`p-1.5 rounded-md ${isHighTier ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'}`}>
-                                <ShieldCheckIcon className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Current Plan</p>
-                                <p className={`text-xs font-bold truncate ${isHighTier ? 'text-yellow-600 dark:text-yellow-500' : 'text-slate-800 dark:text-white'}`}>{currentPlan}</p>
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div
-                        className="w-9 h-9 mx-auto bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 flex items-center justify-center text-green-600 dark:text-green-400 shadow-sm"
-                        title={`${currentPlan} Plan`}
-                    >
-                        <ShieldCheckIcon className="w-4 h-4" />
-                    </div>
-                )}
             </div>
         </aside>
     );

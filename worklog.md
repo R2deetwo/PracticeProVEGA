@@ -521,3 +521,49 @@ Stage Summary:
 - Ledger query now handles email-to-ID mapping for robust data retrieval
 - Invite system is more aggressive about superseding stale invites to prevent "already accepted" errors
 
+---
+Task ID: audit-phase-a
+Agent: Main Agent
+Task: Systematic audit and fix of PracticePro portal infrastructure and global navigation
+
+Work Log:
+- Mapped all routes, views, and modals in App.tsx (28+ views, 6 portal-specific pages)
+- Deep-audited 6 portal components against 4 lenses (State, Layout, Data Integrity, Friction)
+- Found 34 findings: 7 Critical, 10 High, 9 Medium, 8 Low
+- Deep-audited 6 navigation/layout components against same 4 lenses
+- Found 31 findings: 7 Critical, 10 High, 9 Medium, 5 Low
+
+Critical Fixes Applied:
+1. ClientMatterDetailView: Added loading skeleton + "Not Found" state (was returning null)
+2. ClientMatterDetailView: Implemented Action Items tab (was a shipped stub)
+3. ClientMatterDetailView: Added URL-driven tab state via hash persistence
+4. ClientDashboard: Fixed matters tab showing empty state during loading
+5. ClientDashboard: Fixed summary cards showing 0 during loading (now shows "—")
+6. ClientDashboard: Styled the "Access Denied" screen (was bare unstyled text)
+7. ClientDashboard: Added URL-driven tab state via hash persistence
+8. ClientDashboard: Fixed getUserName for portal users (falls back to firm name)
+9. TenantPortal: Added URL-driven tab state via hash persistence
+10. TenantPortal: Added loading state for tenantInfo in header
+11. TenantPortal: Removed dead uploadFilesToConvex function
+12. TenantPortal: Added robust system theme listener for isDark detection
+13. ClientIntakePortal: Fixed flash of "not found" during loading (added loading skeleton)
+14. ClientIntakePortal: Added cancel confirmation dialog
+15. Sidebar: Removed plan card from footer (de-clutter A10)
+16. Sidebar: Removed dead appMode prop
+17. Sidebar: Added error + empty states to workspace dropdown
+18. BottomNav: Aligned labels with Sidebar ("Finance" → "Financials", "Docs" → "Documents")
+19. BottomNav: Added Escape key handler for More menu
+20. ContextMenu: Fixed first-render position calculation (useLayoutEffect)
+21. ContextMenu: Added Escape key handler
+22. ContextMenu: Fixed scroll handler closing menu when scrolling inside it
+23. ContextMenu: Removed no-op Download menu item
+24. App.tsx: Gated all console.log/warn behind import.meta.env.DEV
+25. UIContext: Gated console.log behind DEV, silenced heartbeat error
+26. Fixed addToast() call signature in MatterDetailView and ClientMatterDetailView
+27. Fixed handleUpdateClientActionItem argument type (boolean not object)
+
+Stage Summary:
+- Phase A1 (Route Mapping): Complete
+- Phase A2 (Portal Lifecycle): Complete - all Critical + High fixes applied
+- Phase A3 (Navigation & Layout): Complete - all Critical + High fixes applied
+- Remaining: Phase B (Vega), Phase C (Atrium), git push

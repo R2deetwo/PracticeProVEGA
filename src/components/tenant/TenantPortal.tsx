@@ -9,7 +9,7 @@
  * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
  * Role-gated: Only users with role === 'Tenant'
  */
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -99,42 +99,21 @@ const formatDate = (ts: number) => {
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
 type TabId = 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents';
 
-// ─── File Upload Helper ──────────────────────────────────────────────────────
-async function uploadFilesToConvex(files: File[]): Promise<string[]> {
-  const storageIds: string[] = [];
-  for (const file of files) {
-    const postUrl = await fetch('/api/storage/upload-url');
-    // Fallback: use the Convex action for upload URL
-    // We'll use the Convex generateUploadUrl mutation via the hook instead
-    // For now, we'll use the standard Convex file upload flow
-    const { url, storageId } = await (async () => {
-      // Use Convex's built-in file upload
-      const uploadUrlRes = await fetch(`${window.location.origin}/api/storage/upload-url`);
-      if (uploadUrlRes.ok) {
-        const { url: u, storageId: s } = await uploadUrlRes.json();
-        return { url: u, storageId: s };
-      }
-      throw new Error('Failed to get upload URL');
-    })();
-
-    const uploadRes = await fetch(url, {
-      method: 'POST',
-      body: file,
-    });
-    if (uploadRes.ok) {
-      const { storageId: sid } = await uploadRes.json();
-      storageIds.push(sid);
-    }
-  }
-  return storageIds;
-}
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
   const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
-  const [activeTab, setActiveTab] = useState<TabId>('ledger');
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const hash = window.location.hash.replace('#', '');
+    if (['ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents'].includes(hash)) return hash as TabId;
+    return 'ledger';
+  });
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
+  };
 
   // Resolve tenant info once at the top level — all sub-tabs can use it
   const firmId = currentUser?.firmId || '';
@@ -175,9 +154,19 @@ const TenantPortal: React.FC = () => {
     );
   }
 
+  // TODO: Extract isDark detection into a shared useIsDark hook (used in TenantPortal, ClientDashboard, etc.)
+  const [systemIsDark, setSystemIsDark] = useState(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
     theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    (theme === 'system' && systemIsDark);
 
   const toggleTheme = () => {
     setTheme(isDark ? 'light' : 'dark');
@@ -223,9 +212,15 @@ const TenantPortal: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Welcome, {tenantInfo?.tenantName || currentUser.name}
-              </p>
+              {tenantInfo === undefined ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-4 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Welcome, {tenantInfo?.tenantName || currentUser.name || currentUser.email}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -289,7 +284,7 @@ const TenantPortal: React.FC = () => {
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'

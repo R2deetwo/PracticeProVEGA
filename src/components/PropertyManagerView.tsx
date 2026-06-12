@@ -9,8 +9,9 @@ import { OfficeBuildingIcon, LockClosedIcon, SearchIcon, PlusIcon, CheckCircleIc
 import { useFeatures } from '../hooks/useFeatures';
 import StatCard from './StatCard';
 import NairaSymbol from './NairaSymbol';
-import { formatNaira, formatLargeNumber } from '../utils/formatting';
+import { formatNaira, formatLargeNumber, normalizeAddress } from '../utils/formatting';
 import EmptyState from './EmptyState';
+import ErrorBoundary from './ErrorBoundary';
 import { generateRentReviewNoticePdf } from '../services/reportGenerator';
 import { MailIcon } from '../constants';
 
@@ -159,7 +160,43 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         );
     }
 
-    const { coreState } = useCoreState();
+    const { coreState, isDataLoaded } = useCoreState();
+
+    // Loading skeleton while data is being fetched
+    if (!isDataLoaded) {
+        return (
+            <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
+                <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
+                    <div className="h-8 w-32 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
+                    <div className="h-9 w-20 bg-slate-200 dark:bg-zinc-700 rounded-lg animate-pulse" />
+                </header>
+                <div className="px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
+                                <div className="h-3 w-20 bg-slate-200 dark:bg-zinc-700 rounded mb-3" />
+                                <div className="h-6 w-28 bg-slate-200 dark:bg-zinc-700 rounded mb-2" />
+                                <div className="h-3 w-12 bg-slate-200 dark:bg-zinc-700 rounded" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="space-y-2">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700 animate-pulse flex items-center gap-4">
+                                <div className="w-10 h-10 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-4 w-40 bg-slate-200 dark:bg-zinc-700 rounded" />
+                                    <div className="h-3 w-24 bg-slate-200 dark:bg-zinc-700 rounded" />
+                                </div>
+                                <div className="h-3 w-16 bg-slate-200 dark:bg-zinc-700 rounded" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Group properties by address to avoid clutter in the sidebar
     const allProperties = useMemo(() => {
         const rawProps: { property: Property, ownerName: string, ownerId: string }[] = [];
@@ -191,7 +228,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         const addressMap = new Map<string, number>();
 
         rawProps.forEach(item => {
-            const addr = (item.property.address || 'Unknown Address').toLowerCase().trim();
+            const addr = normalizeAddress(item.property.address || 'Unknown Address');
             if (addressMap.has(addr)) {
                 const index = addressMap.get(addr)!;
                 grouped[index].unitCount++;
@@ -231,9 +268,9 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
     // Unified helper: delete all units at an address from Convex + local state + legacy contact array
     const deletePropertyGroup = async (ownerId: string, propertyAddress: string): Promise<number> => {
-        const normalizedAddr = propertyAddress.toLowerCase().trim();
+        const normalizedAddr = normalizeAddress(propertyAddress);
         const allUnits = (coreState.properties || []).filter(p =>
-            (p.address || '').toLowerCase().trim() === normalizedAddr
+            normalizeAddress(p.address || '') === normalizedAddr
         );
         const unitIds = Array.from(new Set(allUnits.map(u => u.id).filter(Boolean)));
 
@@ -246,7 +283,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         const owner = (contacts || []).find(c => c.id === ownerId);
         if (owner && owner.properties && owner.properties.length > 0) {
             const remaining = owner.properties.filter(p =>
-                (p.address || '').toLowerCase().trim() !== normalizedAddr
+                normalizeAddress(p.address || '') !== normalizedAddr
             );
             if (remaining.length !== owner.properties.length) {
                 onUpdateContactProperties(ownerId, remaining);
@@ -258,9 +295,9 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
     const handleDeleteProperty = (e: React.MouseEvent, propertyId: string, ownerId: string, propertyAddress: string) => {
         e.stopPropagation();
-        const normalizedAddr = propertyAddress.toLowerCase().trim();
+        const normalizedAddr = normalizeAddress(propertyAddress);
         const allUnits = (coreState.properties || []).filter(p =>
-            (p.address || '').toLowerCase().trim() === normalizedAddr
+            normalizeAddress(p.address || '') === normalizedAddr
         );
         const unitCount = allUnits.length;
 
@@ -291,7 +328,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         const toDelete = Array.from(selectedIds).reduce<{ ownerId: string; address: string }[]>((acc, id) => {
             const entry = allProperties.find(p => p.property.id === id);
             if (!entry) return acc;
-            const addr = (entry.property.address || '').toLowerCase().trim();
+            const addr = normalizeAddress(entry.property.address || '');
             if (!acc.some(a => a.address === addr)) {
                 acc.push({ ownerId: entry.ownerId, address: entry.property.address });
             }
@@ -332,6 +369,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
     if (isCompact) {
         return (
+            <ErrorBoundary>
             <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/30 border-r border-slate-200 dark:border-zinc-800">
                 <div className="flex-shrink-0 py-4 px-4 border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 sticky top-0 z-10 space-y-3">
                     <div className="flex items-center justify-between">
@@ -437,10 +475,12 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                     </div>
                 </div>
             </div>
+            </ErrorBoundary>
         )
     }
 
     return (
+        <ErrorBoundary>
         <div className="h-full overflow-y-auto scroll-smooth-ios custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
             <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Properties</h2>
@@ -607,6 +647,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                 </div>
             </div>
         </div>
+        </ErrorBoundary>
     );
 };
 

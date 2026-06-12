@@ -140,7 +140,15 @@ const ClientDashboard: React.FC = () => {
     const { canUseClientPortal } = useFeatures();
     const { handleSendClientMessage } = useDataActions();
 
-    const [activeTab, setActiveTab] = useState<PortalTab>('overview');
+    const [activeTab, setActiveTab] = useState<PortalTab>(() => {
+        const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+        if (['overview', 'matters', 'documents', 'messages'].includes(hash)) return hash as PortalTab;
+        return 'overview';
+    });
+    const handleTabChange = (tab: PortalTab) => {
+        setActiveTab(tab);
+        window.location.hash = tab;
+    };
     const [docFilter, setDocFilter] = useState<string>('all');
     const [messageText, setMessageText] = useState('');
     const [selectedMatterForMessage, setSelectedMatterForMessage] = useState<string>('');
@@ -192,11 +200,24 @@ const ClientDashboard: React.FC = () => {
     );
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
+    const clientMattersLoading = clientMattersResult === undefined;
     const clientMatters = (clientMattersResult || []) as any[];
 
     // ── Access Control (after all hooks) ─────────────────────────────────
     if (!currentUser || currentUser.role !== 'Client') {
-        return <div>Access Denied.</div>;
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <div className="max-w-md bg-white dark:bg-zinc-900 p-10 rounded-3xl shadow-xl border border-slate-100 dark:border-zinc-800 flex flex-col items-center">
+                    <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mb-6">
+                        <LockClosedIcon className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">Access Denied</h2>
+                    <p className="text-slate-500 dark:text-zinc-400 leading-relaxed">
+                        You do not have permission to access this portal. If you believe this is an error, please contact your firm administrator.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     // SAFETY NET: Portal users with a valid Client role should ALWAYS be able
@@ -239,14 +260,15 @@ const ClientDashboard: React.FC = () => {
         ).length;
     }, [clientInvoices]);
 
-    const getUserName = (userId: string): string => {
+    const getUserName = (userId: string, fallbackName?: string): string => {
+        if (fallbackName) return fallbackName;
         const user = coreState.users?.find(u => u.id === userId);
-        return user?.name || 'Unknown';
+        return user?.name || coreState.firmDetails?.name || 'Your Legal Team';
     };
 
     const getLawyerNames = (matter: any): string[] => {
         if (!matter.assignedUsers || matter.assignedUsers.length === 0) return [];
-        return matter.assignedUsers.map((uid: string) => getUserName(uid)).filter((n: string) => n !== 'Unknown');
+        return matter.assignedUsers.map((uid: string) => getUserName(uid)).filter((n: string) => n !== 'Your Legal Team');
     };
 
     const getUpcomingDeadlines = (matterId: string): string[] => {
@@ -304,18 +326,18 @@ const ClientDashboard: React.FC = () => {
                 <SummaryCard
                     icon={<MattersIcon className="w-5 h-5" />}
                     label="Active Matters"
-                    value={activeMattersCount}
+                    value={clientMattersResult === undefined ? '—' : activeMattersCount}
                 />
                 <SummaryCard
                     icon={<DocumentIcon className="w-5 h-5" />}
                     label="Pending Documents"
-                    value={pendingDocsCount}
+                    value={clientDocs === undefined ? '—' : pendingDocsCount}
                 />
                 <SummaryCard
                     icon={<BanknotesIcon className="w-5 h-5" />}
                     label="Outstanding Invoices"
-                    value={outstandingInvoicesCount}
-                    accent={outstandingInvoicesCount > 0 ? 'text-amber-600 dark:text-amber-400' : undefined}
+                    value={clientInvoices === undefined ? '—' : outstandingInvoicesCount}
+                    accent={clientInvoices !== undefined && outstandingInvoicesCount > 0 ? 'text-amber-600 dark:text-amber-400' : undefined}
                 />
             </div>
 
@@ -365,7 +387,7 @@ const ClientDashboard: React.FC = () => {
             {/* Quick Links */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
-                    onClick={() => setActiveTab('matters')}
+                    onClick={() => handleTabChange('matters')}
                     className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
                 >
                     <div className="flex items-center justify-between">
@@ -381,7 +403,7 @@ const ClientDashboard: React.FC = () => {
                 </button>
 
                 <button
-                    onClick={() => setActiveTab('documents')}
+                    onClick={() => handleTabChange('documents')}
                     className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
                 >
                     <div className="flex items-center justify-between">
@@ -397,7 +419,7 @@ const ClientDashboard: React.FC = () => {
                 </button>
 
                 <button
-                    onClick={() => setActiveTab('messages')}
+                    onClick={() => handleTabChange('messages')}
                     className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
                 >
                     <div className="flex items-center justify-between">
@@ -419,6 +441,28 @@ const ClientDashboard: React.FC = () => {
 
     // ── Render: Matters Tab ──────────────────────────────────────────────
     const renderMatters = () => {
+        if (clientMattersLoading) {
+            return (
+                <div className="space-y-4">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-5 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
+                                    <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                                </div>
+                                <div className="h-6 w-20 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+                            </div>
+                            <div className="mt-4 flex gap-6">
+                                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+                                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-20" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
         if (clientMatters.length === 0) {
             return (
                 <EmptyState
@@ -624,10 +668,11 @@ const ClientDashboard: React.FC = () => {
                     </div>
                     <button
                         onClick={handleUploadClick}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 text-sm transition-colors"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/60 dark:bg-emerald-700/50 text-white/80 rounded-lg font-semibold text-sm transition-colors cursor-default relative"
                     >
                         <UploadIcon className="w-4 h-4" />
                         Upload Document
+                        <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-white/20 rounded-full">Coming Soon</span>
                     </button>
                 </div>
 
@@ -869,7 +914,7 @@ const ClientDashboard: React.FC = () => {
                             const isCurrentUser = msg.authorId === currentUser.id;
                             const authorName = isCurrentUser
                                 ? currentUser.name
-                                : getUserName(msg.authorId);
+                                : getUserName(msg.authorId, msg.authorName);
 
                             return (
                                 <div
@@ -994,14 +1039,14 @@ const ClientDashboard: React.FC = () => {
                         label="Overview"
                         tab="overview"
                         active={activeTab}
-                        onClick={() => setActiveTab('overview')}
+                        onClick={() => handleTabChange('overview')}
                         icon={<ScalesIcon className="w-4 h-4" />}
                     />
                     <TabButton
                         label="Matters"
                         tab="matters"
                         active={activeTab}
-                        onClick={() => setActiveTab('matters')}
+                        onClick={() => handleTabChange('matters')}
                         icon={<MattersIcon className="w-4 h-4" />}
                         badge={clientMatters.length}
                     />
@@ -1009,7 +1054,7 @@ const ClientDashboard: React.FC = () => {
                         label="Documents"
                         tab="documents"
                         active={activeTab}
-                        onClick={() => setActiveTab('documents')}
+                        onClick={() => handleTabChange('documents')}
                         icon={<DocumentIcon className="w-4 h-4" />}
                         badge={sharedDocsCount}
                     />
@@ -1017,7 +1062,7 @@ const ClientDashboard: React.FC = () => {
                         label="Messages"
                         tab="messages"
                         active={activeTab}
-                        onClick={() => setActiveTab('messages')}
+                        onClick={() => handleTabChange('messages')}
                         icon={<ChatAltIcon className="w-4 h-4" />}
                         badge={unreadMessagesCount}
                     />

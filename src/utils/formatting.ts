@@ -1,6 +1,14 @@
 import { LitigationParty } from '../types';
 
 /**
+ * Normalize a property address for grouping/comparison.
+ * Strips non-alphanumeric characters and lowercases.
+ */
+export const normalizeAddress = (address: string): string => {
+  return (address || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+};
+
+/**
  * Formats a number as a Naira currency string, without the symbol.
  * Use this with the <NairaSymbol /> component for display.
  * @param amount The number to format.

@@ -9,6 +9,7 @@ import { useDataState } from '../contexts/DataContext';
 import { PlusIcon, GoogleIcon, ContactsIcon, SearchIcon, RevertIcon } from '../constants';
 import { useHighlight } from '../hooks/useHighlight';
 import EmptyState from './EmptyState';
+import { ContactsSkeleton } from './toolkit/Skeleton';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
 
 const ContactCard: React.FC<{ contact: Contact, onViewDetails: (id: string) => void, isActive?: boolean, isSelected?: boolean, index: number }> = React.memo(({ contact, onViewDetails, isActive, isSelected, index }) => {
@@ -110,6 +111,8 @@ const ContactListContent: React.FC<{
             }
         }
     }, [selectedIndex]);
+
+    if (!isDataLoaded) return <ContactsSkeleton />;
 
     return (
         <div ref={containerRef} className="flex flex-col h-full bg-white dark:bg-zinc-900 border-r border-slate-200 dark:border-zinc-800">

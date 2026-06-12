@@ -1,9 +1,9 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useUI } from '../contexts/UIContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
-import { EditIcon, TrashIcon, PlusIcon, DownloadIcon, ShareIcon, ArchiveIcon, CheckIcon } from '../constants';
+import { EditIcon, TrashIcon, PlusIcon, ShareIcon, ArchiveIcon, CheckIcon } from '../constants';
 import { TaskStatus } from '../types';
 
 const MenuItem: React.FC<{ 
@@ -37,6 +37,7 @@ const ContextMenu: React.FC = () => {
         handleDeleteExpense
     } = useDataActions();
     const menuRef = useRef<HTMLDivElement>(null);
+    const [posAdjust, setPosAdjust] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
         const handleContextMenu = (e: MouseEvent) => {
@@ -59,33 +60,51 @@ const ContextMenu: React.FC = () => {
         };
 
         const handleClick = () => closeContextMenu();
-        const handleScroll = () => closeContextMenu();
+        const handleScroll = (e: Event) => {
+            // Don't close if scrolling inside the context menu itself
+            if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+            closeContextMenu();
+        };
+
+        // Close on Escape key
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeContextMenu();
+            }
+        };
 
         document.addEventListener('contextmenu', handleContextMenu);
         document.addEventListener('click', handleClick);
         document.addEventListener('scroll', handleScroll, true);
+        document.addEventListener('keydown', handleKeyDown);
 
         return () => {
             document.removeEventListener('contextmenu', handleContextMenu);
             document.removeEventListener('click', handleClick);
             document.removeEventListener('scroll', handleScroll, true);
+            document.removeEventListener('keydown', handleKeyDown);
         };
     }, [setContextMenu, closeContextMenu]);
 
-    // Adjustment to keep menu on screen
+    // Position adjustment to keep menu on screen (runs before paint)
+    useLayoutEffect(() => {
+        if (menuRef.current && contextMenu.isOpen) {
+            const rect = menuRef.current.getBoundingClientRect();
+            const adjustments = { x: 0, y: 0 };
+            if (rect.right > window.innerWidth) adjustments.x = -rect.width;
+            if (rect.bottom > window.innerHeight) adjustments.y = -rect.height;
+            setPosAdjust(adjustments);
+        } else {
+            setPosAdjust({ x: 0, y: 0 });
+        }
+    }, [contextMenu.isOpen, contextMenu.x, contextMenu.y]);
+
     const style: React.CSSProperties = {
         top: contextMenu.y,
         left: contextMenu.x,
+        transform: `translate(${posAdjust.x}px, ${posAdjust.y}px)`,
     };
-    
-    if (menuRef.current) {
-        if (contextMenu.x + 200 > window.innerWidth) {
-            style.left = contextMenu.x - 200;
-        }
-        if (contextMenu.y + 300 > window.innerHeight) {
-            style.top = contextMenu.y - 200; // Flip up
-        }
-    }
 
     if (!contextMenu.isOpen) return null;
 
@@ -126,7 +145,7 @@ const ContextMenu: React.FC = () => {
                      <MenuItem icon={<div className="font-bold text-xs">View</div>} label="View Document" onClick={() => navigateTo('documentDetail', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Rename / Properties" onClick={() => openModal('editDocument', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Open in Editor" onClick={() => navigateTo('editor', contextMenu.itemId)} />
-                     <MenuItem icon={<DownloadIcon />} label="Download" onClick={() => {}} />
+                     {/* // TODO: Implement document download */}
                      <Divider />
                      <MenuItem icon={<ShareIcon />} label="Share" onClick={() => openModal('shareDocument', contextMenu.itemId)} />
                      <MenuItem icon={<TrashIcon />} label="Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, { onConfirm: () => deleteItem('documents', contextMenu.itemId!, 'Document') })} />

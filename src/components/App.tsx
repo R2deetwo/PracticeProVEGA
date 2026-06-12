@@ -126,7 +126,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const isTenant = currentUser?.role === UserRole.Tenant;
     const isPortalUser = isClient || isTenant;
 
-    console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
+    if (import.meta.env.DEV) console.log("[App/MainContent] Rendering...", { flowState, isDataLoaded, hasData, showSkeleton, isClient, view });
 
 
     const onUpdateUser = React.useCallback((data: Partial<User>) => {
@@ -366,7 +366,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     return (
         <div className="flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
-            {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} appMode={appMode} />}
+            {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
             <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
                 {currentUser && !isPortalUser && <Header />}
                 <main className="flex-1 relative h-full overflow-hidden pb-0">
@@ -453,7 +453,7 @@ export const App: React.FC = () => {
     useIdleTimer(() => { if (isAuthenticated && !isSessionLocked) setIsSessionLocked(true); }, IDLE_TIMEOUT);
     const [isToolkitOpen, setIsToolkitOpen] = useState(false);
 
-    console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });
+    if (import.meta.env.DEV) console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });
 
     // Safety valve: if the session has been loading for 6 seconds and the user has no
     // stored session, abandon the splash and show the landing page immediately.
@@ -469,7 +469,7 @@ export const App: React.FC = () => {
             // If user has a remembered portal but no currentUser, they might be in a
             // loading state — don't redirect them away from their portal
             if (hasRememberedPortal) return;
-            console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
+            if (import.meta.env.DEV) console.log("[App] Redirecting unauthenticated user from protected path:", location.pathname);
             navigate('/', { replace: true });
         }
     }, [isLoadingSession, currentUser, location.pathname, navigate]);
@@ -519,7 +519,7 @@ export const App: React.FC = () => {
         if (currentUser && visualsComplete && !isDataLoaded && !forceEntry) {
             if (!safetyTimeoutRef.current) {
                 safetyTimeoutRef.current = setTimeout(() => {
-                    console.warn("[App] Data load timeout - forcing entry.");
+                    if (import.meta.env.DEV) console.warn("[App] Data load timeout - forcing entry.");
                     setForceEntry(true);
                     safetyTimeoutRef.current = null;
                 }, 12000);

@@ -10,8 +10,9 @@ import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
-import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon } from '../constants';
+import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
+import { MattersSkeleton } from './toolkit/Skeleton';
 import MatterBoardView from './MatterBoardView';
 
 // ─── Icons (inline so no new imports needed) ────────────────────────────────
@@ -186,7 +187,7 @@ interface MatterListProps {
 
 export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, onViewModeChange, onNavigate, isCompact }) => {
     const { matterState } = useMatterState();
-    const { coreState } = useCoreState();
+    const { coreState, isDataLoaded } = useCoreState();
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
     const { openModal, selectedId, navigateTo: uiNavigateTo } = useUI();
@@ -283,6 +284,8 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
             nextDeadline: nextTask ? { date: nextTask.dueDate!, title: nextTask.title } : null,
         };
     }), [filteredMatters, executionState.tasks]);
+
+    if (!isDataLoaded) return <MattersSkeleton />;
 
     return (
         <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-950 border-r border-slate-200 dark:border-zinc-800">
@@ -444,8 +447,22 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                             />
                         ))
                     ) : (
-                        <div className="p-8 text-center text-slate-400 text-xs italic">
-                            {searchTerm ? 'No matches found.' : `No matters for "${PRESETS.find(p => p.id === preset)?.label}" filter.`}
+                        <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                                <MattersIcon className="w-8 h-8 text-slate-400 dark:text-zinc-500" />
+                            </div>
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">No Matters Found</h3>
+                            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4 max-w-[200px]">
+                                {searchTerm ? 'No matches found. Try a different search.' : 'Create your first matter to get started.'}
+                            </p>
+                            {!searchTerm && (
+                                <button
+                                    onClick={() => openModal('newMatter')}
+                                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-xs font-bold"
+                                >
+                                    <PlusIcon className="w-4 h-4" /> New Matter
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

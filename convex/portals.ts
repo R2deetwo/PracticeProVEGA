@@ -1349,8 +1349,22 @@ export const getClientMessages = query({
     // Build matter title map
     const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
 
-    return allMessages
-      .filter(m => matterIds.includes(m.matterId || ""))
+    // Collect unique author IDs to look up names
+    const filteredMessages = allMessages.filter(m => matterIds.includes(m.matterId || ""));
+    const authorIds = [...new Set(filteredMessages.map(m => m.authorId).filter(Boolean))];
+
+    // Query firm users once and build a name map
+    const firmUsers = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+    const authorNameMap = new Map<string, string>();
+    for (const aid of authorIds) {
+      const found = firmUsers.find(u => u.id === aid || u.tokenIdentifier === aid || String(u._id) === aid);
+      if (found) authorNameMap.set(aid!, found.name || "");
+    }
+
+    return filteredMessages
       .sort((a, b) => {
         const tA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
         const tB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -1362,6 +1376,7 @@ export const getClientMessages = query({
         matterId: m.matterId,
         matterTitle: matterMap.get(m.matterId || "") || "",
         authorId: m.authorId,
+        authorName: authorNameMap.get(m.authorId || "") || "",
         content: m.content,
         timestamp: m.timestamp,
         isRead: m.isRead,
