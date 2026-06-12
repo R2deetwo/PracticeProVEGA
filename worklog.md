@@ -104,3 +104,34 @@ Stage Summary:
 - ClientDashboard.tsx: sticky header, mobile-optimized sign-out
 - AuthContext.tsx: logout() now clears in-memory state immediately
 - No new TypeScript errors introduced (pre-existing react-beautiful-dnd type errors remain)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix portal token persistence + add Notice Board feature for tenant portal
+
+Work Log:
+- Investigated full portal token/invite system: createPortalInvite, verifyInviteToken, acceptPortalInviteByToken, setupPortalPassword, resendPortalInvite
+- Discovered: 7-day token expiry is ONLY for the invite/onboarding flow. Once a tenant sets their password, they can always log in via /portal/tenant/login with email+password
+- The confusion was in messaging: "token expires in 7 days" made users think they'd lose portal access
+- Also: sessions already persist via rememberMe=true (localStorage) by default
+
+Changes Implemented:
+1. **Token expiry extended**: 7 days → 30 days in both createPortalInvite and resendPortalInvite. Updated all email templates and WhatsApp message templates to say "30 days"
+2. **Login page messaging**: Added "Your portal is always accessible — sign in anytime with your email and password" to TenantPortalLogin.tsx. Changed invite banner from "This invite expires [date]" to "Set up your password before [date] to get started"
+3. **Expired invite message**: Changed from "This invitation has expired. Please request a new one" to "Your invitation link has expired, but you can still sign in if you already set up a password. Otherwise, ask your property manager for a new invitation."
+4. **Security notice**: Updated PortalAccessSettings security text to clarify that the 7-day window only applies to initial invitation, not ongoing access
+
+5. **Notice Board schema**: Added `portal_notices` table to convex/schema.ts with fields: firmId, authorId, authorName, title, body, priority (normal/important/urgent), isPinned, propertyId (optional scope), unitId (optional scope), status (active/archived), expiresAt (optional auto-expiry), createdAt, updatedAt. Indexes: by_firm, by_firm_status, by_firm_property, by_firm_pinned
+6. **Notice Board Convex backend**: Added to convex/portals.ts: createNotice, updateNotice, archiveNotice, restoreNotice, getActiveNotices (with priority sorting + expired filtering + property/unit scoping), getAllNotices (admin view), getNotice
+7. **Tenant Portal Notice Board tab**: Added "Notices" as the first tab in TenantPortal.tsx with NoticesTab component. Shows priority badges (Urgent/Important/General), pin indicators, author, dates, expiry. Empty state with helpful message. Uses getActiveNotices query with tenant's propertyId/unitId for scoped notices
+8. **Admin Notice Board management**: Added NoticeBoardAdmin component in PortalAccessSettings.tsx. Create form with title, body, priority selector, pin toggle. Active notices list with archive button. Archived notices with restore. Only shown for property/unified products
+
+Stage Summary:
+- Schema: portal_notices table added (table #63)
+- Convex: 7 new functions (createNotice, updateNotice, archiveNotice, restoreNotice, getActiveNotices, getAllNotices, getNotice)
+- TenantPortal.tsx: Notices tab added as default tab, NoticesTab component
+- PortalAccessSettings.tsx: NoticeBoardAdmin component + BellIcon import
+- TenantPortalLogin.tsx: Clarified messaging about persistent access
+- Token expiry: 7 → 30 days across all touchpoints
+- No new TypeScript errors introduced

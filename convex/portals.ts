@@ -120,7 +120,7 @@ export const createPortalInvite = action({
   },
   handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean }> => {
     const now = Date.now();
-    const expiresAt = now + 7 * 24 * 60 * 60 * 1000; // 7 days
+    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days — gives tenants ample time to set up
     const token = generateToken();
     const channel = args.channel || "email";
 
@@ -249,7 +249,7 @@ export const createPortalInvite = action({
                 <tr>
                   <td style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 14px;">
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#fbbf24;margin:0;line-height:1.5;">
-                      &#9888;&#65039; This invitation expires in <strong>7 days</strong>. If you did not expect this invitation, you can safely ignore it.
+                      &#9888;&#65039; This invitation expires in <strong>30 days</strong>. If you did not expect this invitation, you can safely ignore it.
                     </p>
                   </td>
                 </tr>
@@ -294,7 +294,7 @@ export const createPortalInvite = action({
     const shouldSendWhatsApp = (channel === "whatsapp" || channel === "both") && args.inviteePhone;
     let waResult: any = { success: true, simulated: true };
     if (shouldSendWhatsApp) {
-      const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 7 days.${personalMsg}\n\n— PracticePro`;
+      const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 30 days.${personalMsg}\n\n— PracticePro`;
       waResult = await ctx.runAction(api.communications.sendWhatsApp, {
         to: args.inviteePhone!,
         messageText: waText,
@@ -402,7 +402,7 @@ export const resendPortalInvite = action({
     // Refresh token + expiry on the existing record
     const newToken = generateToken();
     const now = Date.now();
-    const expiresAt = now + 7 * 24 * 60 * 60 * 1000;
+    const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days
     await ctx.runMutation(api.portals.updateInviteRecord, {
       inviteId: args.inviteId,
       updates: { token: newToken, status: "pending", expiresAt, updatedAt: now },
@@ -457,7 +457,7 @@ export const resendPortalInvite = action({
                 <tr>
                   <td style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.15);border-radius:8px;padding:10px 14px;">
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;color:#fbbf24;margin:0;line-height:1.5;">
-                      &#9888;&#65039; This invitation expires in <strong>7 days</strong>.
+                      &#9888;&#65039; This invitation expires in <strong>30 days</strong>.
                     </p>
                   </td>
                 </tr>
@@ -489,7 +489,7 @@ export const resendPortalInvite = action({
 
     let waResult: any = { success: true, simulated: true };
     if ((channel === "whatsapp" || channel === "both") && existing.inviteePhone) {
-      const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 7 days.\n\n— PracticePro`;
+      const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 30 days.\n\n— PracticePro`;
       waResult = await ctx.runAction(api.communications.sendWhatsApp, {
         to: existing.inviteePhone,
         messageText: waText,
@@ -2076,5 +2076,159 @@ export const updateFirmPortalSettings = mutation({
         updatedAt: Date.now(),
       });
     }
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTICE BOARD — Property managers post notices visible to all tenants
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Create a new notice (admin only) */
+export const createNotice = mutation({
+  args: {
+    firmId: v.string(),
+    authorId: v.string(),
+    authorName: v.optional(v.string()),
+    title: v.string(),
+    body: v.string(),
+    priority: v.union(v.literal("normal"), v.literal("important"), v.literal("urgent")),
+    isPinned: v.optional(v.boolean()),
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("portal_notices", {
+      firmId: args.firmId,
+      authorId: args.authorId,
+      authorName: args.authorName,
+      title: args.title,
+      body: args.body,
+      priority: args.priority,
+      isPinned: args.isPinned ?? false,
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      status: "active",
+      expiresAt: args.expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+/** Update an existing notice (admin only) */
+export const updateNotice = mutation({
+  args: {
+    noticeId: v.id("portal_notices"),
+    title: v.optional(v.string()),
+    body: v.optional(v.string()),
+    priority: v.optional(v.union(v.literal("normal"), v.literal("important"), v.literal("urgent"))),
+    isPinned: v.optional(v.boolean()),
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { noticeId, ...updates } = args;
+    // Remove undefined fields so we don't overwrite with undefined
+    const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) cleanUpdates[key] = value;
+    }
+    await ctx.db.patch(noticeId, cleanUpdates);
+  },
+});
+
+/** Archive (soft-delete) a notice (admin only) */
+export const archiveNotice = mutation({
+  args: { noticeId: v.id("portal_notices") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.noticeId, { status: "archived", updatedAt: Date.now() });
+  },
+});
+
+/** Restore an archived notice (admin only) */
+export const restoreNotice = mutation({
+  args: { noticeId: v.id("portal_notices") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.noticeId, { status: "active", updatedAt: Date.now() });
+  },
+});
+
+/** Get all active notices for a firm (used by tenant portal).
+ *  Automatically filters out expired notices and sorts: pinned first,
+ *  then by priority (urgent → important → normal), then by recency. */
+export const getActiveNotices = query({
+  args: {
+    firmId: v.string(),
+    propertyId: v.optional(v.string()),
+    unitId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const allNotices = await ctx.db
+      .query("portal_notices")
+      .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "active"))
+      .collect();
+
+    // Filter: remove expired, and scope to property/unit if specified
+    const filtered = allNotices.filter((n) => {
+      // Remove expired notices
+      if (n.expiresAt && n.expiresAt < now) return false;
+      // If propertyId specified on notice, only show to matching property or global (no propertyId)
+      if (n.propertyId && args.propertyId && n.propertyId !== args.propertyId) return false;
+      // If notice has no propertyId, it's global — show to everyone
+      // If unitId specified on notice, only show to matching unit
+      if (n.unitId && args.unitId && n.unitId !== args.unitId) return false;
+      // If notice has a propertyId but no unitId, show to all units in that property
+      return true;
+    });
+
+    // Sort: pinned first, then by priority weight, then by recency
+    const priorityWeight: Record<string, number> = { urgent: 0, important: 1, normal: 2 };
+    filtered.sort((a, b) => {
+      // Pinned first
+      const aPin = a.isPinned ? 0 : 1;
+      const bPin = b.isPinned ? 0 : 1;
+      if (aPin !== bPin) return aPin - bPin;
+      // Then by priority
+      const aPri = priorityWeight[a.priority] ?? 2;
+      const bPri = priorityWeight[b.priority] ?? 2;
+      if (aPri !== bPri) return aPri - bPri;
+      // Then by recency (newest first)
+      return b.createdAt - a.createdAt;
+    });
+
+    return filtered;
+  },
+});
+
+/** Get all notices for a firm (admin view — includes archived) */
+export const getAllNotices = query({
+  args: {
+    firmId: v.string(),
+    status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+  },
+  handler: async (ctx, args) => {
+    if (args.status) {
+      return await ctx.db
+        .query("portal_notices")
+        .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", args.status!))
+        .collect();
+    }
+    // No status filter — return all
+    return await ctx.db
+      .query("portal_notices")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+  },
+});
+
+/** Get a single notice by ID */
+export const getNotice = query({
+  args: { noticeId: v.id("portal_notices") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.noticeId);
   },
 });

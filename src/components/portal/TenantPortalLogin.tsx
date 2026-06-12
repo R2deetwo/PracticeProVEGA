@@ -127,6 +127,9 @@ const TenantPortalLogin: React.FC = () => {
                         <p className="text-sm text-slate-400 leading-relaxed">
                             View your SC/MV payment status, download rent receipts, and log maintenance issues.
                         </p>
+                        <p className="text-xs text-slate-500 mt-2">
+                            Your portal is always accessible — sign in anytime with your email and password.
+                        </p>
                     </div>
 
                     {/* Invite banner */}
@@ -141,7 +144,7 @@ const TenantPortalLogin: React.FC = () => {
                                             ? `Welcome, ${invite.inviteeName}. Your email has been pre-filled.`
                                             : 'Your email has been pre-filled from the invitation.'}
                                         {invite.expiresAt && (
-                                            <span> This invite expires {new Date(invite.expiresAt).toLocaleDateString()}.</span>
+                                            <span> Set up your password before {new Date(invite.expiresAt).toLocaleDateString()} to get started.</span>
                                         )}
                                     </p>
                                 </div>
@@ -153,7 +156,7 @@ const TenantPortalLogin: React.FC = () => {
                     {invite && invite.status !== 'pending' && inviteToken && (
                         <div className="mb-4 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
                             {invite.status === 'expired' || invite.expiresAt < Date.now()
-                                ? 'This invitation has expired. Please request a new one from your property manager.'
+                                ? 'Your invitation link has expired, but you can still sign in if you already set up a password. Otherwise, ask your property manager for a new invitation.'
                                 : invite.status === 'revoked'
                                 ? 'This invitation has been revoked by the property manager.'
                                 : invite.status === 'accepted'

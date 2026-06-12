@@ -1226,4 +1226,36 @@ export default defineSchema({
   })
     .index("by_firm", ["firmId"]),
 
+  // ─── Notice Board ──────────────────────────────────────────────────────────
+  // Property managers post notices visible to all tenants on their portal.
+  // Supports pinning, priority levels, optional property/unit targeting,
+  // and soft-delete (archived). Visible to all portal users by default;
+  // propertyId/unitId filters scope a notice to specific buildings/units.
+  portal_notices: defineTable({
+    firmId: v.string(),
+    authorId: v.string(),                       // userId of the admin who posted
+    authorName: v.optional(v.string()),          // Display name of author
+    title: v.string(),                           // Notice headline
+    body: v.string(),                            // Notice content (markdown-safe)
+    priority: v.union(                           // Visual priority level
+      v.literal("normal"),
+      v.literal("important"),
+      v.literal("urgent"),
+    ),
+    isPinned: v.optional(v.boolean()),           // Pinned to top of notice board
+    propertyId: v.optional(v.string()),          // Scope to a specific property (null = all)
+    unitId: v.optional(v.string()),              // Scope to a specific unit (null = all in property)
+    status: v.union(                             // Active notices shown; archived = soft-deleted
+      v.literal("active"),
+      v.literal("archived"),
+    ),
+    expiresAt: v.optional(v.number()),           // Optional auto-expiry (null = never expires)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_firm_property", ["firmId", "propertyId"])
+    .index("by_firm_pinned", ["firmId", "isPinned"]),
+
 }, { schemaValidation: false });
