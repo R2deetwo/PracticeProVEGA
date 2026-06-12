@@ -36,6 +36,36 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
 );
 
 type PropertyTab = 'summary' | 'units' | 'revenue' | 'tracking' | 'docs';
+
+// ─── Eviction Tracker Types & Helpers ───
+interface EvictionTracker {
+    quitNoticeStatus: 'none' | 'drafted' | 'served' | 'delivered';
+    quitNoticeDraftedDate?: number;
+    quitNoticeServedDate?: number;
+    quitNoticeDeliveredDate?: number;
+    quitNoticeDocumentId?: string;
+    sevenDayNoticeStatus: 'none' | 'due' | 'drafted' | 'served' | 'delivered';
+    sevenDayNoticeDueDate?: number;
+    sevenDayNoticeDraftedDate?: number;
+    sevenDayNoticeDocumentId?: string;
+}
+
+/** Calculate statutory notice period in months based on tenancy frequency */
+const getNoticePeriodMonths = (frequency?: string): number => {
+    const f = (frequency || '').toLowerCase();
+    if (f.includes('year')) return 6;
+    if (f.includes('6-month')) return 3;
+    if (f.includes('quarter')) return 1;
+    if (f.includes('month')) return 1;
+    return 6; // Default to 6 months for yearly tenancy (most common in Nigeria)
+};
+
+/** Get eviction tracker from a unit's rentalDetails */
+const getEvictionTracker = (unit: any): EvictionTracker => {
+    const rd = unit?.rentalDetails || unit;
+    return rd?.evictionTracker || { quitNoticeStatus: 'none', sevenDayNoticeStatus: 'none' };
+};
+
 const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
     if (!leaseEnd) return null;
     const endDate = new Date(leaseEnd);
@@ -501,7 +531,93 @@ const PropertyDetailViewContent: React.FC = () => {
         });
     };
 
-    
+    // ─── Eviction Workflow Handlers ───
+    const updateEvictionTracker = (unit: any, updates: Partial<EvictionTracker>) => {
+        const tracker = getEvictionTracker(unit);
+        const updatedTracker = { ...tracker, ...updates };
+        const rentalDetails = { ...((unit as any).rentalDetails || {}), evictionTracker: updatedTracker };
+        const full = units.find((u: Property) => u.id === unit.id) || unit;
+        updateItem('properties', { ...full, rentalDetails }, 'Property');
+    };
+
+    const handleQuitNoticeDrafted = (unit: any) => {
+        handleDraftAction('Notice to Quit', 'Quit', unit);
+        // Mark as drafted after a short delay to allow the drafter to open
+        setTimeout(() => {
+            updateEvictionTracker(unit, {
+                quitNoticeStatus: 'drafted',
+                quitNoticeDraftedDate: Date.now(),
+            });
+            addToast('Quit Notice drafted. Mark as served once delivered to tenant.', { type: 'info' });
+        }, 500);
+    };
+
+    const handleMarkQuitNoticeServed = (unit: any) => {
+        const tracker = getEvictionTracker(unit);
+        if (tracker.quitNoticeStatus === 'drafted') {
+            updateEvictionTracker(unit, {
+                quitNoticeStatus: 'served',
+                quitNoticeServedDate: Date.now(),
+            });
+            addToast('Quit Notice marked as served.', { type: 'success' });
+        }
+    };
+
+    const handleMarkQuitNoticeDelivered = (unit: any) => {
+        const tracker = getEvictionTracker(unit);
+        if (tracker.quitNoticeStatus !== 'served') return;
+
+        const deliveryDate = Date.now();
+        const rental = (unit as any).rentalDetails || {};
+        const rentFrequency = rental.rentFrequency || 'yearly';
+        const noticeMonths = getNoticePeriodMonths(rentFrequency);
+        const dueDate = new Date(deliveryDate);
+        dueDate.setMonth(dueDate.getMonth() + noticeMonths);
+
+        updateEvictionTracker(unit, {
+            quitNoticeStatus: 'delivered',
+            quitNoticeDeliveredDate: deliveryDate,
+            sevenDayNoticeStatus: 'due',
+            sevenDayNoticeDueDate: dueDate.getTime(),
+        });
+
+        addToast(`Quit Notice delivery confirmed. 7-Day Notice of Owner's Intention to Recover Premises will be due on ${dueDate.toLocaleDateString('en-GB')}.`, { type: 'success' });
+    };
+
+    const handleDraftSevenDayNotice = (unit: any) => {
+        const d = getUnitDisplay(unit);
+        const tracker = getEvictionTracker(unit);
+
+        // Build the 7-Day Notice prompt
+        let prompt = `Write a formal legal document: **7-Day Notice of Owner's Intention to Recover Premises**.\n\n`;
+        prompt += `**PROPERTY DETAILS:**\n`;
+        prompt += `- Address: ${property.address}\n`;
+        if (d.name) prompt += `- Unit: ${d.name}\n`;
+        prompt += `\n**PARTIES:**\n`;
+        prompt += `- Landlord/Owner: ${owner?.name || '[LANDLORD NAME]'}\n`;
+        prompt += `- Tenant: ${d.tenantName || '[TENANT NAME]'}\n`;
+        prompt += `\n**CONTEXT:**\n`;
+        prompt += `- Notice to Quit was served and delivered on ${tracker.quitNoticeDeliveredDate ? new Date(tracker.quitNoticeDeliveredDate).toLocaleDateString('en-GB') : '[DATE]'}\n`;
+        prompt += `- The statutory notice period has expired and the tenant remains in possession\n`;
+        prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the Recovery of Premises Act. The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
+        prompt += `\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
+
+        const draftTitle = `7-Day Notice - ${d.name || property.address.split(',')[0]}`;
+        setTimeout(() => {
+            openEditor(null, {
+                draftTitle,
+                draftPrompt: prompt,
+                matterId: primaryMatter?.id,
+                openedByAloa: true,
+            });
+        }, 300);
+
+        updateEvictionTracker(unit, {
+            sevenDayNoticeStatus: 'drafted',
+            sevenDayNoticeDraftedDate: Date.now(),
+        });
+    };
+
 
     return (
         <div className="flex flex-col bg-slate-50 dark:bg-zinc-900 h-full overflow-hidden">
@@ -972,6 +1088,13 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 const tenantEmail: string = (unit as any).rentalDetails?.tenantEmail || (unit as any).tenantEmail || '';
                                                 const hasContactInfo = !!(tenantPhone || tenantEmail);
 
+                                                // ── Eviction Tracker State ──
+                                                const eviction = getEvictionTracker(unit);
+                                                const isEvictionActive = eviction.quitNoticeStatus !== 'none' || eviction.sevenDayNoticeStatus !== 'none';
+                                                const isSevenDayDue = eviction.sevenDayNoticeStatus === 'due' && eviction.sevenDayNoticeDueDate && Date.now() >= eviction.sevenDayNoticeDueDate;
+                                                const isSevenDayUpcoming = eviction.sevenDayNoticeStatus === 'due' && eviction.sevenDayNoticeDueDate && Date.now() < eviction.sevenDayNoticeDueDate;
+                                                const canUseEviction = isGrowthOrAbove || isKompleteFirm;
+
                                                 const handleWhatsApp = () => {
                                                     if (!tenantPhone) return;
                                                     const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
@@ -1091,6 +1214,37 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
                                                                 </p>
                                                             )}
+
+                                                            {/* Eviction Status Badge — on collapsed card */}
+                                                            {isEvictionActive && (
+                                                                <div className="flex items-center gap-1 mt-0.5">
+                                                                    <Scale className="w-3 h-3 text-rose-500" />
+                                                                    {eviction.quitNoticeStatus === 'drafted' && (
+                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Drafted</span>
+                                                                    )}
+                                                                    {eviction.quitNoticeStatus === 'served' && (
+                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Served</span>
+                                                                    )}
+                                                                    {eviction.quitNoticeStatus === 'delivered' && !isSevenDayDue && !isSevenDayUpcoming && (
+                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Delivered</span>
+                                                                    )}
+                                                                    {isSevenDayDue && (
+                                                                        <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase animate-pulse">7-Day Notice Due!</span>
+                                                                    )}
+                                                                    {isSevenDayUpcoming && (
+                                                                        <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">7-Day Due {eviction.sevenDayNoticeDueDate ? new Date(eviction.sevenDayNoticeDueDate).toLocaleDateString('en-GB') : ''}</span>
+                                                                    )}
+                                                                    {eviction.sevenDayNoticeStatus === 'drafted' && (
+                                                                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Drafted</span>
+                                                                    )}
+                                                                    {eviction.sevenDayNoticeStatus === 'served' && (
+                                                                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Served</span>
+                                                                    )}
+                                                                    {eviction.sevenDayNoticeStatus === 'delivered' && (
+                                                                        <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase">7-Day: Delivered</span>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* ── Card Footer: contextual badge + actions ── */}
@@ -1154,7 +1308,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                             </button>
                                                                                         </>
                                                                                     )}
-                                                                                    <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
+                                                                                    <button onClick={() => { setOpenUnitMenuId(null); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
                                                                                         <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
                                                                                     </button>
                                                                                 </>
@@ -1414,9 +1568,48 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     <Wallet className="w-3 h-3" /> Ledger Entry
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
+                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
                                                                                 <LogOut className="w-3 h-3" /> Quit Notice
                                                                             </button>
+
+                                                                            {/* ── Eviction Workflow Actions (Growth+/KOMPLETE only) ── */}
+                                                                            {canUseEviction && isEvictionActive && (
+                                                                                <>
+                                                                                    {/* Mark Quit Notice as Served */}
+                                                                                    {eviction.quitNoticeStatus === 'drafted' && (
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark Quit Notice as Served">
+                                                                                            <CheckCircleIcon className="w-3 h-3" /> Mark Served
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {/* Mark Quit Notice as Delivered — triggers 7-Day scheduling */}
+                                                                                    {eviction.quitNoticeStatus === 'served' && (
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Confirm delivery of Quit Notice">
+                                                                                            <CheckCircleIcon className="w-3 h-3" /> Mark Delivered
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {/* Draft 7-Day Notice — highlighted when due */}
+                                                                                    {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
+                                                                                            <Scale className="w-3 h-3" /> {isSevenDayDue ? '7-Day Notice Due!' : '7-Day Notice'}
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {/* Mark 7-Day as Served */}
+                                                                                    {eviction.sevenDayNoticeStatus === 'drafted' && (
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark 7-Day Notice as Served">
+                                                                                            <CheckCircleIcon className="w-3 h-3" /> 7-Day Served
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {/* Mark 7-Day as Delivered */}
+                                                                                    {eviction.sevenDayNoticeStatus === 'served' && (
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Confirm delivery of 7-Day Notice">
+                                                                                            <CheckCircleIcon className="w-3 h-3" /> 7-Day Delivered
+                                                                                        </button>
+                                                                                    )}
+                                                                                </>
+                                                                            )}
+                                                                            {canUseEviction && !isEvictionActive && uStatus === 'Occupied' && (
+                                                                                <span className="text-[8px] text-slate-400 italic">Eviction workflow available via Quit Notice</span>
+                                                                            )}
                                                                             <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40" title="Initialize Legal/Management File">
                                                                                 <Scale className="w-3 h-3" /> {isProperty ? 'Mgmt File' : 'Legal File'}
                                                                             </button>
