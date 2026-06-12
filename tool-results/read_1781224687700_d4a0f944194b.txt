@@ -1,0 +1,524 @@
+     1→     1→---
+     2→     2→Task ID: portal-fixes-1
+     3→     3→Agent: Main Agent
+     4→     4→Task: Fix portal onboarding flow - login navigation, delete confirmation, copy link, user cleanup, grouped dropdown, portal preview
+     5→     5→
+     6→     6→Work Log:
+     7→     7→- Fixed portal login pages (ClientPortalLogin.tsx, TenantPortalLogin.tsx) to navigate to '/' after successful login - this was the root cause of "portal shows welcome toast but refreshes login page"
+     8→     8→- Fixed 'Copy Invite Link' to use /setup-password URL instead of /portal/login URL - prevents "already accepted" error for new users
+     9→     9→- Added delete confirmation dialog (DeleteConfirmDialog component) to PortalAccessSettings - prevents accidental deletion without warning
+    10→    10→- Added deletePortalInviteAndCleanup mutation to convex/portals.ts - when deleting portal access, also resets the associated user (role to Pending, clears password/verification) so the same email can be re-invited without "already accepted" error
+    11→    11→- Changed property/unit dropdown to use <optgroup> for grouped addresses (non-selectable address headers with selectable units below)
+    12→    12→- Fixed auto-fill logic in InviteForm to always override name/email/phone from tenant data when a unit is selected (removed the `!name` guard that prevented overwriting empty fields)
+    13→    13→- Added "View Portal" (Eye icon) button on active invites in PortalAccessSettings - uses loginAsUser impersonation to preview the portal as that client/resident
+    14→    14→- Added impersonation revert banners to ClientDashboard and TenantPortal - shows "You are previewing the portal as [name]" with "Return to Admin" button
+    15→    15→- Fixed SetupPassword.tsx dynamic Tailwind classes (bg-${productColor}-500/10) that wouldn't compile with JIT - replaced with concrete class variables
+    16→    16→- Fixed PortalAccessSettings export from named to default import in SettingsView.tsx
+    17→    17→- Installed missing 'three' dependency that was causing Vite server crash
+    18→    18→- Started Vite dev server on http://localhost:5000
+    19→    19→
+    20→    20→Stage Summary:
+    21→    21→- Portal login now properly navigates to the correct dashboard after authentication
+    22→    22→- Delete confirmation dialog prevents accidental portal access deletion
+    23→    23→- Deleting portal access now also resets the associated user account, allowing clean re-invitation
+    24→    24→- Copy invite link points to setup-password flow (correct for both new and existing users)
+    25→    25→- Property/unit dropdown shows addresses as non-selectable group headers with units below
+    26→    26→- Admin can preview the portal as a specific client/resident via impersonation
+    27→    27→- Impersonation revert banner appears in portal views when previewing
+    28→    28→- Dev server running on http://localhost:5000
+    29→    29→---
+    30→    30→Task ID: 1
+    31→    31→Agent: Main Agent
+    32→    32→Task: Fix portal login and routing - comprehensive portal system overhaul
+    33→    33→
+    34→    34→Work Log:
+    35→    35→- Diagnosed portal login failure: after login, navigate('/') caused race conditions with auth state loading and flow state machine
+    36→    36→- Changed portal login pages to use window.location.href = '/' instead of navigate('/') for robust full-page reload
+    37→    37→- Added redirect for authenticated portal users who revisit login pages (ClientPortalLogin, TenantPortalLogin)
+    38→    38→- Added portal user bypass in App.tsx flow state machine: skip splash screen, skip data loading wait
+    39→    39→- Set isDataLoaded=true immediately for portal users in DataProvider (they don't need full firm data)
+    40→    40→- Skipped firm data queries (getFirmMetadata, getFirmData) for portal users to avoid unnecessary loading
+    41→    41→- Added ProductContext fallback for portal users using currentUser.product when firmDetails not loaded
+    42→    42→- Fixed setupPortalPassword in convex/portals.ts to always set firmId for existing users (was missing before)
+    43→    43→- Fixed deletePortalInviteAndCleanup to also delete all other invites for same email and clear firmId
+    44→    44→- Added online presence privacy: Tenant (property portal) users are hidden from getActivePeers by default
+    45→    45→- Added portalPresenceHidden field to User type and AuthContext
+    46→    46→- Added visual indicators for portal users: RoleBadge shows "Client Portal" / "Resident Portal" labels
+    47→    47→- Added "Portal" badge next to portal user names in FirmSettings team list with camera icon
+    48→    48→- Enhanced portal preview button in PortalAccessSettings with text label and navigation after impersonation
+    49→    49→- Added Sign Out button to both TenantPortal and ClientDashboard headers
+    50→    50→- Moved hasInitialSplashFinished and splashAnimationComplete state declarations above their first usage
+    51→    51→- Built and deployed successfully: Vite build ✓, Convex deploy ✓
+    52→    52→
+    53→    53→Stage Summary:
+    54→    54→- Portal login should now work: uses full page reload + skips splash/data loading for portal users
+    55→    55→- firmId is always set for portal users (critical for ProductContext and data loading)
+    56→    56→- Delete portal access now fully cleans up (all invites + user reset)
+    57→    57→- Tenant presence is hidden by default from admin view
+    58→    58→- Portal users have visual indicators distinguishing them from team members
+    59→    59→- Preview portal button navigates to portal view after impersonation
+    60→    60→- Sign out buttons added to both portal dashboards
+    61→    61→---
+    62→    62→Task ID: portal-fixes-3
+    63→    63→Agent: Main Agent
+    64→    64→Task: Fix portal users blocked by "speak to administrator/manager" screen - comprehensive portal access fix
+    65→    65→
+    66→    66→Work Log:
+    67→    67→- Diagnosed ROOT CAUSE: DataProvider skips firm data loading for portal users (Client/Tenant), causing useFeatures() to default to Core plan. This makes canUseClientPortal and canUseTenantPortal return false, showing "Portal Unavailable" / "Residents' Portal Unavailable" screens instead of the actual portal dashboard.
+    68→    68→- Added getFirmBasicInfo query to convex/myFunctions.ts - lightweight query that returns just the firm record (subscriptionPlan, product, etc.) without loading all the heavy data
+    69→    69→- Modified DataProvider to load firm basic info for portal users via getFirmBasicInfo and merge into appState.firmDetails so useFeatures works correctly
+    70→    70→- Modified useFeatures to add currentUser-based fallback for plan/product derivation - portal users assume Komplete access until firm data loads
+    71→    71→- Fixed ClientDashboard to skip canUseClientPortal gate for authenticated Client role users - portal users with valid accounts should ALWAYS access their portal regardless of feature gate
+    72→    72→- Fixed TenantPortal to skip canUseTenantPortal gate for authenticated Tenant role users - same safety net
+    73→    73→- Fixed "invitation already accepted" dead-end in verifyInviteToken and setupPortalPassword by checking if user's role is Pending or isVerified is false - allows re-acceptance after portal access deletion
+    74→    74→- Committed and pushed to git: commit 27d3eb0
+    75→    75→
+    76→    76→Stage Summary:
+    77→    77→- ROOT CAUSE FIXED: Portal users can now access their portal dashboards because firm data is loaded for them
+    78→    78→- Double safety net: Both DataProvider loads firm data AND portal components skip feature gates for correct roles
+    79→    79→- "Already accepted" error fixed for re-invite scenarios where user was reset but stale invite remains
+    80→    80→- All changes pushed to git (main branch)
+    81→    81→---
+    82→    82→Task ID: 3
+    83→    83→Agent: Main Agent
+    84→    84→Task: Fix smart fill / placeholder issues in DraftProEditor (modal not dismissing, multiple pasting, stale positions, incorrect replacement)
+    85→    85→
+    86→    86→Work Log:
+    87→    87→- Read LegalPlaceholder.tsx extension: identified that it dispatches 'open-placeholder-modal' CustomEvent with label in detail, but the editor handler ignored the label
+    88→    88→- Read DraftProEditor.tsx (1434+ lines): found fill_placeholders modal at lines 1122-1184 with multiple bugs
+    89→    89→- Bug 1 - Modal not dismissing: processFill() used separate editor.chain().deleteRange().insertContentAt().run() per placeholder, each as a separate transaction. If any threw an error, setActiveModal(null) was never reached
+    90→    90→- Bug 2 - Multiple pasting: (a) No guard against duplicate submissions — user could click "Apply All" multiple times. (b) Each .run() dispatched a separate transaction using stale positions from the render-time closure, causing content to be inserted at wrong positions or duplicated
+    91→    91→- Bug 3 - Stale positions: nodesToFill array was captured at render time inside IIFE. When processFill ran, it used these stale positions. Even bottom-up sorting couldn't fully compensate because each .run() changed the document independently
+    92→    92→- Bug 4 - Wrong placement: Same root cause as Bug 3 — stale positions caused replacements at incorrect document positions
+    93→    93→
+    94→    94→Fixes applied to DraftProEditor.tsx:
+    95→    95→1. Added `isFillingRef` (useRef<boolean>) as a processing guard — processFill exits immediately if already filling, preventing duplicate submissions
+    96→    96→2. Added `targetPlaceholderLabel` state — captures the clicked placeholder's label from the open-placeholder-modal event detail, used for autoFocus on the corresponding form input
+    97→    97→3. Fixed event listener to extract label: `const label = e?.detail?.label || null; setTargetPlaceholderLabel(label);`
+    98→    98→4. Rewrote processFill to:
+    99→    99→   - Guard with isFillingRef to prevent duplicate calls
+   100→   100→   - Re-fetch positions FRESH from editor.state.doc.descendants() inside processFill (not stale render-time positions)
+   101→   101→   - Use a SINGLE ProseMirror transaction (editor.state.tr) with tr.replaceWith() for all replacements instead of multiple chain().run() calls
+   102→   102→   - Sort bottom-up (b.pos - a.pos) so higher positions are replaced first, keeping lower positions stable
+   103→   103→   - Wrap in try-catch-finally to guarantee modal closes even on error
+   104→   104→   - Always reset isFillingRef in finally block
+   105→   105→   - Always clear targetPlaceholderLabel in finally block
+   106→   106→5. Replaced all setActiveModal(null) calls in the fill modal with closeFillModal() helper that also clears targetPlaceholderLabel
+   107→   107→6. Added autoFocus prop to the input matching targetPlaceholderLabel for UX improvement
+   108→   108→7. Added disabled:opacity-50 disabled:cursor-not-allowed classes to submit button for visual feedback
+   109→   109→
+   110→   110→No changes needed to LegalPlaceholder.tsx — the extension correctly dispatches the event with label detail
+   111→   111→
+   112→   112→Stage Summary:
+   113→   113→- Modal now ALWAYS dismisses after filling (try-catch-finally guarantees setActiveModal(null))
+   114→   114→- No more multiple pasting (isFillingRef guard + single transaction prevents duplicate processing)
+   115→   115→- No more stale positions (positions re-fetched fresh from current document state inside processFill)
+   116→   116→- All instances of the same placeholder label are replaced correctly in a single atomic transaction
+   117→   117→- Clicking a specific placeholder auto-focuses the corresponding field in the fill modal
+   118→   118→---
+   119→   119→Task ID: 1
+   120→   120→Agent: Main Agent
+   121→   121→Task: Remove SMS from communication channels, gate WhatsApp behind Growth+/KOMPLETE, replace "Full Compose in Revenue Monitor →" with direct Portal and Compose buttons
+   122→   122→
+   123→   123→Work Log:
+   124→   124→- Removed 'sms' from AutomationChannel type in types.ts (was `'whatsapp' | 'email' | 'sms' | 'portal'`, now `'whatsapp' | 'email' | 'portal'`)
+   125→   125→- Updated types.ts CommunicationIntegration interface: replaced sms with portal in availableChannels, monthlyLimits, and currentUsage
+   126→   126→- ComposeModal.tsx: Removed `sms` from CHANNEL_COLORS record
+   127→   127→- ComposeModal.tsx: Removed `else if (channel === 'sms')` block from handleSend (the simulated SMS send)
+   128→   128→- ComposeModal.tsx: Fixed closing brace issue after email handler (was left as bare code after SMS removal)
+   129→   129→- ComposeModal.tsx: Imported `useFeatures` from `../../hooks/useFeatures`
+   130→   130→- ComposeModal.tsx: Added WhatsApp gating in channel selector — disabled button + lock icon + tooltip when not Growth+/KOMPLETE
+   131→   131→- ComposeModal.tsx: Added WhatsApp plan guard in handleSend — shows toast "WhatsApp requires Growth plan or above" and returns early
+   132→   132→- ComposeModal.tsx: Updated channel initialization — if WhatsApp is preferred but not allowed, falls back to 'email'
+   133→   133→- ComposeModal.tsx: Removed SMS text from channel button label mapping
+   134→   134→- PropertyDetailView.tsx: Imported ComposeModal, ComposeModalPrefill, useConvex, useFeatures
+   135→   135→- PropertyDetailView.tsx: Added state for showCompose and composePrefill
+   136→   136→- PropertyDetailView.tsx: Added convex = useConvex() and { isGrowthOrAbove, isKompleteFirm } = useFeatures()
+   137→   137→- PropertyDetailView.tsx: Added handleSendPortalMessage handler — sends portal message via convex.mutation(api.portals.sendPortalMessage)
+   138→   138→- PropertyDetailView.tsx: Added handleOpenCompose handler — sets prefill data and opens ComposeModal
+   139→   139→- PropertyDetailView.tsx: Replaced "Full Compose in Revenue Monitor →" button with:
+   140→   140→  - Portal button (violet, sends portal message directly)
+   141→   141→  - Compose button (opens ComposeModal inline with prefill)
+   142→   142→- PropertyDetailView.tsx: Added WhatsApp gating on WhatsApp button — shows disabled/locked version when not Growth+/KOMPLETE
+   143→   143→- PropertyDetailView.tsx: Added ComposeModal rendering at component bottom
+   144→   144→- AtriumInbox.tsx: Removed `sms` from CHANNEL_COLORS
+   145→   145→- AutomationCenter.tsx: Removed `sms` from CHANNEL_COLORS, updated description text from "WhatsApp · Email · SMS" to "WhatsApp · Email · Portal"
+   146→   146→- TenantPortal.tsx: Removed `case 'sms'` from channel icon switch statement
+   147→   147→- communicationIntegration.ts: Replaced all smsLimit with portalLimit, updated features arrays, replaced SMS references with Portal in getAvailableChannels, updated usesSMS param to usesPortal
+   148→   148→- convex/communications.ts: No SMS code found — no changes needed
+   149→   149→- TypeScript compilation check: no errors in src/ directory
+   150→   150→
+   151→   151→Stage Summary:
+   152→   152→- SMS channel completely removed from all UI, types, and services
+   153→   153→- WhatsApp is gated behind Growth plan or above, or KOMPLETE variant — locked button with tooltip for unauthorized plans
+   154→   154→- PropertyDetailView messaging panel now shows: WhatsApp (gated) | Email | Call | Portal | Compose
+   155→   155→- "Full Compose in Revenue Monitor →" replaced with direct Portal send + ComposeModal inline
+   156→   156→- Portal channel works without phone/email — sends to tenant's portal inbox
+   157→   157→- All CHANNEL_COLORS records updated consistently across AtriumInbox, AutomationCenter, ComposeModal
+   158→   158→---
+   159→   159→Task ID: 2
+   160→   160→Agent: Main Agent
+   161→   161→Task: Fix portal name mismatch bug — ensure tenant name source of truth is the property record, not the invite
+   162→   162→
+   163→   163→Problem:
+   164→   164→When a portal invite is created for a tenant, the name stored on the portal invite (inviteeName) could differ from the actual tenant name stored on the property/unit. This caused confusion where the portal showed one name but the settings page showed another.
+   165→   165→
+   166→   166→Root Cause:
+   167→   167→1. createPortalInvite accepted inviteeName from admin's manual input without checking the property record
+   168→   168→2. setupPortalPassword used invite.inviteeName or user-provided name for the user's name in the users table
+   169→   169→3. setupPortalPassword wrote the user/invite name TO the property record's tenantName field (overwriting the canonical name)
+   170→   170→4. TenantPortal displayed currentUser.name (from users table, sourced from invite) instead of the property record name
+   171→   171→5. getTenantInfo didn't expose the tenantName from the property/unit record
+   172→   172→
+   173→   173→Changes Made:
+   174→   174→
+   175→   175→### 1. convex/portals.ts — createPortalInvite action
+   176→   176→- Added property record lookup BEFORE inserting the invite record
+   177→   177→- When portalType === "resident" and relatedId is provided, resolves the canonical tenant name from the property/unit record
+   178→   178→- Uses findPropertyByCustomId internal query to find the property, then extracts tenantName from the matching unit or property
+   179→   179→- Overrides inviteeName with the resolved name from the property record
+   180→   180→- Uses resolvedInviteeName throughout: in inviteeGreeting, toName for emails, and in the invite record
+   181→   181→
+   182→   182→### 2. convex/portals.ts — setupPortalPassword action
+   183→   183→- Added property record lookup BEFORE user creation/update (step 1.5)
+   184→   184→- Resolves canonicalTenantName from the property/unit record using same logic as createPortalInvite
+   185→   185→- For NEW user creation: uses canonicalTenantName as the primary name source (falls back to args.name, invite.inviteeName, email)
+   186→   186→- For EXISTING user update: always syncs name with canonicalTenantName if available (overwrites existing name to match property record)
+   187→   187→- In property linking section: uses canonicalTenantName instead of portalUser.name for the unit's tenantName field
+   188→   188→- Removed the now-unnecessary ctx.runQuery to look up the portal user just for their name
+   189→   189→
+   190→   190→### 3. convex/portals.ts — getTenantInfo query
+   191→   191→- Added tenantName field to tenantProperties items (from rentalDetails.tenantName or property.tenantName)
+   192→   192→- Added tenantName field to tenantUnits items (from unit.tenantName)
+   193→   193→- Added tenantName to the top-level return value, resolved from primaryUnit.tenantName or tenantProperties
+   194→   194→- This allows the TenantPortal to display the canonical name from the property record
+   195→   195→
+   196→   196→### 4. src/components/settings/PortalAccessSettings.tsx — InviteForm
+   197→   197→- Added isNameAutoFilled state to track when the name was auto-filled from a tenant record
+   198→   198→- Updated handleRelatedChange: sets isNameAutoFilled=true when a unit with tenantName is selected, false otherwise
+   199→   199→- When no unit is selected (deselected), resets isNameAutoFilled to false
+   200→   200→- Name field label: shows "· from tenant record" (emerald) when auto-filled, "(optional)" otherwise
+   201→   201→- Name input: becomes read-only when isProperty && isNameAutoFilled, with emerald border/bg styling
+   202→   202→- Added helper text: "This name is from the property's tenant record and will be used as the official name on the portal."
+   203→   203→- If user edits the name (removing readOnly), isNameAutoFilled is reset to false
+   204→   204→
+   205→   205→### 5. src/components/tenant/TenantPortal.tsx
+   206→   206→- Welcome message: changed from currentUser.name to tenantInfo?.tenantName || currentUser.name
+   207→   207→- Impersonation banner: changed from currentUser.name to tenantInfo?.tenantName || currentUser.name || currentUser.email
+   208→   208→- Now displays the canonical tenant name from the property record as the primary name source
+   209→   209→
+   210→   210→Key Principle Enforced:
+   211→   211→The property/tenancy record is the SOLE source of truth for a tenant's name. The portal invite, user record, and portal display all sync FROM the property record, never the other way around.
+   212→   212→---
+   213→   213→Task ID: 4
+   214→   214→Agent: Main Agent
+   215→   215→Task: Fix unit card expansion behavior on mobile — expand in-place instead of injecting expansion panel after row
+   216→   216→
+   217→   217→Problem:
+   218→   218→When a user clicks on a unit in the mobile view of PropertyDetailView, the expanded unit card opens in the MIDDLE of the other units (inserted as a separate card after the current row), requiring the user to scroll down to see it. For properties with many units, users may not even notice the card opened.
+   219→   219→
+   220→   220→Root Cause:
+   221→   221→The unit cards were rendered in rows (chunks of 4 for xl breakpoint). When a unit was selected, a separate expansion panel div was injected AFTER the row containing the selected unit. This panel spanned all grid columns but appeared below the current row of cards, pushing content down and requiring scrolling.
+   222→   222→
+   223→   223→Changes Made to /home/z/my-project/src/components/details/PropertyDetailView.tsx:
+   224→   224→
+   225→   225→1. Removed row-based grouping logic (COLS_XL, rows, selectedRowIdx, rows.flatMap pattern)
+   226→   226→   - Old: Units were grouped into rows of 4, expansion panel injected after the row
+   227→   227→   - New: Units are rendered directly with units.map(), no row grouping
+   228→   228→
+   229→   229→2. Made each unit card self-contained with inline expansion
+   230→   230→   - Each card conditionally renders expanded content WITHIN itself when selected
+   231→   231→   - Expanded content includes: detail header with close button, metadata grid, messaging panel, action buttons
+   232→   232→   - All the same functionality as the old expansion panel is preserved
+   233→   233→
+   234→   234→3. Added inline expanded view section inside each card
+   235→   235→   - When isSelected is true, the card expands to show: Unit Detail header, detail grid (tenant, rent, lease end, phone, email, service charge, etc.), messaging panel (WhatsApp, Email, Call, Portal, Compose), action buttons (Edit Unit, Record Payment, Legal File, Message Tenant, Remove Unit)
+   236→   236→   - Uses animate-fade-in class for smooth content appearance
+   237→   237→   - Uses border-t separator between compact and expanded content
+   238→   238→
+   239→   239→4. Added scroll-into-view behavior
+   240→   240→   - When a card is selected/expanded, a ref callback scrolls it into view with `scrollIntoView({ behavior: 'smooth', block: 'nearest' })` after a 120ms delay
+   241→   241→   - Ensures the expanded card is always visible to the user
+   242→   242→
+   243→   243→5. Added CSS transitions for smooth expansion
+   244→   244→   - Card div uses `transition-all duration-300 ease-in-out` for smooth padding and style changes
+   245→   245→   - When expanded: card spans all grid columns (col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4), gets p-5 padding, primary border with ring
+   246→   246→   - When collapsed: card stays in its grid position with p-2.5 padding, default border
+   247→   247→
+   248→   248→6. Moved handler functions to per-card scope
+   249→   249→   - handleWhatsApp, handleEmailTenant, handleOpenInbox, handleSendPortalMessage, handleOpenCompose are now defined per-card using the current unit's data
+   250→   250→   - This replaces the old pattern where they were defined inside the expansion panel using selectedUnit
+   251→   251→
+   252→   252→7. Added e.stopPropagation() to all action buttons in the expanded view
+   253→   253→   - Prevents the card's onClick (which toggles selection) from firing when clicking action buttons
+   254→   254→
+   255→   255→8. Removed the expansion panel injection code entirely
+   256→   256→   - Deleted the expansionPanel variable, the IIFE that created it, and the `[...cards, expansionPanel]` return pattern
+   257→   257→---
+   258→   258→
+   259→   259→---
+   260→   260→Task ID: 6
+   261→   261→Agent: Main Agent
+   262→   262→Task: Create Portal Terms of Use and integrate into existing Terms & Conditions flow
+   263→   263→
+   264→   264→## Summary
+   265→   265→Created a comprehensive Portal Terms of Use document and integrated it into the PracticePro SaaS app's existing terms and conditions flow. Portal invitees must now acknowledge the Portal Terms of Use before they can create their password and access the portal.
+   266→   266→
+   267→   267→## Files Created
+   268→   268→
+   269→   269→### `/home/z/my-project/src/components/PortalTermsOfUse.tsx` (NEW)
+   270→   270→- Full-page component rendering the Portal Terms of Use with professional legal language
+   271→   271→- Accepts `onBack` and `activeProduct` props ('vega' | 'atrium') for product-aware wording
+   272→   272→- 11 sections covering: Purpose & Scope, User Responsibilities, Privacy & Data Protection (NDPA 2023), Communication Through the Portal, Payment Submissions & Proof of Payment, Maintenance Requests & Service Charges, Intellectual Property Restrictions, Limitation of Liability, Termination of Portal Access, Governing Law (Nigeria/Lagos State), Contact Information
+   273→   273→- Dark mode compatible design matching existing TermsOfService component styling
+   274→   274→- Conditional content for VEGA (Client Portal) vs ATRIUM (Residents' Portal)
+   275→   275→
+   276→   276→## Files Modified
+   277→   277→
+   278→   278→### `/home/z/my-project/src/components/TermsOfService.tsx`
+   279→   279→- Added Section 23: "PORTAL TERMS OF USE" after the existing Section 22 (Contact Information)
+   280→   280→- Added entry in Table of Contents
+   281→   281→- Section incorporates Portal Terms by reference, stating that portal users are bound by additional terms when using the Client Portal or Residents' Portal
+   282→   282→- Covers: Incorporation by Reference, Binding Effect, Scope, Amendment, and Portal Access as a Privilege
+   283→   283→
+   284→   284→### `/home/z/my-project/src/components/portal/SetupPassword.tsx`
+   285→   285→- Added `termsError` state for validation messaging
+   286→   286→- Updated terms checkbox text to: "I agree to the Portal Terms of Use and the PracticePro Terms and Conditions of Service"
+   287→   287→- Added link to Portal Terms of Use (opens modal) and PracticePro Terms of Service (opens in new tab)
+   288→   288→- Added validation: if checkbox is not ticked, shows error message in rose/red text
+   289→   289→- Checkbox border turns red when terms error is shown
+   290→   290→- Replaced the old simple terms overlay with a comprehensive 11-section Portal Terms of Use modal
+   291→   291→- Modal includes "I Agree" button that auto-checks the checkbox, "Close" button, and "View Full Terms" external link
+   292→   292→- Updated `handleSubmit` to validate terms acceptance before submission
+   293→   293→
+   294→   294→### `/home/z/my-project/src/components/App.tsx`
+   295→   295→- Added import for `PortalTermsOfUse` component
+   296→   296→- Added routing case for `view === 'portalTermsOfUse'` in both the main view switch and the unauthenticated view section
+   297→   297→- Routes use `activeProduct` prop derived from product context (same pattern as TermsOfService)
+   298→   298→
+   299→   299→### `/home/z/my-project/src/types.ts`
+   300→   300→- Added `'portalTermsOfUse'` to the `View` union type
+   301→   301→
+   302→   302→### `/home/z/my-project/convex/schema.ts`
+   303→   303→- Added `termsAcceptedAt: v.optional(v.number())` field to the `portal_invites` table definition
+   304→   304→
+   305→   305→### `/home/z/my-project/convex/portals.ts`
+   306→   306→- Updated `setupPortalPassword` action to record `termsAcceptedAt: Date.now()` when marking the invite as accepted
+   307→   307→- Updated `acceptPortalInviteByToken` mutation to record `termsAcceptedAt: Date.now()` when marking the invite as accepted
+   308→   308→
+   309→   309→## Design Decisions
+   310→   310→- The Portal Terms of Use is a separate component from TermsOfService to allow independent viewing and updating
+   311→   311→- Terms checkbox must be explicitly ticked before the "Set Up Password & Activate" button becomes enabled
+   312→   312→- The modal preview shows all 11 sections in summary form with links to the full terms
+   313→   313→- Clicking "I Agree" in the modal auto-checks the checkbox for convenience
+   314→   314→- The terms acceptance timestamp is recorded in the database for audit/compliance purposes
+   315→   315→
+   316→   316→---
+   317→   317→Task ID: 8
+   318→   318→Agent: Main Agent
+   319→   319→Task: Add ability for portal users to view and print their agreements, consents, and documentation
+   320→   320→
+   321→   321→Work Log:
+   322→   322→- Added 4 new queries to convex/portals.ts: getTenantDocuments, getPortalUserConsentRecords, getTenantLeaseDetails, getClientConsentRecords
+   323→   323→- Added "Documents" tab to TenantPortal.tsx with 4 sections: Lease Agreement, Terms & Consents, Shared Documents, Payment Proofs
+   324→   324→- Each section has View/Print buttons that open professional print-ready HTML in a new window
+   325→   325→- Enhanced ClientDashboard.tsx Documents tab with Terms & Consents section and Print buttons for each document
+   326→   326→- Added @media print CSS rules to index.css for clean print output
+   327→   327→- Print templates use PracticePro ATRIUM branding (tenants) and PracticePro VEGA branding (clients)
+   328→   328→- Consent records pull from portal_invites.termsAcceptedAt for accurate acceptance timestamps
+   329→   329→- Lease details pull from both properties.rentalDetails and tenancies table
+   330→   330→
+   331→   331→### `/home/z/my-project/convex/portals.ts`
+   332→   332→- Added `getTenantDocuments` query — returns documents linked to a tenant's property matters
+   333→   333→- Added `getPortalUserConsentRecords` query — returns accepted terms/consent records for a portal user
+   334→   334→- Added `getTenantLeaseDetails` query — returns lease/rental details from properties and tenancies
+   335→   335→- Added `getClientConsentRecords` query — returns consent records for client portal users
+   336→   336→
+   337→   337→### `/home/z/my-project/src/components/tenant/TenantPortal.tsx`
+   338→   338→- Added 'documents' to TabId type
+   339→   339→- Added Documents tab with DocumentIcon to tab bar
+   340→   340→- Created DocumentsTab component with Lease Agreement, Terms & Consents, Shared Documents, Payment Proofs sections
+   341→   341→- Added PrinterIcon, FolderOpenIcon, ShieldCheckIcon local icons
+   342→   342→- All print functions generate professional HTML with @media print support and floating print button
+   343→   343→
+   344→   344→### `/home/z/my-project/src/components/client/ClientDashboard.tsx`
+   345→   345→- Added clientConsentRecords query
+   346→   346→- Enhanced renderDocuments() with Terms & Consents section showing accepted terms with Print button
+   347→   347→- Added Print button to each shared document
+   348→   348→- Split documents tab into labeled sections: Terms & Consents + Shared Documents
+   349→   349→
+   350→   350→### `/home/z/my-project/src/index.css`
+   351→   351→- Added @media print CSS: hides nav/buttons, forces white background, removes shadows, shows link URLs
+   352→   352→
+   353→   353→## Design Decisions
+   354→   354→- Print views open in new browser window via window.open() for maximum compatibility
+   355→   355→- Each print template includes a floating "Print" button that hides via @media print CSS
+   356→   356→- Professional branding consistent with PracticePro product (ATRIUM for property, VEGA for legal)
+   357→   357→- Consent records use portal_invites.termsAcceptedAt which is set during invite acceptance
+   358→   358→- Lease details pull from multiple sources (properties.rentalDetails, units, tenancies) for comprehensive coverage
+   359→   359→---
+   360→   360→Task ID: 5
+   361→   361→Agent: Main Agent
+   362→   362→Task: Fix KOMPLETE variant signing context issue — documents and communications should sign as the user who owns the app, not guess the role based on product variant. Also add Mini ALOA integration for placeholder context gathering.
+   363→   363→
+   364→   364→## Problem
+   365→   365→When using KOMPLETE (unified) variant, the app was hardcoding the user as "Lawyer/Solicitor" in document drafting and ARIA prompts, instead of using the user's actual profile role. This meant property consultants, managing directors, and other non-lawyer professionals using KOMPLETE would get incorrectly signed documents.
+   366→   366→
+   367→   367→Additionally, when ARIA (the AI assistant) needed more context while filling documents, there was no way to get quick answers — users had to leave the editor and search manually, resulting in poor quality text.
+   368→   368→
+   369→   369→## Files Modified
+   370→   370→
+   371→   371→### 1. `/home/z/my-project/src/contexts/ProductContext.tsx`
+   372→   372→- Added `SignerContext` interface with `signerName`, `signerTitle`, and `userRole` fields
+   373→   373→- Added `signerContext` to `ProductContextValue` — only populated when `isUnified` (KOMPLETE mode)
+   374→   374→- `signerTitle` is derived from the user's `UserRole` enum with a default mapping, or from a custom `signerTitle` in `firmDetails.settings`
+   375→   375→- Added `useSignerContext()` hook export for easy access from any component
+   376→   376→- VEGA/ATRIUM variants are unaffected — `signerContext` is null for them
+   377→   377→
+   378→   378→### 2. `/home/z/my-project/src/services/aiService.ts`
+   379→   379→- Updated `streamDraft` context type to accept optional `signerContext: SignerContext | null`
+   380→   380→- Passes `signerContext` through to `geminiService.streamDraft`
+   381→   381→
+   382→   382→### 3. `/home/z/my-project/src/services/geminiService.ts`
+   383→   383→- Imported `SignerContext` from ProductContext and `getAloaProtocol` from aloaPrompts
+   384→   384→- Updated `streamDraft` context type to accept `signerContext`
+   385→   385→- When `signerContext` is present (KOMPLETE mode): builds a role-aware context block that tells ARIA the user's actual name and title, instructs it NOT to assume "Lawyer" or "Property Manager"
+   386→   386→- When `signerContext` is absent (VEGA/ATRIUM): preserves existing behavior ("The user is ALWAYS the Lawyer/Solicitor")
+   387→   387→- Uses `getAloaProtocol()` to select the appropriate ALOA protocol variant
+   388→   388→
+   389→   389→### 4. `/home/z/my-project/src/constants/aloaPrompts.ts`
+   390→   390→- Preserved original `ALOA_PRECISION_PROTOCOL` unchanged (VEGA/ATRIUM use this)
+   391→   391→- Added new `ALOA_KOMPLETE_PROTOCOL` — a KOMPLETE-specific variant that:
+   392→   392→  - Does NOT assume the user is a Lawyer/Solicitor
+   393→   393→  - Requires ARIA to use signer name/title from CONTEXT block
+   394→   394→  - Tells ARIA to use [BRACKETED PLACEHOLDERS] when unsure rather than guessing roles
+   395→   395→  - Includes context-aware signing rules and "needing more context" guidance
+   396→   396→  - Uses role-appropriate Nigerian terminology based on the user's actual profession
+   397→   397→- Added `getAloaProtocol(isUnified, signerContext)` helper function that returns the correct protocol
+   398→   398→
+   399→   399→### 5. `/home/z/my-project/src/components/documents/tiptap/DraftProEditor.tsx`
+   400→   400→- Imported `useSignerContext` and `useAloa` hooks
+   401→   401→- Added `isUnified` flag from `useProduct()`
+   402→   402→- Passes `signerContext` to `aiService.streamDraft()` for KOMPLETE-aware document generation
+   403→   403→- Added AI Help feature for placeholder filling:
+   404→   404→  - New state: `aiHelpLabel`, `aiHelpLoading`, `aiHelpResult`
+   405→   405→  - `handleAiHelpForPlaceholder(label)` function that:
+   406→   406→    1. Opens MiniAloa with context about the current placeholder and document
+   407→   407→    2. Simultaneously makes a quick inline AI suggestion using `streamMessage` (flash model)
+   408→   408→    3. When the suggestion arrives, it's shown as a default value in the placeholder input with a "AI suggested — edit or accept" indicator
+   409→   409→  - Updated fill_placeholders modal UI:
+   410→   410→    - Each placeholder input now has an "Ask ARIA" button (violet themed) next to the label
+   411→   411→    - When AI suggestion is available, it's set as the input's `defaultValue` and `placeholder`
+   412→   412→    - A small indicator shows "AI suggested — edit or accept" below the input
+   413→   413→    - Loading state shows "Asking..." on the button while the AI is processing
+   414→   414→
+   415→   415→## Key Design Decisions
+   416→   416→- `signerContext` is ONLY populated for KOMPLETE (unified) mode — VEGA and ATRIUM behavior is completely unchanged
+   417→   417→- The `signerTitle` can be customized via `firmDetails.settings.signerTitle` for users who want a non-default title
+   418→   418→- The `AriaChatContext` interface was used correctly for `openWithContext()` to ensure type safety
+   419→   419→- Inline AI suggestions use the `flash` model for speed — slower `pro` model would delay the UX
+   420→   420→- MiniAloa opens alongside for deeper context gathering, while the inline suggestion provides a quick answer
+   421→   421→- All existing VEGA/ATRIUM document structures, prompts, and signing conventions are preserved exactly
+   422→   422→
+   423→   423→---
+   424→   424→Task ID: 7
+   425→   425→Agent: Communication Audit Trail Agent
+   426→   426→Task: Add communication audit trail and print functionality
+   427→   427→
+   428→   428→Work Log:
+   429→   429→- Updated convex/schema.ts: Added `messageContent`, `direction` (outbound/inbound), `senderName` fields to `automation_logs` table. Added `portal` as valid channel option in both `automation_logs` and `atrium_inbound_messages` tables. Added `by_firm_channel` index.
+   430→   430→- Updated convex/sentry.ts: Extended `logAutomation` mutation with `messageContent`, `direction`, `senderName` args. Added `getAuditTrail` query that merges outbound (automation_logs) and inbound (atrium_inbound_messages) communications into a single chronological timeline with filtering by unitId, tenantId, channel, messageType, and date range. Added `getCommunicationsForPrint` query returning full detail for printing. Added `AuditTrailEntry` TypeScript interface.
+   431→   431→- Updated src/types.ts: Added `messageContent`, `direction`, `senderName` fields to `AutomationLog` interface. Added new `AuditTrailEntry` interface with all fields for the merged timeline.
+   432→   432→- Updated src/components/atrium/ComposeModal.tsx: Modified `handleSend` to log full `messageContent` (in addition to truncated `messagePreview` of 200 chars), set `direction: 'outbound'`, and include `senderName` in the `logAuto` call.
+   433→   433→- Created src/components/atrium/CommunicationPrintView.tsx: Professional print-friendly modal component with firm letterhead (name, address, phone, email), tenant/unit header, chronological communications timeline with direction indicators (sent/received), channel labels, status badges, and A4-formatted print CSS. Includes Print and Close buttons.
+   434→   434→- Rewrote src/components/atrium/AtriumInbox.tsx: Added Inbox/Audit Trail sub-tab navigation. Added "Print" button in header for printing all communications. Added per-tenant print button in thread detail view. Added Audit Trail section with: expandable filter panel (channel, message type, date range), chronological timeline with date separators, direction indicators (arrow icons for sent/received), channel and status badges, and per-entry print button. Imported CommunicationPrintView component.
+   435→   435→- Updated src/index.css: Added comprehensive `@media print` styles including A4 page setup (`@page { size: A4 portrait; margin: 1.5cm 2cm; }`), print-content class styling, print-comm-entry page-break-avoid, letterhead formatting, and overlay cleanup for print mode.
+   436→   436→
+   437→   437→Stage Summary:
+   438→   438→- All communications (WhatsApp, Email, Portal) are now logged with full message content, direction, and sender info
+   439→   439→- Audit Trail tab in the Revenue Engine inbox shows merged inbound + outbound timeline
+   440→   440→- Filters allow narrowing by channel, message type, and date range
+   441→   441→- Print button opens professional A4-formatted print view with firm letterhead
+   442→   442→- TypeScript compilation passes with zero new errors in modified files
+   443→   443→
+   444→   444→---
+   445→   445→Task ID: 9
+   446→   446→Agent: Main Agent
+   447→   447→Task: Add back and forward navigation buttons to the mobile app for ease of navigation
+   448→   448→
+   449→   449→Work Log:
+   450→   450→- Examined UIContext.tsx: Found existing navigation history stack (`history: HistoryEntry[]`, `historyIndex`, `canGoBack`, `canGoForward`, `goBack`, `goForward`, `navigateTo`). The `goBack`/`goForward` functions used React Router's `navigate(-1)`/`navigate(1)` but did NOT update `historyIndex`, causing `canGoBack`/`canGoForward` computed values to fall out of sync with actual navigation state.
+   451→   451→- Fixed UIContext.tsx: Updated `goBack` to check `historyIndex > 0`, call `setHistoryIndex(prev => prev - 1)`, then `navigate(-1)`. Updated `goForward` to check `historyIndex < history.length - 1`, call `setHistoryIndex(prev => prev + 1)`, then `navigate(1)`. This ensures `canGoBack`/`canGoForward` remain accurate after navigation.
+   452→   452→- Examined Header.tsx: Found desktop back/forward buttons already exist (`hidden md:flex`). Mobile only showed the Logo icon on the left side with no navigation controls.
+   453→   453→- Added mobile back/forward buttons in Header.tsx: New `md:hidden` section before the mobile Logo with back (chevron-left) and forward (chevron-right) arrow buttons. Buttons use dynamic styling — active state with hover/press effects (slate-600/zinc-300) when enabled, faded appearance (slate-300/zinc-600) when disabled. Proper `aria-label` attributes for accessibility. Slightly larger icons (w-5 h-5) compared to desktop (w-4 h-4) for better touch targets on mobile.
+   454→   454→- Did NOT modify BottomNav.tsx per task requirements — back/forward controls belong in the header area, not duplicated in the bottom nav.
+   455→   455→- TypeScript compilation: No new errors introduced in modified files (UIContext.tsx, Header.tsx).
+   456→   456→
+   457→   457→Files Modified:
+   458→   458→- `/home/z/my-project/src/contexts/UIContext.tsx` — Fixed `goBack`/`goForward` to sync `historyIndex` state
+   459→   459→- `/home/z/my-project/src/components/Header.tsx` — Added mobile back/forward navigation buttons
+   460→   460→
+   461→   461→
+   462→   462→---
+   463→   463→Task IDs: 10, 11, 12, 13, 14, 15, 16
+   464→   464→Agent: Main Agent
+   465→   465→Task: Fix ALL critical portal bugs (Bug 10-16)
+   466→   466→
+   467→   467→Work Log:
+   468→   468→
+   469→   469→### Bug 10: Portal Sign-Out
+   470→   470→- Made Sign Out buttons more prominent in both TenantPortal and ClientDashboard
+   471→   471→- Added a red-outlined style with LogoutIcon (SVG) so the button is visually distinct
+   472→   472→- Both buttons already called `logout()` from AuthContext which correctly redirects portal users to their login page
+   473→   473→- Files: `TenantPortal.tsx`, `ClientDashboard.tsx`
+   474→   474→
+   475→   475→### Bug 11: Portal Session Persistence on Refresh
+   476→   476→- Root cause: `practicepro_portal_type` was stored only in `sessionStorage`, which doesn't persist across new tabs. After login, the URL changes to `/` (not a portal route), so `isPortalRoute()` relied solely on sessionStorage to detect portal users.
+   477→   477→- Fix: Changed `practicepro_portal_type` to also persist in `localStorage` (in addition to sessionStorage)
+   478→   478→- Updated `isPortalRoute()` to check both `sessionStorage` AND `localStorage` for the portal type flag
+   479→   479→- Updated `App.tsx` `hasSavedSession` to check for portal session keys too (not just app session)
+   480→   480→- Updated `App.tsx` redirect effect to check localStorage for portal type
+   481→   481→- Updated `App.tsx` `hasRememberedPortal` in `renderAppContent()` to also check localStorage
+   482→   482→- Files: `AuthContext.tsx`, `App.tsx`
+   483→   483→
+   484→   484→### Bug 12: Portal Dashboard Data Display
+   485→   485→- Root cause: `getTenantLedger` query only searched by `tenantId`, but ledger entries might be stored with the user's email as the tenant ID (not their Convex _id)
+   486→   486→- Fix: Added optional `email` parameter to `getTenantLedger` query
+   487→   487→- The query now also includes the email in `possibleTenantIds`, and resolves the user's Convex _id from their email
+   488→   488→- Updated both `LedgerTab` and `ReceiptsTab` in TenantPortal to pass the email parameter
+   489→   489→- Files: `portals.ts`, `TenantPortal.tsx`
+   490→   490→
+   491→   491→### Bug 13: "Not Linked to a Property" for Maintenance Reports
+   492→   492→- The MaintenanceTab already correctly uses `tenantInfo?.primaryPropertyId` and `tenantInfo?.primaryUnitId`
+   493→   493→- Added a loading check: if `tenantInfo` is undefined (still loading), show "Still loading" instead of "No property linked"
+   494→   494→- This prevents the confusing error when the tenant info hasn't loaded yet
+   495→   495→- Also fixed pre-existing TypeScript error: `createMaintenanceTicket` used `attachments` field but the schema has `images` — mapped `attachments` → `images` in the insert
+   496→   496→- Files: `TenantPortal.tsx`, `portals.ts`
+   497→   497→
+   498→   498→### Bug 14: Session Conflict Between Portal and App
+   499→   499→- Root cause: When an app subscriber (non-portal user) logged in, `practicepro_portal_type` was not cleared from storage, so on next refresh `isPortalRoute()` returned true, causing the app session to be deprioritized
+   500→   500→- Fix: When a non-portal login occurs, explicitly clear `practicepro_portal_type` from both `sessionStorage` AND `localStorage`
+   501→   501→- Also, when `currentUser` is loaded and has a non-portal role (Admin, etc.), the portal type effect now clears the flag from both storages
+   502→   502→- Files: `AuthContext.tsx`
+   503→   503→
+   504→   504→### Bug 15: "Invitation Already Accepted" Error on Re-invite
+   505→   505→- Root cause: `insertInviteRecord` only superseded invites for the same firm AND portal type, leaving stale "accepted" invites from other contexts that blocked re-invitation
+   506→   506→- Fix: Changed `insertInviteRecord` to supersede ALL existing invites for the same email, regardless of firm/portal type
+   507→   507→- Also enhanced `verifyInviteToken` to check additional reset conditions (no password, no firmId) in addition to role=Pending and isVerified=false
+   508→   508→- Enhanced `setupPortalPassword` with the same thorough reset detection
+   509→   509→- Files: `portals.ts`
+   510→   510→
+   511→   511→### Bug 16: Portal Name Auto-fill + Delete to Forget Email
+   512→   512→- Name auto-fill was already fixed in a previous task (PortalAccessSettings auto-fills from tenant record)
+   513→   513→- Delete to forget email: Enhanced `deletePortalInviteAndCleanup` to also clear `product`, `portalPresenceHidden`, and `onboardingCompleted` from the user record — ensuring a thorough reset so the same email can be re-invited cleanly
+   514→   514→- Delete confirmation dialog was already implemented (DeleteConfirmDialog)
+   515→   515→- Files: `portals.ts`
+   516→   516→
+   517→   517→Stage Summary:
+   518→   518→- All 7 critical portal bugs fixed across 5 files
+   519→   519→- Convex typecheck passes cleanly
+   520→   520→- Key architectural change: portal type flag now uses localStorage for cross-session persistence
+   521→   521→- Ledger query now handles email-to-ID mapping for robust data retrieval
+   522→   522→- Invite system is more aggressive about superseding stale invites to prevent "already accepted" errors
+   523→   523→
+   524→   524→
