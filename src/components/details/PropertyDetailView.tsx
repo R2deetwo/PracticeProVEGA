@@ -78,6 +78,8 @@ const PropertyDetailViewContent: React.FC = () => {
     const [showUnitMessaging, setShowUnitMessaging] = useState(false);
     const [showCompose, setShowCompose] = useState(false);
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
+    const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
+    const unitMenuInnerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const onDocClick = (e: MouseEvent) => {
@@ -89,6 +91,29 @@ const PropertyDetailViewContent: React.FC = () => {
         document.addEventListener('mousedown', onDocClick);
         return () => document.removeEventListener('mousedown', onDocClick);
     }, []);
+
+    // Smart menu repositioning — measure actual rendered menu height and flip if overflowing
+    useEffect(() => {
+        if (!openUnitMenuId || !openUnitMenuPos || !unitMenuInnerRef.current) return;
+        const menuEl = unitMenuInnerRef.current;
+        const menuHeight = menuEl.offsetHeight;
+        const menuWidth = menuEl.offsetWidth;
+        const pos = openUnitMenuPos;
+
+        // Check if menu overflows bottom of viewport
+        const menuBottom = pos.top + menuHeight;
+        if (menuBottom > window.innerHeight - 8) {
+            // Flip upward: position above the anchor instead
+            const newTop = Math.max(8, pos.top - menuHeight - 8);
+            setOpenUnitMenuPos({ ...pos, top: newTop });
+        }
+
+        // Check if menu overflows left edge (positioned from right)
+        const menuLeft = window.innerWidth - pos.right - menuWidth;
+        if (menuLeft < 8) {
+            setOpenUnitMenuPos({ ...pos, right: Math.max(8, window.innerWidth - menuWidth - 8) });
+        }
+    }, [openUnitMenuId, openUnitMenuPos]);
 
     // On-demand fetch for deep-linking
     const onDemandProperty = useQuery(
@@ -1010,7 +1035,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     <div
                                                         key={unit.id}
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120); } : undefined}
-                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); }}
+                                                        onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
                                                         className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-2.5'}`}
                                                     >
@@ -1067,7 +1092,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         </div>
 
                                                         {/* ── Card Footer: contextual badge + actions ── */}
-                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2" ref={menuOpen ? unitMenuRef : undefined}>
+                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2">
                                                             {statusBadge ? (
                                                                 <Tooltip text={statusBadge.tooltip} allowWrap>
                                                                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
@@ -1079,7 +1104,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     Vacant
                                                                 </span>
                                                             )}
-                                                            <div className="relative">
+                                                            <div className="relative" ref={menuOpen ? unitMenuRef : undefined}>
                                                                 <button
                                                                     type="button"
                                                                     onClick={(e) => {
@@ -1089,9 +1114,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             setOpenUnitMenuPos(null);
                                                                         } else {
                                                                             const rect = (e.currentTarget as HTMLButtonElement).getBoundingClientRect();
-                                                                            const estimatedMenuHeight = 340;
-                                                                            const top = Math.min(rect.bottom + 4, window.innerHeight - estimatedMenuHeight - 8);
-                                                                            setOpenUnitMenuPos({ top: Math.max(top, 8), right: window.innerWidth - rect.right });
+                                                                            // Start menu below the button; smart repositioning effect will adjust if it overflows
+                                                                            setOpenUnitMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
                                                                             setOpenUnitMenuId(unit.id);
                                                                         }
                                                                     }}
@@ -1103,8 +1127,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 
                                                                 {openUnitMenuPos && menuOpen && (
                                                                 <div
+                                                                    ref={unitMenuInnerRef}
                                                                     style={{ top: openUnitMenuPos.top, right: openUnitMenuPos.right }}
-                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[70vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
+                                                                    className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
                                                                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
@@ -1239,142 +1264,182 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             </div>
                                                         </div>
 
-                                                        {/* ── Inline Expanded View ── */}
+                                                        {/* ── Inline Expanded View: Two-tier design ── 
+                                                            Tier 1 (always shown when selected): Compact quick-action bar
+                                                            Tier 2 (shown on "More"): Full detail card with metadata + all actions
+                                                        */}
                                                         {isSelected && (
-                                                            <div className="mt-4 pt-4 border-t border-primary-200 dark:border-primary-700 animate-fade-in">
-                                                                {/* Expanded header */}
-                                                                <div className="flex items-start justify-between mb-4">
-                                                                    <div>
-                                                                        <p className="text-[10px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
-                                                                        <h4 className="text-lg font-bold text-slate-900 dark:text-white">{d.name}</h4>
-                                                                        {d.floor && <p className="text-xs text-slate-400">Floor {d.floor}</p>}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2">
-                                                                        {d.remindersPaused && (
-                                                                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
-                                                                                Reminders Paused
-                                                                            </span>
-                                                                        )}
-                                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
-                                                                            {String(unit.status || 'Vacant')}
-                                                                        </span>
-                                                                        <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors">
-                                                                            <XIcon className="w-4 h-4" />
+                                                            <div className="mt-3 pt-3 border-t border-primary-200 dark:border-primary-700 animate-fade-in">
+                                                                {/* ── Tier 1: Compact Quick-Action Bar ── */}
+                                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                                    {/* Close button — leftmost */}
+                                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); setShowFullUnitDetail(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors mr-1" title="Close">
+                                                                        <XIcon className="w-3.5 h-3.5" />
+                                                                    </button>
+
+                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Record Payment & Receipt">
+                                                                            <Receipt className="w-3 h-3" /> Pay
                                                                         </button>
-                                                                    </div>
+                                                                    )}
+                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Rent Demand Notice">
+                                                                            <Megaphone className="w-3 h-3" /> Demand
+                                                                        </button>
+                                                                    )}
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'}`} title="Message Tenant">
+                                                                        <MessageSquare className="w-3 h-3" /> Message
+                                                                    </button>
+                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Edit Unit">
+                                                                        <EditIcon className="w-3 h-3" /> Edit
+                                                                    </button>
+                                                                    {/* More button — reveals full detail card */}
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40'}`} title="Full unit details & more actions">
+                                                                        <CogIcon className="w-3 h-3" /> {showFullUnitDetail ? 'Less' : 'More'}
+                                                                    </button>
                                                                 </div>
 
-                                                                {/* Details grid — full metadata in expanded view */}
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
-                                                                    {d.tenantName && <DetailItem label="Tenant" value={d.tenantName} />}
-                                                                    {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
-                                                                        <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
-                                                                    )}
-                                                                    {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
-                                                                    {tenantPhone && <DetailItem label="Tenant Phone" value={tenantPhone} />}
-                                                                    {tenantEmail && <DetailItem label="Tenant Email" value={tenantEmail} />}
-                                                                    {((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0) > 0 && (
-                                                                        <DetailItem label="Service Charge" value={
-                                                                            <>
-                                                                                ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
-                                                                                {(() => {
-                                                                                    const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                                    if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
-                                                                                    if (scSt === 'PARTIALLY_PAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                                                    if (scSt === 'UNPAID') return <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
-                                                                                    return null;
-                                                                                })()}
-                                                                            </>
-                                                                        } />
-                                                                    )}
-                                                                    {(() => {
-                                                                        const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                        const outstanding = d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
-                                                                        return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding Balance" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
-                                                                    })()}
-                                                                    {((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
-                                                                    {((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
-                                                                    {((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
-                                                                    {/* Term Progress */}
-                                                                    {d.termProgress !== null && (
-                                                                        <DetailItem label="Term Progress" value={
-                                                                            <div className="flex items-center gap-2">
-                                                                                <div className="flex-1 h-2 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[120px]">
-                                                                                    <div className={`h-full rounded-full transition-all ${d.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(d.termProgress * 100)}%` }} />
-                                                                                </div>
-                                                                                <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
-                                                                            </div>
-                                                                        } />
-                                                                    )}
-                                                                </div>
-
-                                                                {/* Message Tenant panel */}
+                                                                {/* ── Quick Messaging Strip (inline, compact) ── */}
                                                                 {showUnitMessaging && (
-                                                                    <div className="mb-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-4">
-                                                                        <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3">
+                                                                    <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-3 animate-fade-in">
+                                                                        <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">
                                                                             Contact {d.tenantName || 'Tenant'}
                                                                         </p>
-                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                        <div className="flex flex-wrap items-center gap-1.5">
                                                                             {tenantPhone && (isGrowthOrAbove || isKompleteFirm) && (
-                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                                    <MessageSquare className="w-4 h-4" /> WhatsApp
+                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                                                                                 </button>
                                                                             )}
                                                                             {tenantPhone && !isGrowthOrAbove && !isKompleteFirm && (
-                                                                                <button disabled title="WhatsApp requires Growth plan or above" className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600/40 text-white/50 text-xs font-bold rounded-lg cursor-not-allowed shadow-sm relative">
-                                                                                    <MessageSquare className="w-4 h-4" /> WhatsApp
-                                                                                    <LockClosedIcon className="w-3 h-3 absolute top-1 right-1" />
+                                                                                <button disabled title="WhatsApp requires Growth plan or above" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/40 text-white/50 text-[10px] font-bold rounded-lg cursor-not-allowed relative">
+                                                                                    <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
+                                                                                    <LockClosedIcon className="w-2.5 h-2.5 absolute top-0.5 right-0.5" />
                                                                                 </button>
                                                                             )}
                                                                             {tenantEmail && (
-                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                                    <Mail className="w-4 h-4" /> Email
+                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                    <Mail className="w-3.5 h-3.5" /> Email
                                                                                 </button>
                                                                             )}
                                                                             {tenantPhone && (
-                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-2 px-4 py-2.5 bg-slate-600 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                                    <Phone className="w-4 h-4" /> Call
+                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                    <Phone className="w-3.5 h-3.5" /> Call
                                                                                 </a>
                                                                             )}
-                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                                <Eye className="w-4 h-4" /> Portal
+                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                <Eye className="w-3.5 h-3.5" /> Portal
                                                                             </button>
-                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-xs font-bold rounded-lg transition-colors shadow-sm">
-                                                                                <MessageSquare className="w-4 h-4 text-emerald-500" /> Compose
+                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-[10px] font-bold rounded-lg transition-colors">
+                                                                                <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> Compose
                                                                             </button>
                                                                         </div>
                                                                         {!hasContactInfo && (
-                                                                            <p className="text-xs text-slate-400 mt-2">No contact info saved for this unit — edit the unit to add a phone number or email.</p>
+                                                                            <p className="text-[10px] text-slate-400 mt-2">No contact info saved — edit the unit to add phone or email.</p>
                                                                         )}
                                                                     </div>
                                                                 )}
 
-                                                                {/* Action buttons */}
-                                                                <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100 dark:border-zinc-700">
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }}
-                                                                        className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors"
-                                                                    >
-                                                                        <EditIcon className="w-3.5 h-3.5" /> Edit Unit
-                                                                    </button>
-                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                                            <Receipt className="w-3.5 h-3.5" /> Record Payment
-                                                                        </button>
-                                                                    )}
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors">
-                                                                        <Scale className="w-3.5 h-3.5" /> {isProperty ? 'Mgmt File' : 'Legal File'}
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); }}
-                                                                        className={`px-3 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
-                                                                    >
-                                                                        <MessageSquare className="w-3.5 h-3.5" /> Message Tenant
-                                                                    </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto">
-                                                                        <Trash2 className="w-3.5 h-3.5" /> Remove Unit
-                                                                    </button>
-                                                                </div>
+                                                                {/* ── Tier 2: Full Detail Card (shown on "More") ── */}
+                                                                {showFullUnitDetail && (
+                                                                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700 animate-fade-in">
+                                                                        {/* Detail header */}
+                                                                        <div className="flex items-start justify-between mb-3">
+                                                                            <div>
+                                                                                <p className="text-[9px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+                                                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">{d.name}</h4>
+                                                                                {d.floor && <p className="text-[10px] text-slate-400">Floor {d.floor}</p>}
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                {d.remindersPaused && (
+                                                                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
+                                                                                        Paused
+                                                                                    </span>
+                                                                                )}
+                                                                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                                                    {String(unit.status || 'Vacant')}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Details grid — compact 3-col metadata */}
+                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mb-3">
+                                                                            {d.tenantName && <DetailItem label="Tenant" value={d.tenantName} />}
+                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
+                                                                                <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+                                                                            )}
+                                                                            {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
+                                                                            {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
+                                                                            {tenantEmail && <DetailItem label="Email" value={tenantEmail} />}
+                                                                            {((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+                                                                                <DetailItem label="Service Charge" value={
+                                                                                    <>
+                                                                                        ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                                                        {(() => {
+                                                                                            const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                                                            return null;
+                                                                                        })()}
+                                                                                    </>
+                                                                                } />
+                                                                            )}
+                                                                            {(() => {
+                                                                                const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
+                                                                                const outstanding = d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
+                                                                                return scSt === 'PARTIALLY_PAID' && outstanding > 0 ? <DetailItem label="Outstanding" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
+                                                                            })()}
+                                                                            {((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
+                                                                            {((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
+                                                                            {((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
+                                                                            {d.termProgress !== null && (
+                                                                                <DetailItem label="Term Progress" value={
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <div className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[80px]">
+                                                                                            <div className={`h-full rounded-full transition-all ${d.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(d.termProgress * 100)}%` }} />
+                                                                                        </div>
+                                                                                        <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
+                                                                                    </div>
+                                                                                } />
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Secondary actions — less frequent operations */}
+                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-700">
+                                                                            {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
+                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Ledger-only entry (no receipt)">
+                                                                                    <Wallet className="w-3 h-3" /> Ledger Entry
+                                                                                </button>
+                                                                            )}
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Notice to Quit', 'Quit', unit); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
+                                                                                <LogOut className="w-3 h-3" /> Quit Notice
+                                                                            </button>
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40" title="Initialize Legal/Management File">
+                                                                                <Scale className="w-3 h-3" /> {isProperty ? 'Mgmt File' : 'Legal File'}
+                                                                            </button>
+                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Log Maintenance">
+                                                                                <Wrench className="w-3 h-3" /> Maintenance
+                                                                            </button>
+                                                                            {uStatus !== 'Vacant' && (
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
+                                                                                    <Eye className="w-3 h-3" /> Vacant
+                                                                                </button>
+                                                                            )}
+                                                                            {uStatus === 'Vacant' && (
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40" title="Mark as Occupied">
+                                                                                    <CheckCircleIcon className="w-3 h-3" /> Occupied
+                                                                                </button>
+                                                                            )}
+                                                                            <button onClick={(e) => { e.stopPropagation(); const details = [`Unit: ${d.name}`, `Property: ${property.address}`, `Status: ${uStatus}`, d.tenantName ? `Tenant: ${d.tenantName}` : '', rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '', rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '', d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '', d.leaseEnd ? `Lease End: ${d.leaseEnd}` : ''].filter(Boolean).join('\n'); try { navigator.clipboard.writeText(details); addToast('Unit details copied', { type: 'success' }); } catch { addToast('Copy not supported', { type: 'error' }); } }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Copy Unit Details">
+                                                                                <ClipboardList className="w-3 h-3" /> Copy
+                                                                            </button>
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
+                                                                                <Trash2 className="w-3 h-3" /> Remove
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
