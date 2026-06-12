@@ -203,44 +203,44 @@ const TenantPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-4 sm:py-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-              <OfficeBuildingIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+      {/* Header — sticky on mobile so sign-out is always accessible */}
+      <div className="flex-shrink-0 sticky top-0 z-20 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 sm:px-6 py-3 sm:py-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
+              <OfficeBuildingIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-white">Residents' Portal</h1>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-bold text-slate-900 dark:text-white truncate">Residents' Portal</h1>
               {tenantInfo === undefined ? (
                 <div className="flex items-center gap-2">
                   <div className="w-20 h-4 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
                 </div>
               ) : (
-                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">
                   Welcome, {tenantInfo?.tenantName || currentUser.name || currentUser.email}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
             </button>
-            {/* Sign Out — prominent for portal users */}
+            {/* Sign Out — always visible and tappable for portal users */}
             <button
               onClick={() => logout()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500 border border-rose-200 dark:border-rose-800/50 hover:border-rose-600 dark:hover:border-rose-500 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500 border border-rose-200 dark:border-rose-800/50 hover:border-rose-600 dark:hover:border-rose-500 rounded-lg transition-colors active:scale-95"
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
-              Sign Out
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>

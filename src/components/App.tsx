@@ -150,22 +150,15 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }, [view]);
 
     const renderView = () => {
-        if (showSkeleton) {
-            switch (view) {
-                case 'dashboard': return <DashboardSkeleton />;
-                case 'tasks': return <TasksSkeleton />;
-                case 'matters': return <MattersSkeleton />;
-                case 'contacts': return <ContactsSkeleton />;
-                case 'documents': return <DocumentsSkeleton />;
-                default: return <GenericSkeleton />;
-            }
-        }
-
+        // Portal users (Client/Tenant) load data from dedicated portal queries — they
+        // must NEVER be blocked by the core-data skeleton, which tracks admin-side data
+        // (matters, contacts, tasks) that portal users don't have access to.
+        // This was the root cause of "Residents portal stuck on skeleton" — the skeleton
+        // gate ran before the portal-user checks, so TenantPortal never rendered.
         if (isClient) {
             if (view === 'matterDetail' && selectedId) {
                 return <ViewWrapper><ClientMatterDetailView /></ViewWrapper>;
             }
-
 
             if (view === 'intake' && selectedId) {
                 return <ViewWrapper><ClientIntakePortal /></ViewWrapper>;
@@ -175,6 +168,18 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
         if (isTenant) {
             return <ViewWrapper><TenantPortal /></ViewWrapper>;
+        }
+
+        // For admin/internal users, show skeleton while core data is loading
+        if (showSkeleton) {
+            switch (view) {
+                case 'dashboard': return <DashboardSkeleton />;
+                case 'tasks': return <TasksSkeleton />;
+                case 'matters': return <MattersSkeleton />;
+                case 'contacts': return <ContactsSkeleton />;
+                case 'documents': return <DocumentsSkeleton />;
+                default: return <GenericSkeleton />;
+            }
         }
 
         switch (view) {

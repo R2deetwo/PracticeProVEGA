@@ -389,6 +389,15 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 console.warn("[Auth] Logout tracking failed:", e);
             }
         }
+
+        // Clear in-memory React state FIRST so the UI immediately stops rendering
+        // as an authenticated user — this prevents stale renders on slow devices
+        setSessionToken(null);
+        if (originalSessionToken) {
+            setOriginalSessionToken(null);
+        }
+
+        // Then clear all persisted session data
         sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
         localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
         sessionStorage.removeItem(PORTAL_SESSION_KEY);

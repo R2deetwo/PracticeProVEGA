@@ -81,3 +81,26 @@ Stage Summary:
 - Commit: 590155a
 - Build passes, Vite build successful
 - Pre-existing TS errors remain (autoRentDemand, PropertyForm rentalDetails types) — not introduced by this work
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix Residents Portal stuck on skeleton + mobile sign-out issues
+
+Work Log:
+- Investigated TenantPortal.tsx (2086 lines), App.tsx (752 lines), AuthContext.tsx, ClientDashboard.tsx
+- Diagnosed skeleton root cause: In App.tsx renderView(), `showSkeleton` check (line 153) ran BEFORE portal-user checks (line 176). For portal users, `isDataLoaded` tracks admin data (matters/contacts/tasks) which portal users never load, so `showSkeleton` stayed `true` forever, and TenantPortal/ClientDashboard never rendered — only GenericSkeleton was shown.
+- Diagnosed mobile sign-out issue: Portal users have no Header or BottomNav (both hidden via `!isPortalUser`). The only sign-out button was inside the portal component header, which scrolled away on mobile. Also, `logout()` never cleared in-memory React state (`sessionToken`), relying solely on `window.location.href` full reload.
+
+Changes Implemented:
+1. **Skeleton fix (App.tsx)**: Moved portal-user checks (isClient/isTenant) BEFORE the `showSkeleton` gate in `renderView()`. Portal users now bypass skeleton entirely and render their portal immediately. Added comment explaining why.
+2. **Sticky header (TenantPortal.tsx)**: Made portal header `sticky top-0 z-20` so sign-out is always accessible while scrolling. Made buttons icon-only on mobile (`hidden sm:inline` for text). Added `active:scale-95` touch feedback. Reduced spacing/padding on mobile.
+3. **Sticky header (ClientDashboard.tsx)**: Same treatment — sticky header, icon-only on mobile, touch feedback, responsive sizing.
+4. **Logout state cleanup (AuthContext.tsx)**: Added `setSessionToken(null)` and `setOriginalSessionToken(null)` BEFORE clearing storage, so in-memory React state is immediately reset. This prevents stale renders on slow mobile devices where the `window.location.href` redirect hasn't completed yet.
+
+Stage Summary:
+- App.tsx: renderView() reordered — portal users bypass skeleton
+- TenantPortal.tsx: sticky header, mobile-optimized sign-out
+- ClientDashboard.tsx: sticky header, mobile-optimized sign-out
+- AuthContext.tsx: logout() now clears in-memory state immediately
+- No new TypeScript errors introduced (pre-existing react-beautiful-dnd type errors remain)
