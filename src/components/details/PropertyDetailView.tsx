@@ -504,7 +504,7 @@ const PropertyDetailViewContent: React.FC = () => {
     
 
     return (
-        <div className="flex flex-col bg-slate-50 dark:bg-zinc-900 h-full">
+        <div className="flex flex-col bg-slate-50 dark:bg-zinc-900 h-full overflow-hidden">
             {/* Header */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 z-20 shadow-sm">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
@@ -566,7 +566,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-grow overflow-y-auto scroll-smooth-ios custom-scrollbar">
+            <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth-ios custom-scrollbar">
                 <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
 
                 {activeTab === 'summary' && (
@@ -1593,6 +1593,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                 {activeTab === 'docs' && (
                     <div className="space-y-6 animate-fade-in">
+                        {/* Financial Overview Section */}
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Financial Overview</h3>
                             <div className="flex items-center gap-3">
@@ -1631,133 +1632,129 @@ const PropertyDetailViewContent: React.FC = () => {
                             />
                         </div>
 
-                        {/* Financial Reconciliation Explanation */}
-                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6 flex items-start gap-4 shadow-sm">
-                            <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                                <BanknotesIcon className="w-5 h-5" />
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-bold text-slate-900 dark:text-white mb-1">Financial Reconciliation</h4>
-                                <p className="text-sm text-slate-600 dark:text-zinc-400 max-w-2xl leading-relaxed mb-4">
-                                    All invoices and receipts issued for this property are automatically synchronized with the 
-                                    <button onClick={() => navigateTo('atriumEngine')} className="font-bold text-emerald-600 hover:underline mx-1">Revenue Monitor</button>. 
-                                    The monitor tracks payment discipline across your entire portfolio, ensuring that cleared income is reflected in your firm's aggregate cash flow.
-                                </p>
+                        {/* Mini Ledger + Invoices */}
+                        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 shadow-sm">
+                            <div className="flex items-start gap-4">
+                                <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
+                                    <BanknotesIcon className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="font-bold text-slate-900 dark:text-white mb-1">Financial Reconciliation</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed mb-3">
+                                        All invoices and receipts are synchronized with the{' '}
+                                        <button onClick={() => navigateTo('atriumEngine')} className="font-bold text-emerald-600 hover:underline">Revenue Monitor</button>.
+                                    </p>
 
-                                {/* Mini Ledger Preview */}
-                                {propertyLedgerEntries.length > 0 && (
-                                    <div className="bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
-                                        <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
-                                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger Activity</span>
-                                            <button onClick={() => navigateTo('atriumEngine')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
-                                        </div>
-                                        <div className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
-                                            {propertyLedgerEntries.map(entry => (
-                                                <div key={entry._id} className="px-4 py-2.5 flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
-                                                        <div>
-                                                            <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.description || entry.type}</p>
-                                                            <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</p>
+                                    {propertyLedgerEntries.length > 0 && (
+                                        <div className="bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
+                                            <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
+                                                <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger</span>
+                                                <button onClick={() => navigateTo('atriumEngine')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
+                                            </div>
+                                            <div className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
+                                                {propertyLedgerEntries.map(entry => (
+                                                    <div key={entry._id} className="px-4 py-2.5 flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-1.5 h-1.5 rounded-full ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                                                            <div>
+                                                                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.description || entry.type}</p>
+                                                                <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`text-sm font-bold ${entry.status === 'cleared' ? 'text-emerald-600 dark:text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                                ₦{entry.amount.toLocaleString('en-NG')}
+                                                            </p>
+                                                            <p className="text-[9px] uppercase font-bold text-slate-400">{entry.status}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <p className={`text-sm font-bold ${entry.status === 'cleared' ? 'text-emerald-600 dark:text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                                                            ₦{entry.amount.toLocaleString('en-NG')}
-                                                        </p>
-                                                        <p className="text-[9px] uppercase font-bold text-slate-400">{entry.status}</p>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Invoices List */}
+                        {/* Invoices */}
                         <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="p-4 border-b border-slate-200 dark:border-zinc-700">
                                 <h4 className="font-bold text-sm text-slate-800 dark:text-white">Related Invoices</h4>
                             </div>
                             {propertyInvoices.length === 0 ? (
-                                <div className="p-12 text-center text-slate-400">
-                                    <DocumentIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                    <p>No invoices found linked to this property or its matter.</p>
+                                <div className="p-8 text-center text-slate-400">
+                                    <DocumentIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p className="text-sm">No invoices linked to this property.</p>
                                 </div>
                             ) : (
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
-                                        <tr>
-                                            <th className="px-6 py-4">Invoice #</th>
-                                            <th className="px-6 py-4">Date</th>
-                                            <th className="px-6 py-4">Status</th>
-                                            <th className="px-6 py-4">Amount</th>
-                                            <th className="px-6 py-4"></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
-                                        {propertyInvoices.map(inv => (
-                                            <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => navigateTo('invoiceDetail', inv.id)}>
-                                                <td className="px-6 py-4 font-mono font-medium text-primary-600">{inv.invoiceNumber}</td>
-                                                <td className="px-6 py-4 text-slate-600 dark:text-zinc-300">{inv.issueDate}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === InvoiceStatus.Paid ? 'bg-green-100 text-green-700' :
-                                                        inv.status === InvoiceStatus.Overdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
-                                                        }`}>
-                                                        {inv.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(inv.total_amount || inv.subTotal)}</td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <SearchIcon className="w-4 h-4 text-slate-400 hover:text-primary-600" />
-                                                </td>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
+                                            <tr>
+                                                <th className="px-4 py-3">Invoice #</th>
+                                                <th className="px-4 py-3">Date</th>
+                                                <th className="px-4 py-3">Status</th>
+                                                <th className="px-4 py-3">Amount</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+                                            {propertyInvoices.map(inv => (
+                                                <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => navigateTo('invoiceDetail', inv.id)}>
+                                                    <td className="px-4 py-3 font-mono font-medium text-primary-600">{inv.invoiceNumber}</td>
+                                                    <td className="px-4 py-3 text-slate-600 dark:text-zinc-300">{inv.issueDate}</td>
+                                                    <td className="px-4 py-3">
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === InvoiceStatus.Paid ? 'bg-green-100 text-green-700' : inv.status === InvoiceStatus.Overdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                                                            {inv.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(inv.total_amount || inv.subTotal)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             )}
                         </div>
-                    </div>
-                )}
 
-                {activeTab === 'docs' && (
-                    <div className="min-h-full animate-fade-in">
-                        {isProperty ? (
-                            <DocumentsTab
-                                documents={propertyDocuments}
-                                matterId={`prop_${property.id}`}
-                                openModal={openModal}
-                                onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
-                                users={coreState.users}
-                                variant="embedded"
-                            />
-                        ) : linkedMatters.length > 0 ? (
-                            <DocumentsTab
-                                documents={propertyDocuments}
-                                matterId={primaryMatter.id}
-                                openModal={openModal}
-                                onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
-                                users={coreState.users}
-                                variant="embedded"
-                            />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-800 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700">
-                                <div className="p-4 bg-slate-100 dark:bg-zinc-900 rounded-full mb-4">
-                                    <MattersIcon className="w-10 h-10 text-slate-400" />
+                        {/* Documents Section */}
+                        <div className="border-t border-slate-200 dark:border-zinc-700 pt-6">
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4">Documents</h3>
+                            {isProperty ? (
+                                <DocumentsTab
+                                    documents={propertyDocuments}
+                                    matterId={`prop_${property.id}`}
+                                    openModal={openModal}
+                                    onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
+                                    users={coreState.users}
+                                    variant="embedded"
+                                />
+                            ) : linkedMatters.length > 0 ? (
+                                <DocumentsTab
+                                    documents={propertyDocuments}
+                                    matterId={primaryMatter.id}
+                                    openModal={openModal}
+                                    onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
+                                    users={coreState.users}
+                                    variant="embedded"
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-zinc-800 rounded-2xl border border-dashed border-slate-300 dark:border-zinc-700">
+                                    <div className="p-3 bg-slate-100 dark:bg-zinc-900 rounded-full mb-3">
+                                        <MattersIcon className="w-8 h-8 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Linked Matter</h3>
+                                    <p className="text-slate-500 text-xs max-w-sm text-center mb-4">
+                                        Initialize a matter to manage legal documents for this property.
+                                    </p>
+                                    <button
+                                        onClick={() => handleInitializeMatter()}
+                                        className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-2"
+                                    >
+                                        <PlusIcon className="w-4 h-4" /> Initialize Matter
+                                    </button>
                                 </div>
-                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No Linked Legal Matter</h3>
-                                <p className="text-slate-500 max-w-md text-center mb-6">
-                                    To manage legal documents for this property (Deeds, Tenancy Agreements, etc.), you must first initialize a Matter.
-                                </p>
-                                <button
-                                    onClick={() => handleInitializeMatter()}
-                                    className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
-                                >
-                                    <PlusIcon className="w-5 h-5" /> Initialize Matter
-                                </button>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 )}
                 </div>
