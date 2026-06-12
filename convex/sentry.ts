@@ -22,7 +22,7 @@ export const addLedgerEntry = mutation({
     unitId: v.string(),
     tenantId: v.optional(v.string()),
     amount: v.number(),
-    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit")),
+    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit"), v.literal("management_fee")),
     status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
     paymentRef: v.optional(v.string()),
     channel: v.optional(v.string()),

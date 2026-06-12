@@ -4,7 +4,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useQuery, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -536,7 +536,8 @@ const PropertyDetailViewContent: React.FC = () => {
         const tracker = getEvictionTracker(unit);
         const updatedTracker = { ...tracker, ...updates };
         const rentalDetails = { ...((unit as any).rentalDetails || {}), evictionTracker: updatedTracker };
-        const full = units.find((u: Property) => u.id === unit.id) || unit;
+        // Use coreState to find the full unit record (units is not in scope at this level)
+        const full = (coreState.properties || []).find((u: Property) => u.id === unit.id) || unit;
         updateItem('properties', { ...full, rentalDetails }, 'Property');
     };
 
@@ -682,7 +683,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth-ios custom-scrollbar">
+            <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth-ios custom-scrollbar overscroll-contain">
                 <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
 
                 {activeTab === 'summary' && (
@@ -1298,7 +1299,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                                         <>
                                                                                             <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
-                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
+                                                                                                <BanknotesIcon className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
                                                                                             </button>
                                                                                             <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
                                                                                                 <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
@@ -1386,21 +1387,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
                                                                                 setOpenUnitMenuId(null);
-                                                                                const details = [
-                                                                                    `Unit: ${d.name}`,
-                                                                                    `Property: ${property.address}`,
-                                                                                    `Status: ${uStatus}`,
-                                                                                    d.tenantName ? `Tenant: ${d.tenantName}` : '',
-                                                                                    rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '',
-                                                                                    rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '',
-                                                                                    d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '',
-                                                                                    d.leaseEnd ? `Lease End: ${d.leaseEnd}` : '',
-                                                                                ].filter(Boolean).join('\n');
-                                                                                try { navigator.clipboard.writeText(details); addToast('Unit details copied to clipboard', { type: 'success' }); } catch (_) { addToast('Copy not supported in this browser', { type: 'error' }); }
+                                                                                addToast('Unit report generation coming soon', { type: 'info' });
                                                                             }}
                                                                             className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
                                                                         >
-                                                                            <ClipboardList className="w-3.5 h-3.5 shrink-0" /> Copy Unit Details
+                                                                            <FileDown className="w-3.5 h-3.5 shrink-0" /> Export Unit Report
                                                                         </button>
                                                                     </div>
 
@@ -1434,8 +1425,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </button>
 
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Record Payment & Receipt">
-                                                                            <Receipt className="w-3 h-3" /> Pay
+                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Record Payment & Issue Receipt">
+                                                                            <BanknotesIcon className="w-3 h-3" /> Pay
                                                                         </button>
                                                                     )}
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
@@ -1626,8 +1617,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     <CheckCircleIcon className="w-3 h-3" /> Occupied
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); const details = [`Unit: ${d.name}`, `Property: ${property.address}`, `Status: ${uStatus}`, d.tenantName ? `Tenant: ${d.tenantName}` : '', rental.tenantPhone ? `Phone: ${rental.tenantPhone}` : '', rental.tenantEmail ? `Email: ${rental.tenantEmail}` : '', d.rentAmount > 0 ? `Rent: ₦${d.rentAmount.toLocaleString()}/${d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}` : '', d.leaseEnd ? `Lease End: ${d.leaseEnd}` : ''].filter(Boolean).join('\n'); try { navigator.clipboard.writeText(details); addToast('Unit details copied', { type: 'success' }); } catch { addToast('Copy not supported', { type: 'error' }); } }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Copy Unit Details">
-                                                                                <ClipboardList className="w-3 h-3" /> Copy
+                                                                            <button onClick={(e) => { e.stopPropagation(); addToast('Unit report generation coming soon', { type: 'info' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Export Unit Report">
+                                                                                <FileDown className="w-3 h-3" /> Export
                                                                             </button>
                                                                             <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
                                                                                 <Trash2 className="w-3 h-3" /> Remove

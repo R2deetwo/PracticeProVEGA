@@ -515,7 +515,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 }
             }
 
-            if (onSave) onSave(contact.id, []); // Still trigger re-render in legacy views if any
+            // Note: We no longer pass empty [] to onSave — that wipes the contact's property references.
+            // Instead, just close the modal. The individual updateItem calls above already persisted each unit.
+            // The contact's properties array is a derived/legacy view; wiping it breaks the PropertyDetailView.
+            // if (onSave) onSave(contact.id, []);
             onClose();
         } catch (error) {
             console.error("Failed to save property", error);

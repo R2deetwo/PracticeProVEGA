@@ -29,6 +29,27 @@ interface CollectRentModalProps {
     onClose: () => void;
 }
 
+/**
+ * CollectRentModal — Accounting Principles
+ * 
+ * 1. RECEIPTS ARE FULL: The receipt issued to the tenant always reflects the full
+ *    amount paid. No deductions are shown on the receipt. This is the standard
+ *    practice for proper accounting and tax compliance.
+ * 
+ * 2. MANAGEMENT FEES ARE INVOICED: The agent/manager's fee is a separate obligation.
+ *    When rent is collected, an invoice is auto-generated for the management fee,
+ *    tied back to the rent receipt. The landlord owes this to the agent — it is NOT
+ *    deducted from source on the receipt.
+ * 
+ * 3. FLEXIBLE ACCOUNTING: The "Net to Client" view is shown as an informational
+ *    breakdown (what the landlord keeps after paying the agent), not as a receipt line.
+ *    This accommodates different arrangements:
+ *    - Landlord collects in full, pays agent separately
+ *    - Agent collects and remits net (internal tracking only)
+ * 
+ * 4. LEDGER INTEGRITY: The ledger records the full rent amount. The management fee
+ *    invoice creates a separate payable entry. Both are tied via a shared transactionRef.
+ */
 const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }) => {
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
@@ -79,11 +100,11 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         }
     };
 
-    // Fee Calculation
-    const feePercentage = property.managementFeePercentage || 2.5;
+    // Fee Calculation — informational only, NOT deducted from receipt
+    const feePercentage = property.managementFeePercentage || 0;
     const feeAmount = useMemo(() => (amountValue * feePercentage) / 100, [amountValue, feePercentage]);
-    const netToClient = amountValue - feeAmount;
     const tenantName = overrideTenantName || property.rentalDetails?.tenantName;
+    // Build display label — allow wrapping instead of truncating
     const unitDisplayLabel = overrideUnitName ? `${property.address} - ${overrideUnitName}` : property.address;
 
     const handleCollect = async () => {
@@ -94,17 +115,21 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
         setIsProcessing(true);
         try {
-            // 1. Update Property Rent History (Update both standalone table and legacy nested array)
+            // Generate a shared transaction reference to link receipt, invoice, and ledger
+            const transactionRef = `TXN-${Date.now().toString().slice(-8)}`;
+
+            // 1. Update Property Rent History — receipt records FULL amount
             const newPayment = {
                 id: uuidv4(),
                 dueDate: paymentDate,
                 paidDate: paymentDate,
-                amount: amountValue,
+                amount: amountValue, // FULL amount — receipt is always for what was paid
                 status: 'paid' as const,
                 paymentMethod,
                 receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
                 periodStart,
-                periodEnd
+                periodEnd,
+                transactionRef,
             };
 
             const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
@@ -120,41 +145,40 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 await updateItem('contacts', { id: owner.id, properties: updatedProperties }, 'Property Payment');
             }
 
-            // 2. Generate Invoice for the Management Fee (to show in analytics as income)
-            // We need a dummy matter or a generic one if not linked
-            const linkedMatterId = property.disputeDetails?.status; // Check if we have a linked matter
-            // Actually, property has disputeDetails which sometimes stores matterId in status field (hacky but seen in code)
-            // Let's look for a matter linked to this property
-            const linkedMatter = matterState.matters.find(m => m.clientId === owner.id && m.title.includes(property.address));
+            // 2. Generate Invoice for Management Fee (if applicable)
+            //    This is a SEPARATE invoice the landlord owes the agent — not deducted from the receipt.
+            //    It is tied back to the rent transaction via transactionRef.
+            if (feeAmount > 0 && feePercentage > 0) {
+                const linkedMatter = matterState.matters.find(m => m.clientId === owner.id && m.title.includes(property.address));
 
-            const feeItem: InvoiceLineItem = {
-                id: uuidv4(),
-                description: `Management Fee for ${property.address} (Period: ${new Date(paymentDate).toLocaleString('default', { month: 'long', year: 'numeric' })})`,
-                hours: 1,
-                rate: feeAmount,
-                total: feeAmount
-            };
+                const feeItem: InvoiceLineItem = {
+                    id: uuidv4(),
+                    description: `Management Fee — ${unitDisplayLabel} (${new Date(paymentDate).toLocaleString('default', { month: 'long', year: 'numeric' })})`,
+                    hours: 1,
+                    rate: feeAmount,
+                    total: feeAmount
+                };
 
-            const defaultAccount: BankAccount = coreState.firmDetails?.bankAccounts?.[0] || {
-                id: '1',
-                bankName: 'PracticePro Default',
-                accountName: coreState.firmDetails?.name || 'Firm',
-                accountNumber: '0000000000'
-            };
+                const defaultAccount: BankAccount = coreState.firmDetails?.bankAccounts?.[0] || {
+                    id: '1',
+                    bankName: 'PracticePro Default',
+                    accountName: coreState.firmDetails?.name || 'Firm',
+                    accountNumber: '0000000000'
+                };
 
-            // Generate the invoice and mark as paid immediately
-            await handleGenerateInvoice(
-                linkedMatter || { id: property.id, title: `Property Management - ${property.address}`, clientId: owner.id } as any,
-                [feeItem],
-                { issueDate: paymentDate, dueDate: paymentDate },
-                [], [],
-                defaultAccount,
-                { applicable: false }
-            );
+                // Generate the management fee invoice — NOT marked as paid (landlord pays agent separately)
+                await handleGenerateInvoice(
+                    linkedMatter || { id: property.id, title: `Property Management — ${property.address}`, clientId: owner.id } as any,
+                    [feeItem],
+                    { issueDate: paymentDate, dueDate: paymentDate }, // Due same day, but not auto-paid
+                    [], [],
+                    defaultAccount,
+                    { applicable: false }
+                );
+            }
 
-            // 3. Record in Atrium Ledger (New: Synchronize manual receipt with ledger)
+            // 3. Record in Atrium Ledger — full rent received
             const targetUnitId = overrideUnitId || property.id;
-            // Find actual tenant contact if possible
             const tenantContact = matterState.contacts.find(c => 
                 (c.email && c.email === property.rentalDetails?.tenantEmail) || 
                 (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
@@ -167,25 +191,42 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     propertyId: property.id,
                     unitId: targetUnitId,
                     tenantId: tenantContact?.id || 'tenant-legacy', 
-                    amount: amountValue,
+                    amount: amountValue, // Full rent amount
                     type: 'rent',
                     status: 'cleared',
                     description: `Rent collection for ${unitDisplayLabel}`,
-                    period: `${periodStart} to ${periodEnd}`
+                    period: `${periodStart} to ${periodEnd}`,
+                    channel: transactionRef,
                 });
+
+                // If there's a management fee, record it as a separate payable entry
+                if (feeAmount > 0 && feePercentage > 0) {
+                    await addLedgerEntry({
+                        firmId: property.firmId || coreState.firmDetails?.id || '',
+                        propertyId: property.id,
+                        unitId: targetUnitId,
+                        tenantId: owner.id, // Payable TO the firm, FROM the landlord
+                        amount: feeAmount,
+                        type: 'management_fee',
+                        status: 'pending', // Not yet paid — landlord owes this
+                        description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
+                        period: `${periodStart} to ${periodEnd}`,
+                        channel: transactionRef, // Linked to the same transaction
+                    });
+                }
             }
 
             logActivity(
-                `Collected rent for ${unitDisplayLabel}. Fee: ${formatNaira(feeAmount)}`,
+                `Collected rent for ${unitDisplayLabel}${feeAmount > 0 ? `. Mgmt fee invoice: ${formatNaira(feeAmount)}` : ''}`,
                 'Contact',
                 property.id,
                 unitDisplayLabel
             );
 
-            // 3. Automatically trigger receipt generation
-            handleDownloadTenantReceipt(true); // pass true to indicate it's part of collection
+            // 4. Automatically trigger receipt generation — FULL amount, no deductions
+            handleDownloadTenantReceipt(true);
 
-            addToast(`Rent collected and management fee recorded.`, { type: 'success' });
+            addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, { type: 'success' });
             onClose();
         } catch (error: any) {
             console.error("Failed to collect rent:", error);
@@ -203,6 +244,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
             if (!isSilent) console.log("[CollectRentModal] Generating tenant receipt...");
             
+            // Receipt ALWAYS reflects the FULL amount paid — no deductions
             const receiptAmount = payment ? payment.amount : amountValue;
             const receiptDate = payment ? (payment.paidDate || payment.dueDate) : paymentDate;
             const receiptNumber = payment?.receiptNumber || generateReceiptNumber({
@@ -228,7 +270,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     description: `Rent for ${unitDisplayLabel}`,
                     hours: 1,
                     rate: receiptAmount,
-                    total: receiptAmount
+                    total: receiptAmount // FULL amount — receipt reflects what was actually paid
                 }],
                 status: InvoiceStatus.Paid,
                 issueDate: receiptDate,
@@ -263,18 +305,19 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
     return (
         <div className="p-1 sm:p-4">
-            <div className="mb-6 flex items-center gap-4">
+            <div className="mb-6 flex items-start gap-4">
                 <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl text-green-600 dark:text-green-400">
                     <BanknotesIcon className="w-6 h-6" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Issue Rent Receipt</h3>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400">Record rent collection for {unitDisplayLabel}.</p>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400">Record rent collection for:</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 break-words">{unitDisplayLabel}</p>
                 </div>
                 {lastPayment && (
                     <button
                         onClick={() => handleDownloadTenantReceipt(lastPayment)}
-                        className="px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
+                        className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
                         title={lastPayment.paidDate ? `Last paid: ${new Date(lastPayment.paidDate).toLocaleDateString('en-GB')} for ${formatNaira(lastPayment.amount)}` : undefined}
                     >
                         <DownloadIcon className="w-4 h-4" /> Download Last Receipt
@@ -362,41 +405,55 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                         <div className="p-2 bg-primary-100 dark:bg-primary-800 rounded-lg text-primary-600 dark:text-primary-400">
                             <OfficeBuildingIcon className="w-4 h-4" />
                         </div>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                             <p className="text-[10px] font-bold text-primary-600 uppercase tracking-tight">Property / Unit</p>
-                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{unitDisplayLabel}</p>
+                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 break-words">{unitDisplayLabel}</p>
                         </div>
                     </div>
                 </div>
 
-                {/* Right: Breakdown & Summary */}
+                {/* Right: Receipt Summary & Accounting Breakdown */}
                 <div className="bg-slate-900 dark:bg-black rounded-3xl p-6 text-white flex flex-col shadow-xl">
                     <div className="flex items-center gap-2 mb-6 opacity-60">
                         <CalculatorIcon className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Financial Breakdown</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Receipt Summary</span>
                     </div>
 
                     <div className="space-y-4 flex-grow">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="text-slate-400">Gross Rent</span>
-                            <span className="font-bold"><NairaSymbol />{formatNaira(amountValue)}</span>
+                        {/* Receipt amount — always the FULL amount */}
+                        <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Amount Received (Full)</p>
+                            <p className="text-3xl font-black text-white"><NairaSymbol />{formatNaira(amountValue)}</p>
+                            <p className="text-[9px] text-slate-500 mt-1">Receipt reflects full payment — no deductions</p>
                         </div>
-                        <div className="flex justify-between items-start text-sm">
-                            <div className="flex flex-col">
-                                <span className="text-slate-400">Management Fee</span>
-                                <span className="text-[9px] w-fit mt-1 px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded-md font-bold uppercase tracking-tighter">{feePercentage}% Firm Share</span>
-                            </div>
-                            <span className="font-bold text-primary-400">- <NairaSymbol />{formatNaira(feeAmount)}</span>
-                        </div>
-                        
-                        <div className="h-px bg-white/10 my-4"></div>
 
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Net to Client</p>
-                                <p className="text-3xl font-black"><NairaSymbol />{formatNaira(netToClient)}</p>
+                        {/* Management fee breakdown — informational only */}
+                        {feePercentage > 0 && feeAmount > 0 && (
+                            <div className="p-3 bg-primary-500/10 rounded-xl border border-primary-500/20">
+                                <div className="flex justify-between items-start text-sm mb-2">
+                                    <div>
+                                        <span className="text-slate-300 font-semibold">Management Fee</span>
+                                        <span className="ml-2 text-[8px] px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded font-bold uppercase">{feePercentage}%</span>
+                                    </div>
+                                    <span className="font-bold text-primary-400"><NairaSymbol />{formatNaira(feeAmount)}</span>
+                                </div>
+                                <p className="text-[9px] text-slate-500 leading-relaxed">
+                                    Fee is invoiced separately to the landlord. Receipt remains at full amount for proper accounting.
+                                </p>
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10 text-[11px]">
+                                    <span className="text-slate-400">Landlord retains (after fee)</span>
+                                    <span className="font-bold text-emerald-400"><NairaSymbol />{formatNaira(amountValue - feeAmount)}</span>
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {/* Zero-fee properties */}
+                        {feePercentage <= 0 && (
+                            <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                                <p className="text-[10px] text-emerald-400 font-semibold">No management fee configured</p>
+                                <p className="text-[9px] text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
@@ -425,7 +482,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                             className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/5"
                         >
                             <DownloadIcon className="w-3.5 h-3.5" />
-                            Download Tenant Receipt
+                            Preview Receipt
                         </button>
                     </div>
                 </div>
