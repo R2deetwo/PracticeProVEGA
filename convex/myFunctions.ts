@@ -1115,7 +1115,24 @@ export const verifyLogin = action({
     const user: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: token });
 
     if (!user) return { success: false, message: "Account not found. Please sign up." };
-    if (!user.isVerified) return { success: false, message: "Email not confirmed. Please check your inbox or resend code." };
+
+    // Distinguish between "email not confirmed" (never verified) and "account revoked/deactivated"
+    // Portal users who were deleted via deletePortalInviteAndCleanup get role="Pending" + isVerified=false
+    if (!user.isVerified) {
+      if (user.role === "Pending" && !user.password) {
+        // This user's portal access was revoked/deleted — they previously had an account
+        // but it was cleaned up. Give them a clear message instead of the misleading
+        // "Email not confirmed" error.
+        return { success: false, message: "Your portal access has been revoked. Please contact your manager to request a new invitation.", isRevoked: true };
+      }
+      return { success: false, message: "Email not confirmed. Please check your inbox or resend code." };
+    }
+
+    // Defense-in-depth: A user with role="Pending" should not be able to log in
+    // even if isVerified was somehow still true.
+    if (user.role === "Pending") {
+      return { success: false, message: "Your portal access has been revoked. Please contact your manager to request a new invitation.", isRevoked: true };
+    }
 
     const MAX_ATTEMPTS = 5;
     const LOCKOUT_DURATION_MS = 15 * 60 * 1000;

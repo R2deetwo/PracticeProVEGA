@@ -16,6 +16,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { Logo, MailIcon } from '../../constants';
 
+// Inline icon for alert circle
+const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+    </svg>
+);
+
 const TenantPortalLogin: React.FC = () => {
     const { login } = useAuth();
     const { addToast } = useUI();
@@ -24,13 +31,18 @@ const TenantPortalLogin: React.FC = () => {
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [isRevoked, setIsRevoked] = useState(false);
     const [inviteToken, setInviteToken] = useState<string | null>(null);
 
-    // Read token from URL on mount
+    // Read token from URL on mount, and check for revoked redirect
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
         if (token) setInviteToken(token);
+        // If redirected here with ?revoked=1, show the revoked banner immediately
+        if (params.get('revoked') === '1') {
+            setIsRevoked(true);
+        }
     }, []);
 
     // Look up invite by token
@@ -56,6 +68,7 @@ const TenantPortalLogin: React.FC = () => {
         }
         setIsSubmitting(true);
         setError('');
+        setIsRevoked(false);
 
         try {
             const result = await login(email.trim(), password);
@@ -77,7 +90,10 @@ const TenantPortalLogin: React.FC = () => {
                 // destroys all state, causing the user to fall back to the LandingPage.
                 navigate('/', { replace: true });
             } else {
-                if (result.isLocked) {
+                if (result.isRevoked) {
+                    setError('Your portal access has been revoked.');
+                    setIsRevoked(true);
+                } else if (result.isLocked) {
                     setError('Your account has been locked. Please contact your property manager.');
                 } else if (result.requiresMfa) {
                     setError('Multi-factor authentication is required. Please sign in through the main app.');
@@ -165,10 +181,25 @@ const TenantPortalLogin: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Access revoked banner */}
+                    {isRevoked && (
+                        <div className="mb-4 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm">
+                            <div className="flex items-start gap-2">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold">Portal Access Revoked</p>
+                                    <p className="text-rose-400/80 text-xs mt-0.5">
+                                        Your access to the Residents' Portal has been revoked by the property manager. Please contact them to request a new invitation.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Login card */}
                     <div className="bg-white/[0.04] border border-white/[0.08] backdrop-blur-xl rounded-2xl p-5 sm:p-8 shadow-2xl">
                         <div className="space-y-4">
-                            {error && (
+                            {error && !isRevoked && (
                                 <div className="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
                                     {error}
                                 </div>

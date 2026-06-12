@@ -38,6 +38,8 @@ const SetupPassword: React.FC = () => {
     const [step, setStep] = useState<Step>('loading');
     const [invalidReason, setInvalidReason] = useState<string>('');
     const [inviteData, setInviteData] = useState<any>(null);
+    // Store portal type separately — available even when verification returns valid:false
+    const [portalTypeFromVerification, setPortalTypeFromVerification] = useState<'client' | 'resident' | null>(null);
 
     // Form state
     const [password, setPassword] = useState('');
@@ -77,6 +79,10 @@ const SetupPassword: React.FC = () => {
         if (verification === undefined) return; // still loading
 
         if (verification && 'valid' in verification) {
+            // Store portalType from verification result regardless of validity
+            const pt = (verification as any).portalType || verification.invite?.portalType;
+            if (pt) setPortalTypeFromVerification(pt);
+
             if (verification.valid) {
                 setInviteData(verification);
                 setName(verification.invite?.inviteeName || '');
@@ -185,8 +191,10 @@ const SetupPassword: React.FC = () => {
         if (e.key === 'Enter' && step === 'form') handleSubmit();
     };
 
-    // Determine product branding from invite data
-    const isClientPortal = inviteData?.invite?.portalType === 'client';
+    // Determine product branding from invite data — use portalTypeFromVerification
+    // as a fallback for cases where inviteData isn't set (e.g., already_accepted screen)
+    const effectivePortalType = inviteData?.invite?.portalType || portalTypeFromVerification;
+    const isClientPortal = effectivePortalType === 'client';
     const productName = isClientPortal ? 'VEGA' : 'ATRIUM';
     const portalLabel = isClientPortal ? 'Client Portal' : "Residents' Portal";
     // Use concrete classes instead of dynamic template strings — Tailwind JIT can't compile bg-${color}-500
@@ -246,7 +254,7 @@ const SetupPassword: React.FC = () => {
                         {invalidReason === 'already_accepted' && (
                             <button
                                 onClick={() => {
-                                    const isClient = inviteData?.invite?.portalType === 'client';
+                                    const isClient = effectivePortalType === 'client';
                                     navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                 }}
                                 className="ml-3 px-6 py-3 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-400 transition-all"
@@ -304,7 +312,7 @@ const SetupPassword: React.FC = () => {
                                 <button
                                     onClick={() => {
                                         // Go to the portal login page to sign in manually
-                                        const isClient = inviteData?.invite?.portalType === 'client';
+                                        const isClient = effectivePortalType === 'client';
                                         navigate(isClient ? '/portal/client/login' : '/portal/tenant/login');
                                     }}
                                     className="px-8 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all"
@@ -321,7 +329,7 @@ const SetupPassword: React.FC = () => {
 
     // ─── Main form ────────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
             {/* Ambient glow */}
             <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] ${glowClass} pointer-events-none`} />
 
@@ -341,7 +349,7 @@ const SetupPassword: React.FC = () => {
             </div>
 
             {/* Form card */}
-            <div className="flex-1 flex items-center justify-center p-4 sm:p-6">
+            <div className="flex-1 flex items-start sm:items-center justify-center p-4 sm:p-6 pb-20 sm:pb-6 overflow-y-auto">
                 <div className="relative z-10 w-full max-w-md">
                     {/* Header */}
                     <div className="text-center mb-6 sm:mb-8">

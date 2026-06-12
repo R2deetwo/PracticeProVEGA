@@ -227,7 +227,8 @@ const InviteForm: React.FC<{
     }
     setIsSending(true);
     try {
-      const result = await sendInvite({
+      // Add a timeout wrapper to prevent infinite spinning if the action hangs
+      const invitePromise = sendInvite({
         firmId,
         inviterId,
         inviteeEmail: email.trim().toLowerCase() || undefined,
@@ -237,6 +238,13 @@ const InviteForm: React.FC<{
         relatedId: relatedId || undefined,
         channel,
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Request timed out. The server may be busy — please try again.')), 30000)
+      );
+
+      const result = await Promise.race([invitePromise, timeoutPromise]);
+
       // Build feedback message based on result
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
@@ -249,7 +257,16 @@ const InviteForm: React.FC<{
       addToast(`Invitation sent — ${feedback}`, { type: 'success' });
       onSent();
     } catch (err: any) {
-      addToast(err.message || 'Failed to send invitation', { type: 'error' });
+      const msg = err?.message || 'Failed to send invitation';
+      // Make error messages more user-friendly
+      if (msg.includes('rate limit') || msg.includes('429')) {
+        addToast('Too many requests. Please wait a moment and try again.', { type: 'error' });
+      } else if (msg.includes('timed out') || msg.includes('timeout')) {
+        addToast('The request timed out. Your invitation may still have been created — check the list below.', { type: 'info' });
+        onSent(); // Refresh the list to check
+      } else {
+        addToast(msg, { type: 'error' });
+      }
     } finally {
       setIsSending(false);
     }

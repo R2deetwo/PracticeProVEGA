@@ -408,7 +408,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 export const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { isAuthenticated, currentUser, isLoadingSession, loginAsDemoUser, appMode, logout } = useAuth();
+    const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout } = useAuth();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo } = useUI();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
@@ -478,6 +478,27 @@ export const App: React.FC = () => {
             navigate('/', { replace: true });
         }
     }, [isLoadingSession, currentUser, location.pathname, navigate]);
+
+    // Handle revoked portal accounts: when the backend confirms the user's account
+    // has been revoked (isVerified=false + role=Pending), clear their session and
+    // redirect to the appropriate portal login page with a clear "access revoked" message.
+    useEffect(() => {
+        if (!isAccountRevoked) return;
+        if (location.pathname === '/portal/client/login' || location.pathname === '/portal/tenant/login') return; // Already on login page
+
+        // Determine which portal they were using
+        const portalType = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
+        const loginPath = portalType === 'client' ? '/portal/client/login' : '/portal/tenant/login';
+
+        // Clear all session data so the revoked state doesn't persist
+        sessionStorage.removeItem('practicepro_portal_session');
+        localStorage.removeItem('practicepro_portal_session');
+        sessionStorage.removeItem('practicepro_user_session');
+        localStorage.removeItem('practicepro_user_session');
+
+        // Add a query param so the login page can show the revoked banner
+        navigate(`${loginPath}?revoked=1`, { replace: true });
+    }, [isAccountRevoked, location.pathname, navigate]);
 
     useEffect(() => {
         if (isLoadingSession && !hasSavedSession) {

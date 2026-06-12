@@ -708,11 +708,11 @@ export const verifyInviteToken = query({
 
     // Check expiry (note: we don't patch status here since this is a query/read-only)
     if (invite.expiresAt < Date.now()) {
-      return { valid: false, reason: "expired" } as const;
+      return { valid: false, reason: "expired", portalType: invite.portalType } as const;
     }
 
     if (invite.status === "revoked") {
-      return { valid: false, reason: "revoked" } as const;
+      return { valid: false, reason: "revoked", portalType: invite.portalType } as const;
     }
 
     // Check if the user exists and their current state
@@ -747,7 +747,7 @@ export const verifyInviteToken = query({
         // User was reset — allow re-accepting this invite
         // Fall through to return valid: true
       } else {
-        return { valid: false, reason: "already_accepted" } as const;
+        return { valid: false, reason: "already_accepted", portalType: invite.portalType } as const;
       }
     }
 

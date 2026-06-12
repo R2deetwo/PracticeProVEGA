@@ -23,7 +23,8 @@ export interface AuthContextType {
     isAuthenticated: boolean;
     currentUser: User | null;
     appMode: AppMode;
-    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean) => Promise<{ success: boolean, message?: string, isLocked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
+    isAccountRevoked: boolean;
+    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean) => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
     verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
     resendConfirmation: (email: string) => Promise<{ success: boolean, message?: string }>;
@@ -148,6 +149,12 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
         // If not verified, effectively not logged in for the app
         if (!data.isVerified) return null;
+
+        // Defense-in-depth: A user with role="Pending" should not have an active session.
+        // This catches cases where a portal user's access was revoked via
+        // deletePortalInviteAndCleanup (which sets role="Pending" + isVerified=false)
+        // but somehow their session token is still valid.
+        if ((data as any).role === 'Pending') return null;
 
         // SECURITY: Explicit field mapping - NEVER spread raw data.
         // This ensures sensitive fields (password, mfaCode, verificationCode, etc.) 
@@ -518,11 +525,18 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // 2. OR we have a token (trying to auto-login) AND data hasn't arrived yet AND we haven't timed out yet
     const isLoading = !isStorageLoaded || (!!sessionToken && userData === undefined && sessionToken !== 'demo@practicepro.ng' && !hasTimedOut);
 
+    // Detect if the user's account has been revoked (isVerified=false + role=Pending)
+    // This happens when deletePortalInviteAndCleanup resets a portal user.
+    // We expose this so the App can redirect them to the login page with a clear message
+    // instead of showing "Loading your portal..." for 15 seconds.
+    const isAccountRevoked = !!sessionToken && !!userData && !userData.isVerified && (userData as any).role === 'Pending';
+
     const value = {
         isAuthenticated: !!currentUser,
         currentUser,
         appMode: AppMode.Multi,
         isLoadingSession: isLoading,
+        isAccountRevoked,
         login,
         signup,
         verifyEmail,

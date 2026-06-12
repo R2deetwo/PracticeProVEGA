@@ -135,3 +135,19 @@ Stage Summary:
 - TenantPortalLogin.tsx: Clarified messaging about persistent access
 - Token expiry: 7 → 30 days across all touchpoints
 - No new TypeScript errors introduced
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix portal issues - revoked account login, invite spinner, password page artifacts
+
+Work Log:
+- Analyzed screenshots, explored codebase, fixed verifyLogin revoked detection
+- Added isRevoked flag, portal revoked banners, AuthContext isAccountRevoked
+- Fixed invite spinner with timeout, fixed SetupPassword layout and already_accepted redirect
+- Build and typecheck pass
+
+Stage Summary:
+- Revoked portal users see clear "Portal Access Revoked" message
+- Invite spinner has 30s timeout with user-friendly errors
+- SetupPassword mobile layout fixed, already_accepted redirect corrected
+
