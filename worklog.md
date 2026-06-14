@@ -151,3 +151,29 @@ Stage Summary:
 - Invite spinner has 30s timeout with user-friendly errors
 - SetupPassword mobile layout fixed, already_accepted redirect corrected
 
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix portal blank screen - Rules of Hooks violation, session timeout cleanup, portal route redirect
+
+Work Log:
+- Analyzed user screenshots showing blank brown/orange screen on portal pages
+- Deep-dived into App.tsx, AuthContext.tsx, TenantPortal.tsx, ClientDashboard.tsx, DataProvider.tsx
+- Identified 3 root causes for the blank screen:
+
+1. **Rules of Hooks violation in TenantPortal.tsx** (CRITICAL): useState (line 224) and useEffect (line 227) were called AFTER conditional return statements (lines 146, 152, 207). When firmResolution changed from undefined (loading) to null (resolved but empty), the number of hooks called between renders changed, causing React to throw "Rendered fewer hooks than expected" and crash the component silently.
+
+2. **Session timeout not clearing portal type flag** (HIGH): When AuthContext's safety timeout fired after 35s, it cleared the portal session keys but NOT the `practicepro_portal_type` flag from localStorage/sessionStorage. This caused App.tsx's `hasRememberedPortal` check to keep showing "Loading your portal..." spinner indefinitely, even though the session was dead.
+
+3. **Portal route not redirecting unauthenticated users** (HIGH): When a user navigated directly to /portal/tenant or /portal/client without a valid session, the code fell through to showing the LandingPage (or worse, a blank screen) instead of redirecting to the appropriate login page.
+
+Changes Implemented:
+1. TenantPortal.tsx: Moved all useState/useEffect hooks (systemIsDark, setSystemIsDark) BEFORE conditional returns. Added clear comment explaining why.
+2. AuthContext.tsx: Added cleanup of `practicepro_portal_type` from both sessionStorage and localStorage in the timeout fallback path. Also clears `practicepro_user_session` from localStorage.
+3. App.tsx: Added portal route detection and redirect logic — unauthenticated users on /portal/tenant or /portal/client are now redirected to the appropriate login page. Added portal type flag cleanup on timeout. Added redirect for timed-out portal sessions on portal routes.
+
+Stage Summary:
+- Commit: 1af704b
+- Build passes, Convex typecheck passes
+- Pushed to remote (Vercel auto-deploy)
+- Root cause: React Rules of Hooks violation causing silent component crash
