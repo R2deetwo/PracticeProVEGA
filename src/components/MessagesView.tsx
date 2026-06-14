@@ -349,7 +349,9 @@ const MessagesView: React.FC = () => {
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from tenants
     const atriumInbound = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip') || [];
-    // Atrium: portal messages from tenants
+    // Atrium: portal conversations (conversation-based, replaces flat portal messages)
+    const portalConversations = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip') || [];
+    // Legacy: still fetch portal messages for backward compat
     const portalMessages = useQuery(api.portals.getPortalMessagesByFirm, firmId ? { firmId } : 'skip') || [];
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
@@ -367,10 +369,22 @@ const MessagesView: React.FC = () => {
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
     const deleteInboundMessage = useMutation(api.sentry.deleteInboundMessage);
 
-    // ── Inbox: selected thread ──
+    // ── Inbox: selected conversation ──
     const [selectedInboxId, setSelectedInboxId] = useState<string | null>(null);
+    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | null>(null);
     const [inboxReply, setInboxReply] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
+
+    // ── Portal conversation messages (when a conversation is selected) ──
+    const conversationMessages = useQuery(
+        api.portals.getConversationMessages,
+        (selectedInboxType === 'conversation' && selectedInboxId) ? { conversationId: selectedInboxId } : 'skip'
+    );
+
+    // ── Admin file upload for replies ──
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+    const [adminAttachments, setAdminAttachments] = useState<{ storageId: string; name: string }[]>([]);
+    const adminFileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Scheduled: schedule form state ──
     const [showScheduleForm, setShowScheduleForm] = useState(false);
@@ -384,34 +398,59 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox: compute unread counts ──
     const inboundUnreadCount = atriumInbound.filter((m: any) => !m.isRead).length;
-    const portalUnreadCount = (portalMessages as any[]).filter((m: any) => m.status === 'unread').length;
+    const portalUnreadCount = (portalConversations as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
     const totalInboxUnread = inboundUnreadCount + portalUnreadCount + clientMessages.filter(m => !m.isRead).length;
     const pendingScheduled = (scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').length;
 
-    // ── Inbox: find selected message (works for both inbound AND portal messages) ──
+    // ── Inbox: find selected conversation/message ──
     const selectedInboundMsg = useMemo(() => {
-        // First check atrium inbound (WhatsApp/Email)
-        const inbound = atriumInbound.find((m: any) => m._id === selectedInboxId);
-        if (inbound) return { ...inbound, _inboxType: 'inbound' as const };
-        // Then check portal messages
-        const portal = (portalMessages as any[]).find((m: any) => m._id === selectedInboxId);
-        if (portal) return {
-            ...portal,
-            _inboxType: 'portal' as const,
-            // Normalize portal message fields to match inbound message shape
-            senderName: portal.senderName || 'Portal User',
-            senderContact: portal.senderEmail || portal.senderId,
-            channel: 'portal',
-            content: portal.content || portal.subject,
-            receivedAt: portal.createdAt,
-            isRead: portal.status === 'read' || portal.status === 'replied',
-        };
+        // Conversation-based portal message
+        if (selectedInboxType === 'conversation') {
+            const conv = (portalConversations as any[]).find((c: any) => String(c._id) === selectedInboxId);
+            if (conv) return {
+                _id: conv._id,
+                _inboxType: 'conversation' as const,
+                senderName: conv.participantName || 'Portal User',
+                senderContact: conv.participantEmail || conv.participantId,
+                channel: 'portal',
+                content: conv.lastMessagePreview || '',
+                receivedAt: conv.lastMessageAt,
+                isRead: (conv.unreadByAdmin || 0) === 0,
+                status: (conv.unreadByAdmin || 0) > 0 ? 'unread' : 'read',
+                conversationId: String(conv._id),
+                participantRole: conv.participantRole,
+                propertyId: conv.propertyId,
+                unitId: conv.unitId,
+                matterId: conv.matterId,
+            };
+        }
+        // Legacy inbound (WhatsApp/Email)
+        if (selectedInboxType === 'inbound') {
+            const inbound = atriumInbound.find((m: any) => m._id === selectedInboxId);
+            if (inbound) return { ...inbound, _inboxType: 'inbound' as const };
+        }
+        // Legacy portal message (backward compat)
+        if (selectedInboxType === 'portal') {
+            const portal = (portalMessages as any[]).find((m: any) => m._id === selectedInboxId);
+            if (portal) return {
+                ...portal,
+                _inboxType: 'portal' as const,
+                senderName: portal.senderName || 'Portal User',
+                senderContact: portal.senderEmail || portal.senderId,
+                channel: 'portal',
+                content: portal.content || portal.subject,
+                receivedAt: portal.createdAt,
+                isRead: portal.status === 'read' || portal.status === 'replied',
+            };
+        }
         return undefined;
-    }, [atriumInbound, portalMessages, selectedInboxId]);
+    }, [atriumInbound, portalConversations, portalMessages, selectedInboxId, selectedInboxType]);
 
     // ── Inbox: portal message reply mutations ──
     const replyToPortal = useMutation(api.portals.replyToPortalMessage);
+    const sendAdminReply = useMutation(api.portals.sendAdminReply);
     const markPortalRead = useMutation(api.portals.markPortalMessageRead);
+    const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
 
     // ── Team Chat: filtered conversations (existing logic) ──
     const filteredConversations = useMemo(() => {
@@ -499,10 +538,27 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox reply handler ──
     const handleInboxReply = async () => {
-        if (!inboxReply.trim() || !selectedInboundMsg) return;
+        if ((!inboxReply.trim() && adminAttachments.length === 0) || !selectedInboundMsg) return;
         setIsSendingReply(true);
         try {
-            // Portal messages: use the dedicated reply mutation
+            // Conversation-based portal messages: use sendAdminReply
+            if (selectedInboundMsg._inboxType === 'conversation') {
+                await sendAdminReply({
+                    conversationId: selectedInboxId!,
+                    firmId,
+                    adminId: currentUser?.id || '',
+                    adminName: currentUser?.name || 'Admin',
+                    content: inboxReply.trim(),
+                    attachments: adminAttachments.length > 0 ? adminAttachments.map(a => a.storageId) : undefined,
+                    attachmentNames: adminAttachments.length > 0 ? adminAttachments.map(a => a.name) : undefined,
+                });
+                addToast('Reply sent.', { type: 'success' });
+                setInboxReply('');
+                setAdminAttachments([]);
+                return;
+            }
+
+            // Legacy portal messages: use the old reply mutation
             if (selectedInboundMsg._inboxType === 'portal') {
                 await replyToPortal({
                     messageId: selectedInboxId as any,
@@ -675,46 +731,52 @@ const MessagesView: React.FC = () => {
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
                                             ))}
-                                            {/* Portal messages (Tenants only — clients shown in Vega mode) */}
-                                            {(portalMessages as any[]).filter((m: any) => m.senderRole !== 'Client').map((msg: any) => (
+                                            {/* Portal conversations (Tenants only — clients shown in Vega mode) */}
+                                            {(portalConversations as any[]).filter((c: any) => c.participantRole !== 'Client').map((conv: any) => (
                                                 <div
-                                                    key={msg._id}
+                                                    key={conv._id}
                                                     onClick={() => {
-                                                        setSelectedInboxId(msg._id);
-                                                        if (msg.status === 'unread') markPortalRead({ messageId: msg._id });
+                                                        setSelectedInboxId(String(conv._id));
+                                                        setSelectedInboxType('conversation');
+                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: String(conv._id) });
                                                     }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === String(conv._id) && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2">
-                                                            {msg.status === 'unread' && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
-                                                            {msg.status === 'replied' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-                                                            <span className={`text-sm truncate max-w-[160px] ${msg.status === 'unread' ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                {msg.senderName || 'Portal User'}
+                                                            {(conv.unreadByAdmin || 0) > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
+                                                            {(conv.unreadByAdmin || 0) === 0 && conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+                                                            <span className={`text-sm truncate max-w-[160px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                {conv.participantName || 'Portal User'}
                                                             </span>
                                                         </div>
                                                         <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                            {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[10px] mb-1">
                                                         <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
                                                             Portal
                                                         </span>
-                                                        {msg.status === 'replied' && (
+                                                        {conv.lastMessageBy === 'admin' && (
                                                             <span className="px-1.5 py-0.5 rounded uppercase font-bold text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30">
                                                                 Replied
                                                             </span>
                                                         )}
+                                                        {(conv.unreadByAdmin || 0) > 1 && (
+                                                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
+                                                                {conv.unreadByAdmin}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content || msg.subject}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
                                                 </div>
                                             ))}
                                         </>
                                     )
                                 ) : (
-                                    /* ── VEGA: Client messages + portal messages ── */
-                                    clientMessages.length === 0 && (portalMessages as any[]).filter((m: any) => m.senderRole === 'Client').length === 0 ? (
+                                    /* ── VEGA: Client conversations + portal messages ── */
+                                    clientMessages.length === 0 && (portalConversations as any[]).filter((c: any) => c.participantRole === 'Client').length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-16 text-center px-6">
                                             <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                                 <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -724,37 +786,38 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     ) : (
                                         <>
-                                            {/* Client portal messages (Vega) */}
-                                            {(portalMessages as any[]).filter((m: any) => m.senderRole === 'Client').map((msg: any) => (
+                                            {/* Client portal conversations (Vega) */}
+                                            {(portalConversations as any[]).filter((c: any) => c.participantRole === 'Client').map((conv: any) => (
                                                 <div
-                                                    key={msg._id}
+                                                    key={conv._id}
                                                     onClick={() => {
-                                                        setSelectedInboxId(msg._id);
-                                                        if (msg.status === 'unread') markPortalRead({ messageId: msg._id });
+                                                        setSelectedInboxId(String(conv._id));
+                                                        setSelectedInboxType('conversation');
+                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: String(conv._id) });
                                                     }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === String(conv._id) && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2">
-                                                            {msg.status === 'unread' && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
-                                                            {msg.status === 'replied' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-                                                            <span className={`text-sm truncate max-w-[160px] ${msg.status === 'unread' ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                {msg.senderName || 'Client'}
+                                                            {(conv.unreadByAdmin || 0) > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
+                                                            {(conv.unreadByAdmin || 0) === 0 && conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+                                                            <span className={`text-sm truncate max-w-[160px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                {conv.participantName || 'Client'}
                                                             </span>
                                                         </div>
                                                         <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                            {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[10px] mb-1">
                                                         <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
                                                             Portal
                                                         </span>
-                                                        {msg.subject && (
-                                                            <span className="text-slate-500 dark:text-zinc-400 truncate">{msg.subject}</span>
+                                                        {conv.matterId && (
+                                                            <span className="text-slate-500 dark:text-zinc-400 truncate">Matter</span>
                                                         )}
                                                     </div>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
+                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
                                                 </div>
                                             ))}
                                             {/* Internal client messages from matter context */}
@@ -830,33 +893,81 @@ const MessagesView: React.FC = () => {
                                     {/* Message Content — Conversation View */}
                                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                                         <div className="max-w-2xl mx-auto">
-                                            {/* Incoming message bubble */}
-                                            <div className="flex justify-start mb-4">
-                                                <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
-                                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
-                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{selectedInboundMsg.senderName || 'Sender'}</span>
-                                                        <span className="text-[10px] text-slate-400">{selectedInboundMsg.receivedAt ? new Date(selectedInboundMsg.receivedAt).toLocaleString() : ''}</span>
+                                            {/* Conversation-based thread view */}
+                                            {selectedInboundMsg._inboxType === 'conversation' ? (
+                                                conversationMessages && conversationMessages.length > 0 ? (
+                                                    conversationMessages.map((msg: any) => {
+                                                        const isAdmin = msg.senderRole === 'Admin';
+                                                        return (
+                                                            <div key={msg._id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
+                                                                <div className={`max-w-[85%] ${isAdmin
+                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm'
+                                                                    : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm'
+                                                                }`}>
+                                                                    <div className={`flex items-center justify-between mb-2 pb-2 ${isAdmin ? 'border-primary-500' : 'border-slate-100 dark:border-zinc-700'} border-b`}>
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-widest ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
+                                                                            {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
+                                                                        </span>
+                                                                        <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
+                                                                    {/* Attachments */}
+                                                                    {msg.attachments && msg.attachments.length > 0 && (
+                                                                        <div className="mt-3 space-y-1.5">
+                                                                            {msg.attachments.map((storageId: string, idx: number) => {
+                                                                                const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
+                                                                                return (
+                                                                                    <div key={storageId + idx} className={`rounded-lg flex items-center gap-2 px-3 py-2 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'}`}>
+                                                                                        <DocumentIcon className={`w-4 h-4 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
+                                                                                        <span className={`text-xs truncate ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
+                                                                                        <DownloadIcon className={`w-3.5 h-3.5 flex-shrink-0 ml-auto ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`} />
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                                                        <p className="text-sm text-slate-400">No messages in this conversation yet.</p>
                                                     </div>
-                                                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.content}</p>
-                                                    {selectedInboundMsg.mediaUrl && (
-                                                        <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700">
-                                                            <img src={selectedInboundMsg.mediaUrl} alt="Attachment" className="w-full h-auto max-h-64 object-cover" />
+                                                )
+                                            ) : (
+                                                <>
+                                                    {/* Legacy single-message view (inbound WhatsApp/Email or legacy portal message) */}
+                                                    <div className="flex justify-start mb-4">
+                                                        <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
+                                                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
+                                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{selectedInboundMsg.senderName || 'Sender'}</span>
+                                                                <span className="text-[10px] text-slate-400">{selectedInboundMsg.receivedAt ? new Date(selectedInboundMsg.receivedAt).toLocaleString() : ''}</span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.content}</p>
+                                                            {selectedInboundMsg.mediaUrl && (
+                                                                <div className="mt-3 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700">
+                                                                    <img src={selectedInboundMsg.mediaUrl} alt="Attachment" className="w-full h-auto max-h-64 object-cover" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Admin reply bubble (for legacy portal messages that have been replied to) */}
+                                                    {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.replyContent && (
+                                                        <div className="flex justify-end mb-4">
+                                                            <div className="bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm max-w-[85%]">
+                                                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-primary-500">
+                                                                    <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">You</span>
+                                                                    <span className="text-[10px] text-primary-200">{selectedInboundMsg.repliedAt ? new Date(selectedInboundMsg.repliedAt).toLocaleString() : ''}</span>
+                                                                </div>
+                                                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.replyContent}</p>
+                                                            </div>
                                                         </div>
                                                     )}
-                                                </div>
-                                            </div>
-
-                                            {/* Admin reply bubble (for portal messages that have been replied to) */}
-                                            {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.replyContent && (
-                                                <div className="flex justify-end mb-4">
-                                                    <div className="bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm max-w-[85%]">
-                                                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-primary-500">
-                                                            <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">You</span>
-                                                            <span className="text-[10px] text-primary-200">{selectedInboundMsg.repliedAt ? new Date(selectedInboundMsg.repliedAt).toLocaleString() : ''}</span>
-                                                        </div>
-                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.replyContent}</p>
-                                                    </div>
-                                                </div>
+                                                </>
                                             )}
 
                                             {/* AI Suggested Reply (only for inbound messages with AI analysis) */}
@@ -880,23 +991,73 @@ const MessagesView: React.FC = () => {
 
                                     {/* Reply Input */}
                                     <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
-                                        <div className="max-w-2xl mx-auto flex items-end gap-2">
-                                            <textarea
-                                                value={inboxReply}
-                                                onChange={(e) => setInboxReply(e.target.value)}
-                                                placeholder={selectedInboundMsg._inboxType === 'portal'
-                                                    ? 'Reply to portal user...'
-                                                    : `Reply via ${selectedInboundMsg.channel || 'message'}...`}
-                                                rows={Math.min(4, inboxReply.split('\n').length || 1)}
-                                                className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
-                                            />
-                                            <button
-                                                onClick={handleInboxReply}
-                                                disabled={!inboxReply.trim() || isSendingReply}
-                                                className="p-3 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white rounded-xl shadow-sm transition-all flex-shrink-0 disabled:cursor-not-allowed"
-                                            >
-                                                <SendIcon />
-                                            </button>
+                                        <div className="max-w-2xl mx-auto">
+                                            {/* Pending file attachments for admin reply */}
+                                            {adminAttachments.length > 0 && (
+                                                <div className="flex gap-2 flex-wrap mb-2">
+                                                    {adminAttachments.map((att, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs">
+                                                            <DocumentIcon className="w-3 h-3 text-slate-400" />
+                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300">{att.name}</span>
+                                                            <button onClick={() => setAdminAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5">
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex items-end gap-2">
+                                                {selectedInboundMsg._inboxType === 'conversation' && (
+                                                    <>
+                                                        <input
+                                                            type="file"
+                                                            ref={adminFileInputRef}
+                                                            onChange={async (e) => {
+                                                                const files = Array.from(e.target.files || []);
+                                                                for (const file of files) {
+                                                                    if (file.size > 10 * 1024 * 1024) continue;
+                                                                    try {
+                                                                        const postUrl = await generateUploadUrl();
+                                                                        const res = await fetch(postUrl, { method: 'POST', body: file });
+                                                                        if (res.ok) {
+                                                                            const { storageId } = await res.json();
+                                                                            if (storageId) setAdminAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                                        }
+                                                                    } catch {}
+                                                                }
+                                                                if (adminFileInputRef.current) adminFileInputRef.current.value = '';
+                                                            }}
+                                                            multiple
+                                                            className="hidden"
+                                                        />
+                                                        <button
+                                                            onClick={() => adminFileInputRef.current?.click()}
+                                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
+                                                            title="Attach file"
+                                                        >
+                                                            <PaperClipIcon className="w-5 h-5" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <textarea
+                                                    value={inboxReply}
+                                                    onChange={(e) => setInboxReply(e.target.value)}
+                                                    placeholder={selectedInboundMsg._inboxType === 'conversation'
+                                                        ? 'Reply in conversation...'
+                                                        : selectedInboundMsg._inboxType === 'portal'
+                                                        ? 'Reply to portal user...'
+                                                        : `Reply via ${selectedInboundMsg.channel || 'message'}...`}
+                                                    rows={Math.min(4, inboxReply.split('\n').length || 1)}
+                                                    className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
+                                                />
+                                                <button
+                                                    onClick={handleInboxReply}
+                                                    disabled={(!inboxReply.trim() && adminAttachments.length === 0) || isSendingReply}
+                                                    className="p-3 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white rounded-xl shadow-sm transition-all flex-shrink-0 disabled:cursor-not-allowed"
+                                                >
+                                                    <SendIcon />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </>

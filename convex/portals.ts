@@ -2222,12 +2222,75 @@ export const getClientMattersByUserId = query({
   },
 });
 
-// ─── Portal Messaging ────────────────────────────────────────────────────
+// ─── Portal Messaging (Conversation-Based) ────────────────────────────────
+
+/**
+ * getOrCreateConversation — Finds or creates a portal conversation for a
+ * specific portal user + firm pair. Conversations are 1:1 between a portal
+ * user and the firm. If a matterId is provided, it scopes the conversation.
+ */
+async function getOrCreateConversation(
+  ctx: any,
+  args: {
+    firmId: string;
+    participantId: string;
+    participantName?: string;
+    participantEmail?: string;
+    participantRole: string;
+    propertyId?: string;
+    unitId?: string;
+    matterId?: string;
+  }
+) {
+  const now = Date.now();
+
+  // Try to find an existing conversation for this participant + firm
+  const existing = await ctx.db
+    .query("portal_conversations")
+    .withIndex("by_firm_participant", (q: any) =>
+      q.eq("firmId", args.firmId).eq("participantId", args.participantId)
+    )
+    .first();
+
+  if (existing) {
+    // Update participant info in case it changed
+    await ctx.db.patch(existing._id, {
+      participantName: args.participantName ?? existing.participantName,
+      participantEmail: args.participantEmail ?? existing.participantEmail,
+      propertyId: args.propertyId ?? existing.propertyId,
+      unitId: args.unitId ?? existing.unitId,
+      matterId: args.matterId ?? existing.matterId,
+      updatedAt: now,
+    });
+    return existing;
+  }
+
+  // Create new conversation
+  const conversationId = await ctx.db.insert("portal_conversations", {
+    firmId: args.firmId,
+    participantId: args.participantId,
+    participantName: args.participantName,
+    participantEmail: args.participantEmail,
+    participantRole: args.participantRole,
+    propertyId: args.propertyId,
+    unitId: args.unitId,
+    matterId: args.matterId,
+    lastMessageAt: now,
+    lastMessagePreview: '',
+    lastMessageBy: '',
+    unreadByAdmin: 0,
+    unreadByParticipant: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return await ctx.db.get(conversationId);
+}
 
 /**
  * sendPortalMessage — Allows a portal user (Tenant/Client) to send a message
- * to their property manager / firm admin. This is only possible if the firm
- * has enabled portal messaging in their portal settings.
+ * to their firm admin. Automatically creates or continues a conversation.
+ * Supports file attachments (Convex storage IDs + original filenames).
  */
 export const sendPortalMessage = mutation({
   args: {
@@ -2239,13 +2302,32 @@ export const sendPortalMessage = mutation({
     subject: v.optional(v.string()),
     content: v.string(),
     attachments: v.optional(v.array(v.string())), // Convex storage IDs
+    attachmentNames: v.optional(v.array(v.string())), // original filenames
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
+    matterId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    return await ctx.db.insert("portal_messages", {
+
+    // Get or create the conversation
+    const conversation = await getOrCreateConversation(ctx, {
       firmId: args.firmId,
+      participantId: args.senderId,
+      participantName: args.senderName,
+      participantEmail: args.senderEmail,
+      participantRole: args.senderRole,
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      matterId: args.matterId,
+    });
+
+    const conversationId = String(conversation._id);
+
+    // Insert the message
+    const messageId = await ctx.db.insert("portal_messages", {
+      firmId: args.firmId,
+      conversationId,
       senderId: args.senderId,
       senderName: args.senderName,
       senderEmail: args.senderEmail,
@@ -2253,24 +2335,241 @@ export const sendPortalMessage = mutation({
       subject: args.subject,
       content: args.content,
       attachments: args.attachments ?? [],
+      attachmentNames: args.attachmentNames ?? [],
       propertyId: args.propertyId,
       unitId: args.unitId,
+      matterId: args.matterId ?? conversation.matterId,
       status: "unread",
+      isRead: false,
       createdAt: now,
       updatedAt: now,
     });
+
+    // If there are attachments and a matterId, link files to the matter's documents
+    if (args.attachments && args.attachments.length > 0) {
+      const matterId = args.matterId ?? conversation.matterId;
+      if (matterId) {
+        for (let i = 0; i < args.attachments.length; i++) {
+          const storageId = args.attachments[i];
+          const fileName = args.attachmentNames?.[i] || 'attachment';
+          await ctx.db.insert("documents", {
+            firmId: args.firmId,
+            title: fileName,
+            matterId,
+            file: storageId,
+            source: "portal_message",
+            uploadedBy: args.senderId,
+            isSharedWithClient: true,
+            createdAt: now as any,
+            updatedAt: now as any,
+          });
+        }
+      }
+    }
+
+    // Update conversation metadata
+    await ctx.db.patch(conversation._id, {
+      lastMessageAt: now,
+      lastMessagePreview: args.content.substring(0, 80),
+      lastMessageBy: "participant",
+      unreadByAdmin: (conversation.unreadByAdmin || 0) + 1,
+      updatedAt: now,
+    });
+
+    return { messageId, conversationId };
+  },
+});
+
+/**
+ * sendAdminReply — Admin sends a reply within a portal conversation.
+ * Creates a new message with senderRole "Admin" and updates the conversation.
+ */
+export const sendAdminReply = mutation({
+  args: {
+    conversationId: v.string(),
+    firmId: v.string(),
+    adminId: v.string(),
+    adminName: v.optional(v.string()),
+    content: v.string(),
+    attachments: v.optional(v.array(v.string())),
+    attachmentNames: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Get the conversation
+    const conversation = await ctx.db.get(args.conversationId as any);
+    if (!conversation) throw new Error("Conversation not found");
+
+    // Insert the admin's reply as a new message in the conversation
+    const messageId = await ctx.db.insert("portal_messages", {
+      firmId: args.firmId,
+      conversationId: args.conversationId,
+      senderId: args.adminId,
+      senderName: args.adminName || "Admin",
+      senderEmail: undefined,
+      senderRole: "Admin",
+      content: args.content,
+      attachments: args.attachments ?? [],
+      attachmentNames: args.attachmentNames ?? [],
+      propertyId: conversation.propertyId,
+      unitId: conversation.unitId,
+      matterId: conversation.matterId,
+      status: "read",
+      isRead: false, // not yet read by the portal user
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // If attachments and matterId, link files to matter documents
+    if (args.attachments && args.attachments.length > 0 && conversation.matterId) {
+      for (let i = 0; i < args.attachments.length; i++) {
+        const storageId = args.attachments[i];
+        const fileName = args.attachmentNames?.[i] || 'attachment';
+        await ctx.db.insert("documents", {
+          firmId: args.firmId,
+          title: fileName,
+          matterId: conversation.matterId,
+          file: storageId,
+          source: "portal_message",
+          uploadedBy: args.adminId,
+          isSharedWithClient: true,
+          createdAt: now as any,
+          updatedAt: now as any,
+        });
+      }
+    }
+
+    // Update conversation metadata
+    await ctx.db.patch(conversation._id, {
+      lastMessageAt: now,
+      lastMessagePreview: args.content.substring(0, 80),
+      lastMessageBy: "admin",
+      unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
+      updatedAt: now,
+    });
+
+    // Also mark any unread participant messages in this conversation as read
+    // (admin is viewing the conversation, so mark participant messages as read)
+    const participantMessages = await ctx.db
+      .query("portal_messages")
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
+      .collect();
+    for (const msg of participantMessages) {
+      if (msg.senderRole !== "Admin" && !msg.isRead) {
+        await ctx.db.patch(msg._id, { isRead: true, status: "read", updatedAt: now });
+      }
+    }
+
+    return { messageId };
+  },
+});
+
+/**
+ * getPortalConversationsByFirm — Gets all conversations for a firm (admin side).
+ * Returns conversations sorted by most recent message first.
+ */
+export const getPortalConversationsByFirm = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const conversations = await ctx.db
+      .query("portal_conversations")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+      .collect();
+    // Sort by lastMessageAt descending
+    return conversations.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+  },
+});
+
+/**
+ * getPortalConversationsByParticipant — Gets conversations for a specific portal user.
+ */
+export const getPortalConversationsByParticipant = query({
+  args: { participantId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_conversations")
+      .withIndex("by_participant", (q: any) => q.eq("participantId", args.participantId))
+      .collect();
+  },
+});
+
+/**
+ * getConversationMessages — Gets all messages within a conversation, sorted
+ * chronologically (oldest first) for chat-style display.
+ */
+export const getConversationMessages = query({
+  args: { conversationId: v.string() },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("portal_messages")
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
+      .collect();
+    return messages.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
+  },
+});
+
+/**
+ * markConversationReadByAdmin — Admin marks all participant messages in a
+ * conversation as read. Used when admin opens a conversation.
+ */
+export const markConversationReadByAdmin = mutation({
+  args: { conversationId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const conversation = await ctx.db.get(args.conversationId as any);
+    if (!conversation) return;
+
+    // Reset admin unread count
+    await ctx.db.patch(conversation._id, { unreadByAdmin: 0, updatedAt: now });
+
+    // Mark all participant messages as read
+    const messages = await ctx.db
+      .query("portal_messages")
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
+      .collect();
+    for (const msg of messages) {
+      if (msg.senderRole !== "Admin" && !msg.isRead) {
+        await ctx.db.patch(msg._id, { isRead: true, status: "read", updatedAt: now });
+      }
+    }
+  },
+});
+
+/**
+ * markConversationReadByParticipant — Portal user marks admin replies as read.
+ */
+export const markConversationReadByParticipant = mutation({
+  args: { conversationId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const conversation = await ctx.db.get(args.conversationId as any);
+    if (!conversation) return;
+
+    await ctx.db.patch(conversation._id, { unreadByParticipant: 0, updatedAt: now });
+
+    const messages = await ctx.db
+      .query("portal_messages")
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
+      .collect();
+    for (const msg of messages) {
+      if (msg.senderRole === "Admin" && !msg.isRead) {
+        await ctx.db.patch(msg._id, { isRead: true, updatedAt: now });
+      }
+    }
   },
 });
 
 /**
  * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
+ * Kept for backward compat; new code should use getPortalConversationsByFirm.
  */
 export const getPortalMessagesByFirm = query({
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("portal_messages")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
       .order("desc")
       .collect();
   },
@@ -2278,13 +2577,14 @@ export const getPortalMessagesByFirm = query({
 
 /**
  * getPortalMessagesBySender — Gets messages sent by a specific portal user.
+ * Kept for backward compat; new code should use getPortalConversationsByParticipant.
  */
 export const getPortalMessagesBySender = query({
   args: { senderId: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db
       .query("portal_messages")
-      .withIndex("by_sender", (q) => q.eq("senderId", args.senderId))
+      .withIndex("by_sender", (q: any) => q.eq("senderId", args.senderId))
       .order("desc")
       .collect();
   },
@@ -2296,13 +2596,14 @@ export const getPortalMessagesBySender = query({
 export const markPortalMessageRead = mutation({
   args: { messageId: v.id("portal_messages") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.messageId, { status: "read", updatedAt: Date.now() });
+    await ctx.db.patch(args.messageId, { status: "read", isRead: true, updatedAt: Date.now() });
   },
 });
 
 /**
- * replyToPortalMessage — Admin replies to a portal message from a tenant/client.
- * Sets replyContent, repliedAt, and status on the portal_message.
+ * replyToPortalMessage — Admin replies to a portal message.
+ * DEPRECATED: New code should use sendAdminReply for conversation-based threading.
+ * Kept for backward compat — creates a legacy reply on the original message.
  */
 export const replyToPortalMessage = mutation({
   args: {
@@ -2312,19 +2613,56 @@ export const replyToPortalMessage = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const originalMsg = await ctx.db.get(args.messageId);
+    if (!originalMsg) throw new Error("Message not found");
+
+    // Legacy: patch the original message
     await ctx.db.patch(args.messageId, {
       replyContent: args.replyContent,
       repliedAt: now,
       status: "replied",
       updatedAt: now,
     });
+
+    // Also create a proper threaded message if the conversation exists
+    if (originalMsg.conversationId) {
+      const conversation = await ctx.db.get(originalMsg.conversationId as any);
+      if (conversation) {
+        await ctx.db.insert("portal_messages", {
+          firmId: originalMsg.firmId,
+          conversationId: originalMsg.conversationId,
+          senderId: "admin",
+          senderName: args.replierName || "Admin",
+          senderEmail: undefined,
+          senderRole: "Admin",
+          content: args.replyContent,
+          attachments: [],
+          attachmentNames: [],
+          propertyId: originalMsg.propertyId,
+          unitId: originalMsg.unitId,
+          matterId: originalMsg.matterId,
+          status: "read",
+          isRead: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await ctx.db.patch(conversation._id, {
+          lastMessageAt: now,
+          lastMessagePreview: args.replyContent.substring(0, 80),
+          lastMessageBy: "admin",
+          unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
+          updatedAt: now,
+        });
+      }
+    }
+
     return { success: true };
   },
 });
 
 /**
  * getPortalMessageById — Fetch a single portal message by its Convex document ID.
- * Used by the admin inbox to display the conversation detail.
  */
 export const getPortalMessageById = query({
   args: { messageId: v.id("portal_messages") },

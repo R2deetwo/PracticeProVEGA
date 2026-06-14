@@ -1165,29 +1165,62 @@ export default defineSchema({
     .index("by_firm_status", ["firmId", "status"])
     .index("by_automation", ["isAutomation"]),
 
+  // ─── Portal Conversations ──────────────────────────────────────────
+  // Groups portal messages into threaded conversations between a portal
+  // user (Tenant/Client) and the firm admin. Each conversation is scoped
+  // to a single portal user + firm pair and optionally linked to a matter.
+  portal_conversations: defineTable({
+    firmId: nullableString,
+    participantId: nullableString,       // portal user's user ID
+    participantName: nullableString,
+    participantEmail: nullableString,
+    participantRole: nullableString,     // "Tenant" or "Client"
+    propertyId: nullableString,          // Atrium: linked property
+    unitId: nullableString,              // Atrium: linked unit
+    matterId: nullableString,            // Vega: linked matter
+    lastMessageAt: v.number(),
+    lastMessagePreview: nullableString,  // first 80 chars of last message
+    lastMessageBy: nullableString,       // "participant" or "admin"
+    unreadByAdmin: v.optional(v.number()), // count of unread messages for admin
+    unreadByParticipant: v.optional(v.number()), // count of unread replies for participant
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_participant", ["participantId"])
+    .index("by_firm_participant", ["firmId", "participantId"])
+    .index("by_firm_matter", ["firmId", "matterId"]),
+
   // ─── Portal Messages ──────────────────────────────────────────────
-  // Messages sent by portal users (Tenants/Clients) to their firm admin.
-  // Only available when the firm has enabled portal messaging.
+  // Individual messages within a portal conversation. Each message belongs
+  // to a conversation and can have file attachments stored in Convex storage.
+  // When linked to a matter, file attachments are also added to the matter's documents.
   portal_messages: defineTable({
     firmId: nullableString,
+    conversationId: nullableString,     // links to portal_conversations
     senderId: nullableString,
     senderName: nullableString,
     senderEmail: nullableString,
-    senderRole: nullableString,        // "Tenant" or "Client"
+    senderRole: nullableString,         // "Tenant", "Client", or "Admin"
     subject: nullableString,
     content: nullableString,
     attachments: v.optional(v.array(v.string())), // Convex storage IDs
+    attachmentNames: v.optional(v.array(v.string())), // original filenames for display
     propertyId: nullableString,
     unitId: nullableString,
-    status: nullableString,            // "unread" | "read" | "replied"
-    replyContent: nullableString,
-    repliedAt: nullableNumber,
+    matterId: nullableString,           // if conversation is linked to a matter
+    status: nullableString,             // "unread" | "read" | "replied" (for legacy compat)
+    replyContent: nullableString,       // DEPRECATED — kept for backward compat
+    repliedAt: nullableNumber,          // DEPRECATED — kept for backward compat
+    isRead: v.optional(v.boolean()),    // per-message read state
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm", ["firmId"])
     .index("by_sender", ["senderId"])
-    .index("by_firm_status", ["firmId", "status"]),
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_conversation", ["conversationId"])
+    .index("by_firm_matter", ["firmId", "matterId"]),
 
   // ─── Payment Proofs ───────────────────────────────────────────────
   // Payment proof submissions from tenants (receipts, stubs, transfer slips).
