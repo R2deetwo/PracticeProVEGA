@@ -1535,11 +1535,29 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                     {msg.direction === 'inbound' && !msg.isRead && (
                       <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
                     )}
+                    {msg.direction === 'outbound' && msg.replyContent && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        Replied
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-slate-700 dark:text-zinc-300 break-words">{msg.content}</p>
                   <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
                     {formatDate(msg.createdAt || msg.receivedAt)}
                   </p>
+
+                  {/* Admin reply shown below the tenant's sent message */}
+                  {msg.direction === 'outbound' && msg.replyContent && (
+                    <div className="mt-3 ml-2 pl-3 border-l-2 border-primary-400 dark:border-primary-600">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400 uppercase">Property Manager Reply</span>
+                        {msg.repliedAt && (
+                          <span className="text-[10px] text-slate-400">{formatDate(msg.repliedAt)}</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-zinc-400 break-words">{msg.replyContent}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

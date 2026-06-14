@@ -54,4 +54,13 @@ crons.monthly(
   {}
 );
 
+// Scheduled Messages Processor: every 5 minutes
+// Finds scheduled messages whose delivery time has passed and processes them.
+crons.interval(
+  "processScheduledMessages",
+  { minutes: 5 },
+  internal.portals.processScheduledMessages,
+  {}
+);
+
 export default crons;

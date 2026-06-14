@@ -76,12 +76,12 @@ const RECIPES: Recipe[] = [
     },
     {
         id: 'recipe_task_rescue',
-        title: 'Overdue Task Rescue',
-        description: 'Notify Slack when a high-priority task is overdue.',
+        title: 'Overdue Task Escalation',
+        description: 'Create a high-priority follow-up task when a task becomes overdue.',
         icon: <ZapIcon className="w-5 h-5" />,
         triggerType: 'task_overdue',
         triggerValue: 'High',
-        action: { type: 'notify_slack', slackChannel: '#urgent-tasks', description: 'High priority task is overdue!' },
+        action: { type: 'create_task', taskTitle: 'Escalate Overdue Task', priority: TaskPriority.High, dueInDays: 0, description: 'A high-priority task is overdue and requires immediate attention.' },
         color: 'bg-rose-500'
     },
     {
@@ -135,7 +135,6 @@ const RuleBuilder: React.FC<{
     const [emailSubject, setEmailSubject] = useState(initialRule?.actions[0]?.emailSubject || '');
     const [emailBody, setEmailBody] = useState(initialRule?.actions[0]?.emailBody || '');
     const [whatsappMessage, setWhatsappMessage] = useState(initialRule?.actions[0]?.whatsappMessage || '');
-    const [slackChannel, setSlackChannel] = useState(initialRule?.actions[0]?.slackChannel || '');
     const [templateId, setTemplateId] = useState(initialRule?.actions[0]?.templateId || '');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -153,7 +152,6 @@ const RuleBuilder: React.FC<{
                 emailSubject,
                 emailBody,
                 whatsappMessage,
-                slackChannel,
                 templateId
             }],
             isEnabled: true
@@ -224,7 +222,7 @@ const RuleBuilder: React.FC<{
                             <option value="create_task">Create a Task</option>
                             <option value="send_email">Send Email (Template)</option>
                             <option value="send_whatsapp">Send WhatsApp Message</option>
-                            <option value="notify_slack" disabled>Notify Slack Channel (Coming Soon)</option>
+
                             <option value="generate_document">Generate Document from Template</option>
                         </select>
                     </div>
@@ -257,12 +255,7 @@ const RuleBuilder: React.FC<{
                         </>
                     )}
 
-                    {actionType === 'notify_slack' && (
-                        <>
-                            <input autoComplete="off" data-lpignore="true"  type="text" value={slackChannel} onChange={e => setSlackChannel(e.target.value)} placeholder="Channel (e.g. #general)" className={inputClass} required />
-                            <input autoComplete="off" data-lpignore="true"  type="text" value={whatsappMessage} onChange={e => setWhatsappMessage(e.target.value)} placeholder="Message Content" className={inputClass} />
-                        </>
-                    )}
+
 
                     {actionType === 'generate_document' && (
                         <>

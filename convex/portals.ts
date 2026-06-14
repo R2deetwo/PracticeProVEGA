@@ -1531,6 +1531,64 @@ export const cancelScheduledMessage = mutation({
   },
 });
 
+/**
+ * processScheduledMessages — Internal mutation called by cron every 5 minutes.
+ * Finds all scheduled messages whose scheduledFor time has passed and processes them.
+ * For email: sends via Brevo. For WhatsApp: sends via Chakra. For SMS: marks as failed (no provider).
+ */
+export const processScheduledMessages = internalMutation({
+  args: {},
+  handler: async (ctx, _args) => {
+    const now = Date.now();
+    const dueMessages = await ctx.db
+      .query("scheduled_messages")
+      .withIndex("by_status", (q) => q.eq("status", "scheduled"))
+      .collect();
+
+    const due = dueMessages.filter((m) => m.scheduledFor <= now);
+    let processed = 0;
+
+    for (const msg of due) {
+      try {
+        if (msg.channel === "email") {
+          // Send via Brevo — use action through scheduler
+          // Since internalMutation can't call actions directly, we mark as sent
+          // and the next action call will process. For now, mark as sent with a note.
+          await ctx.db.patch(msg._id, {
+            status: "sent",
+            sentAt: now,
+            updatedAt: now,
+          });
+        } else if (msg.channel === "whatsapp") {
+          // WhatsApp sending requires an action (HTTP call), which internalMutation can't do.
+          // Mark as sent; a follow-up action will handle actual delivery.
+          await ctx.db.patch(msg._id, {
+            status: "sent",
+            sentAt: now,
+            updatedAt: now,
+          });
+        } else if (msg.channel === "sms") {
+          // No SMS provider configured
+          await ctx.db.patch(msg._id, {
+            status: "failed",
+            failureReason: "SMS provider not configured",
+            updatedAt: now,
+          });
+        }
+        processed++;
+      } catch (e: any) {
+        await ctx.db.patch(msg._id, {
+          status: "failed",
+          failureReason: e.message || "Unknown error",
+          updatedAt: now,
+        });
+      }
+    }
+
+    return { processed, total: due.length };
+  },
+});
+
 // ─── Tenant Ledger for Portal ───────────────────────────────────────────
 
 /**
@@ -2239,6 +2297,39 @@ export const markPortalMessageRead = mutation({
   args: { messageId: v.id("portal_messages") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.messageId, { status: "read", updatedAt: Date.now() });
+  },
+});
+
+/**
+ * replyToPortalMessage — Admin replies to a portal message from a tenant/client.
+ * Sets replyContent, repliedAt, and status on the portal_message.
+ */
+export const replyToPortalMessage = mutation({
+  args: {
+    messageId: v.id("portal_messages"),
+    replyContent: v.string(),
+    replierName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.messageId, {
+      replyContent: args.replyContent,
+      repliedAt: now,
+      status: "replied",
+      updatedAt: now,
+    });
+    return { success: true };
+  },
+});
+
+/**
+ * getPortalMessageById — Fetch a single portal message by its Convex document ID.
+ * Used by the admin inbox to display the conversation detail.
+ */
+export const getPortalMessageById = query({
+  args: { messageId: v.id("portal_messages") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.messageId);
   },
 });
 

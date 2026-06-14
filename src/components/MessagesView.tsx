@@ -372,16 +372,46 @@ const MessagesView: React.FC = () => {
     const [inboxReply, setInboxReply] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
 
+    // ── Scheduled: schedule form state ──
+    const [showScheduleForm, setShowScheduleForm] = useState(false);
+    const [scheduleForm, setScheduleForm] = useState({
+        channel: 'email' as 'email' | 'whatsapp' | 'sms',
+        messageType: 'custom',
+        content: '',
+        scheduledFor: '',
+    });
+    const createScheduled = useMutation(api.portals.createScheduledMessage);
+
     // ── Inbox: compute unread counts ──
     const inboundUnreadCount = atriumInbound.filter((m: any) => !m.isRead).length;
     const portalUnreadCount = (portalMessages as any[]).filter((m: any) => m.status === 'unread').length;
     const totalInboxUnread = inboundUnreadCount + portalUnreadCount + clientMessages.filter(m => !m.isRead).length;
     const pendingScheduled = (scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').length;
 
-    // ── Inbox: find selected message ──
-    const selectedInboundMsg = useMemo(() =>
-        atriumInbound.find((m: any) => m._id === selectedInboxId),
-    [atriumInbound, selectedInboxId]);
+    // ── Inbox: find selected message (works for both inbound AND portal messages) ──
+    const selectedInboundMsg = useMemo(() => {
+        // First check atrium inbound (WhatsApp/Email)
+        const inbound = atriumInbound.find((m: any) => m._id === selectedInboxId);
+        if (inbound) return { ...inbound, _inboxType: 'inbound' as const };
+        // Then check portal messages
+        const portal = (portalMessages as any[]).find((m: any) => m._id === selectedInboxId);
+        if (portal) return {
+            ...portal,
+            _inboxType: 'portal' as const,
+            // Normalize portal message fields to match inbound message shape
+            senderName: portal.senderName || 'Portal User',
+            senderContact: portal.senderEmail || portal.senderId,
+            channel: 'portal',
+            content: portal.content || portal.subject,
+            receivedAt: portal.createdAt,
+            isRead: portal.status === 'read' || portal.status === 'replied',
+        };
+        return undefined;
+    }, [atriumInbound, portalMessages, selectedInboxId]);
+
+    // ── Inbox: portal message reply mutations ──
+    const replyToPortal = useMutation(api.portals.replyToPortalMessage);
+    const markPortalRead = useMutation(api.portals.markPortalMessageRead);
 
     // ── Team Chat: filtered conversations (existing logic) ──
     const filteredConversations = useMemo(() => {
@@ -472,6 +502,19 @@ const MessagesView: React.FC = () => {
         if (!inboxReply.trim() || !selectedInboundMsg) return;
         setIsSendingReply(true);
         try {
+            // Portal messages: use the dedicated reply mutation
+            if (selectedInboundMsg._inboxType === 'portal') {
+                await replyToPortal({
+                    messageId: selectedInboxId as any,
+                    replyContent: inboxReply.trim(),
+                    replierName: currentUser?.name || 'Admin',
+                });
+                addToast('Reply sent to portal user.', { type: 'success' });
+                setInboxReply('');
+                return;
+            }
+
+            // Inbound messages (WhatsApp/Email)
             const integrationStatus = coreState.firmDetails?.automationSettings?.chakra?.isActive ? 'connected' : 'simulated';
             if (integrationStatus === 'connected') {
                 const channel = selectedInboundMsg.channel as any;
@@ -632,28 +675,37 @@ const MessagesView: React.FC = () => {
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
                                             ))}
-                                            {/* Portal messages */}
-                                            {(portalMessages as any[]).filter((m: any) => m.status !== 'replied').map((msg: any) => (
+                                            {/* Portal messages (Tenants only — clients shown in Vega mode) */}
+                                            {(portalMessages as any[]).filter((m: any) => m.senderRole !== 'Client').map((msg: any) => (
                                                 <div
                                                     key={msg._id}
-                                                    onClick={() => { setSelectedInboxId(msg._id); }}
+                                                    onClick={() => {
+                                                        setSelectedInboxId(msg._id);
+                                                        if (msg.status === 'unread') markPortalRead({ messageId: msg._id });
+                                                    }}
                                                     className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2">
                                                             {msg.status === 'unread' && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
+                                                            {msg.status === 'replied' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
                                                             <span className={`text-sm truncate max-w-[160px] ${msg.status === 'unread' ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                 {msg.senderName || 'Portal User'}
                                                             </span>
                                                         </div>
                                                         <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                                            {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5 text-[10px] mb-1">
                                                         <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
                                                             Portal
                                                         </span>
+                                                        {msg.status === 'replied' && (
+                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30">
+                                                                Replied
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content || msg.subject}</p>
                                                 </div>
@@ -661,8 +713,8 @@ const MessagesView: React.FC = () => {
                                         </>
                                     )
                                 ) : (
-                                    /* ── VEGA: Client messages grouped by matter ── */
-                                    clientMessages.length === 0 ? (
+                                    /* ── VEGA: Client messages + portal messages ── */
+                                    clientMessages.length === 0 && (portalMessages as any[]).filter((m: any) => m.senderRole === 'Client').length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-16 text-center px-6">
                                             <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                                 <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -671,21 +723,57 @@ const MessagesView: React.FC = () => {
                                             <p className="text-xs text-slate-300 mt-1">Messages from your clients on their matters will appear here</p>
                                         </div>
                                     ) : (
-                                        clientMessages
-                                            .filter((m: any) => !m.isRead)
-                                            .map((msg: any) => (
+                                        <>
+                                            {/* Client portal messages (Vega) */}
+                                            {(portalMessages as any[]).filter((m: any) => m.senderRole === 'Client').map((msg: any) => (
                                                 <div
-                                                    key={msg.id}
-                                                    onClick={() => { navigateTo('matterDetail', msg.matterId, { initialTab: 'messages' }); }}
-                                                    className="p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800"
+                                                    key={msg._id}
+                                                    onClick={() => {
+                                                        setSelectedInboxId(msg._id);
+                                                        if (msg.status === 'unread') markPortalRead({ messageId: msg._id });
+                                                    }}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === msg._id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
-                                                        <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">Client Message</span>
-                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">{msg.timestamp ? timeAgo(msg.timestamp) : ''}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            {msg.status === 'unread' && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
+                                                            {msg.status === 'replied' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
+                                                            <span className={`text-sm truncate max-w-[160px] ${msg.status === 'unread' ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                {msg.senderName || 'Client'}
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1">
+                                                        <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
+                                                            Portal
+                                                        </span>
+                                                        {msg.subject && (
+                                                            <span className="text-slate-500 dark:text-zinc-400 truncate">{msg.subject}</span>
+                                                        )}
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
-                                            ))
+                                            ))}
+                                            {/* Internal client messages from matter context */}
+                                            {clientMessages
+                                                .filter((m: any) => !m.isRead)
+                                                .map((msg: any) => (
+                                                    <div
+                                                        key={msg.id}
+                                                        onClick={() => { navigateTo('matterDetail', msg.matterId, { initialTab: 'messages' }); }}
+                                                        className="p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">Client Message</span>
+                                                            <span className="text-[10px] text-slate-400 flex-shrink-0">{msg.timestamp ? timeAgo(msg.timestamp) : ''}</span>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
+                                                    </div>
+                                                ))}
+                                        </>
                                     )
                                 )}
                             </div>
@@ -714,23 +802,35 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={async () => {
-                                                if (window.confirm('Delete this message?')) {
-                                                    await deleteInboundMessage({ messageId: selectedInboundMsg._id as any });
-                                                    setSelectedInboxId(null);
-                                                }
-                                            }}
-                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                                            title="Delete message"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.status === 'replied' && (
+                                                <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg">
+                                                    <CheckIcon className="w-3 h-3" /> Replied
+                                                </span>
+                                            )}
+                                            <button
+                                                onClick={async () => {
+                                                    if (window.confirm('Delete this message?')) {
+                                                        if (selectedInboundMsg._inboxType === 'portal') {
+                                                            await deleteInboundMessage({ messageId: selectedInboundMsg._id as any }).catch(() => {});
+                                                        } else {
+                                                            await deleteInboundMessage({ messageId: selectedInboundMsg._id as any });
+                                                        }
+                                                        setSelectedInboxId(null);
+                                                    }
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                title="Delete message"
+                                            >
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
 
-                                    {/* Message Content */}
+                                    {/* Message Content — Conversation View */}
                                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
                                         <div className="max-w-2xl mx-auto">
+                                            {/* Incoming message bubble */}
                                             <div className="flex justify-start mb-4">
                                                 <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
                                                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
@@ -746,8 +846,21 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                             </div>
 
-                                            {/* AI Suggested Reply */}
-                                            {selectedInboundMsg.aiAnalysis?.suggestedReply && (
+                                            {/* Admin reply bubble (for portal messages that have been replied to) */}
+                                            {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.replyContent && (
+                                                <div className="flex justify-end mb-4">
+                                                    <div className="bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm max-w-[85%]">
+                                                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-primary-500">
+                                                            <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">You</span>
+                                                            <span className="text-[10px] text-primary-200">{selectedInboundMsg.repliedAt ? new Date(selectedInboundMsg.repliedAt).toLocaleString() : ''}</span>
+                                                        </div>
+                                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.replyContent}</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* AI Suggested Reply (only for inbound messages with AI analysis) */}
+                                            {selectedInboundMsg._inboxType === 'inbound' && selectedInboundMsg.aiAnalysis?.suggestedReply && (
                                                 <div className="mx-2 md:mx-8 mb-4 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-200 dark:border-primary-800 p-4">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <SparklesIcon className="w-3.5 h-3.5 text-primary-500" />
@@ -771,7 +884,9 @@ const MessagesView: React.FC = () => {
                                             <textarea
                                                 value={inboxReply}
                                                 onChange={(e) => setInboxReply(e.target.value)}
-                                                placeholder={`Reply via ${selectedInboundMsg.channel || 'message'}...`}
+                                                placeholder={selectedInboundMsg._inboxType === 'portal'
+                                                    ? 'Reply to portal user...'
+                                                    : `Reply via ${selectedInboundMsg.channel || 'message'}...`}
                                                 rows={Math.min(4, inboxReply.split('\n').length || 1)}
                                                 className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
                                             />
@@ -1033,89 +1148,255 @@ const MessagesView: React.FC = () => {
 
                 {/* ═══ SCHEDULED TAB ═══ */}
                 {activeTab === 'scheduled' && (
-                    <div className="w-full h-full overflow-y-auto custom-scrollbar">
-                        <div className="max-w-3xl mx-auto p-4 sm:p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <div>
+                    <div className="w-full h-full flex flex-col">
+                        {/* Schedule Form */}
+                        <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
+                            <div className="max-w-3xl mx-auto">
+                                <div className="flex items-center justify-between mb-3">
                                     <h2 className="text-lg font-bold text-slate-900 dark:text-white">Scheduled Messages</h2>
-                                    <p className="text-xs text-slate-500 dark:text-zinc-400">Messages queued for future delivery</p>
-                                </div>
-                                {pendingScheduled > 0 && (
-                                    <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
-                                        {pendingScheduled} pending
-                                    </span>
-                                )}
-                            </div>
-
-                            {(scheduledMessages as any[]).length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-center">
-                                    <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                        <ClockIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
-                                    </div>
-                                    <p className="text-sm text-slate-400">No scheduled messages</p>
-                                    <p className="text-xs text-slate-300 mt-1">Messages scheduled for future delivery will appear here</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {(scheduledMessages as any[]).map((msg: any) => (
-                                        <div
-                                            key={msg._id}
-                                            className={`p-4 rounded-xl border transition-all ${
-                                                msg.status === 'scheduled'
-                                                    ? 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
-                                                    : msg.status === 'cancelled'
-                                                    ? 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-60'
-                                                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-75'
+                                    <div className="flex items-center gap-2">
+                                        {pendingScheduled > 0 && (
+                                            <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
+                                                {pendingScheduled} pending
+                                            </span>
+                                        )}
+                                        <button
+                                            onClick={() => setShowScheduleForm(!showScheduleForm)}
+                                            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
+                                                showScheduleForm
+                                                    ? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300'
+                                                    : 'bg-primary-600 text-white hover:bg-primary-700'
                                             }`}
                                         >
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
-                                                        {CHANNEL_LABELS[msg.channel] || msg.channel}
-                                                    </span>
-                                                    {msg.messageType && (
-                                                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                                            {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                        msg.status === 'scheduled' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                                        msg.status === 'cancelled' ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400' :
-                                                        'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                                    }`}>
-                                                        {msg.status}
-                                                    </span>
-                                                    {msg.status === 'scheduled' && (
-                                                        <button
-                                                            onClick={async () => {
-                                                                if (window.confirm('Cancel this scheduled message?')) {
-                                                                    await cancelScheduled({ messageId: msg._id });
-                                                                }
-                                                            }}
-                                                            className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                                            title="Cancel scheduled message"
-                                                        >
-                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    )}
-                                                </div>
+                                            <PlusIcon className="w-3.5 h-3.5" />
+                                            {showScheduleForm ? 'Cancel' : 'Schedule Message'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {showScheduleForm && (
+                                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Channel</label>
+                                                <select
+                                                    value={scheduleForm.channel}
+                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, channel: e.target.value as any }))}
+                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                >
+                                                    <option value="email">Email</option>
+                                                    <option value="whatsapp">WhatsApp</option>
+                                                    <option value="sms" disabled>SMS (Not Available)</option>
+                                                </select>
                                             </div>
-                                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 line-clamp-2">{msg.content}</p>
-                                            <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                                                <span className="flex items-center gap-1">
-                                                    <ClockIcon className="w-3 h-3" />
-                                                    {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString() : 'No date'}
-                                                </span>
-                                                {msg.tenantIds && msg.tenantIds.length > 0 && (
-                                                    <span>{msg.tenantIds.length} recipient{msg.tenantIds.length > 1 ? 's' : ''}</span>
-                                                )}
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Message Type</label>
+                                                <select
+                                                    value={scheduleForm.messageType}
+                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, messageType: e.target.value }))}
+                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                >
+                                                    {Object.entries(MSG_TYPE_LABELS).map(([key, label]) => (
+                                                        <option key={key} value={key}>{label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Send At</label>
+                                                <input
+                                                    type="datetime-local"
+                                                    value={scheduleForm.scheduledFor}
+                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduledFor: e.target.value }))}
+                                                    min={new Date().toISOString().slice(0, 16)}
+                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
+                                                />
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Message</label>
+                                            <textarea
+                                                value={scheduleForm.content}
+                                                onChange={(e) => setScheduleForm(prev => ({ ...prev, content: e.target.value }))}
+                                                placeholder="Write your message here..."
+                                                rows={3}
+                                                className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm resize-none"
+                                            />
+                                        </div>
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!scheduleForm.content.trim()) {
+                                                        addToast('Please enter a message.', { type: 'error' });
+                                                        return;
+                                                    }
+                                                    if (!scheduleForm.scheduledFor) {
+                                                        addToast('Please select a date and time.', { type: 'error' });
+                                                        return;
+                                                    }
+                                                    try {
+                                                        await createScheduled({
+                                                            firmId,
+                                                            messageType: scheduleForm.messageType,
+                                                            channel: scheduleForm.channel,
+                                                            content: scheduleForm.content.trim(),
+                                                            scheduledFor: new Date(scheduleForm.scheduledFor).getTime(),
+                                                            isAutomation: false,
+                                                            triggeredBy: currentUser?.id,
+                                                        });
+                                                        addToast('Message scheduled successfully.', { type: 'success' });
+                                                        setScheduleForm({ channel: 'email', messageType: 'custom', content: '', scheduledFor: '' });
+                                                        setShowScheduleForm(false);
+                                                    } catch (e: any) {
+                                                        addToast(e.message || 'Failed to schedule message.', { type: 'error' });
+                                                    }
+                                                }}
+                                                disabled={!scheduleForm.content.trim() || !scheduleForm.scheduledFor}
+                                                className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:cursor-not-allowed flex items-center gap-1.5"
+                                            >
+                                                <ClockIcon className="w-3.5 h-3.5" />
+                                                Schedule
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Scheduled Messages List */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            <div className="max-w-3xl mx-auto p-4 sm:p-6">
+                                {(scheduledMessages as any[]).length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                                        <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                                            <ClockIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
+                                        </div>
+                                        <p className="text-sm text-slate-400">No scheduled messages</p>
+                                        <p className="text-xs text-slate-300 mt-1">Schedule a message for future delivery using the button above</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {/* Pending */}
+                                        {(scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').length > 0 && (
+                                            <div className="mb-2">
+                                                <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">Pending</h3>
+                                                {(scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').map((msg: any) => {
+                                                    const timeUntil = msg.scheduledFor - Date.now();
+                                                    const isOverdue = timeUntil < 0;
+                                                    const hoursUntil = Math.max(0, Math.floor(timeUntil / (1000 * 60 * 60)));
+                                                    const minsUntil = Math.max(0, Math.floor(timeUntil / (1000 * 60)));
+                                                    const timeLabel = isOverdue
+                                                        ? 'Processing...'
+                                                        : hoursUntil > 24
+                                                            ? `${Math.floor(hoursUntil / 24)}d ${hoursUntil % 24}h`
+                                                            : hoursUntil > 0
+                                                                ? `${hoursUntil}h ${minsUntil % 60}m`
+                                                                : `${minsUntil}m`;
+                                                    return (
+                                                        <div
+                                                            key={msg._id}
+                                                            className="p-4 rounded-xl border bg-white dark:bg-zinc-800 border-amber-200 dark:border-amber-800/50 mb-2"
+                                                        >
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
+                                                                        {CHANNEL_LABELS[msg.channel] || msg.channel}
+                                                                    </span>
+                                                                    {msg.messageType && (
+                                                                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                                                            {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1">
+                                                                        <ClockIcon className="w-3 h-3" />
+                                                                        {timeLabel}
+                                                                    </span>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            if (window.confirm('Cancel this scheduled message?')) {
+                                                                                await cancelScheduled({ messageId: msg._id });
+                                                                            }
+                                                                        }}
+                                                                        className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                                                                        title="Cancel scheduled message"
+                                                                    >
+                                                                        <TrashIcon className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 line-clamp-3">{msg.content}</p>
+                                                            <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                                                                <span className="flex items-center gap-1">
+                                                                    <ClockIcon className="w-3 h-3" />
+                                                                    {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString() : 'No date'}
+                                                                </span>
+                                                                {msg.tenantIds && msg.tenantIds.length > 0 && (
+                                                                    <span>{msg.tenantIds.length} recipient{msg.tenantIds.length > 1 ? 's' : ''}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* Sent / Failed / Cancelled */}
+                                        {(scheduledMessages as any[]).filter((m: any) => m.status !== 'scheduled').length > 0 && (
+                                            <div>
+                                                <h3 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">History</h3>
+                                                {(scheduledMessages as any[]).filter((m: any) => m.status !== 'scheduled').map((msg: any) => (
+                                                    <div
+                                                        key={msg._id}
+                                                        className={`p-4 rounded-xl border mb-2 ${
+                                                            msg.status === 'cancelled'
+                                                                ? 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-60'
+                                                                : msg.status === 'failed'
+                                                                ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 opacity-75'
+                                                                : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-75'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-start justify-between mb-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
+                                                                    {CHANNEL_LABELS[msg.channel] || msg.channel}
+                                                                </span>
+                                                                {msg.messageType && (
+                                                                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                                                        {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                                    msg.status === 'sent' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                                                                    msg.status === 'cancelled' ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400' :
+                                                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                                                }`}>
+                                                                    {msg.status}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 line-clamp-2">{msg.content}</p>
+                                                        <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                                                            <span className="flex items-center gap-1">
+                                                                <ClockIcon className="w-3 h-3" />
+                                                                {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString() : 'No date'}
+                                                            </span>
+                                                            {msg.sentAt && (
+                                                                <span>Sent: {new Date(msg.sentAt).toLocaleString()}</span>
+                                                            )}
+                                                            {msg.failureReason && (
+                                                                <span className="text-red-500">{msg.failureReason}</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
