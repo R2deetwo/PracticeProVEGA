@@ -509,6 +509,13 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
                     sessionStorage.removeItem(PORTAL_SESSION_KEY);
                     localStorage.removeItem(PORTAL_SESSION_KEY);
+                    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                    // CRITICAL: Also clear the portal type flag — otherwise the
+                    // App.tsx hasRememberedPortal check keeps showing "Loading
+                    // your portal..." spinner forever even though the session is
+                    // dead. This was causing the blank screen after timeout.
+                    sessionStorage.removeItem('practicepro_portal_type');
+                    localStorage.removeItem('practicepro_portal_type');
                 }
             }, timeoutMs);
             return () => clearTimeout(timer);

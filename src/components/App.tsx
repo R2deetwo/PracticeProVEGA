@@ -638,12 +638,29 @@ export const App: React.FC = () => {
                 sessionStorage.getItem('practicepro_portal_session') !== null ||
                 localStorage.getItem('practicepro_portal_session') !== null
             );
+
+            // If the user is on a portal route but not authenticated, redirect to
+            // the appropriate login page instead of showing the LandingPage.
+            // This fixes the "blank screen" when navigating to /portal/tenant or
+            // /portal/client without a valid session.
+            const isOnPortalRoute = location.pathname === '/portal/tenant' || location.pathname === '/portal/client';
+            if (isOnPortalRoute && !hasRememberedPortal) {
+                const loginPath = location.pathname === '/portal/client' ? '/portal/client/login' : '/portal/tenant/login';
+                navigate(loginPath, { replace: true });
+                return null;
+            }
+
             if (hasRememberedPortal && !portalRememberTimedOut) {
                 // Session might still be loading (e.g. slow Convex query). Show a minimal
                 // portal-themed loading screen rather than the public LandingPage.
                 // Auto-timeout after 15s: if the session truly isn't valid, clear the
-                // remembered portal type and fall through to the LandingPage.
-                setTimeout(() => setPortalRememberTimedOut(true), 15000);
+                // remembered portal type and fall through to the login redirect.
+                setTimeout(() => {
+                    setPortalRememberTimedOut(true);
+                    // Clear stale portal type flags so we don't loop back here
+                    sessionStorage.removeItem('practicepro_portal_type');
+                    localStorage.removeItem('practicepro_portal_type');
+                }, 15000);
                 return (
                     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
                         <div className="text-center">
@@ -653,6 +670,14 @@ export const App: React.FC = () => {
                     </div>
                 );
             }
+
+            // If we timed out waiting for a portal session, redirect to the login page
+            if (isOnPortalRoute) {
+                const loginPath = location.pathname === '/portal/client' ? '/portal/client/login' : '/portal/tenant/login';
+                navigate(loginPath, { replace: true });
+                return null;
+            }
+
             if (view === 'termsOfService') return <TermsOfService onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             if (view === 'portalTermsOfUse') return <PortalTermsOfUse onBack={() => navigateTo('dashboard')} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;

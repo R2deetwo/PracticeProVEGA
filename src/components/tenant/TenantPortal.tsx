@@ -142,6 +142,32 @@ const TenantPortal: React.FC = () => {
     effectiveFirmId ? { firmId: effectiveFirmId } : 'skip'
   );
 
+  // ── ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS ──────────────
+  // React Rules of Hooks: hooks must be called in the same order on every render.
+  // The useState/useEffect below were previously AFTER conditional returns,
+  // which caused "Rendered fewer hooks than expected" crashes when firmId
+  // resolution changed from loading (undefined) to resolved (null/empty).
+
+  // TODO: Extract isDark detection into a shared useIsDark hook (used in TenantPortal, ClientDashboard, etc.)
+  const [systemIsDark, setSystemIsDark] = useState(
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+    theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+    (theme === 'system' && systemIsDark);
+
+  const toggleTheme = () => {
+    setTheme(isDark ? 'light' : 'dark');
+  };
+
+  // ── CONDITIONAL RETURNS (after all hooks) ────────────────────────────────
+
   // Access guard
   if (!currentUser) return null;
 
@@ -219,24 +245,6 @@ const TenantPortal: React.FC = () => {
       </div>
     );
   }
-
-  // TODO: Extract isDark detection into a shared useIsDark hook (used in TenantPortal, ClientDashboard, etc.)
-  const [systemIsDark, setSystemIsDark] = useState(
-    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setSystemIsDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-    theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-    (theme === 'system' && systemIsDark);
-
-  const toggleTheme = () => {
-    setTheme(isDark ? 'light' : 'dark');
-  };
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
