@@ -244,3 +244,25 @@ Stage Summary:
 - Tab bar no longer truncates on mobile; uses abbreviated labels on small screens
 - Unit cards have cleaner layout with proper overflow handling, professional badges, and better visual hierarchy
 - No new TypeScript errors introduced by these changes
+---
+Task ID: session-4
+Agent: Main Agent
+Task: Portal messaging badge notifications, notice board in property view, message deletion, Aloa echo fix
+
+Work Log:
+- Added unread message count badge to Tenant Portal Messages tab (counts both conversation unreadByParticipant + inbound unread)
+- Created PropertyNoticeBoard component as new tab in PropertyDetailView with full CRUD (create with priority/pin, archive, restore)
+- Added soft-delete portal messages: backend mutation softDeletePortalMessage, frontend hover-to-delete on own messages, deleted message placeholder
+- Added isDeleted, deletedBy, deletedAt fields to portal_messages schema
+- Added propertyId filter to getAllNotices query for property-scoped notice boards
+- Updated admin MessagesView to show "Deleted by sender" indicator on soft-deleted messages
+- Fixed Aloa/ARIA messages leaking into System Inbox by adding source field to user_feedback table, tagging aloa_echo vs feedback, and filtering in getMyFeedbackReplies
+- Deployed Convex backend + pushed frontend to Vercel via git
+
+Stage Summary:
+- TenantPortal now shows emerald badge with unread count on Messages tab
+- PropertyDetailView has new "Notice Board" tab with Megaphone icon for posting property-scoped notices
+- Portal users can delete their own messages (soft-delete); admin sees "Deleted by sender" but cannot remove records
+- Badge auto-dismisses when user opens conversation (markConversationReadByParticipant already fires on open)
+- Aloa chat echoes no longer pollute the System Inbox in MessagesView
+- All changes deployed to production
