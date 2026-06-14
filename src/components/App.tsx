@@ -455,7 +455,30 @@ export const App: React.FC = () => {
     }, []);
 
 
-    useIdleTimer(() => { if (isAuthenticated && !isSessionLocked) setIsSessionLocked(true); }, IDLE_TIMEOUT);
+    useIdleTimer(() => {
+        if (!isAuthenticated || isSessionLocked) return;
+        // Portal users (Tenant/Client) should be logged out on inactivity,
+        // not locked — they get a clear message and a fresh login.
+        const isPortalUser = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
+        if (isPortalUser) {
+            // Determine the correct login page and redirect with inactivity flag
+            const portalType = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
+            const loginPath = portalType === 'client' || currentUser?.role === 'Client'
+                ? '/portal/client/login'
+                : '/portal/tenant/login';
+            // Clear portal session keys (same logic as logout, but synchronous + redirect)
+            sessionStorage.removeItem('practicepro_portal_session');
+            localStorage.removeItem('practicepro_portal_session');
+            sessionStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_session_locked');
+            // Hard redirect to guarantee clean state
+            window.location.href = `${loginPath}?inactivity=1`;
+        } else {
+            // Admin users: show lock screen (re-enter password to unlock)
+            setIsSessionLocked(true);
+        }
+    }, IDLE_TIMEOUT);
     const [isToolkitOpen, setIsToolkitOpen] = useState(false);
 
     if (import.meta.env.DEV) console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });

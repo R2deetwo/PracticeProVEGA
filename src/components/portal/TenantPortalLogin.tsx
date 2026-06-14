@@ -54,6 +54,7 @@ const TenantPortalLogin: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [isRevoked, setIsRevoked] = useState(false);
+    const [isInactiveLogout, setIsInactiveLogout] = useState(false);
     const [inviteToken, setInviteToken] = useState<string | null>(null);
 
     // Forgot / reset password state
@@ -77,6 +78,9 @@ const TenantPortalLogin: React.FC = () => {
         if (token) setInviteToken(token);
         if (params.get('revoked') === '1') {
             setIsRevoked(true);
+        }
+        if (params.get('inactivity') === '1') {
+            setIsInactiveLogout(true);
         }
         // Recovery code from email link — auto-fill and switch to reset mode
         const rcCode = params.get('recoveryCode');
@@ -303,6 +307,21 @@ const TenantPortalLogin: React.FC = () => {
                                     <p className="font-semibold">Portal Access Revoked</p>
                                     <p className="text-rose-400/80 text-xs mt-0.5">
                                         Your access to the Residents' Portal has been revoked by the property manager. Please contact them to request a new invitation.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Inactivity logout banner */}
+                    {isInactiveLogout && viewMode === 'login' && (
+                        <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
+                            <div className="flex items-start gap-2">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-semibold">Session Expired</p>
+                                    <p className="text-amber-400/80 text-xs mt-0.5">
+                                        You were logged out due to inactivity. Please sign in again to continue.
                                     </p>
                                 </div>
                             </div>
