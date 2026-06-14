@@ -172,3 +172,40 @@ Stage Summary:
 - File sharing: Works in both portal and admin side, images get preview, docs get download links
 - Matter linking: Auto-creates documents in matter when conversation has matterId
 - Deployed to Convex cloud and pushed to git (Vercel auto-deploys)
+
+---
+Task ID: portal-tokens-threading-units
+Agent: Main Agent
+Task: Implement portal URL tokens, fix conversation threading, improve unit number display
+
+Work Log:
+- Added `portalAccessToken` field to `users` table in schema.ts with index `by_portal_access_token`
+- Created `generatePortalAccessToken()` utility in portals.ts (UUID v4 format)
+- Added `resolvePortalUserByToken` query — looks up portal user by their URL token
+- Added `ensurePortalAccessToken` mutation — generates token for user if they don't have one
+- Added `getPortalAccessToken` query — reads existing token for a user
+- Added `migratePortalAccessTokens` mutation — one-time migration for existing portal users
+- Updated `setupPortalPassword` to generate tokens for both new and existing users
+- Fixed conversation threading bug: `sendPortalMessage` now accepts optional `conversationId` parameter
+  - When provided, message is added to that conversation directly (bypasses getOrCreateConversation)
+  - Updated both TenantPortal.tsx and ClientDashboard.tsx to pass `activeConversationId`
+- Improved unit name resolution with robust fallback chain: name → unitName → label → "Unit N" → id
+- Updated TenantPortal header: shows "Welcome, {name} — Unit {X}" with emerald accent
+- Updated unit badge: changed "Unit: X" → "Unit X" for cleaner display
+- Added unit context to messages tab header and chat view header
+- Updated App.tsx routing: supports `/portal/tenant/{token}` and `/portal/client/{token}`
+- Added `parsePortalRoute` and `isPortalDashboardRoute` helpers in App.tsx
+- Updated login redirects: after login, portal users are sent to token-based URLs
+- Updated AuthContext: added `portalAccessToken` to user object, auto-generates via effect
+- Updated TenantPortalLogin and ClientPortalLogin: call `ensureToken` after login
+- Added `portalAccessToken` to User type in types.ts
+- Deployed to Convex cloud (schema + functions)
+- Pushed to git (Vercel auto-deploys)
+- Ran migration: 3 existing portal users received tokens
+
+Stage Summary:
+- Portal URLs now look like /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac
+- Old /portal/tenant URL still works and auto-redirects to token URL when logged in
+- Conversation threading fixed by passing conversationId explicitly
+- Unit numbers show more reliably with fallback chain
+- 3 existing portal users migrated with tokens
