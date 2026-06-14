@@ -181,7 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const [availableWorkspaces, setAvailableWorkspaces] = useState<any[]>([]);
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
 
-    // Fetch inbound tenant messages for unified badge count
+    // Fetch inbound resident messages for unified badge count
     const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
     const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId } : 'skip') || [];
     const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
