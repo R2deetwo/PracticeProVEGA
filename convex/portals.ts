@@ -586,12 +586,19 @@ export const deletePortalInviteAndCleanup = mutation({
     inviteeEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // 1. Delete the specified invite record
-    await ctx.db.delete(args.inviteId);
-
-    // 2. Also delete ANY other invite records for the same email
-    //    to prevent residual "already accepted" errors on re-invite
     const email = (args.inviteeEmail || "").toLowerCase().trim();
+
+    // 1. Mark the specified invite as revoked (DO NOT delete — preserving the
+    //    firmId on invite records is critical for resolveFirmFromInvite to work
+    //    when the user is re-invited. Deleted records can't be searched.)
+    await ctx.db.patch(args.inviteId, {
+      status: "revoked",
+      updatedAt: Date.now(),
+    } as any);
+
+    // 2. Mark any OTHER invite records for the same email as revoked too.
+    //    Previously these were hard-deleted, which destroyed the firmId
+    //    resolution path — the #1 cause of permanent skeleton screens.
     if (!email) return;
 
     const otherInvites = await ctx.db
@@ -600,8 +607,14 @@ export const deletePortalInviteAndCleanup = mutation({
       .collect();
 
     for (const inv of otherInvites) {
-      if (String(inv._id) === String(args.inviteId)) continue; // Already deleted above
-      try { await ctx.db.delete(inv._id); } catch (e) { /* ignore */ }
+      if (String(inv._id) === String(args.inviteId)) continue; // Already revoked above
+      if (inv.status === "revoked") continue; // Already revoked
+      try {
+        await ctx.db.patch(inv._id, {
+          status: "revoked",
+          updatedAt: Date.now(),
+        } as any);
+      } catch (e) { /* ignore */ }
     }
 
     // 3. Find and reset the associated portal user
@@ -615,18 +628,19 @@ export const deletePortalInviteAndCleanup = mutation({
     // Only reset if the user has a Client or Tenant role (portal user)
     const role = (existingUser as any).role;
     if (role === "Client" || role === "Tenant" || role === "Portal User") {
-      // Reset the user so they can be re-invited cleanly (Bug 16 fix)
-      // Set isVerified to false so they can't log in with old credentials
-      // Remove the password so setup-password creates a fresh one
-      // Clear firmId so it will be set fresh on the next invite acceptance
-      // Clear product/portalPresenceHidden to fully reset portal state
+      // Reset the user so they can't log in, but PRESERVE firmId and product.
+      // These fields are essential for data loading — without firmId, the portal
+      // queries all use 'skip' and show infinite skeleton screens. The firmId
+      // will be updated by setupPortalPassword if the user is re-invited to a
+      // different firm, or kept as-is if re-invited to the same firm.
       await ctx.db.patch(existingUser._id, {
         isVerified: false,
         emailVerified: false,
         password: undefined,
         role: "Pending",
-        firmId: undefined,
-        product: undefined,
+        // IMPORTANT: firmId and product are KEPT intentionally.
+        // Clearing them was the root cause of the permanent skeleton bug.
+        // setupPortalPassword will update them on re-invite if needed.
         portalPresenceHidden: undefined,
         onboardingCompleted: false,
       } as any);
@@ -1040,6 +1054,78 @@ export const setupPortalPassword = action({
   },
 });
 
+/**
+ * repairPortalUserFirmId — Repairs a portal user whose firmId is missing.
+ * Called from the frontend when the portal detects it can't resolve a firmId.
+ * Looks up the firm via invite records and user record, then patches the user.
+ */
+export const repairPortalUserFirmId = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+
+    // 1. Find the user
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!user) return { success: false, message: "User not found." };
+    if (user.firmId) return { success: true, firmId: user.firmId, message: "firmId already set." };
+
+    // 2. Try to find firmId from invite records
+    const invites = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+      .collect();
+
+    const sorted = invites
+      .filter(inv => inv.firmId)
+      .sort((a, b) => {
+        const aActive = a.status !== 'revoked' ? 1 : 0;
+        const bActive = b.status !== 'revoked' ? 1 : 0;
+        if (aActive !== bActive) return bActive - aActive;
+        return (b._creationTime || 0) - (a._creationTime || 0);
+      });
+
+    const foundFirmId = sorted[0]?.firmId;
+
+    if (foundFirmId) {
+      await ctx.db.patch(user._id, {
+        firmId: foundFirmId,
+        product: sorted[0].portalType === 'client' ? 'legal' : 'property',
+      } as any);
+      return { success: true, firmId: foundFirmId, message: "firmId repaired from invite record." };
+    }
+
+    // 3. Try to find firmId from property records
+    const allProperties = await ctx.db.query("properties").collect();
+    for (const prop of allProperties) {
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      if (String(propTenantId).toLowerCase() === email && prop.firmId) {
+        await ctx.db.patch(user._id, {
+          firmId: prop.firmId,
+          product: 'property',
+        } as any);
+        return { success: true, firmId: prop.firmId, message: "firmId repaired from property record." };
+      }
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        if (unitTenantEmail === email && prop.firmId) {
+          await ctx.db.patch(user._id, {
+            firmId: prop.firmId,
+            product: 'property',
+          } as any);
+          return { success: true, firmId: prop.firmId, message: "firmId repaired from property unit record." };
+        }
+      }
+    }
+
+    return { success: false, message: "Could not find firmId from any source." };
+  },
+});
+
 // ─── Scheduled Messages ─────────────────────────────────────────────────
 
 export const getScheduledMessagesByFirm = query({
@@ -1198,7 +1284,8 @@ export const getTenantInfo = query({
 /**
  * resolveFirmFromInvite — Fallback for portal users whose firmId is missing.
  * Looks up the most recent portal invite for this email to find the firmId.
- * Also checks if any invite record has a firmId we can use.
+ * Also checks revoked invites as a last-resort fallback.
+ * Also searches property records for a matching tenant email.
  */
 export const resolveFirmFromInvite = query({
   args: { email: v.string() },
@@ -1206,13 +1293,21 @@ export const resolveFirmFromInvite = query({
     const email = args.email.toLowerCase().trim();
 
     // 1. Check portal_invites for the most recent invite with a firmId
+    //    (includes revoked/accepted — we no longer hard-delete invites)
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
       .collect();
 
     // Sort by creation time descending (most recent first)
-    const sorted = invites.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0));
+    // Prefer active/accepted invites over revoked ones
+    const sorted = invites.sort((a, b) => {
+      // Active/accepted invites rank higher than revoked ones
+      const aActive = a.status !== 'revoked' ? 1 : 0;
+      const bActive = b.status !== 'revoked' ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      return (b._creationTime || 0) - (a._creationTime || 0);
+    });
     const latestInvite = sorted.find(inv => inv.firmId);
 
     if (latestInvite?.firmId) {
@@ -1235,6 +1330,38 @@ export const resolveFirmFromInvite = query({
         portalType: (user as any).product === 'atrium' ? 'resident' as const : 'client' as const,
         source: 'user_record' as const,
       };
+    }
+
+    // 3. Last-resort: search all properties for a unit/tenant matching this email
+    //    This handles the edge case where invite records are missing but the
+    //    tenant is linked to a property by email.
+    const allProperties = await ctx.db.query("properties").collect();
+    for (const prop of allProperties) {
+      // Check property-level tenant
+      const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+      if (String(propTenantId).toLowerCase() === email) {
+        if (prop.firmId) {
+          return {
+            firmId: prop.firmId,
+            portalType: 'resident' as const,
+            source: 'property' as const,
+          };
+        }
+      }
+      // Check unit-level tenants
+      const units = (prop as any).units || [];
+      for (const unit of units) {
+        const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+        if (unitTenantEmail === email || String(unit.currentTenantId || unit.tenantId || '').toLowerCase() === email) {
+          if (prop.firmId) {
+            return {
+              firmId: prop.firmId,
+              portalType: 'resident' as const,
+              source: 'property_unit' as const,
+            };
+          }
+        }
+      }
     }
 
     return null;

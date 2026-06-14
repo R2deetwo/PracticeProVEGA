@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -140,6 +140,10 @@ const ClientDashboard: React.FC = () => {
     const { canUseClientPortal } = useFeatures();
     const { handleSendClientMessage } = useDataActions();
 
+    // Repair mutation for fixing missing firmId on portal user records
+    const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
+    const [isRepairing, setIsRepairing] = useState(false);
+
     const [activeTab, setActiveTab] = useState<PortalTab>(() => {
         const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
         if (['overview', 'matters', 'documents', 'messages'].includes(hash)) return hash as PortalTab;
@@ -222,6 +226,60 @@ const ClientDashboard: React.FC = () => {
                     <p className="text-slate-500 dark:text-zinc-400 leading-relaxed">
                         You do not have permission to access this portal. If you believe this is an error, please contact your firm administrator.
                     </p>
+                </div>
+            </div>
+        );
+    }
+
+    // CRITICAL: If firmId can't be resolved, show a repair UI instead of infinite skeletons.
+    // This happens when the user's firmId was cleared (e.g. during portal access revocation)
+    // AND no invite records exist to resolve it from.
+    if (!effectiveFirmId && firmResolution !== undefined) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950 p-6">
+                <div className="text-center max-w-sm">
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mb-4">
+                        <ExclamationTriangleIcon className="w-8 h-8 text-rose-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Portal Data Unavailable</h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
+                        We couldn't load your portal data. Your account may need to be re-linked to your firm.
+                    </p>
+                    <button
+                        onClick={async () => {
+                            setIsRepairing(true);
+                            try {
+                                const result = await repairFirmId({ email: currentUser.email });
+                                if (result.success) {
+                                    addToast('Account repaired! Refreshing...', { type: 'success' });
+                                    setTimeout(() => window.location.reload(), 1500);
+                                } else {
+                                    addToast('Could not auto-repair. Please contact your firm administrator.', { type: 'error' });
+                                }
+                            } catch {
+                                addToast('Repair failed. Please contact your firm administrator.', { type: 'error' });
+                            } finally {
+                                setIsRepairing(false);
+                            }
+                        }}
+                        disabled={isRepairing}
+                        className="px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isRepairing ? (
+                            <span className="flex items-center gap-2">
+                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Repairing...
+                            </span>
+                        ) : (
+                            'Repair My Account'
+                        )}
+                    </button>
+                    <button
+                        onClick={() => logout()}
+                        className="mt-3 block mx-auto text-sm text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
+                    >
+                        Sign Out
+                    </button>
                 </div>
             </div>
         );

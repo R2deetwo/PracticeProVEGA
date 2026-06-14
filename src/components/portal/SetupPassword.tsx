@@ -156,8 +156,10 @@ const SetupPassword: React.FC = () => {
                 const portalType = inviteData?.invite?.portalType;
                 if (portalType === 'client') {
                     sessionStorage.setItem('practicepro_portal_type', 'client');
+                    localStorage.setItem('practicepro_portal_type', 'client');
                 } else if (portalType === 'resident') {
                     sessionStorage.setItem('practicepro_portal_type', 'tenant');
+                    localStorage.setItem('practicepro_portal_type', 'tenant');
                 }
 
                 // Auto-login after a short delay
@@ -165,9 +167,10 @@ const SetupPassword: React.FC = () => {
                     try {
                         const loginResult = await login(result.email!, password);
                         if (loginResult.success) {
-                            // Redirect to the main app — the router will detect the user's
-                            // Client/Tenant role and show the correct portal view automatically.
-                            navigate('/', { replace: true });
+                            // Navigate to the portal-specific URL — this makes the URL
+                            // meaningful and ties the session to the correct portal type
+                            const portalPath = portalType === 'client' ? '/portal/client' : '/portal/tenant';
+                            navigate(portalPath, { replace: true });
                         } else {
                             setLoginError('Your password has been set! Please sign in using the button below.');
                             setStep('success');

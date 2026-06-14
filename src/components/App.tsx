@@ -467,7 +467,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/setup-password'];
+        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password'];
         // Check both sessionStorage and localStorage for portal type (Bug 11 fix)
         const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
@@ -612,16 +612,16 @@ export const App: React.FC = () => {
         // navigates to the login page while already logged in.
         if (location.pathname === '/portal/client/login') {
             if (currentUser && currentUser.role === UserRole.Client) {
-                // Already logged in as client — redirect to portal dashboard via React Router
-                navigate('/', { replace: true });
+                // Already logged in as client — redirect to portal dashboard
+                navigate('/portal/client', { replace: true });
                 return null;
             }
             return <ClientPortalLogin />;
         }
         if (location.pathname === '/portal/tenant/login') {
             if (currentUser && currentUser.role === UserRole.Tenant) {
-                // Already logged in as tenant — redirect to portal dashboard via React Router
-                navigate('/', { replace: true });
+                // Already logged in as tenant — redirect to portal dashboard
+                navigate('/portal/tenant', { replace: true });
                 return null;
             }
             return <TenantPortalLogin />;
@@ -662,7 +662,11 @@ export const App: React.FC = () => {
         }
 
         // New User Flow: Go straight to setup if no firm exists
-        if (currentUser && !currentUser.firmId) {
+        // Portal users (Client/Tenant) should NEVER see the OnboardingWizard —
+        // they don't create firms; they're invited to existing ones. If a portal
+        // user has no firmId, their portal dashboard will handle the resolution
+        // and show a repair UI instead of the unrelated OnboardingWizard.
+        if (currentUser && !currentUser.firmId && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant) {
             return <OnboardingWizard onComplete={() => setFlowState('app')} />;
         }
 
