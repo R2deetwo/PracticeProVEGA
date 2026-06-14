@@ -2398,8 +2398,9 @@ export const sendAdminReply = mutation({
     const now = Date.now();
 
     // Get the conversation
-    const conversation = await ctx.db.get(args.conversationId as any);
-    if (!conversation) throw new Error("Conversation not found");
+    const conversationRaw = await ctx.db.get(args.conversationId as any);
+    if (!conversationRaw) throw new Error("Conversation not found");
+    const conversation = conversationRaw as any;
 
     // Insert the admin's reply as a new message in the conversation
     const messageId = await ctx.db.insert("portal_messages", {
@@ -2626,7 +2627,8 @@ export const replyToPortalMessage = mutation({
 
     // Also create a proper threaded message if the conversation exists
     if (originalMsg.conversationId) {
-      const conversation = await ctx.db.get(originalMsg.conversationId as any);
+      const conversationRaw = await ctx.db.get(originalMsg.conversationId as any);
+      const conversation = conversationRaw as any;
       if (conversation) {
         await ctx.db.insert("portal_messages", {
           firmId: originalMsg.firmId,
