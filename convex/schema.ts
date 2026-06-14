@@ -82,12 +82,16 @@ export default defineSchema({
     recoveryCode: nullableString,
     emailVerified: nullableBoolean,
     externalCounselId: nullableString,
+    // Portal access token — unique, random-looking identifier used in portal URLs
+    // (e.g. /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac)
+    // NOT used for authentication — just for routing/identification/bookmarkability.
+    portalAccessToken: nullableString,
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]),
+  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]),
 
   // 3. Operational Data
   matters: defineTable({

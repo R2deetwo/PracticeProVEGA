@@ -361,6 +361,9 @@ const TenantPortal: React.FC = () => {
               ) : (
                 <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">
                   Welcome, {tenantInfo?.tenantName || currentUser.name || currentUser.email}
+                  {tenantInfo?.primaryUnitName && (
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium"> — Unit {tenantInfo.primaryUnitName}</span>
+                  )}
                 </p>
               )}
             </div>
@@ -386,9 +389,9 @@ const TenantPortal: React.FC = () => {
             </button>
           </div>
         </div>
-        {/* Prominent Unit/Property Info — deduplicate property name vs address */}
+        {/* Prominent Unit/Property Info — always visible when available */}
         {(() => {
-          const unitName = tenantInfo?.primaryUnitName;
+          const unitName = tenantInfo?.primaryUnitName || tenantInfo?.primaryUnitId;
           const propName = tenantInfo?.primaryPropertyName;
           const propAddr = tenantInfo?.primaryPropertyAddress;
           // Avoid showing property name if it's identical to the address
@@ -400,7 +403,7 @@ const TenantPortal: React.FC = () => {
               {unitName && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
                   <OfficeBuildingIcon className="w-3.5 h-3.5" />
-                  Unit: {unitName}
+                  Unit {unitName}
                 </span>
               )}
               {displayPropName && (
@@ -1211,7 +1214,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
             <OfficeBuildingIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
             <span className="text-emerald-800 dark:text-emerald-300 font-medium">
               {tenantInfo.primaryUnitName
-                ? `Unit: ${tenantInfo.primaryUnitName} in ${tenantInfo.primaryPropertyName}`
+                ? `Unit ${tenantInfo.primaryUnitName} in ${tenantInfo.primaryPropertyName}`
                 : tenantInfo.primaryPropertyName}
             </span>
           </div>
@@ -1514,6 +1517,9 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
         attachmentNames: fileNames.length > 0 ? fileNames : undefined,
         propertyId: tenantInfo?.primaryPropertyId || undefined,
         unitId: tenantInfo?.primaryUnitId || undefined,
+        // THREADING FIX: Pass the active conversation ID so the message
+        // continues in the same thread instead of creating a new one.
+        conversationId: activeConversationId || undefined,
       });
       setMessageContent('');
       setPendingFiles([]);
@@ -1569,7 +1575,9 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
               Property Manager
             </h4>
             <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-              {activeConversation.propertyId ? 'Property conversation' : 'General'}
+              {activeConversation.unitId
+                ? `Unit ${tenantInfo?.primaryUnitName || activeConversation.unitId}`
+                : activeConversation.propertyId ? 'Property conversation' : 'General'}
             </p>
           </div>
           {(activeConversation.unreadByParticipant || 0) > 0 && (
@@ -1742,7 +1750,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
       <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Messages</h3>
       <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
         {portalSettings?.tenantMessagingEnabled
-          ? 'Conversations with your property manager.'
+          ? `Conversations with your property manager${tenantInfo?.primaryUnitName ? ` (Unit ${tenantInfo.primaryUnitName})` : ''}.`
           : 'Recent messages from your property manager.'}
       </p>
 

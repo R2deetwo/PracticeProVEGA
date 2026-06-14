@@ -413,6 +413,8 @@ const ClientDashboard: React.FC = () => {
                 matterId: selectedMatterForMessage,
                 attachments: storageIds.length > 0 ? storageIds : undefined,
                 attachmentNames: fileNames.length > 0 ? fileNames : undefined,
+                // THREADING FIX: Pass the active conversation ID to continue in same thread
+                conversationId: activeConversationId || undefined,
             });
             setMessageText('');
             setPendingFiles([]);

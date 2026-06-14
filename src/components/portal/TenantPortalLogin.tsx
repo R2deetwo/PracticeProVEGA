@@ -68,6 +68,7 @@ const TenantPortalLogin: React.FC = () => {
     // Mutations
     const requestReset = useMutation(api.myFunctions.requestPortalPasswordReset);
     const resetPasswordAction = useAction(api.myFunctions.resetPassword);
+    const ensureToken = useMutation(api.portals.ensurePortalAccessToken);
 
     // Read URL params on mount
     useEffect(() => {
@@ -126,7 +127,17 @@ const TenantPortalLogin: React.FC = () => {
                 addToast("Welcome to the Residents' Portal.", { type: 'success' });
                 sessionStorage.setItem('practicepro_portal_type', 'tenant');
                 localStorage.setItem('practicepro_portal_type', 'tenant');
-                navigate('/portal/tenant', { replace: true });
+                // Try to get the portal access token for a token-based URL
+                try {
+                    const token = await ensureToken({ email: email.trim().toLowerCase() });
+                    if (token) {
+                        navigate(`/portal/tenant/${token}`, { replace: true });
+                    } else {
+                        navigate('/portal/tenant', { replace: true });
+                    }
+                } catch {
+                    navigate('/portal/tenant', { replace: true });
+                }
             } else {
                 if (result.isRevoked) {
                     setError('Your portal access has been revoked.');

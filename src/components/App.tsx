@@ -615,7 +615,33 @@ export const App: React.FC = () => {
 
     const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
 
+    // Helper: Parse portal routes (supports token-based URLs)
+    // /portal/tenant → { type: 'tenant' }
+    // /portal/tenant/{token} → { type: 'tenant', token: '{token}' }
+    // /portal/client → { type: 'client' }
+    // /portal/client/{token} → { type: 'client', token: '{token}' }
+    const parsePortalRoute = (pathname: string): { type: 'tenant' | 'client'; token?: string } | null => {
+        if (pathname === '/portal/tenant' || pathname.startsWith('/portal/tenant/')) {
+            const token = pathname.startsWith('/portal/tenant/') ? pathname.replace('/portal/tenant/', '') : undefined;
+            return { type: 'tenant', token };
+        }
+        if (pathname === '/portal/client' || pathname.startsWith('/portal/client/')) {
+            const token = pathname.startsWith('/portal/client/') ? pathname.replace('/portal/client/', '') : undefined;
+            return { type: 'client', token };
+        }
+        return null;
+    };
+
+    // Helper: Is this a valid portal dashboard route (not login, not setup-password)?
+    const isPortalDashboardRoute = (pathname: string) => {
+        return pathname === '/portal/tenant' || pathname === '/portal/client' ||
+            /^\/portal\/tenant\/[0-9a-f-]{36}$/.test(pathname) ||
+            /^\/portal\/client\/[0-9a-f-]{36}$/.test(pathname);
+    };
+
     const renderAppContent = () => {
+        const portalRoute = parsePortalRoute(location.pathname);
+
         // ── SECURITY: Portal user boundary guard ──
         // If a portal user (Client/Tenant) is authenticated but NOT on a portal route,
         // redirect them immediately. This prevents cross-boundary access where a portal
@@ -623,10 +649,23 @@ export const App: React.FC = () => {
         if (currentUser && isPortalUserRole) {
             const isOnPortalRoute = location.pathname.startsWith('/portal/');
             if (!isOnPortalRoute) {
-                const portalPath = currentUser.role === UserRole.Client ? '/portal/client' : '/portal/tenant';
+                // Use token-based URL if the user has a portalAccessToken
+                const token = (currentUser as any).portalAccessToken;
+                const portalPath = currentUser.role === UserRole.Client
+                    ? (token ? `/portal/client/${token}` : '/portal/client')
+                    : (token ? `/portal/tenant/${token}` : '/portal/tenant');
                 // Hard redirect to guarantee clean state
                 window.location.href = portalPath;
                 return null;
+            }
+            // If on /portal/tenant or /portal/client (no token), redirect to token URL
+            if (portalRoute && !portalRoute.token) {
+                const token = (currentUser as any).portalAccessToken;
+                if (token) {
+                    const tokenPath = portalRoute.type === 'client' ? `/portal/client/${token}` : `/portal/tenant/${token}`;
+                    navigate(tokenPath, { replace: true });
+                    return null;
+                }
             }
         }
 
@@ -635,8 +674,7 @@ export const App: React.FC = () => {
         // to the main app. This prevents confusion where an admin sees the portal
         // view instead of their dashboard.
         if (currentUser && !isPortalUserRole) {
-            const isOnPortalDashboard = location.pathname === '/portal/client' || location.pathname === '/portal/tenant';
-            if (isOnPortalDashboard) {
+            if (isPortalDashboardRoute(location.pathname)) {
                 navigate('/', { replace: true });
                 return null;
             }
@@ -648,16 +686,16 @@ export const App: React.FC = () => {
         // navigates to the login page while already logged in.
         if (location.pathname === '/portal/client/login') {
             if (currentUser && currentUser.role === UserRole.Client) {
-                // Already logged in as client — redirect to portal dashboard
-                navigate('/portal/client', { replace: true });
+                const token = (currentUser as any).portalAccessToken;
+                navigate(token ? `/portal/client/${token}` : '/portal/client', { replace: true });
                 return null;
             }
             return <ClientPortalLogin />;
         }
         if (location.pathname === '/portal/tenant/login') {
             if (currentUser && currentUser.role === UserRole.Tenant) {
-                // Already logged in as tenant — redirect to portal dashboard
-                navigate('/portal/tenant', { replace: true });
+                const token = (currentUser as any).portalAccessToken;
+                navigate(token ? `/portal/tenant/${token}` : '/portal/tenant', { replace: true });
                 return null;
             }
             return <TenantPortalLogin />;
@@ -679,9 +717,9 @@ export const App: React.FC = () => {
             // the appropriate login page instead of showing the LandingPage.
             // This fixes the "blank screen" when navigating to /portal/tenant or
             // /portal/client without a valid session.
-            const isOnPortalRoute = location.pathname === '/portal/tenant' || location.pathname === '/portal/client';
+            const isOnPortalRoute = isPortalDashboardRoute(location.pathname);
             if (isOnPortalRoute && !hasRememberedPortal) {
-                const loginPath = location.pathname === '/portal/client' ? '/portal/client/login' : '/portal/tenant/login';
+                const loginPath = portalRoute?.type === 'client' ? '/portal/client/login' : '/portal/tenant/login';
                 navigate(loginPath, { replace: true });
                 return null;
             }
@@ -715,8 +753,8 @@ export const App: React.FC = () => {
             }
 
             // If we timed out waiting for a portal session, redirect to the login page
-            if (isOnPortalRoute) {
-                const loginPath = location.pathname === '/portal/client' ? '/portal/client/login' : '/portal/tenant/login';
+            if (isPortalDashboardRoute(location.pathname)) {
+                const loginPath = portalRoute?.type === 'client' ? '/portal/client/login' : '/portal/tenant/login';
                 navigate(loginPath, { replace: true });
                 return null;
             }

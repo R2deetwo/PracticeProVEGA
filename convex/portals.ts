@@ -2,6 +2,17 @@ import { mutation, query, action, internalQuery, internalMutation } from "./_gen
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
+// ─── Portal Access Token Generator ──────────────────────────────────────────
+// Generates a UUID v4-style token for portal URLs.
+// Format: 8-4-4-4-12 hex chars (e.g. "2e71135d-003e-42dd-83ff-9f7988e7c6ac")
+// These tokens are used in URLs like /portal/tenant/{token} for identification
+// and bookmarkability — NOT for authentication.
+function generatePortalAccessToken(): string {
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  const segment = (len: number) => Array.from({ length: len }, () => hex()).join('');
+  return `${segment(8)}-${segment(4)}-4${segment(3)}-${segment(4)}-${segment(12)}`;
+}
+
 // ─── Maintenance Tickets ────────────────────────────────────────────────
 
 export const createMaintenanceTicket = mutation({
@@ -1103,6 +1114,8 @@ export const setupPortalPassword = action({
       // firmId might have been cleared or might never have been set.
       const needsFirmId = !existingUser.firmId || existingUser.firmId !== invite.firmId;
       portalUserDocId = String(existingUser._id);
+      // Ensure the user has a portal access token (for token-based URLs)
+      const accessToken = (existingUser as any).portalAccessToken || generatePortalAccessToken();
       await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
         userId: existingUser._id,
         fields: {
@@ -1116,6 +1129,8 @@ export const setupPortalPassword = action({
           ...(needsFirmId ? { firmId: invite.firmId } : {}),
           // Online presence privacy: property/resident portals default to hidden
           portalPresenceHidden: invite.portalType === "resident" ? true : (existingUser as any).portalPresenceHidden ?? false,
+          // Portal access token for URL routing
+          portalAccessToken: accessToken,
         },
       });
     } else {
@@ -1125,6 +1140,8 @@ export const setupPortalPassword = action({
       const portalProduct = invite.portalType === "client" ? "legal" : "property";
       const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
       const userName = canonicalTenantName || args.name || invite.inviteeName || email.split("@")[0];
+      // Generate a unique portal access token for URL routing
+      const accessToken = generatePortalAccessToken();
       const newUserId = await ctx.runMutation(internal.myFunctions.createUser, {
         tokenIdentifier: email,
         name: userName,
@@ -1141,6 +1158,7 @@ export const setupPortalPassword = action({
         // (portal users can't see if the manager is online). Legal/client portals
         // default to visible (clients can see if their lawyer is online).
         portalPresenceHidden: invite.portalType === "resident",
+        portalAccessToken: accessToken,
       });
       portalUserDocId = String(newUserId);
     }
@@ -1666,10 +1684,16 @@ export const getTenantInfo = query({
             (unitTenantEmail && emailLower && unitTenantEmail === emailLower);
 
         if (matchesUnit) {
+          // Resolve unit name with robust fallbacks:
+          // Try name → unitName → label → "Unit {index+1}" → id as last resort
+          const unitIdx = units.indexOf(unit);
+          const resolvedUnitName = unit.name || unit.unitName || unit.label
+            || (typeof unitIdx === 'number' && unitIdx >= 0 ? `Unit ${unitIdx + 1}` : null)
+            || unit.id || null;
           tenantUnits.push({
             id: unit.id || unit._id,
-            name: unit.name || unit.unitName || unit.label,
-            unitName: unit.name || unit.unitName || unit.label,
+            name: resolvedUnitName,
+            unitName: resolvedUnitName,
             propertyId: String(prop._id),
             propertyName: (prop as any).name || prop.address || 'Unnamed Property',
             propertyAddress: prop.address,
@@ -2291,6 +2315,11 @@ async function getOrCreateConversation(
  * sendPortalMessage — Allows a portal user (Tenant/Client) to send a message
  * to their firm admin. Automatically creates or continues a conversation.
  * Supports file attachments (Convex storage IDs + original filenames).
+ *
+ * THREADING FIX: If `conversationId` is provided (i.e. user is viewing an
+ * existing conversation), the message is added to that conversation directly.
+ * Without this, getOrCreateConversation might create a duplicate conversation
+ * if the firmId/participantId index lookup has any issues.
  */
 export const sendPortalMessage = mutation({
   args: {
@@ -2306,21 +2335,38 @@ export const sendPortalMessage = mutation({
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
     matterId: v.optional(v.string()),
+    // CRITICAL: Pass the active conversation ID to ensure messages continue in
+    // the same thread. Without this, the backend might create a new conversation.
+    conversationId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    let conversation: any;
 
-    // Get or create the conversation
-    const conversation = await getOrCreateConversation(ctx, {
-      firmId: args.firmId,
-      participantId: args.senderId,
-      participantName: args.senderName,
-      participantEmail: args.senderEmail,
-      participantRole: args.senderRole,
-      propertyId: args.propertyId,
-      unitId: args.unitId,
-      matterId: args.matterId,
-    });
+    // If a conversationId was provided, use it directly (threading fix)
+    if (args.conversationId) {
+      const existing = await ctx.db.get(args.conversationId as any);
+      if (!existing) throw new Error("Conversation not found");
+      conversation = existing;
+      // Update participant info in case it changed
+      await ctx.db.patch(existing._id, {
+        participantName: args.senderName ?? (existing as any).participantName,
+        participantEmail: args.senderEmail ?? (existing as any).participantEmail,
+        updatedAt: now,
+      } as any);
+    } else {
+      // No conversation specified — get or create one
+      conversation = await getOrCreateConversation(ctx, {
+        firmId: args.firmId,
+        participantId: args.senderId,
+        participantName: args.senderName,
+        participantEmail: args.senderEmail,
+        participantRole: args.senderRole,
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        matterId: args.matterId,
+      });
+    }
 
     const conversationId = String(conversation._id);
 
@@ -3209,5 +3255,130 @@ export const getNotice = query({
   args: { noticeId: v.id("portal_notices") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.noticeId);
+  },
+});
+
+// ─── Portal Access Token ────────────────────────────────────────────────────
+// These functions manage the unique, random-looking tokens used in portal URLs
+// (e.g. /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac).
+// Tokens are NOT used for authentication — only for routing and identification.
+
+/**
+ * resolvePortalUserByToken — Looks up a portal user by their access token.
+ * Returns the user's email, role, and token if found. Used by the frontend
+ * to determine which portal to display when loading a token-based URL.
+ */
+export const resolvePortalUserByToken = query({
+  args: { token: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_portal_access_token", (q) => q.eq("portalAccessToken", args.token))
+      .first();
+
+    if (!user) return null;
+    // Only return info for portal users (Client/Tenant)
+    const role = (user as any).role;
+    if (role !== "Client" && role !== "Tenant") return null;
+
+    return {
+      email: (user as any).email,
+      role,
+      name: (user as any).name,
+      portalAccessToken: (user as any).portalAccessToken,
+      firmId: (user as any).firmId,
+    };
+  },
+});
+
+/**
+ * ensurePortalAccessToken — Generates a portal access token for a user if they
+ * don't have one. Returns the existing or new token. Called on login/portal load.
+ */
+export const ensurePortalAccessToken = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!user) return null;
+    const existingToken = (user as any).portalAccessToken;
+    if (existingToken) return existingToken;
+
+    // Generate a unique token (ensure no collision)
+    let token = generatePortalAccessToken();
+    let attempts = 0;
+    while (attempts < 10) {
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_portal_access_token", (q) => q.eq("portalAccessToken", token))
+        .first();
+      if (!existing) break;
+      token = generatePortalAccessToken();
+      attempts++;
+    }
+
+    await ctx.db.patch(user._id, { portalAccessToken: token } as any);
+    return token;
+  },
+});
+
+/**
+ * getPortalAccessToken — Gets the portal access token for the current user.
+ * If they don't have one, generates one. Used by the frontend to build URLs.
+ */
+export const getPortalAccessToken = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!user) return null;
+    return (user as any).portalAccessToken || null;
+  },
+});
+
+/**
+ * migratePortalAccessTokens — One-time migration to generate portal access
+ * tokens for all existing portal users (Client/Tenant) who don't have one.
+ * Returns the count of users updated.
+ */
+export const migratePortalAccessTokens = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const allUsers = await ctx.db.query("users").collect();
+    let updated = 0;
+
+    for (const user of allUsers) {
+      const role = (user as any).role;
+      if (role !== "Client" && role !== "Tenant") continue;
+      if ((user as any).portalAccessToken) continue;
+
+      let token = generatePortalAccessToken();
+      let attempts = 0;
+      while (attempts < 10) {
+        const existing = await ctx.db
+          .query("users")
+          .withIndex("by_portal_access_token", (q) => q.eq("portalAccessToken", token))
+          .first();
+        if (!existing) break;
+        token = generatePortalAccessToken();
+        attempts++;
+      }
+
+      await ctx.db.patch(user._id, { portalAccessToken: token } as any);
+      updated++;
+    }
+
+    return { updated, total: allUsers.filter(u => {
+      const role = (u as any).role;
+      return role === "Client" || role === "Tenant";
+    }).length };
   },
 });

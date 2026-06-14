@@ -175,6 +175,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             accessibleMatterIds: data.accessibleMatterIds,
             isMfaEnabled: data.isMfaEnabled,
             portalPresenceHidden: data.portalPresenceHidden,
+            portalAccessToken: (data as any).portalAccessToken,
             // Explicitly excluded: password, mfaCode, verificationCode, failedLoginAttempts, lockedUntil
             ...localUserOverrides
         };
@@ -203,6 +204,28 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
         }
     }, [currentUser?.role]);
+
+    // Ensure portal users have an access token for token-based URLs.
+    // This runs after login — the token is needed for building portal URLs
+    // like /portal/tenant/{token}. Non-blocking; if it fails, the old
+    // /portal/tenant URL still works.
+    React.useEffect(() => {
+        if (!currentUser) return;
+        if (currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant) return;
+        if ((currentUser as any).portalAccessToken) return; // Already has token
+
+        // Use the Convex client directly to call the mutation (can't use hooks here)
+        convex.mutation(api.portals.ensurePortalAccessToken, { email: currentUser.email || '' })
+            .then((token: string | null) => {
+                if (token) {
+                    // Update the local user object with the new token
+                    setLocalUserOverrides(prev => ({ ...prev, portalAccessToken: token }));
+                }
+            })
+            .catch(() => {
+                // Non-critical — old URL format still works
+            });
+    }, [currentUser?.role, currentUser?.email, (currentUser as any)?.portalAccessToken]);
 
     const originalUser: User | null = React.useMemo(() => {
         if (!originalUserData) return null;
