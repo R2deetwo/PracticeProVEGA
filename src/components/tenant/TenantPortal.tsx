@@ -120,15 +120,22 @@ const TenantPortal: React.FC = () => {
   const userId = currentUser?.id || '';
   const email = currentUser?.email || '';
 
+  // Fallback: if firmId is missing, try to resolve it from the invite record
+  const firmResolution = useQuery(
+    api.portals.resolveFirmFromInvite,
+    !firmId && email ? { email } : 'skip'
+  );
+  const effectiveFirmId = firmId || firmResolution?.firmId || '';
+
   const tenantInfo = useQuery(
     api.portals.getTenantInfo,
-    firmId && userId ? { firmId, userId, email } : 'skip'
+    effectiveFirmId && userId ? { firmId: effectiveFirmId, userId, email } : 'skip'
   );
 
   // Fetch firm portal settings for messaging toggle
   const portalSettings = useQuery(
     api.portals.getFirmPortalSettings,
-    firmId ? { firmId } : 'skip'
+    effectiveFirmId ? { firmId: effectiveFirmId } : 'skip'
   );
 
   // Access guard
@@ -301,13 +308,13 @@ const TenantPortal: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
-        {activeTab === 'notices' && <NoticesTab tenantInfo={tenantInfo} />}
-        {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} />}
-        {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} addToast={addToast} />}
-        {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} addToast={addToast} />}
-        {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} portalSettings={portalSettings} addToast={addToast} />}
-        {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} addToast={addToast} />}
-        {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} addToast={addToast} />}
+        {activeTab === 'notices' && <NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
+        {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
+        {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+        {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+        {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} />}
+        {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+        {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
       </div>
     </div>
   );
@@ -317,9 +324,9 @@ const TenantPortal: React.FC = () => {
 // All sub-tabs receive tenantInfo from the parent to avoid duplicate queries
 
 // ─── Notice Board Tab ────────────────────────────────────────────────────────
-const NoticesTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
+const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
 
   // Fetch active notices for this firm, scoped to the tenant's property/unit
   const notices = useQuery(
@@ -429,9 +436,9 @@ const NoticesTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
 };
 
 // ─── Financial Ledger Tab ────────────────────────────────────────────────────
-const LedgerTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
+const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
 
   const resolvedTenantId = tenantInfo?.tenantId || userId;
@@ -684,9 +691,9 @@ const LedgerTab: React.FC<{ tenantInfo: any }> = ({ tenantInfo }) => {
 };
 
 // ─── Receipts Tab ────────────────────────────────────────────────────────────
-const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
@@ -833,9 +840,9 @@ const ReceiptsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, 
 };
 
 // ─── Maintenance Tab ─────────────────────────────────────────────────────────
-const MaintenanceTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
@@ -1140,10 +1147,10 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNod
 };
 
 // ─── Messages Tab ────────────────────────────────────────────────────────────
-const MessagesTab: React.FC<{ tenantInfo: any; portalSettings: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, portalSettings, addToast }) => {
+const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalSettings: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, portalSettings, addToast }) => {
   const { currentUser } = useAuth();
   const userId = currentUser?.id || '';
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const email = currentUser?.email || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
@@ -1331,9 +1338,9 @@ const MessagesTab: React.FC<{ tenantInfo: any; portalSettings: any; addToast: (m
 };
 
 // ─── Payments Tab (Upload Payment Proof) ─────────────────────────────────────
-const PaymentsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
 
@@ -1633,9 +1640,9 @@ const ShieldCheckIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const DocumentsTab: React.FC<{ tenantInfo: any; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, addToast }) => {
+const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser } = useAuth();
-  const firmId = currentUser?.firmId || '';
+  const firmId = effectiveFirmId || currentUser?.firmId || '';
   const userId = currentUser?.id || '';
   const email = currentUser?.email || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;

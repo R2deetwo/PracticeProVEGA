@@ -384,17 +384,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         const portalType = sessionStorage.getItem('practicepro_portal_type');
         const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
 
+        // Fire-and-forget tracking — NEVER block logout on analytics.
+        // If the Convex connection is stale or the network is slow, awaiting
+        // this mutation can cause the logout button to appear unresponsive.
         if (currentUser && currentUser.email !== 'demo@practicepro.ng') {
-            try {
-                await trackEventMutation({
-                    firmId: currentUser.firmId || 'none',
-                    userId: currentUser.id,
-                    event: 'User Logout',
-                    properties: { email: currentUser.email }
-                });
-            } catch (e) {
-                console.warn("[Auth] Logout tracking failed:", e);
-            }
+            trackEventMutation({
+                firmId: currentUser.firmId || 'none',
+                userId: currentUser.id,
+                event: 'User Logout',
+                properties: { email: currentUser.email }
+            }).catch(e => console.warn("[Auth] Logout tracking failed:", e));
         }
 
         // Clear in-memory React state FIRST so the UI immediately stops rendering

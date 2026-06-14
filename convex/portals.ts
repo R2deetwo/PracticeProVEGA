@@ -1195,6 +1195,52 @@ export const getTenantInfo = query({
   },
 });
 
+/**
+ * resolveFirmFromInvite — Fallback for portal users whose firmId is missing.
+ * Looks up the most recent portal invite for this email to find the firmId.
+ * Also checks if any invite record has a firmId we can use.
+ */
+export const resolveFirmFromInvite = query({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.toLowerCase().trim();
+
+    // 1. Check portal_invites for the most recent invite with a firmId
+    const invites = await ctx.db
+      .query("portal_invites")
+      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+      .collect();
+
+    // Sort by creation time descending (most recent first)
+    const sorted = invites.sort((a, b) => (b._creationTime || 0) - (a._creationTime || 0));
+    const latestInvite = sorted.find(inv => inv.firmId);
+
+    if (latestInvite?.firmId) {
+      return {
+        firmId: latestInvite.firmId,
+        portalType: latestInvite.portalType,
+        source: 'invite' as const,
+      };
+    }
+
+    // 2. Check if the user has a firmId on their user record
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (user?.firmId) {
+      return {
+        firmId: user.firmId,
+        portalType: (user as any).product === 'atrium' ? 'resident' as const : 'client' as const,
+        source: 'user_record' as const,
+      };
+    }
+
+    return null;
+  },
+});
+
 export const getTenantLedger = query({
   args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
   handler: async (ctx, args) => {

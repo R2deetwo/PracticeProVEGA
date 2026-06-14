@@ -367,15 +367,24 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // useFeatures() can evaluate feature gates correctly. Without this,
     // the portal dashboard shows "Portal Unavailable" because useFeatures
     // defaults to Core plan when firmDetails is empty.
-    const shouldLoadFirmBasicInfo = !isDemo && isPortalUser && !!currentUser?.firmId;
+    // FALLBACK: If firmId is missing, try to resolve it from invite records.
+    const portalFirmResolution = useQuery(
+        api.portals.resolveFirmFromInvite,
+        !isDemo && isPortalUser && !currentUser?.firmId && currentUser?.email
+            ? { email: currentUser!.email }
+            : 'skip'
+    );
+    const effectiveFirmId = currentUser?.firmId || portalFirmResolution?.firmId || '';
+
+    const shouldLoadFirmBasicInfo = !isDemo && isPortalUser && !!effectiveFirmId;
     const firmBasicInfo = useQuery(
         api.myFunctions.getFirmBasicInfo,
-        shouldLoadFirmBasicInfo ? { firmId: currentUser!.firmId! } : 'skip'
+        shouldLoadFirmBasicInfo ? { firmId: effectiveFirmId } : 'skip'
     );
 
     // Merge firm basic info into appState for portal users
     React.useEffect(() => {
-        if (isPortalUser && firmBasicInfo && currentUser?.firmId) {
+        if (isPortalUser && firmBasicInfo && effectiveFirmId) {
             setAppState(prev => ({
                 ...prev,
                 firmDetails: {
@@ -391,20 +400,20 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 },
             }));
         }
-    }, [isPortalUser, firmBasicInfo, currentUser?.firmId]);
+    }, [isPortalUser, firmBasicInfo, effectiveFirmId]);
 
     // Phase A — fast metadata (lists only)
     // Portal users don't need full firm data — skip these heavy queries
     const shouldLoadFirmData = !isDemo && !isPortalUser && !!currentUser?.firmId;
     const firmMetadata = useQuery(
         api.myFunctions.getFirmMetadata,
-        shouldLoadFirmData ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId } : 'skip'
     );
 
     // Phase B — full data (runs in parallel, merges when ready)
     const firmData = useQuery(
         api.myFunctions.getFirmData,
-        shouldLoadFirmData ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId } : 'skip'
     );
 
     // Track which phase we're in so UI can show a subtle secondary loader

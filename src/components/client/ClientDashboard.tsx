@@ -166,19 +166,26 @@ const ClientDashboard: React.FC = () => {
     // Portal users don't have matterState (DataProvider skips firm data),
     // so we use dedicated portal queries that look up the contact by userId.
 
+    // Fallback: if firmId is missing, try to resolve it from invite records
+    const firmResolution = useQuery(
+        api.portals.resolveFirmFromInvite,
+        !currentUser?.firmId && currentUser?.email ? { email: currentUser.email } : 'skip'
+    );
+    const effectiveFirmId = currentUser?.firmId || firmResolution?.firmId || '';
+
     // 1. Look up the client's contact record by userId
     const clientContactResult = useQuery(
         api.portals.getClientContactByUserId,
-        (currentUser?.id && currentUser?.firmId)
-            ? { firmId: currentUser.firmId, userId: currentUser.id }
+        (currentUser?.id && effectiveFirmId)
+            ? { firmId: effectiveFirmId, userId: currentUser.id }
             : 'skip'
     );
 
     // 2. Get the client's matters directly from Convex
     const clientMattersResult = useQuery(
         api.portals.getClientMattersByUserId,
-        (currentUser?.id && currentUser?.firmId)
-            ? { firmId: currentUser.firmId, userId: currentUser.id }
+        (currentUser?.id && effectiveFirmId)
+            ? { firmId: effectiveFirmId, userId: currentUser.id }
             : 'skip'
     );
 
@@ -186,8 +193,8 @@ const ClientDashboard: React.FC = () => {
     const clientContactId = clientContactResult?._id ? String(clientContactResult._id) : null;
 
     // Convex queries — always called, use "skip" when args not ready
-    const portalQueryArgs = (clientContactId && currentUser?.firmId)
-        ? { firmId: currentUser.firmId, contactId: clientContactId }
+    const portalQueryArgs = (clientContactId && effectiveFirmId)
+        ? { firmId: effectiveFirmId, contactId: clientContactId }
         : 'skip';
 
     const clientDocs = useQuery(api.portals.getClientDocuments, portalQueryArgs);
