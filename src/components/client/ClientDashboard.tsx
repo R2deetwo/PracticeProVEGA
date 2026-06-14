@@ -8,11 +8,12 @@ import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
-    ChatAltIcon, ClockIcon, CheckCircleIcon, BanknotesIcon,
+    ChatAltIcon, ClockIcon, CheckCircleIcon,
     UploadIcon, SendIcon, ScalesIcon,
     ExclamationTriangleIcon, EyeIcon, ChevronRightIcon,
     LargeFolderIcon, UserCircleIcon
 } from '../../constants';
+import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
@@ -442,7 +443,7 @@ const ClientDashboard: React.FC = () => {
                     value={clientDocs === undefined ? '—' : pendingDocsCount}
                 />
                 <SummaryCard
-                    icon={<BanknotesIcon className="w-5 h-5" />}
+                    icon={<Receipt className="w-5 h-5" />}
                     label="Outstanding Invoices"
                     value={clientInvoices === undefined ? '—' : outstandingInvoicesCount}
                     accent={clientInvoices !== undefined && outstandingInvoicesCount > 0 ? 'text-amber-600 dark:text-amber-400' : undefined}

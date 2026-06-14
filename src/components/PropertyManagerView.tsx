@@ -68,7 +68,7 @@ const PropertyListItem: React.FC<{
     return (
         <div
             onClick={onClick}
-            className={`group relative p-3 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3 mb-2 rounded-xl border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isSelected ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : leaseExpired ? 'border-l-red-400 bg-white dark:bg-zinc-900 shadow-sm' : leaseUrgent ? 'border-l-amber-400 bg-white dark:bg-zinc-900 shadow-sm' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
             <div className="flex items-start gap-2">
                 <div className="flex-1 min-w-0">
@@ -79,7 +79,7 @@ const PropertyListItem: React.FC<{
                                 {unitCount && unitCount > 1 && (
                                     <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{unitCount} Units</span>
                                 )}
-                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">{ownerName}</span>
+                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[140px]">{ownerName}</span>
                                 {allRents.length > 0 ? (
                                     <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                                         {showRange

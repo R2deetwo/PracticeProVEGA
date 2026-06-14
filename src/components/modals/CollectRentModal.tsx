@@ -10,7 +10,6 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { generateReceiptNumber } from '../../utils/invoiceHelpers';
 import { 
-    BanknotesIcon, 
     CalendarIcon, 
     CheckCircleIcon, 
     XIcon, 
@@ -19,6 +18,7 @@ import {
     CalculatorIcon,
     DownloadIcon
 } from '../../constants';
+import { Receipt } from 'lucide-react';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira, formatDateWithOrdinal } from '../../utils/formatting';
 import { v4 as uuidv4 } from 'uuid';
@@ -307,7 +307,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         <div className="p-1 sm:p-4">
             <div className="mb-6 flex items-start gap-4">
                 <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-2xl text-green-600 dark:text-green-400">
-                    <BanknotesIcon className="w-6 h-6" />
+                    <Receipt className="w-6 h-6" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Issue Rent Receipt</h3>

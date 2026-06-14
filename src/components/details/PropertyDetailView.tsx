@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
-import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, BanknotesIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
+import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon } from '../../constants';
 import { formatNaira, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
@@ -659,18 +659,18 @@ const PropertyDetailViewContent: React.FC = () => {
             {/* Tabs — horizontally scrollable on mobile */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                 <div className="max-w-7xl mx-auto px-3 sm:px-6">
-                    <nav className="-mb-px flex space-x-4 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap">
+                    <nav className="-mb-px flex space-x-3 sm:space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap scrollbar-none">
                         {([
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
-                            { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> Activity & Tracking</> },
-                            { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs & Financials</> },
+                            { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
+                            { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs <span className="hidden sm:inline">&amp; Financials</span></> },
                         ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${
+                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors flex-shrink-0 ${
                                     activeTab === tab.id
                                         ? 'border-primary-500 text-primary-600 dark:text-primary-400'
                                         : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
@@ -901,9 +901,10 @@ const PropertyDetailViewContent: React.FC = () => {
                     });
                     const isEmbeddedUnit = (unit: any) => legacyUnits.some((lu: any) => lu.id === unit.id);
                     const statusColors: Record<string, string> = {
-                        'Occupied': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-                        'Vacant': 'bg-slate-100 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300',
-                        'Maintenance': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+                        'Occupied': 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+                        'Vacant': 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600',
+                        'Maintenance': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
+                        'Listed': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
                     };
                     const occupiedCount = units.filter(u => u?.status === 'Occupied').length;
                     const vacantCount = units.filter(u => u?.status === 'Vacant').length;
@@ -1163,25 +1164,30 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         ref={isSelected ? (el: HTMLDivElement | null) => { if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 120); } : undefined}
                                                         onClick={() => { setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowUnitMessaging(false); setShowFullUnitDetail(false); }}
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                                        className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-2.5'}`}
+                                                        className={`${typeBg} rounded-xl border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'}`}
                                                     >
                                                         {/* ── Card Header ── */}
-                                                        <div className="flex items-start justify-between mb-1.5">
+                                                        <div className="flex items-center justify-between mb-2">
                                                             <div className="min-w-0 flex-1 pr-2">
-                                                                <p className="font-bold text-slate-900 dark:text-white text-[13px] truncate">{d.name}</p>
-                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500">Floor {d.floor}</p>}
+                                                                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
+                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
                                                             </div>
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide flex-shrink-0 ${statusColors[uStatus] || 'bg-slate-100 text-slate-600'}`}>
+                                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
                                                                 {uStatus}
                                                             </span>
                                                         </div>
 
                                                         {/* ── Micro-Profile: Operational dynamics only ── */}
-                                                        <div className="space-y-1 text-xs">
+                                                        <div className="space-y-1 text-xs min-w-0 overflow-hidden">
                                                             {d.tenantName && (
-                                                                <p className="text-slate-700 dark:text-zinc-200 truncate">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Tenant</span>{d.tenantName}
-                                                                </p>
+                                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                                    <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-600 flex items-center justify-center flex-shrink-0">
+                                                                        <span className="text-[8px] font-black text-slate-500 dark:text-zinc-300">{d.tenantName.charAt(0).toUpperCase()}</span>
+                                                                    </div>
+                                                                    <p className="text-slate-800 dark:text-zinc-100 text-xs font-semibold truncate min-w-0">
+                                                                        {d.tenantName}
+                                                                    </p>
+                                                                </div>
                                                             )}
 
                                                             {/* Service Charge — always show if amount > 0 */}
@@ -1249,7 +1255,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         </div>
 
                                                         {/* ── Card Footer: contextual badge + actions ── */}
-                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2">
+                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2 min-w-0 gap-1">
                                                             {statusBadge ? (
                                                                 <Tooltip text={statusBadge.tooltip} allowWrap>
                                                                     <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
@@ -1299,7 +1305,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                                         <>
                                                                                             <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
-                                                                                                <BanknotesIcon className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
+                                                                                                <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
                                                                                             </button>
                                                                                             <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
                                                                                                 <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
@@ -1416,32 +1422,32 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             Tier 2 (shown on "More"): Full detail card with metadata + all actions
                                                         */}
                                                         {isSelected && (
-                                                            <div className="mt-3 pt-3 border-t border-primary-200 dark:border-primary-700 animate-fade-in">
+                                                            <div className="mt-3 pt-3 border-t border-primary-200/60 dark:border-primary-700/50 animate-fade-in">
                                                                 {/* ── Tier 1: Compact Quick-Action Bar ── */}
-                                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                                <div className="flex flex-wrap items-center gap-2">
                                                                     {/* Close button — leftmost */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); setShowFullUnitDetail(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors mr-1" title="Close">
-                                                                        <XIcon className="w-3.5 h-3.5" />
+                                                                    <button onClick={(e) => { e.stopPropagation(); setSelectedUnit(null); setShowUnitMessaging(false); setShowFullUnitDetail(false); }} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors" title="Close">
+                                                                        <XIcon className="w-4 h-4" />
                                                                     </button>
 
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Record Payment & Issue Receipt">
-                                                                            <BanknotesIcon className="w-3 h-3" /> Pay
+                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" title="Record Payment & Issue Receipt">
+                                                                            <Receipt className="w-3 h-3" /> Pay
                                                                         </button>
                                                                     )}
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Rent Demand Notice">
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800" title="Rent Demand Notice">
                                                                             <Megaphone className="w-3 h-3" /> Demand
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'}`} title="Message Tenant">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} title="Message Tenant">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors" title="Edit Unit">
+                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" title="Edit Unit">
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
                                                                     {/* More button — reveals full detail card */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40'}`} title="Full unit details & more actions">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} title="Full unit details & more actions">
                                                                         <CogIcon className="w-3 h-3" /> {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>
@@ -1553,7 +1559,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         </div>
 
                                                                         {/* Secondary actions — less frequent operations */}
-                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-zinc-700">
+                                                                        <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-zinc-700">
                                                                             {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                                 <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Ledger-only entry (no receipt)">
                                                                                     <Wallet className="w-3 h-3" /> Ledger Entry
@@ -1683,8 +1689,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                 const totalAnnual = allRent + allServiceCharge;
                                 return (
                                     <>
-                                        <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<BanknotesIcon />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
-                                        <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<BanknotesIcon />} colorClass="bg-blue-600" scrollOnOverflow={true} />
+                                        <StatCard title="Total Annual Revenue" value={<><NairaSymbol />{formatNaira(totalAnnual)}</>} icon={<Receipt />} colorClass="bg-emerald-600" scrollOnOverflow={true} />
+                                        <StatCard title="Recurring Rent" value={<><NairaSymbol />{formatNaira(allRent)}</>} icon={<Receipt />} colorClass="bg-blue-600" scrollOnOverflow={true} />
                                         <StatCard title="Service Charges" value={<><NairaSymbol />{formatNaira(allServiceCharge)}</>} icon={<Receipt />} colorClass="bg-amber-600" scrollOnOverflow={true} />
                                         <StatCard title="SC Status" value={`${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Unpaid`} icon={<CheckCircleIcon />} colorClass={unpaidCount > 0 ? 'bg-orange-600' : partialCount > 0 ? 'bg-amber-600' : 'bg-green-600'} scrollOnOverflow={true} />
                                     </>
@@ -1794,14 +1800,14 @@ const PropertyDetailViewContent: React.FC = () => {
                             <StatCard
                                 title={isSale ? "Target Sale Value" : "Collected YTD"}
                                 value={<><NairaSymbol />{formatNaira(isSale ? (property.saleDetails?.targetPrice || property.value || 0) : (allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0))}</>}
-                                icon={<BanknotesIcon />}
+                                icon={<Receipt />}
                                 colorClass="bg-green-600"
                             />
                             {property.ownershipType !== 'owned' && !isSale && (
                                 <StatCard
                                     title="Management Fees Earned"
                                     value={<><NairaSymbol />{formatNaira((allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * (property.managementFeePercentage || 0) / 100)}</>}
-                                    icon={<BanknotesIcon />}
+                                    icon={<Receipt />}
                                     colorClass="bg-blue-600"
                                 />
                             )}
@@ -1817,7 +1823,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 shadow-sm">
                             <div className="flex items-start gap-4">
                                 <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
-                                    <BanknotesIcon className="w-5 h-5" />
+                                    <Receipt className="w-5 h-5" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-slate-900 dark:text-white mb-1">Financial Reconciliation</h4>

@@ -419,6 +419,11 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // Track which phase we're in so UI can show a subtle secondary loader
     const [isFullyLoaded, setIsFullyLoaded] = React.useState(false);
 
+    // Ref to track the last merged firmData identity — allows us to re-merge
+    // when Convex pushes an update (e.g. after createPortalInvite updates units[])
+    // without causing infinite loops.
+    const lastMergedFirmDataRef = React.useRef<any>(null);
+
     React.useEffect(() => {
         if (isDemo) {
             const isAtrium = currentUser?.product === 'atrium' || window.sessionStorage.getItem('practicepro_demo_product') === 'atrium';
@@ -447,8 +452,11 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setIsDataLoaded(true); // UI becomes interactive here
         }
 
-        // Phase B: full data arrives — merge without re-freezing UI
-        if (firmData && !isFullyLoaded) {
+        // Phase B: full data — merge whenever firmData changes (not just first time)
+        // This ensures that reactive Convex updates (e.g. after linking a portal user
+        // to a property unit) are reflected in appState even after initial load.
+        if (firmData && firmData !== lastMergedFirmDataRef.current) {
+            lastMergedFirmDataRef.current = firmData;
             setAppState(prev => {
                 const newState = { ...prev };
                 for (const [key, backendValue] of Object.entries(firmData as any)) {
@@ -470,7 +478,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 }
                 return newState;
             });
-            setIsFullyLoaded(true);
+            if (!isFullyLoaded) setIsFullyLoaded(true);
         }
     }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
 

@@ -22,14 +22,14 @@ import {
   DownloadIcon,
   CheckIcon,
   ExclamationTriangleIcon,
-  BanknotesIcon,
   DocumentIcon,
   MailIcon,
   BellIcon,
 } from '../../constants';
+import { Receipt as ReceiptIcon } from 'lucide-react';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
-const ReceiptIcon: React.FC<{ className?: string }> = ({ className }) => (
+const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
     <path d="M8 7h8" /><path d="M8 11h8" /><path d="M8 15h5" />
@@ -2116,7 +2116,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
                     ? 'bg-rose-50 dark:bg-rose-900/20'
                     : 'bg-amber-50 dark:bg-amber-900/20'
                 }`}>
-                  <BanknotesIcon className={`w-4 h-4 ${
+                  <ReceiptIcon className={`w-4 h-4 ${
                     proof.status === 'approved'
                       ? 'text-emerald-600 dark:text-emerald-400'
                       : proof.status === 'rejected'
@@ -2148,7 +2148,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
       ) : (
         <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
           <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
-            <BanknotesIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+            <ReceiptIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
           </div>
           <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No payment proofs submitted</p>
           <p className="text-xs text-slate-500 dark:text-zinc-400">
@@ -2642,7 +2642,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
       {hasProofs && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <BanknotesIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <ReceiptIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Payment Proofs</h4>
           </div>
           <div className="space-y-2">
@@ -2659,7 +2659,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                       ? 'bg-rose-50 dark:bg-rose-900/20'
                       : 'bg-amber-50 dark:bg-amber-900/20'
                   }`}>
-                    <BanknotesIcon className={`w-4 h-4 ${
+                    <ReceiptIcon className={`w-4 h-4 ${
                       proof.status === 'approved'
                         ? 'text-emerald-600 dark:text-emerald-400'
                         : proof.status === 'rejected'

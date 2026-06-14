@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Expense, Matter } from '../../types';
 import { formatNumberWithCommas, parseFormattedNumber, formatNaira } from '../../utils/formatting';
 import { analyzeExpenseDeductibility } from '../../agents/NigerianTaxComplianceAgent';
-import { ZapIcon, BanknotesIcon, CalendarIcon, SaveIcon, XIcon, OfficeBuildingIcon, ShieldCheckIcon, InfoIcon } from '../../constants';
+import { ZapIcon, CalendarIcon, SaveIcon, XIcon, OfficeBuildingIcon, ShieldCheckIcon, InfoIcon } from '../../constants';
+import { Receipt } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
 import NairaSymbol from '../NairaSymbol';
@@ -81,7 +82,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                 <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
-                            <BanknotesIcon className="w-3.5 h-3.5" />
+                            <Receipt className="w-3.5 h-3.5" />
                         </div>
                         <div>
                             <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
@@ -135,7 +136,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                     </div>                    <div className="flex flex-wrap justify-between items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                          <label htmlFor="isBillable" className="flex items-center gap-4 cursor-pointer">
                             <div className={`p-1.5 rounded-lg transition-colors ${isBillable ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30' : 'bg-slate-100 text-slate-400 dark:bg-zinc-800 dark:text-zinc-600'}`}>
-                                <BanknotesIcon className="w-3.5 h-3.5" />
+                                <Receipt className="w-3.5 h-3.5" />
                             </div>
                             <div>
                                 <p className="text-[10px] font-black text-slate-700 dark:text-zinc-300 uppercase tracking-widest leading-none mb-1">Billable Expense</p>

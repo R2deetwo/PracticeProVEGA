@@ -209,3 +209,38 @@ Stage Summary:
 - Conversation threading fixed by passing conversationId explicitly
 - Unit numbers show more reliably with fallback chain
 - 3 existing portal users migrated with tokens
+
+---
+Task ID: 1
+Agent: full-stack-developer
+Task: Fix tenant names, replace icons, fix overflow, improve units UI
+
+Work Log:
+- Fixed DataProvider.tsx reactive sync: Added `lastMergedFirmDataRef` to track last merged firmData identity, changed Phase B condition from `!isFullyLoaded` to `firmData !== lastMergedFirmDataRef.current` so Convex reactive updates (e.g. after portal invite links tenant to unit) continue to merge into appState even after initial load
+- Replaced BanknotesIcon with Receipt from lucide-react across 7 files:
+  - PropertyDetailView.tsx: 7 instances (Pay button, Record payment, stat cards, reconciliation icon) + removed BanknotesIcon from constants import
+  - TenantPortal.tsx: 4 instances (payment proof status icons, empty state, messages section) + imported Receipt as ReceiptIcon from lucide-react
+  - CollectRentModal.tsx: 1 instance (modal header) + added Receipt import from lucide-react
+  - ClientDashboard.tsx: 1 instance (outstanding invoices card) + added Receipt import
+  - PropertyReports.tsx: 2 instances (rent stat cards) + added Receipt import
+  - ExpenseForm.tsx: 2 instances (matter association, billable expense) + added Receipt import
+- Fixed tab bar truncation in PropertyDetailView.tsx: Made tabs scrollable with `flex-shrink-0`, reduced mobile spacing, abbreviated "Activity & Tracking" → "Tracking" on mobile, "Docs & Financials" → "Docs" on mobile using hidden sm:inline spans
+- Fixed overflow on unit cards: Added `overflow-hidden` to card container, `min-w-0` to micro-profile and footer sections, `gap-1` to footer
+- Fixed property card overflow in PropertyManagerView.tsx: Added `overflow-hidden` to card, increased ownerName max-width to 140px
+- Improved units page UI:
+  - Better card padding (p-3 instead of p-2.5 for collapsed, p-4/p-5 for expanded)
+  - Better unit name hierarchy (text-sm instead of text-[13px])
+  - Professional status badges with borders (rounded-md + border classes, lighter backgrounds)
+  - Added 'Listed' status color
+  - Tenant name now shows with avatar initial circle and semibold styling instead of "Tenant" label
+  - Better action button spacing (gap-2 instead of gap-1.5)
+  - Primary Pay button with solid emerald background + shadow
+  - Secondary buttons with border styling for better visual hierarchy
+  - Improved secondary actions spacing (gap-2, pt-3, mt-3)
+
+Stage Summary:
+- Tenant names now properly update in units after portal creation due to reactive Convex sync fix
+- All payment/receipt UI now uses proper Receipt icon from lucide-react instead of broken BanknotesIcon SVG
+- Tab bar no longer truncates on mobile; uses abbreviated labels on small screens
+- Unit cards have cleaner layout with proper overflow handling, professional badges, and better visual hierarchy
+- No new TypeScript errors introduced by these changes

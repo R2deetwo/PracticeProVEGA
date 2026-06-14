@@ -5,7 +5,8 @@ import { useMatterState } from '../../contexts/MatterContext';
 import StatCard from '../StatCard';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
-import { OfficeBuildingIcon, BanknotesIcon, CheckCircleIcon } from '../../constants';
+import { OfficeBuildingIcon, CheckCircleIcon } from '../../constants';
+import { Receipt } from 'lucide-react';
 import Tooltip from '../Tooltip';
 
 const BarChart: React.FC<{ data: { label: string; value: number }[]; color: string }> = ({ data, color }) => {
@@ -112,8 +113,8 @@ const PropertyReports: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard title="Total Properties" value={kpis.totalProperties} icon={<OfficeBuildingIcon />} colorClass="text-indigo-500" />
                 <StatCard title="Occupancy Rate" value={`${kpis.occupancyRate.toFixed(1)}%`} icon={<CheckCircleIcon />} colorClass="text-green-500" />
-                <StatCard title="Rent Collected (YTD)" value={<><NairaSymbol/>{formatNaira(kpis.totalRentCollectedYTD)}</>} icon={<BanknotesIcon />} colorClass="text-blue-500" />
-                <StatCard title="Total Expected Rent" value={<><NairaSymbol/>{formatNaira(kpis.totalExpectedRent)}</>} icon={<BanknotesIcon />} colorClass="text-purple-500" />
+                <StatCard title="Rent Collected (YTD)" value={<><NairaSymbol/>{formatNaira(kpis.totalRentCollectedYTD)}</>} icon={<Receipt />} colorClass="text-blue-500" />
+                <StatCard title="Total Expected Rent" value={<><NairaSymbol/>{formatNaira(kpis.totalExpectedRent)}</>} icon={<Receipt />} colorClass="text-purple-500" />
             </div>
              <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border border-black/5 dark:border-white/5">
                 <h3 className="text-lg font-bold mb-4">Rent Collection by Property (Top 10)</h3>
