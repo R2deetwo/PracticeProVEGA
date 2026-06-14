@@ -262,12 +262,15 @@ const InviteForm: React.FC<{
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
       else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+      else if (result.emailError) parts.push(`email failed: ${result.emailError}`);
       if (result.whatsappSent) parts.push('WhatsApp delivered');
       else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
+      else if (result.whatsappError) parts.push(`WhatsApp failed: ${result.whatsappError}`);
       else if (result.whatsappSkipped && (channel === 'whatsapp' || channel === 'both')) parts.push('WhatsApp skipped (no phone number)');
 
       const feedback = parts.length > 0 ? parts.join(', ') : 'invitation created';
-      addToast(`Invitation sent — ${feedback}`, { type: 'success' });
+      const hasErrors = result.emailError || result.whatsappError;
+      addToast(`Invitation sent — ${feedback}`, { type: hasErrors ? 'info' : 'success' });
       onSent();
     } catch (err: any) {
       const msg = err?.message || 'Failed to send invitation';
@@ -853,6 +856,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   // Delete with confirmation — shows dialog, then calls cleanup mutation
   const handleDeleteRequest = (invite: any) => {
+    console.log('[PortalAccessSettings] Delete requested for invite:', invite?._id, invite?.inviteeEmail);
     setDeleteTarget(invite);
   };
 
@@ -860,15 +864,26 @@ export const PortalAccessSettings: React.FC = () => {
     if (!deleteTarget || isDeleting) return;
     const inviteId = deleteTarget._id;
     const inviteEmail = deleteTarget.inviteeEmail || '';
+    console.log('[PortalAccessSettings] Confirming delete:', { inviteId, inviteEmail, inviteIdType: typeof inviteId });
     setIsDeleting(true);
     try {
-      console.log('[PortalAccessSettings] Deleting invite:', { inviteId, inviteEmail });
-      await deleteInvite({ inviteId, inviteeEmail: inviteEmail || undefined });
+      // Try the full cleanup mutation first
+      await deleteInvite({ inviteId: inviteId as any, inviteeEmail: inviteEmail || undefined });
+      console.log('[PortalAccessSettings] Delete succeeded for:', inviteId);
       addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
       setDeleteTarget(null);
     } catch (err: any) {
       console.error('[PortalAccessSettings] Delete failed:', err);
-      addToast(err.message || 'Failed to delete invitation.', { type: 'error' });
+      // If the cleanup mutation fails, try a simpler revoke as fallback
+      try {
+        console.log('[PortalAccessSettings] Attempting fallback revoke for:', inviteId);
+        await revokeInvite({ inviteId: inviteId as any });
+        addToast('Portal access revoked (cleanup partially failed — user account may need manual reset).', { type: 'success' });
+        setDeleteTarget(null);
+      } catch (fallbackErr: any) {
+        console.error('[PortalAccessSettings] Fallback revoke also failed:', fallbackErr);
+        addToast(fallbackErr.message || err.message || 'Failed to delete invitation. Please try again.', { type: 'error' });
+      }
       // Don't close the dialog on error — let the user retry or cancel
     } finally {
       setIsDeleting(false);

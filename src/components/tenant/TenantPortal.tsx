@@ -115,6 +115,7 @@ const TenantPortal: React.FC = () => {
   const relinkToProperty = useMutation(api.portals.relinkPortalUserToProperty);
   const [isRepairing, setIsRepairing] = useState(false);
   const [hasAttemptedRelink, setHasAttemptedRelink] = useState(false);
+  const [hasAttemptedFirmRepair, setHasAttemptedFirmRepair] = useState(false);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -144,7 +145,33 @@ const TenantPortal: React.FC = () => {
     effectiveFirmId ? { firmId: effectiveFirmId } : 'skip'
   );
 
-  // ── Self-healing: Auto-relink tenant to property if tenantInfo is empty ──
+  // ── Self-healing #1: Auto-repair missing firmId ──
+  // If the user has no firmId AND the invite resolution also failed, try the
+  // repair mutation which searches multiple sources. This is critical because
+  // portal access deletion can leave the user without a firmId.
+  useEffect(() => {
+    if (hasAttemptedFirmRepair) return;
+    if (!email) return;
+    if (effectiveFirmId) return; // Already have a firmId
+    if (firmResolution === undefined) return; // Still loading
+
+    // Both firmId and firmResolution are empty/null — need repair
+    console.log('[TenantPortal] No firmId and no invite resolution. Attempting auto-repair...');
+    setHasAttemptedFirmRepair(true);
+    repairFirmId({ email })
+      .then((result: any) => {
+        if (result.success) {
+          console.log('[TenantPortal] Auto-repair successful. firmId restored:', result.firmId);
+        } else {
+          console.warn('[TenantPortal] Auto-repair failed:', result.message);
+        }
+      })
+      .catch((err: any) => {
+        console.warn('[TenantPortal] Auto-repair error:', err);
+      });
+  }, [effectiveFirmId, firmResolution, email, hasAttemptedFirmRepair]);
+
+  // ── Self-healing #2: Auto-relink tenant to property if tenantInfo is empty ──
   // When getTenantInfo returns an empty result (no matching property/unit found),
   // this could mean the property record's currentTenantId is stale or missing.
   // We attempt a one-time relink to fix the data automatically.

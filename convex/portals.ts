@@ -118,7 +118,7 @@ export const createPortalInvite = action({
     channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
     message: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean }> => {
+  handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
     const now = Date.now();
     const expiresAt = now + 30 * 24 * 60 * 60 * 1000; // 30 days — gives tenants ample time to set up
     const token = generateToken();
@@ -190,9 +190,14 @@ export const createPortalInvite = action({
     const personalMsg = args.message ? `\n\nPersonal message: ${args.message}` : "";
 
     // 3. Send via email (skip if no email address provided)
+    // ROBUSTNESS: Wrap in try/catch so email failures never crash the action.
+    // The invite record is already created (step 1) — losing it because email
+    // sending failed is unacceptable.
     const shouldSendEmail = (channel === "email" || channel === "both") && args.inviteeEmail;
     let emailResult: any = { success: true, simulated: true };
+    let emailError = "";
     if (shouldSendEmail) {
+      try {
       const htmlBody = `<!DOCTYPE html>
 <html lang="en" style="margin:0;padding:0;">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
@@ -288,18 +293,30 @@ export const createPortalInvite = action({
         htmlContent: htmlBody,
         firmId: args.firmId,
       });
+      } catch (emailErr: any) {
+        console.error("[createPortalInvite] Email sending failed:", emailErr?.message);
+        emailError = emailErr?.message || "Email sending failed";
+        emailResult = { success: false, simulated: false, error: emailError };
+      }
     }
 
-    // 4. Send via WhatsApp
+    // 4. Send via WhatsApp (ROBUSTNESS: also wrapped in try/catch)
     const shouldSendWhatsApp = (channel === "whatsapp" || channel === "both") && args.inviteePhone;
     let waResult: any = { success: true, simulated: true };
+    let whatsappError = "";
     if (shouldSendWhatsApp) {
-      const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 30 days.${personalMsg}\n\n— PracticePro`;
-      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
-        to: args.inviteePhone!,
-        messageText: waText,
-        firmId: args.firmId,
-      });
+      try {
+        const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 30 days.${personalMsg}\n\n— PracticePro`;
+        waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+          to: args.inviteePhone!,
+          messageText: waText,
+          firmId: args.firmId,
+        });
+      } catch (waErr: any) {
+        console.error("[createPortalInvite] WhatsApp sending failed:", waErr?.message);
+        whatsappError = waErr?.message || "WhatsApp sending failed";
+        waResult = { success: false, simulated: false, error: whatsappError };
+      }
     }
 
     return {
@@ -308,9 +325,11 @@ export const createPortalInvite = action({
       channel,
       emailSent: emailResult.success && !emailResult.simulated,
       emailSimulated: emailResult.simulated || false,
+      emailError,
       whatsappSent: shouldSendWhatsApp && waResult.success && !waResult.simulated,
       whatsappSimulated: shouldSendWhatsApp && (waResult.simulated || false),
       whatsappSkipped: !shouldSendWhatsApp,
+      whatsappError,
     };
   },
 });
@@ -417,6 +436,7 @@ export const resendPortalInvite = action({
 
     let emailResult: any = { success: true, simulated: true };
     if (channel === "email" || channel === "both") {
+      try {
       const htmlBody = `<!DOCTYPE html>
 <html lang="en" style="margin:0;padding:0;">
 <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
@@ -485,16 +505,25 @@ export const resendPortalInvite = action({
         htmlContent: htmlBody,
         firmId: existing.firmId,
       });
+      } catch (emailErr: any) {
+        console.error("[resendPortalInvite] Email sending failed:", emailErr?.message);
+        emailResult = { success: false, simulated: false, error: emailErr?.message };
+      }
     }
 
     let waResult: any = { success: true, simulated: true };
     if ((channel === "whatsapp" || channel === "both") && existing.inviteePhone) {
-      const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 30 days.\n\n— PracticePro`;
-      waResult = await ctx.runAction(api.communications.sendWhatsApp, {
-        to: existing.inviteePhone,
-        messageText: waText,
-        firmId: existing.firmId,
-      });
+      try {
+        const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 30 days.\n\n— PracticePro`;
+        waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+          to: existing.inviteePhone,
+          messageText: waText,
+          firmId: existing.firmId,
+        });
+      } catch (waErr: any) {
+        console.error("[resendPortalInvite] WhatsApp sending failed:", waErr?.message);
+        waResult = { success: false, simulated: false, error: waErr?.message };
+      }
     }
 
     return {
@@ -1075,6 +1104,12 @@ export const repairPortalUserFirmId = mutation({
     if (!user) return { success: false, message: "User not found." };
     if (user.firmId) return { success: true, firmId: user.firmId, message: "firmId already set." };
 
+    // 1.5. If the user's role is "Pending" (from deletePortalInviteAndCleanup),
+    // we also need to restore their role so they can access the portal.
+    // Determine the correct role from invite records or user's product field.
+    const needsRoleRestore = (user as any).role === "Pending";
+    const userProduct = (user as any).product;
+
     // 2. Try to find firmId from invite records
     const invites = await ctx.db
       .query("portal_invites")
@@ -1093,11 +1128,20 @@ export const repairPortalUserFirmId = mutation({
     const foundFirmId = sorted[0]?.firmId;
 
     if (foundFirmId) {
-      await ctx.db.patch(user._id, {
+      const portalProduct = sorted[0].portalType === 'client' ? 'legal' : 'property';
+      const portalRole = sorted[0].portalType === 'client' ? 'Client' : 'Tenant';
+      const patchData: any = {
         firmId: foundFirmId,
-        product: sorted[0].portalType === 'client' ? 'legal' : 'property',
-      } as any);
-      return { success: true, firmId: foundFirmId, message: "firmId repaired from invite record." };
+        product: portalProduct,
+      };
+      // Also restore role and verification if the user was reset by deletePortalInviteAndCleanup
+      if (needsRoleRestore) {
+        patchData.role = portalRole;
+        patchData.isVerified = true;
+        patchData.emailVerified = true;
+      }
+      await ctx.db.patch(user._id, patchData);
+      return { success: true, firmId: foundFirmId, message: "firmId repaired from invite record." + (needsRoleRestore ? " Role restored." : "") };
     }
 
     // 3. Try to find firmId from property records
@@ -1105,21 +1149,33 @@ export const repairPortalUserFirmId = mutation({
     for (const prop of allProperties) {
       const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
       if (String(propTenantId).toLowerCase() === email && prop.firmId) {
-        await ctx.db.patch(user._id, {
+        const patchData: any = {
           firmId: prop.firmId,
           product: 'property',
-        } as any);
-        return { success: true, firmId: prop.firmId, message: "firmId repaired from property record." };
+        };
+        if (needsRoleRestore) {
+          patchData.role = 'Tenant';
+          patchData.isVerified = true;
+          patchData.emailVerified = true;
+        }
+        await ctx.db.patch(user._id, patchData);
+        return { success: true, firmId: prop.firmId, message: "firmId repaired from property record." + (needsRoleRestore ? " Role restored." : "") };
       }
       const units = (prop as any).units || [];
       for (const unit of units) {
         const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
         if (unitTenantEmail === email && prop.firmId) {
-          await ctx.db.patch(user._id, {
+          const patchData: any = {
             firmId: prop.firmId,
             product: 'property',
-          } as any);
-          return { success: true, firmId: prop.firmId, message: "firmId repaired from property unit record." };
+          };
+          if (needsRoleRestore) {
+            patchData.role = 'Tenant';
+            patchData.isVerified = true;
+            patchData.emailVerified = true;
+          }
+          await ctx.db.patch(user._id, patchData);
+          return { success: true, firmId: prop.firmId, message: "firmId repaired from property unit record." + (needsRoleRestore ? " Role restored." : "") };
         }
       }
     }

@@ -90,7 +90,9 @@ export const sendWhatsApp = action({
 
     if (!TOKEN || !PLUGIN_ID || !PHONE_ID) {
       const missing = [!TOKEN && "CHAKRA_ACCESS_TOKEN", !PLUGIN_ID && "CHAKRA_PLUGIN_ID", !PHONE_ID && "CHAKRA_PHONE_NUMBER_ID"].filter(Boolean).join(", ");
-      throw new Error(`WhatsApp is not configured. Missing: ${missing}. Please contact your administrator.`);
+      // Return error instead of throwing — throwing crashes the calling action
+      // (e.g. createPortalInvite) even after the invite record is already created.
+      return { success: false, simulated: true, error: `WhatsApp not configured. Missing: ${missing}.` };
     }
 
     // Normalise phone: must be E.164 without "+" for Meta's API
