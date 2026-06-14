@@ -580,10 +580,60 @@ export const acceptPortalInvite = mutation({
 export const revokePortalInvite = mutation({
   args: { inviteId: v.id("portal_invites") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.inviteId, {
-      status: "revoked",
-      updatedAt: Date.now(),
-    });
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) throw new Error("Invite not found");
+
+    // Toggle: if currently revoked, restore to accepted; if active/pending, revoke
+    if (invite.status === "revoked") {
+      // Restore access: set back to accepted, re-verify the user
+      await ctx.db.patch(args.inviteId, {
+        status: "accepted",
+        updatedAt: Date.now(),
+      });
+
+      // Also restore the portal user's access
+      const email = (invite.inviteeEmail || "").toLowerCase().trim();
+      if (email) {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+          .first();
+
+        if (user && (user as any).role === "Pending") {
+          const portalRole = invite.portalType === "client" ? "Client" : "Tenant";
+          await ctx.db.patch(user._id, {
+            role: portalRole,
+            isVerified: true,
+            emailVerified: true,
+          } as any);
+        }
+      }
+    } else {
+      // Revoke: mark as revoked, suspend the user's portal access
+      await ctx.db.patch(args.inviteId, {
+        status: "revoked",
+        updatedAt: Date.now(),
+      });
+
+      // Suspend the user's portal access (but don't reset — they can be restored)
+      const email = (invite.inviteeEmail || "").toLowerCase().trim();
+      if (email) {
+        const user = await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+          .first();
+
+        if (user) {
+          const role = (user as any).role;
+          if (role === "Client" || role === "Tenant" || role === "Portal User") {
+            await ctx.db.patch(user._id, {
+              isVerified: false,
+              portalPresenceHidden: true,
+            } as any);
+          }
+        }
+      }
+    }
   },
 });
 
@@ -2273,11 +2323,14 @@ export const getTenantDocuments = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    // Filter documents that are shared with client or belong to the tenant's matters
+    // Filter documents that are explicitly shared with the tenant by the property manager
+    // Only show documents where isSharedWithClient is true — this is the PM's explicit
+    // selection of which documents should be visible on the portal
     return allDocs
       .filter(d => {
         const matchesMatter = d.matterId && tenantMatterIds.includes(d.matterId as any);
-        return matchesMatter;
+        const isShared = d.isSharedWithClient === true;
+        return matchesMatter && isShared;
       })
       .map(d => ({
         _id: d._id,

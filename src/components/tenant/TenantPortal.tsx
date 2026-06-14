@@ -321,7 +321,7 @@ const TenantPortal: React.FC = () => {
     ...(portalSettings?.tenantMessagingEnabled ? [
       { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
     ] : []),
-    { id: 'payments', label: 'Payments', icon: <BanknotesIcon className="w-4 h-4" /> },
+    { id: 'payments', label: 'Payments', icon: <NairaSymbol className="w-4 h-4 inline" /> },
     { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
   ];
 
@@ -487,19 +487,65 @@ const TenantPortal: React.FC = () => {
           </div>
         ) : (
           <>
-            {activeTab === 'notices' && <NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
-            {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
-            {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-            {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-            {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} />}
-            {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-            {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+            {activeTab === 'notices' && <TabErrorBoundary tabName="Notices"><NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
+            {activeTab === 'ledger' && <TabErrorBoundary tabName="Ledger"><LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
+            {activeTab === 'receipts' && <TabErrorBoundary tabName="Receipts"><ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
+            {activeTab === 'maintenance' && <TabErrorBoundary tabName="Maintenance"><MaintenanceTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
+            {activeTab === 'messages' && <TabErrorBoundary tabName="Messages"><MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} /></TabErrorBoundary>}
+            {activeTab === 'payments' && <TabErrorBoundary tabName="Payments"><PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
+            {activeTab === 'documents' && <TabErrorBoundary tabName="Documents"><DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
           </>
         )}
       </div>
     </div>
   );
 };
+
+// ─── Tab Error Boundary ────────────────────────────────────────────────────────
+// Catches rendering errors in individual tabs so a broken tab doesn't crash
+// the entire portal. Shows a retry UI with a "Try Again" button.
+class TabErrorBoundary extends React.Component<
+  { tabName: string; children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error(`[TabErrorBoundary] Error in ${this.props.tabName} tab:`, error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mb-4">
+            <ExclamationTriangleIcon className="w-7 h-7 text-rose-500" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">
+            {this.props.tabName} — Something Went Wrong
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mb-4">
+            This section encountered an error. Try refreshing, or contact your property manager if the problem persists.
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Shared Tenant Info Hook Helper ──────────────────────────────────────────
 // All sub-tabs receive tenantInfo from the parent to avoid duplicate queries
@@ -1879,8 +1925,8 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
           <div class="footer">
             <p>PracticePro Atrium · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
-          <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
-            <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Document</button>
+          <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;">
+            <button onclick="window.print()" style="padding:10px 20px;background:#64748b;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print</button>
           </div>
         </body>
         </html>
@@ -1895,6 +1941,16 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
     } else {
       addToast('This document has no viewable content.', { type: 'info' });
     }
+  };
+
+  // Preview lease details (readable view, not print-focused)
+  const handleViewLease = (lease: any) => {
+    handlePrintLease(lease); // Same content, opens in new window for reading
+  };
+
+  // Preview consent record (readable view)
+  const handleViewConsent = (consent: any) => {
+    handlePrintConsent(consent); // Same content, opens in new window for reading
   };
 
   // Print lease details
@@ -2136,8 +2192,14 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
                       <button
-                        onClick={() => handlePrintLease(lease)}
+                        onClick={() => handleViewLease(lease)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                      >
+                        <EyeIcon className="w-3.5 h-3.5" /> Preview
+                      </button>
+                      <button
+                        onClick={() => handlePrintLease(lease)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-600 transition-colors"
                       >
                         <PrinterIcon className="w-3.5 h-3.5" /> Print
                       </button>
@@ -2184,8 +2246,14 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
                     <button
-                      onClick={() => handlePrintConsent(consent)}
+                      onClick={() => handleViewConsent(consent)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                    >
+                      <EyeIcon className="w-3.5 h-3.5" /> Preview
+                    </button>
+                    <button
+                      onClick={() => handlePrintConsent(consent)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-600 transition-colors"
                     >
                       <PrinterIcon className="w-3.5 h-3.5" /> Print
                     </button>

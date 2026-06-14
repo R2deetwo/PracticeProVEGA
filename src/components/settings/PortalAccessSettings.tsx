@@ -27,7 +27,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import {
-  ShieldCheckIcon, LockClosedIcon,
+  ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
   MailIcon, CheckIcon, ClockIcon,
   ExclamationTriangleIcon, SendIcon, DeviceMobileIcon,
@@ -669,13 +669,18 @@ const InviteList: React.FC<{
                       </button>
                     </>
                   )}
-                  {isActive && (
+                  {/* Revoke/Restore toggle — available on accepted and revoked statuses */}
+                  {(isActive || invite.status === 'revoked') && (
                     <button
                       onClick={() => onRevoke(String(invite._id))}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-                      title="Revoke portal access"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        invite.status === 'revoked'
+                          ? 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                          : 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+                      }`}
+                      title={invite.status === 'revoked' ? 'Restore portal access' : 'Revoke portal access'}
                     >
-                      <LockClosedIcon className="w-4 h-4" />
+                      {invite.status === 'revoked' ? <LockOpenIcon className="w-4 h-4" /> : <LockClosedIcon className="w-4 h-4" />}
                     </button>
                   )}
                   {/* Delete permanently — available on all statuses */}
@@ -853,9 +858,11 @@ export const PortalAccessSettings: React.FC = () => {
   const handleRevoke = async (inviteId: string) => {
     try {
       await revokeInvite({ inviteId: inviteId as any });
-      addToast('Portal access revoked successfully.', { type: 'success' });
+      // Check if the invite was revoked or restored by checking its current status
+      // The backend toggles: revoked -> accepted (restore), active/pending -> revoked
+      addToast('Portal access updated.', { type: 'success' });
     } catch (err: any) {
-      addToast(err.message || 'Failed to revoke access.', { type: 'error' });
+      addToast(err.message || 'Failed to update access.', { type: 'error' });
     }
   };
 
