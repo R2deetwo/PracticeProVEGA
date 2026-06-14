@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Task, User } from '../types';
+import { Task, User, UserRole } from '../types';
 import { getInitials, getUserColor } from '../utils/colorUtils';
 import ScrollArrows from './ScrollArrows';
 
@@ -50,7 +50,10 @@ const FilterPill: React.FC<{
 
 
 const UserTaskSummaryPanel: React.FC<UserTaskSummaryPanelProps> = ({ allTasks, users, currentUser, activeFilter, onFilterChange }) => {
-    const teamMembers = users;
+    // Only show internal team members in task filters — portal users (Tenant/Client) never have tasks
+    const teamMembers = users.filter(u =>
+        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending
+    );
 
     const getTaskCounts = (userId?: string) => {
         const tasksToFilter = userId ? allTasks.filter(t => t.assignedUsers.includes(userId)) : allTasks;

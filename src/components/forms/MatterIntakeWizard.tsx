@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import {
-    Matter, User, Contact, MatterType, BillingModel,
+    Matter, User, UserRole, Contact, MatterType, BillingModel,
     ContactType, CourtType, LitigationParty, AloaHint
 } from '../../types';
 import { PROCEDURAL_RULES } from '../../utils/proceduralRules';
@@ -921,7 +921,9 @@ const Screen2: React.FC<{
             <div>
                 <label className={labelCls}>Assign Team Members</label>
                 <div className="space-y-1.5 mt-2">
-                    {users.map(u => {
+                    {users.filter(u =>
+                        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending
+                    ).map(u => {
                         const isSelected = (data.assignedUsers || []).includes(u.id);
                         return (
                             <button

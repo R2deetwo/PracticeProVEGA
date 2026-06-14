@@ -113,7 +113,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     const primaryAdminId = firmDetails.created_by || users.find(u => u.role === UserRole.Admin)?.id;
 
     // Filter out client users for counting limit
-    const staffUsers = users.filter(u => u.role !== UserRole.Client && u.role !== UserRole.ExternalCounsel);
+    const staffUsers = users.filter(u => u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending);
     const canAddMoreUsers = maxUsers === null || staffUsers.length < (maxUsers as number);
 
     const handleTitleClick = () => {

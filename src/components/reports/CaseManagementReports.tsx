@@ -431,7 +431,9 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
                         </div>
                         <CaseloadByUserChart
                             data={reportData.caseloadByUser}
-                            existingUsers={coreState.users}
+                            existingUsers={coreState.users.filter(u =>
+                                u.role !== 'Client' && u.role !== 'Tenant' && u.role !== 'External Counsel' && u.role !== 'Pending'
+                            )}
                             allMatters={matterState.matters.filter(m => m.status === 'Active')}
                             onReassignComplete={() => setRefreshKey(k => k + 1)}
                             isProperty={isProperty}

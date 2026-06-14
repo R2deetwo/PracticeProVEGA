@@ -25,7 +25,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
 
     // Filter out current user and clients
     const internalUsers = useMemo(() =>
-        coreState.users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.ExternalCounsel),
+        coreState.users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel),
         [coreState.users, currentUser]);
 
     // Check for potential permission issues (e.g. sharing with a Paralegal not assigned to this matter)

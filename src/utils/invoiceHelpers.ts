@@ -61,7 +61,7 @@ export function extractFirmInitials(firmName: string | undefined | null): string
  */
 export function isMultiUserFirm(users: User[]): boolean {
     const activeMembers = users.filter(u =>
-        u.role !== UserRole.Client && u.role !== UserRole.Pending && u.role !== UserRole.ExternalCounsel
+        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.Pending && u.role !== UserRole.ExternalCounsel
     );
     return activeMembers.length > 1;
 }
@@ -75,7 +75,7 @@ export function isMultiUserFirm(users: User[]): boolean {
  */
 export function findLeadProfessional(users: User[]): User | null {
     const activeMembers = users.filter(u =>
-        u.role !== UserRole.Client && u.role !== UserRole.Pending && u.role !== UserRole.ExternalCounsel
+        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.Pending && u.role !== UserRole.ExternalCounsel
     );
 
     if (activeMembers.length <= 1) return null; // Solo — omit this segment

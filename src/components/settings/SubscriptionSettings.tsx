@@ -539,7 +539,9 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
         });
     };
 
-    const activeFirmUsers = coreState.users.filter(u => u.role !== 'Client' && u.role !== 'External Counsel');
+    const activeFirmUsers = coreState.users.filter(u =>
+        u.role !== 'Client' && u.role !== 'Tenant' && u.role !== 'External Counsel' && u.role !== 'Pending'
+    );
     const productMode = resolveProductMode(firmDetails.product);
     const tiers = getTiersForProduct(productMode);
     const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;

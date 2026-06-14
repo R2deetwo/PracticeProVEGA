@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { Matter, Task, Invoice, CalendarEvent, CustomEventType, TimeEntry, Expense, InvoiceStatus, AppMode, User, FirmActivity, Contact, Document, View, ModalType, FirmDetails, SubscriptionPlan } from '../types';
+import { Matter, Task, Invoice, CalendarEvent, CustomEventType, TimeEntry, Expense, InvoiceStatus, AppMode, User, UserRole, FirmActivity, Contact, Document, View, ModalType, FirmDetails, SubscriptionPlan } from '../types';
 import TasksWidget from './dashboard/TasksWidget';
 import RecentMattersWidget from './dashboard/FocusMatterWidget';
 import DailyFocusView from './DailyFocusView';
@@ -81,8 +81,12 @@ const Dashboard: React.FC = () => {
     const aiEnabled = firmDetails?.aiSettings?.enableAllAiFeatures;
     const plan = firmDetails?.subscriptionPlan || SubscriptionPlan.Core;
 
-    // Check for "Downgrade State": Core plan but multiple users exist in DB
-    const isDowngradedState = plan === SubscriptionPlan.Core && users.length > 1;
+    // Check for "Downgrade State": Core plan but multiple internal users exist in DB
+    // Portal users (Tenant/Client) must NOT count toward this check
+    const internalUsers = users.filter(u =>
+        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending
+    );
+    const isDowngradedState = plan === SubscriptionPlan.Core && internalUsers.length > 1;
 
     const overdueTasksCount = safeTasks.filter(t => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date()).length;
     const activeMattersCount = safeMatters.filter(m => m.status === 'Active').length;

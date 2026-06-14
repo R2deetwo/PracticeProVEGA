@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User } from '../../types';
+import { User, UserRole } from '../../types';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -72,7 +72,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Add Members</label>
                 <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2 space-y-2">
-                    {users.filter(u => u.id !== currentUser?.id).map(user => (
+                    {users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel).map(user => (
                         <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
                             <input autoComplete="off" data-lpignore="true" 
                                 type="checkbox"

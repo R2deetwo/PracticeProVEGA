@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { FirmActivity, User } from '../../types';
+import { FirmActivity, User, UserRole } from '../../types';
 import { SearchIcon, LockClosedIcon, ShieldCheckIcon, DownloadIcon, TrashIcon, RevertIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useUI } from '../../contexts/UIContext';
@@ -96,7 +96,7 @@ const AuditLogViewer: React.FC<SecuritySettingsProps> = ({ activities, users }) 
                 >
                     <option value="All">All Users</option>
                     <option value="system">System</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    {users.filter(u => u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
                 <div className="flex gap-2">
                     <select

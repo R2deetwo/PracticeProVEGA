@@ -39,7 +39,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
 
     // Filter available users (excluding self and external/clients)
     const availableUsers = useMemo(() =>
-        users.filter(u => u.id !== currentUser?.id && u.role !== 'Client' && u.role !== 'External Counsel'),
+        users.filter(u => u.id !== currentUser?.id && u.role !== 'Client' && u.role !== 'Tenant' && u.role !== 'External Counsel'),
         [users, currentUser]);
 
     // Initialize defaults

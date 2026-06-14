@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 /* Added AppMode to imports */
-import { ReportDateRangeOption, TimesheetData, UtilizationData, MatterStatusReportData, ProfitLossData, ArAgingData, InvoiceStatus, AppMode } from '../types';
+import { ReportDateRangeOption, TimesheetData, UtilizationData, MatterStatusReportData, ProfitLossData, ArAgingData, InvoiceStatus, AppMode, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { generateTimesheetReport, generateUtilizationReport, generateMatterStatusReport, generateProfitLossReport, generateArAgingReport } from '../services/reportGenerator';
 import { parseDateString } from '../utils/calendarUtils';
@@ -27,7 +27,10 @@ const ReportGenerator: React.FC = () => {
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
     const { financeState } = useFinanceState();
-    const activeUsers = coreState.users;
+    // Only include internal team members in reports — portal users (Tenant/Client) should never appear in timesheets or utilization reports
+    const activeUsers = coreState.users.filter(u =>
+        u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel && u.role !== UserRole.Pending
+    );
     const [reportType, setReportType] = useState<ReportType>('timesheet');
     const [dateRange, setDateRange] = useState<ReportDateRangeOption>('last_30');
     const [selectedUserId, setSelectedUserId] = useState<string>(currentUser?.id || '');
