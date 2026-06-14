@@ -45,3 +45,38 @@ Stage Summary:
 - User must deploy Convex backend for backend mutation/query changes to go live
 - Key command: `npx convex deploy` (from authenticated environment)
 - Brevo API key env var (`PracticePro_Vega_Mailer`) needs to be set in Convex for email delivery
+
+---
+Task ID: portal-security-hardening-1
+Agent: Main Agent
+Task: Fix critical portal security vulnerability - portal users accessing main app dashboard + forgot password flow
+
+Work Log:
+- Analyzed 4 user screenshots showing portal user ending up on admin's Overview dashboard after revocation
+- Traced vulnerability chain: revoked redirect effect cleared BOTH portal AND admin sessions from localStorage
+- When admin and portal user share same browser, clearing localStorage kills admin session across all tabs
+- NotFoundView's "Go to Dashboard" button allowed portal users into the main app
+
+- Fixed revoked redirect effect in App.tsx: only clears portal session + portal type, NEVER touches practicepro_user_session
+- Changed from SPA navigate to window.location.href hard-redirect for complete state reset
+- Fixed NotFoundView: portal users see "Return to Portal" button instead of "Go to Dashboard"
+- Added portal user boundary guard: authenticated portal users on non-portal routes auto-redirect via hard-redirect
+- Added admin boundary guard: authenticated admin users on portal routes redirect to main app
+- Fixed logout function: portal user logout only clears portal session, not admin's localStorage session
+- Fixed safety timeout: portal session timeout only clears portal-specific storage keys
+- Replaced spinning circle with SplashScreen component for portal loading states
+- Implemented forgot password flow for TenantPortalLogin and ClientPortalLogin
+  - 3 view modes: login / forgot / reset
+  - Request recovery code via email (requestPortalPasswordReset mutation)
+  - Enter code + new password with strength meter
+  - Magic link from email auto-fills recovery code
+- Added requestPortalPasswordReset mutation (validates user is Client/Tenant role)
+- Added sendPortalRecoveryEmail internal action (branded with Atrium/Vega colors)
+- Deployed to Convex backend and pushed to git (auto-deploys to Vercel)
+
+Stage Summary:
+- CRITICAL SECURITY VULNERABILITY FIXED: Portal users can no longer access the main app
+- 6 security hardening points added across App.tsx, AuthContext.tsx, NotFoundView.tsx
+- Full forgot password flow for both portal types
+- Backend mutations and email templates for portal password reset
+- Both Convex backend and Vercel frontend deployed
