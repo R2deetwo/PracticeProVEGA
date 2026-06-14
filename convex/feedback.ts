@@ -21,6 +21,7 @@ export const submitFeedback = mutation({
     return await ctx.db.insert("user_feedback", {
       ...args,
       status: "New",
+      source: "feedback",  // Explicitly tag as real user feedback
       timestamp: Date.now(),
     });
   },
@@ -56,7 +57,8 @@ export const getMyFeedbackReplies = query({
       .filter((q) => q.eq(q.field("userId"), args.userId))
       .order("desc")
       .take(100);
-    return all;
+    // Filter out Aloa echo entries — those belong in the Aloa panel, not the System Inbox
+    return all.filter((item: any) => item.source !== "aloa_echo");
   },
 });
 

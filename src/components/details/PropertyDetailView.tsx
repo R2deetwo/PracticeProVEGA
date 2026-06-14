@@ -6,7 +6,7 @@ import { formatNaira, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
-import { useQuery, useConvex } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 import { useFeatures } from '../../hooks/useFeatures';
@@ -35,7 +35,7 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
     </div>
 );
 
-type PropertyTab = 'summary' | 'units' | 'revenue' | 'tracking' | 'docs';
+type PropertyTab = 'summary' | 'units' | 'notices' | 'revenue' | 'tracking' | 'docs';
 
 // ─── Eviction Tracker Types & Helpers ───
 interface EvictionTracker {
@@ -663,6 +663,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {([
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
+                            ...((isLeased || hasMultipleUnits) ? [{ id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> }] : []),
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
                             { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs <span className="hidden sm:inline">&amp; Financials</span></> },
@@ -1643,6 +1644,10 @@ const PropertyDetailViewContent: React.FC = () => {
                         </div>
                     );
                 })()}
+
+                {/* ═══ NOTICE BOARD TAB ═══ */}
+                {activeTab === 'notices' && <PropertyNoticeBoard propertyId={property.id} firmId={firmId} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />}
+
                 {activeTab === 'revenue' && (() => {
                     const units = [...(allUnits || [])]
                         .map(u => u && u.id ? u : null)
@@ -1969,6 +1974,280 @@ const ActionButton: React.FC<{ onClick: () => void; label: string }> = ({ onClic
         <span className="text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity">&rarr;</span>
     </button>
 );
+
+// ══════════════════════════════════════════════════════════════════════════
+// PropertyNoticeBoard — Notice board tab for property managers to post
+// notices visible to tenants on their portal. Each property has its own
+// notice board, scoped to that property and its units.
+// ══════════════════════════════════════════════════════════════════════════
+const PropertyNoticeBoard: React.FC<{
+    propertyId: string;
+    firmId: string;
+    authorId: string;
+    authorName: string;
+}> = ({ propertyId, firmId, authorId, authorName }) => {
+    const { addToast } = useUI();
+    const [showForm, setShowForm] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [newBody, setNewBody] = useState('');
+    const [newPriority, setNewPriority] = useState<'normal' | 'important' | 'urgent'>('normal');
+    const [newPinned, setNewPinned] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+
+    // Fetch notices scoped to this property
+    const notices = useQuery(
+        api.portals.getAllNotices,
+        firmId ? { firmId, propertyId } : 'skip'
+    );
+
+    const createNotice = useMutation(api.portals.createNotice);
+    const archiveNotice = useMutation(api.portals.archiveNotice);
+    const restoreNotice = useMutation(api.portals.restoreNotice);
+
+    const activeNotices = useMemo(() => (notices || []).filter((n: any) => n.status === 'active'), [notices]);
+    const archivedNotices = useMemo(() => (notices || []).filter((n: any) => n.status === 'archived'), [notices]);
+
+    const handleCreate = async () => {
+        if (!newTitle.trim() || !newBody.trim()) {
+            addToast('Please enter a title and message for the notice.', { type: 'error' });
+            return;
+        }
+        setIsCreating(true);
+        try {
+            await createNotice({
+                firmId,
+                authorId,
+                authorName,
+                title: newTitle.trim(),
+                body: newBody.trim(),
+                priority: newPriority,
+                isPinned: newPinned,
+                propertyId,
+            });
+            setNewTitle('');
+            setNewBody('');
+            setNewPriority('normal');
+            setNewPinned(false);
+            setShowForm(false);
+            addToast('Notice posted! It will appear on your residents\' portal immediately.', { type: 'success' });
+        } catch (err: any) {
+            addToast(err.message || 'Failed to create notice.', { type: 'error' });
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const priorityConfig: Record<string, { bg: string; text: string; label: string; dot: string; border: string }> = {
+        urgent: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-700 dark:text-rose-300', label: 'Urgent', dot: 'bg-rose-500', border: 'border-rose-200 dark:border-rose-800/50' },
+        important: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300', label: 'Important', dot: 'bg-amber-500', border: 'border-amber-200 dark:border-amber-800/50' },
+        normal: { bg: 'bg-slate-50 dark:bg-zinc-800', text: 'text-slate-600 dark:text-zinc-400', label: 'General', dot: 'bg-slate-400', border: 'border-slate-200 dark:border-zinc-700' },
+    };
+
+    const isLoading = notices === undefined;
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Notice Board</h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400">Post updates visible to all residents on their portal</p>
+                </div>
+                <button
+                    onClick={() => setShowForm(!showForm)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Post Notice
+                </button>
+            </div>
+
+            {/* Create Form */}
+            {showForm && (
+                <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 space-y-4">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">New Notice</h4>
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            value={newTitle}
+                            onChange={e => setNewTitle(e.target.value)}
+                            placeholder="Notice title (e.g., Water maintenance scheduled)"
+                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                        />
+                        <textarea
+                            value={newBody}
+                            onChange={e => setNewBody(e.target.value)}
+                            placeholder="Notice details... This will be visible to all residents on their portal."
+                            rows={4}
+                            className="w-full px-3 py-2.5 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 resize-none"
+                        />
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-bold text-slate-600 dark:text-zinc-400">Priority:</label>
+                                {(['normal', 'important', 'urgent'] as const).map(p => {
+                                    const cfg = priorityConfig[p];
+                                    return (
+                                        <button
+                                            key={p}
+                                            onClick={() => setNewPriority(p)}
+                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                                newPriority === p
+                                                    ? `${cfg.bg} ${cfg.text} ring-2 ring-offset-1 ring-current`
+                                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                            }`}
+                                        >
+                                            {cfg.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={newPinned}
+                                    onChange={e => setNewPinned(e.target.checked)}
+                                    className="rounded border-slate-300 dark:border-zinc-600 text-amber-500 focus:ring-amber-500/30"
+                                />
+                                <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Pin to top</span>
+                            </label>
+                        </div>
+                        <div className="flex items-center gap-2 justify-end pt-1">
+                            <button
+                                onClick={() => setShowForm(false)}
+                                className="px-4 py-2 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleCreate}
+                                disabled={isCreating || !newTitle.trim() || !newBody.trim()}
+                                className="px-4 py-2 text-xs font-bold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                            >
+                                {isCreating ? (
+                                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Posting...</>
+                                ) : (
+                                    <><Megaphone className="w-3.5 h-3.5" /> Post Notice</>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Active Notices */}
+            {isLoading ? (
+                <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                            <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
+                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
+                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
+                        </div>
+                    ))}
+                </div>
+            ) : activeNotices.length > 0 ? (
+                <div className="space-y-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">Active Notices ({activeNotices.length})</p>
+                    {activeNotices.map((notice: any) => {
+                        const pri = priorityConfig[notice.priority] || priorityConfig.normal;
+                        return (
+                            <div
+                                key={notice._id}
+                                className={`bg-white dark:bg-zinc-800 rounded-xl border overflow-hidden transition-colors ${pri.border}`}
+                            >
+                                {notice.isPinned && (
+                                    <div className="px-5 pt-3 flex items-center gap-1.5">
+                                        <svg className="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                                        </svg>
+                                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pinned</span>
+                                    </div>
+                                )}
+                                <div className="px-5 py-4">
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                        <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{notice.title}</h4>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${pri.bg} ${pri.text}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${pri.dot}`} />
+                                                {pri.label}
+                                            </span>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await archiveNotice({ noticeId: notice._id });
+                                                        addToast('Notice archived.', { type: 'success' });
+                                                    } catch (err: any) {
+                                                        addToast(err.message || 'Failed to archive.', { type: 'error' });
+                                                    }
+                                                }}
+                                                className="p-1 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                                                title="Archive notice"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{notice.body}</p>
+                                    <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-400 dark:text-zinc-500">
+                                        {notice.authorName && <span>Posted by {notice.authorName}</span>}
+                                        <span>{new Date(notice.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                        {notice.expiresAt && (
+                                            <span className={notice.expiresAt < Date.now() ? 'text-rose-500 font-medium' : ''}>
+                                                {notice.expiresAt < Date.now() ? 'Expired' : `Expires ${new Date(notice.expiresAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                        <Megaphone className="w-7 h-7 text-slate-400 dark:text-zinc-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-1">No active notices</p>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500">Post a notice to keep your residents informed. It will appear on their portal immediately.</p>
+                </div>
+            )}
+
+            {/* Archived Notices */}
+            {archivedNotices.length > 0 && (
+                <details className="group">
+                    <summary className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
+                        Archived ({archivedNotices.length})
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                        {archivedNotices.map((notice: any) => (
+                            <div key={notice._id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 dark:bg-zinc-800/50 rounded-lg opacity-60">
+                                <div className="min-w-0 flex-1">
+                                    <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{notice.title}</span>
+                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 ml-2">
+                                        {new Date(notice.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await restoreNotice({ noticeId: notice._id });
+                                            addToast('Notice restored.', { type: 'success' });
+                                        } catch (err: any) {
+                                            addToast(err.message || 'Failed to restore.', { type: 'error' });
+                                        }
+                                    }}
+                                    className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                                >
+                                    Restore
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </details>
+            )}
+        </div>
+    );
+};
 
 
 export default function PropertyDetailViewWrapper() {

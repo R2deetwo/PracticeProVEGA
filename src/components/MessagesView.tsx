@@ -898,6 +898,7 @@ const MessagesView: React.FC = () => {
                                                 conversationMessages && conversationMessages.length > 0 ? (
                                                     conversationMessages.map((msg: any) => {
                                                         const isAdmin = msg.senderRole === 'Admin';
+                                                        const isDeleted = msg.isDeleted;
                                                         return (
                                                             <div key={msg._id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
                                                                 <div className={`max-w-[85%] ${isAdmin
@@ -908,11 +909,20 @@ const MessagesView: React.FC = () => {
                                                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
                                                                             {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
                                                                         </span>
-                                                                        <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
-                                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
-                                                                        </span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            {isDeleted && (
+                                                                                <span className="text-[9px] font-bold text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-1.5 py-0.5 rounded uppercase">Deleted by sender</span>
+                                                                            )}
+                                                                            <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                                {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
-                                                                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
+                                                                    {isDeleted ? (
+                                                                        <p className={`text-sm italic ${isAdmin ? 'text-primary-200/60' : 'text-slate-400 dark:text-zinc-500'}`}>This message was deleted by the sender</p>
+                                                                    ) : (
+                                                                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
+                                                                    )}
                                                                     {/* Attachments */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
                                                                         <div className="mt-3 space-y-1.5">

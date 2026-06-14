@@ -313,13 +313,35 @@ const TenantPortal: React.FC = () => {
     (!tenantInfo.units || tenantInfo.units.length === 0) &&
     hasAttemptedRelink;
 
-  const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+  // ── Unread message count for Messages tab badge ──
+  const portalConversations = useQuery(
+    api.portals.getPortalConversationsByParticipant,
+    userId ? { participantId: userId } : 'skip'
+  );
+  const unresolvedInboundMsgs = useQuery(
+    api.portals.getInboundMessagesByTenant,
+    tenantInfo?.tenantId || userId ? { tenantId: tenantInfo?.tenantId || userId } : 'skip'
+  );
+  const unreadMessageCount = useMemo(() => {
+    let count = 0;
+    if (portalConversations) {
+      for (const conv of portalConversations) {
+        count += (conv.unreadByParticipant || 0);
+      }
+    }
+    if (unresolvedInboundMsgs) {
+      count += unresolvedInboundMsgs.filter((m: any) => !m.isRead).length;
+    }
+    return count;
+  }, [portalConversations, unresolvedInboundMsgs]);
+
+  const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
     ...(portalSettings?.tenantMessagingEnabled ? [
-      { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" /> },
+      { id: 'messages' as TabId, label: 'Messages', icon: <ChatIcon className="w-4 h-4" />, badge: unreadMessageCount || undefined },
     ] : []),
     { id: 'payments', label: 'Payments', icon: <NairaSymbol className="w-4 h-4 inline" /> },
     { id: 'documents', label: 'Documents', icon: <DocumentIcon className="w-4 h-4" /> },
@@ -428,7 +450,7 @@ const TenantPortal: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap relative ${
                 activeTab === tab.id
                   ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
                   : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
@@ -436,6 +458,11 @@ const TenantPortal: React.FC = () => {
             >
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
+              {tab.badge && tab.badge > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {tab.badge > 99 ? '99+' : tab.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -1404,11 +1431,13 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   // Mutations
   const sendMessage = useMutation(api.portals.sendPortalMessage);
   const markRead = useMutation(api.portals.markConversationReadByParticipant);
+  const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
   // State
   const [messageContent, setMessageContent] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null);
   const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1601,6 +1630,23 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
           ) : (
             conversationMessages.map((msg: any) => {
               const isMe = msg.senderId === userId;
+              const isDeleted = msg.isDeleted;
+
+              // Show deleted placeholder for soft-deleted messages
+              if (isDeleted) {
+                return (
+                  <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                      isMe
+                        ? 'bg-emerald-600/20 text-emerald-300/60 dark:text-emerald-400/40 rounded-tr-none italic'
+                        : 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 border border-slate-200/50 dark:border-zinc-700/50 rounded-tl-none italic'
+                    }`}>
+                      <p className="text-xs">This message was deleted</p>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] ${isMe ? 'order-2' : 'order-1'}`}>
@@ -1614,12 +1660,39 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                       </span>
                     </div>
                     {/* Bubble */}
-                    <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${
+                    <div className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
                       isMe
                         ? 'bg-emerald-600 text-white rounded-tr-none'
                         : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
                     }`}>
                       <p className="text-sm break-words whitespace-pre-wrap">{msg.content}</p>
+
+                      {/* Delete button — only shown for own messages on hover */}
+                      {isMe && (
+                        <button
+                          onClick={async () => {
+                            if (deletingMessageId === String(msg._id)) return;
+                            setDeletingMessageId(String(msg._id));
+                            try {
+                              await deleteMessage({ messageId: String(msg._id), requesterId: userId });
+                            } catch (err: any) {
+                              addToast(err.message || 'Failed to delete message.', { type: 'error' });
+                            } finally {
+                              setDeletingMessageId(null);
+                            }
+                          }}
+                          className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all"
+                          title="Delete message"
+                        >
+                          {deletingMessageId === String(msg._id) ? (
+                            <span className="w-3 h-3 border border-slate-400 border-t-slate-600 rounded-full animate-spin" />
+                          ) : (
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
 
                       {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (

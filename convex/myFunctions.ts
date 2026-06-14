@@ -2580,6 +2580,7 @@ export const saveAloaMessage = mutation({
                 userEmail: (user as any).tokenIdentifier || (user as any).email || "",
                 message: msgContent,
                 status: "New",
+                source: "aloa_echo",  // Tag so we can filter out from System Inbox
                 timestamp: Date.now()
             });
         }

@@ -2608,6 +2608,55 @@ export const markConversationReadByParticipant = mutation({
 });
 
 /**
+ * softDeletePortalMessage — Allows a portal user to soft-delete a message they sent.
+ * The message is marked as deleted but preserved in the database so the admin
+ * side retains the record. Portal users can only delete their own messages.
+ * Admin users cannot delete portal messages — they are the record keepers.
+ */
+export const softDeletePortalMessage = mutation({
+  args: { messageId: v.string(), requesterId: v.string() },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId as any) as any;
+    if (!message) throw new Error("Message not found");
+
+    // Only the sender can delete their own messages
+    if (message.senderId !== args.requesterId) {
+      throw new Error("You can only delete your own messages");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(message._id, {
+      isDeleted: true,
+      deletedBy: args.requesterId,
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    // Update the conversation's last message preview if this was the last message
+    if (message.conversationId) {
+      const conversation = await ctx.db.get(message.conversationId as any);
+      if (conversation) {
+        const remainingMessages = await ctx.db
+          .query("portal_messages")
+          .withIndex("by_conversation", (q: any) => q.eq("conversationId", message.conversationId))
+          .order("desc")
+          .collect();
+
+        const lastVisible = remainingMessages.find((m: any) => !m.isDeleted);
+        if (lastVisible) {
+          await ctx.db.patch(conversation._id, {
+            lastMessagePreview: (lastVisible as any).content?.substring(0, 100) || "Message deleted",
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+/**
  * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
  * Kept for backward compat; new code should use getPortalConversationsByFirm.
  */
@@ -3234,19 +3283,27 @@ export const getAllNotices = query({
   args: {
     firmId: v.string(),
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
+    propertyId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    let results;
     if (args.status) {
-      return await ctx.db
+      results = await ctx.db
         .query("portal_notices")
         .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", args.status!))
         .collect();
+    } else {
+      // No status filter — return all
+      results = await ctx.db
+        .query("portal_notices")
+        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+        .collect();
     }
-    // No status filter — return all
-    return await ctx.db
-      .query("portal_notices")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .collect();
+    // Filter by propertyId if specified
+    if (args.propertyId) {
+      results = results.filter((n: any) => !n.propertyId || n.propertyId === args.propertyId);
+    }
+    return results;
   },
 });
 

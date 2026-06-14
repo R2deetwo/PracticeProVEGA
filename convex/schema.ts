@@ -816,6 +816,7 @@ export default defineSchema({
       message: v.string(),
       timestamp: v.number(),
     }))),
+    source: v.optional(v.string()),  // "feedback" | "aloa_echo" — distinguishes real feedback from Aloa chat echoes
     timestamp: v.number(),
   }).index("by_firm", ["firmId"])
     .index("by_status", ["status"])
@@ -1217,6 +1218,9 @@ export default defineSchema({
     replyContent: nullableString,       // DEPRECATED — kept for backward compat
     repliedAt: nullableNumber,          // DEPRECATED — kept for backward compat
     isRead: v.optional(v.boolean()),    // per-message read state
+    isDeleted: v.optional(v.boolean()), // soft-delete — message hidden for sender but preserved for admin
+    deletedBy: nullableString,          // ID of the user who deleted the message
+    deletedAt: nullableNumber,          // timestamp when the message was deleted
     createdAt: v.number(),
     updatedAt: v.number(),
   })
