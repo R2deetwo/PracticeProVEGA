@@ -39,13 +39,17 @@ const DeleteConfirmDialog: React.FC<{
   isOpen: boolean;
   inviteName: string;
   inviteEmail: string;
+  isDeleting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
-}> = ({ isOpen, inviteName, inviteEmail, onConfirm, onCancel }) => {
+}> = ({ isOpen, inviteName, inviteEmail, isDeleting, onConfirm, onCancel }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div
+        className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center flex-shrink-0">
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
@@ -63,15 +67,24 @@ const DeleteConfirmDialog: React.FC<{
         <div className="flex items-center gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 rounded-lg border border-slate-200 dark:border-zinc-600 transition-colors"
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 rounded-lg border border-slate-200 dark:border-zinc-600 transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm"
+            disabled={isDeleting}
+            className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Delete Permanently
+            {isDeleting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Deleting…
+              </>
+            ) : (
+              'Delete Permanently'
+            )}
           </button>
         </div>
       </div>
@@ -787,6 +800,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);  // The invite being deleted
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch ALL portal invites for this firm
   const invites = useQuery(
@@ -843,15 +857,21 @@ export const PortalAccessSettings: React.FC = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!deleteTarget) return;
-    const inviteId = String(deleteTarget._id);
+    if (!deleteTarget || isDeleting) return;
+    const inviteId = deleteTarget._id;
     const inviteEmail = deleteTarget.inviteeEmail || '';
-    setDeleteTarget(null);
+    setIsDeleting(true);
     try {
-      await deleteInvite({ inviteId: inviteId as any, inviteeEmail: inviteEmail || undefined });
+      console.log('[PortalAccessSettings] Deleting invite:', { inviteId, inviteEmail });
+      await deleteInvite({ inviteId, inviteeEmail: inviteEmail || undefined });
       addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
+      setDeleteTarget(null);
     } catch (err: any) {
+      console.error('[PortalAccessSettings] Delete failed:', err);
       addToast(err.message || 'Failed to delete invitation.', { type: 'error' });
+      // Don't close the dialog on error — let the user retry or cancel
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -950,8 +970,9 @@ export const PortalAccessSettings: React.FC = () => {
           isOpen={!!deleteTarget}
           inviteName={deleteDialogName}
           inviteEmail={deleteDialogEmail}
+          isDeleting={isDeleting}
           onConfirm={handleDeleteConfirm}
-          onCancel={() => setDeleteTarget(null)}
+          onCancel={() => { if (!isDeleting) setDeleteTarget(null); }}
         />
 
         {/* Page header */}
@@ -1080,8 +1101,9 @@ export const PortalAccessSettings: React.FC = () => {
         isOpen={!!deleteTarget}
         inviteName={deleteDialogName}
         inviteEmail={deleteDialogEmail}
+        isDeleting={isDeleting}
         onConfirm={handleDeleteConfirm}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => { if (!isDeleting) setDeleteTarget(null); }}
       />
 
       {/* Portal Settings Card */}

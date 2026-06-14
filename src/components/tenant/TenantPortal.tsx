@@ -112,7 +112,9 @@ const TenantPortal: React.FC = () => {
 
   // Repair mutation for fixing missing firmId on portal user records
   const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
+  const relinkToProperty = useMutation(api.portals.relinkPortalUserToProperty);
   const [isRepairing, setIsRepairing] = useState(false);
+  const [hasAttemptedRelink, setHasAttemptedRelink] = useState(false);
 
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
@@ -141,6 +143,36 @@ const TenantPortal: React.FC = () => {
     api.portals.getFirmPortalSettings,
     effectiveFirmId ? { firmId: effectiveFirmId } : 'skip'
   );
+
+  // ── Self-healing: Auto-relink tenant to property if tenantInfo is empty ──
+  // When getTenantInfo returns an empty result (no matching property/unit found),
+  // this could mean the property record's currentTenantId is stale or missing.
+  // We attempt a one-time relink to fix the data automatically.
+  useEffect(() => {
+    if (hasAttemptedRelink) return; // Only try once
+    if (!tenantInfo || tenantInfo === undefined) return; // Still loading or no data
+    if (!effectiveFirmId || !email) return; // Missing required params
+
+    // Check if tenantInfo has no properties and no units (tenant not found in any property)
+    const hasNoData = (!tenantInfo.properties || tenantInfo.properties.length === 0) &&
+                      (!tenantInfo.units || tenantInfo.units.length === 0);
+
+    if (hasNoData) {
+      console.log('[TenantPortal] Tenant not found in any property. Attempting auto-relink...');
+      setHasAttemptedRelink(true);
+      relinkToProperty({ email, firmId: effectiveFirmId })
+        .then((result: any) => {
+          if (result.success && result.linked) {
+            console.log('[TenantPortal] Auto-relink successful. Data will refresh.');
+          } else {
+            console.warn('[TenantPortal] Auto-relink could not find matching property:', result.message);
+          }
+        })
+        .catch((err: any) => {
+          console.warn('[TenantPortal] Auto-relink failed:', err);
+        });
+    }
+  }, [tenantInfo, effectiveFirmId, email, hasAttemptedRelink]);
 
   // ── ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS ──────────────
   // React Rules of Hooks: hooks must be called in the same order on every render.
@@ -245,6 +277,14 @@ const TenantPortal: React.FC = () => {
       </div>
     );
   }
+
+  // If tenantInfo loaded but returned no properties/units, and auto-relink already
+  // attempted, show a "no property assigned" state instead of infinite loading.
+  const hasNoPropertyAssignment = tenantInfo !== undefined &&
+    effectiveFirmId &&
+    (!tenantInfo.properties || tenantInfo.properties.length === 0) &&
+    (!tenantInfo.units || tenantInfo.units.length === 0) &&
+    hasAttemptedRelink;
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
@@ -375,13 +415,57 @@ const TenantPortal: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-zinc-900">
-        {activeTab === 'notices' && <NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
-        {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
-        {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-        {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-        {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} />}
-        {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
-        {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+        {hasNoPropertyAssignment ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+              <OfficeBuildingIcon className="w-8 h-8 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">No Property Assignment Found</h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mb-6">
+              Your portal account is set up, but you haven't been linked to a specific property or unit yet.
+              Please contact your property manager so they can assign you to a property and send you a new portal invitation.
+            </p>
+            <button
+              onClick={async () => {
+                setIsRepairing(true);
+                try {
+                  const result = await relinkToProperty({ email, firmId: effectiveFirmId });
+                  if (result.success && result.linked) {
+                    addToast('Property link repaired! Refreshing...', { type: 'success' });
+                    setTimeout(() => window.location.reload(), 1500);
+                  } else {
+                    addToast('Could not auto-repair. Please ask your property manager to re-send your portal invitation.', { type: 'error' });
+                  }
+                } catch {
+                  addToast('Repair failed. Please contact your property manager.', { type: 'error' });
+                } finally {
+                  setIsRepairing(false);
+                }
+              }}
+              disabled={isRepairing}
+              className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isRepairing ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Repairing...
+                </>
+              ) : (
+                'Try Repair Link'
+              )}
+            </button>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'notices' && <NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
+            {activeTab === 'ledger' && <LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} />}
+            {activeTab === 'receipts' && <ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+            {activeTab === 'maintenance' && <MaintenanceTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+            {activeTab === 'messages' && <MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} />}
+            {activeTab === 'payments' && <PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+            {activeTab === 'documents' && <DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} />}
+          </>
+        )}
       </div>
     </div>
   );

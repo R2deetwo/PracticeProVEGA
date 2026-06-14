@@ -1026,6 +1026,8 @@ export const setupPortalPassword = action({
               updates: {
                 currentTenantId: portalUserDocId,
                 tenantId: portalUserDocId,
+                tenantEmail: email,
+                tenantName: tenantName,
               },
             });
           }
@@ -1126,6 +1128,92 @@ export const repairPortalUserFirmId = mutation({
   },
 });
 
+/**
+ * relinkPortalUserToProperty — Self-healing mutation that re-links a portal user
+ * to their property/unit if the currentTenantId link is broken.
+ *
+ * This is called from the frontend when getTenantInfo returns empty results
+ * (tenant not found in any property). It searches all properties for a matching
+ * tenant by email and updates the currentTenantId to the user's Convex _id.
+ */
+export const relinkPortalUserToProperty = mutation({
+  args: { email: v.string(), firmId: v.string() },
+  handler: async (ctx, args) => {
+    const emailLower = args.email.toLowerCase().trim();
+
+    // Find the user by email
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", emailLower))
+      .first();
+
+    if (!user) return { success: false, message: "User not found." };
+
+    const userId = String(user._id);
+
+    // Search all properties for this firm
+    const properties = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    let linked = false;
+
+    for (const prop of properties) {
+      const units = (prop as any).units || [];
+      let needsUpdate = false;
+
+      if (units.length > 0) {
+        // Multi-unit property: check each unit for email match
+        const updatedUnits = units.map((u: any) => {
+          const unitTenantEmail = (u.tenantEmail || '').toLowerCase();
+          const unitTenantId = u.currentTenantId || u.tenantId;
+
+          // Match by email or by currentTenantId that's an email (not a Convex _id)
+          const matchesByEmail = unitTenantEmail === emailLower;
+          const matchesById = unitTenantId === emailLower || unitTenantId === userId;
+          const hasStaleLink = unitTenantId && unitTenantId !== userId &&
+              !unitTenantId.startsWith("k") && unitTenantId.includes("@");
+
+          if ((matchesByEmail || matchesById || hasStaleLink) && u.currentTenantId !== userId) {
+            needsUpdate = true;
+            return {
+              ...u,
+              currentTenantId: userId,
+              tenantId: userId,
+              tenantEmail: emailLower,
+            };
+          }
+          return u;
+        });
+
+        if (needsUpdate) {
+          await ctx.db.patch(prop._id, { units: updatedUnits } as any);
+          linked = true;
+        }
+      } else {
+        // Single property: check property-level tenant
+        const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+        const propTenantEmail = ((prop as any).rentalDetails?.tenantEmail || (prop as any).tenantEmail || "").toLowerCase();
+
+        const matchesByEmail = propTenantEmail === emailLower;
+        const matchesById = propTenantId === emailLower || propTenantId === userId;
+
+        if ((matchesByEmail || matchesById) && propTenantId !== userId) {
+          await ctx.db.patch(prop._id, {
+            currentTenantId: userId,
+            tenantId: userId,
+            tenantEmail: emailLower,
+          } as any);
+          linked = true;
+        }
+      }
+    }
+
+    return { success: true, linked, message: linked ? "Portal user re-linked to property." : "No matching property found to link." };
+  },
+});
+
 // ─── Scheduled Messages ─────────────────────────────────────────────────
 
 export const getScheduledMessagesByFirm = query({
@@ -1199,12 +1287,33 @@ export const cancelScheduledMessage = mutation({
 export const getTenantInfo = query({
   args: { firmId: v.string(), userId: v.string(), email: v.string() },
   handler: async (ctx, args) => {
+    const emailLower = (args.email || "").toLowerCase().trim();
+
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
 
-    // Search for tenant in properties using both userId and email
+    // Also resolve the user's Convex _id from their email, in case the
+    // property record stores the _id but we were passed the email as userId
+    let resolvedConvexId: string | null = null;
+    if (emailLower) {
+      const userByEmail = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", emailLower))
+        .first();
+      if (userByEmail) {
+        resolvedConvexId = String(userByEmail._id);
+      }
+    }
+
+    // Build a set of all possible IDs that could match this tenant
+    const possibleIds = new Set<string>();
+    possibleIds.add(args.userId);
+    if (emailLower) possibleIds.add(emailLower);
+    if (resolvedConvexId) possibleIds.add(resolvedConvexId);
+
+    // Search for tenant in properties using all possible IDs + email
     const tenantProperties: any[] = [];
     const tenantUnits: any[] = [];
     let resolvedTenantId = args.userId;
@@ -1212,15 +1321,20 @@ export const getTenantInfo = query({
     for (const prop of properties) {
       // Check property-level tenant (legacy single-tenant model)
       const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
-      if (propTenantId === args.userId || propTenantId === args.email ||
-          String(propTenantId).toLowerCase() === args.email.toLowerCase()) {
+      const propTenantEmail = ((prop as any).rentalDetails?.tenantEmail || (prop as any).tenantEmail || "").toLowerCase();
+
+      const matchesProperty = possibleIds.has(propTenantId) ||
+          possibleIds.has(String(propTenantId)) ||
+          (propTenantEmail && emailLower && propTenantEmail === emailLower);
+
+      if (matchesProperty) {
         tenantProperties.push({
           id: String(prop._id),
           name: (prop as any).name || prop.address || 'Unnamed Property',
           address: prop.address,
           tenantName: (prop as any).rentalDetails?.tenantName || (prop as any).tenantName || null,
         });
-        if (propTenantId && propTenantId !== args.userId) {
+        if (propTenantId && !possibleIds.has(propTenantId)) {
           resolvedTenantId = propTenantId;
         }
       }
@@ -1230,12 +1344,12 @@ export const getTenantInfo = query({
       for (const unit of units) {
         const unitTenantId = unit.currentTenantId || unit.tenantId;
         const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
-        const matchesUserId = unitTenantId === args.userId;
-        const matchesEmail = unitTenantId === args.email ||
-            String(unitTenantId).toLowerCase() === args.email.toLowerCase() ||
-            (unitTenantEmail && unitTenantEmail === args.email.toLowerCase());
 
-        if (matchesUserId || matchesEmail) {
+        const matchesUnit = possibleIds.has(unitTenantId) ||
+            possibleIds.has(String(unitTenantId)) ||
+            (unitTenantEmail && emailLower && unitTenantEmail === emailLower);
+
+        if (matchesUnit) {
           tenantUnits.push({
             id: unit.id || unit._id,
             name: unit.name || unit.unitName || unit.label,
@@ -1246,7 +1360,7 @@ export const getTenantInfo = query({
             amenities: unit.amenities || [],
             tenantName: unit.tenantName || null,
           });
-          if (unitTenantId && unitTenantId !== args.userId) {
+          if (unitTenantId && !possibleIds.has(unitTenantId)) {
             resolvedTenantId = unitTenantId;
           }
         }
