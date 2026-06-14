@@ -1299,4 +1299,17 @@ export default defineSchema({
     .index("by_firm_property", ["firmId", "propertyId"])
     .index("by_firm_pinned", ["firmId", "isPinned"]),
 
+  // ─── Notification Preferences ─────────────────────────────────────────
+  // Per-firm email notification toggles. Each key maps to a notification
+  // type; the value controls whether that type triggers an email to the
+  // relevant recipient.  Types not present in the object fall back to the
+  // built-in defaults (see NOTIFICATION_TYPE_DEFAULTS in portals.ts).
+  notification_preferences: defineTable({
+    firmId: v.string(),
+    preferences: v.any(),   // { [typeKey: string]: boolean } — true = email ON
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"]),
+
 }, { schemaValidation: false });

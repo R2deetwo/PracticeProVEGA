@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { Theme, WorkflowDefinition, CustomEventType, ModalType, ContactCategory, DocumentCategory, User, UserRole, ChecklistTemplate, FirmDetails, AppMode, DocumentTemplate, DocumentTemplateCategory, View, HistoryEntry, SubscriptionPlan } from '../../types';
-import { UserCircleIcon, OfficeBuildingIcon, ClipboardListIcon, TagIcon, DesktopComputerIcon, HelpCircleIcon, ZapIcon, FormIcon, ShieldCheckIcon, LockClosedIcon, TrashIcon, MessagingIcon } from '../../constants';
+import { UserCircleIcon, OfficeBuildingIcon, ClipboardListIcon, TagIcon, DesktopComputerIcon, HelpCircleIcon, ZapIcon, FormIcon, ShieldCheckIcon, LockClosedIcon, TrashIcon, MessagingIcon, BellIcon } from '../../constants';
 
 import ProTip from '../ProTip';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -24,13 +24,14 @@ import ChangelogSettings from './ChangelogSettings';
 import AccountRecoverySettings from './AccountRecoverySettings';
 import IntegrationSettings from './IntegrationSettings';
 import { PortalAccessSettings } from './PortalAccessSettings';
+import { NotificationSettings } from './NotificationSettings';
 
 
 import { useFeatures } from '../../hooks/useFeatures';
 import { LegalIntelligenceHub } from './LegalIntelligenceHub';
 import { useProduct } from '../../contexts/ProductContext';
 
-type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'portal';
+type SettingsTab = 'profile' | 'firm' | 'subscription' | 'security' | 'templates' | 'agents' | 'help' | 'data' | 'changelog' | 'legalIntel' | 'recovery' | 'communications' | 'notifications' | 'portal';
 
 
 const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | CategorySubTab | 'automations' }> = {
@@ -233,6 +234,7 @@ export const SettingsView: React.FC = () => {
             case 'legalIntel': return <LegalIntelligenceHub firmId={props.firmDetails?.id || ''} />;
             case 'recovery': return <AccountRecoverySettings />;
             case 'communications': return <IntegrationSettings />;
+            case 'notifications': return <NotificationSettings />;
             case 'portal': return <PortalAccessSettings />;
             default: return null;
 
@@ -298,6 +300,7 @@ export const SettingsView: React.FC = () => {
                                 }
                                 <NavItem label="Billing & Plans" icon={<div className="font-serif font-bold px-1">₦</div>} isActive={activeTab === 'subscription'} onClick={() => handleNavClick('subscription')} />
                                 <NavItem label="Communications" icon={<MessagingIcon />} isActive={activeTab === 'communications'} onClick={() => handleNavClick('communications')} />
+                                <NavItem label="Notifications" icon={<BellIcon />} isActive={activeTab === 'notifications'} onClick={() => handleNavClick('notifications')} />
                                 <NavItem label={isUnified ? 'Portal Access' : isProperty ? "Residents' Portal" : 'Client Portal'} icon={<ShieldCheckIcon className="text-primary-500" />} id="portal-access" isActive={activeTab === 'portal'} onClick={() => handleNavClick('portal')} />
                                 {permissions.canManageTemplates && <NavItem label={isProperty ? 'Portfolio Configuration' : 'Firm Configuration'} icon={<ClipboardListIcon />} isActive={activeTab === 'templates'} onClick={() => handleNavClick('templates')} />}
 

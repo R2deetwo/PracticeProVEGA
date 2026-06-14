@@ -1,4 +1,4 @@
-import { mutation, query, action, internalQuery, internalMutation } from "./_generated/server";
+import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
@@ -3439,3 +3439,305 @@ export const migratePortalAccessTokens = mutation({
     }).length };
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTIFICATION PREFERENCES — Per-firm email toggle settings
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * NOTIFICATION_TYPE_DEFAULTS — Source of truth for every notification type.
+ * Each entry: { label, category, defaultEnabled, alwaysOn, description }
+ *
+ * defaultEnabled = whether email is ON when the firm has no saved preference.
+ * alwaysOn       = cannot be toggled off (system-critical emails).
+ */
+export const NOTIFICATION_TYPE_DEFAULTS: Record<string, {
+  label: string;
+  category: "property" | "legal" | "portal" | "system";
+  defaultEnabled: boolean;
+  alwaysOn?: boolean;
+  description: string;
+}> = {
+  // ── Property / Atrium (Resident-facing) ──
+  notice_board_post:     { label: "Notice Board Post",      category: "property", defaultEnabled: true,  description: "A new notice is published on the notice board" },
+  portal_message:        { label: "New Portal Message",     category: "property", defaultEnabled: true,  description: "Admin sends a message to a resident" },
+  rent_reminder:         { label: "Rent Reminder",          category: "property", defaultEnabled: true,  description: "Upcoming or overdue rent reminder" },
+  late_payment_notice:   { label: "Late Payment Notice",    category: "property", defaultEnabled: true,  description: "Formal notice of overdue payment" },
+  payment_receipt:       { label: "Payment Receipt",        category: "property", defaultEnabled: true,  description: "Confirmation of a received payment" },
+  service_charge_alert:  { label: "Service Charge Alert",   category: "property", defaultEnabled: true,  description: "New or updated service charge" },
+  service_charge_due:    { label: "Service Charge Due",     category: "property", defaultEnabled: true,  description: "Service charge payment is due" },
+  maintenance_update:    { label: "Maintenance Update",     category: "property", defaultEnabled: false, description: "Status change on a maintenance ticket" },
+  access_restriction:    { label: "Access Restriction",     category: "property", defaultEnabled: true,  description: "Property access restriction notice" },
+  lease_renewal:         { label: "Lease Renewal Notice",   category: "property", defaultEnabled: true,  description: "Lease renewal reminder or notice" },
+  penalty_notice:        { label: "Penalty Notice",         category: "property", defaultEnabled: true,  description: "Late fee or penalty issued" },
+  default_notice:        { label: "Default Notice",         category: "property", defaultEnabled: true,  description: "Formal default notice before legal action" },
+  eviction_notice:       { label: "Eviction Notice",        category: "property", defaultEnabled: true,  description: "Formal eviction notice" },
+
+  // ── Legal / Vega (Client-facing) ──
+  matter_activation:     { label: "Matter Activation",      category: "legal",    defaultEnabled: false, description: "A new matter is activated for a client" },
+  document_upload:       { label: "Document Upload",        category: "legal",    defaultEnabled: false, description: "New document added to a matter" },
+  task_assignment:       { label: "Task Assignment",        category: "legal",    defaultEnabled: false, description: "A task is assigned to a team member" },
+  court_filing:          { label: "Court Filing Update",    category: "legal",    defaultEnabled: false, description: "Update on a court filing" },
+  deadline_reminder:     { label: "Deadline Reminder",      category: "legal",    defaultEnabled: true,  description: "Upcoming filing or statutory deadline" },
+
+  // ── Portal / Account ──
+  portal_invitation:     { label: "Portal Invitation",      category: "portal",   defaultEnabled: true,  alwaysOn: true, description: "Invitation to join the portal" },
+  password_reset:        { label: "Password Reset",         category: "portal",   defaultEnabled: true,  alwaysOn: true, description: "Password reset request" },
+  portal_access_revoked: { label: "Portal Access Revoked",  category: "portal",   defaultEnabled: true,  description: "Portal access has been revoked" },
+
+  // ── System ──
+  verification_code:     { label: "Verification Code",      category: "system",   defaultEnabled: true,  alwaysOn: true, description: "Email verification during signup" },
+  security_breach:       { label: "Security Breach",        category: "system",   defaultEnabled: true,  alwaysOn: true, description: "NDPA breach notification" },
+};
+
+/** Get notification preferences for a firm (returns merged with defaults) */
+export const getNotificationPreferences = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const row = await ctx.db
+      .query("notification_preferences")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+
+    const saved: Record<string, boolean> = row?.preferences ?? {};
+    // Merge: saved overrides defaults
+    const merged: Record<string, { enabled: boolean; alwaysOn: boolean }> = {};
+    for (const [key, meta] of Object.entries(NOTIFICATION_TYPE_DEFAULTS)) {
+      merged[key] = {
+        enabled: saved[key] ?? meta.defaultEnabled,
+        alwaysOn: !!meta.alwaysOn,
+      };
+    }
+    return { preferences: merged, _id: row?._id };
+  },
+});
+
+/** Update (or create) notification preferences for a firm */
+export const updateNotificationPreferences = mutation({
+  args: {
+    firmId: v.string(),
+    preferences: v.any(), // { [typeKey: string]: boolean }
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const existing = await ctx.db
+      .query("notification_preferences")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+
+    if (existing) {
+      // Merge new preferences with existing
+      const current = (existing.preferences as Record<string, boolean>) ?? {};
+      const updated = { ...current, ...args.preferences };
+      // Strip alwaysOn keys — they can never be turned off
+      for (const [key, val] of Object.entries(updated)) {
+        const meta = NOTIFICATION_TYPE_DEFAULTS[key];
+        if (meta?.alwaysOn) updated[key] = true;
+      }
+      await ctx.db.patch(existing._id, { preferences: updated, updatedAt: now });
+    } else {
+      // First-time — ensure alwaysOn keys stay on
+      const prefs: Record<string, boolean> = { ...args.preferences };
+      for (const [key, val] of Object.entries(prefs)) {
+        const meta = NOTIFICATION_TYPE_DEFAULTS[key];
+        if (meta?.alwaysOn) prefs[key] = true;
+      }
+      await ctx.db.insert("notification_preferences", {
+        firmId: args.firmId,
+        preferences: prefs,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
+/** Check if a given notification type has email enabled for a firm */
+export async function isEmailNotificationEnabled(
+  ctx: any,
+  firmId: string,
+  typeKey: string,
+): Promise<boolean> {
+  const row: any = await ctx.db
+    .query("notification_preferences")
+    .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+    .first();
+
+  const meta = NOTIFICATION_TYPE_DEFAULTS[typeKey];
+  if (!meta) return false; // Unknown type — don't send
+  if (meta.alwaysOn) return true; // Can never be turned off
+
+  const saved: Record<string, boolean> = (row?.preferences as Record<string, boolean>) ?? {};
+  return saved[typeKey] ?? meta.defaultEnabled;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NOTICE EMAIL — Send email notification to residents when a notice is posted
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * sendNoticeEmails — Called after createNotice. Sends a light-mode email
+ * to all accepted resident portal users in the targeted property (or all
+ * residents if the notice is global). Respects notification preferences.
+ *
+ * All required data is passed as arguments to avoid circular internalAction
+ * references within the same module.
+ */
+export const sendNoticeEmails = internalAction({
+  args: {
+    firmId: v.string(),
+    noticeTitle: v.string(),
+    noticeBody: v.string(),
+    noticePriority: v.string(),
+    noticePropertyId: v.optional(v.string()),
+    recipients: v.array(v.object({
+      name: v.string(),
+      email: v.string(),
+      relatedId: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, args): Promise<{ sent: number; total: number }> => {
+    if (args.recipients.length === 0) {
+      console.log("[sendNoticeEmails] No recipients provided");
+      return { sent: 0, total: 0 };
+    }
+
+    // Filter to residents linked to the targeted property (if specified)
+    const targetedResidents = args.noticePropertyId
+      ? args.recipients.filter((r) => !r.relatedId || r.relatedId === args.noticePropertyId)
+      : args.recipients;
+
+    if (targetedResidents.length === 0) {
+      console.log("[sendNoticeEmails] No targeted residents after property filter");
+      return { sent: 0, total: args.recipients.length };
+    }
+
+    // Build and send light-mode email to each resident
+    let sent = 0;
+    const priorityLabel = args.noticePriority === "urgent" ? "URGENT" :
+                          args.noticePriority === "important" ? "Important" : "";
+
+    for (const resident of targetedResidents) {
+      try {
+        const htmlBody = buildLightModeNotificationEmail({
+          recipientName: resident.name || "Resident",
+          subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}${args.noticeTitle}`,
+          bodyContent: args.noticeBody,
+          productName: "ATRIUM",
+          brandColor: "#52797f",
+          gradientEnd: "#2a4a4f",
+          portalLabel: "Residents' Portal",
+          ctaLabel: "View Notice",
+          ctaUrl: `https://practice-pro-vega.vercel.app/portal/tenant/login`,
+        });
+
+        await ctx.runAction(api.communications.sendEmail, {
+          to: resident.email,
+          toName: resident.name || "Resident",
+          subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}New Notice: ${args.noticeTitle}`,
+          htmlContent: htmlBody,
+          firmId: args.firmId,
+        });
+        sent++;
+      } catch (err: any) {
+        console.error(`[sendNoticeEmails] Failed for ${resident.email}:`, err?.message);
+      }
+    }
+    return { sent, total: targetedResidents.length };
+  },
+});
+
+/**
+ * getFirmPortalInvites — Helper query to fetch all portal invites for a firm.
+ * Used by sendNoticeEmails to find resident recipients.
+ */
+export const getFirmPortalInvites = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_invites")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+  },
+});
+
+/**
+ * buildLightModeNotificationEmail — Generates a professional light-mode HTML
+ * email for any notification type. NOT used for portal invitations (which
+ * retain their dark theme).
+ */
+function buildLightModeNotificationEmail(opts: {
+  recipientName: string;
+  subject: string;
+  bodyContent: string;
+  productName: string;
+  brandColor: string;
+  gradientEnd: string;
+  portalLabel: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+}): string {
+  const ctaBlock = opts.ctaUrl && opts.ctaLabel ? `
+    <div style="text-align:center;margin:28px 0 32px;">
+      <a href="${opts.ctaUrl}" style="display:inline-block;background-color:${opts.brandColor};color:#ffffff;padding:14px 28px;font-size:15px;font-weight:700;text-decoration:none;border-radius:8px;">${opts.ctaLabel}</a>
+    </div>` : '';
+
+  return `<!DOCTYPE html>
+<html lang="en" style="margin:0;padding:0;">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f4f6f8;-webkit-text-size-adjust:100%;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0d1b2a 0%,${opts.gradientEnd} 100%);border-radius:16px 16px 0 0;padding:28px 32px 20px;text-align:center;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="text-align:center;">
+                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:${opts.brandColor};">Pro</span></span>
+                    <span style="display:inline-block;margin-left:10px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:12px;font-weight:800;color:${opts.brandColor};background:rgba(255,255,255,0.1);padding:3px 10px;border-radius:6px;letter-spacing:1.5px;vertical-align:middle;">${opts.productName}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background:#ffffff;padding:32px 32px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:17px;font-weight:600;color:#1a202c;margin:0 0 8px;">Hello ${opts.recipientName},</p>
+              <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#4a5568;margin:0 0 20px;">
+                ${opts.bodyContent.replace(/\n/g, '<br/>')}
+              </p>
+              ${ctaBlock}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8fafc;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="text-align:center;">
+                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#a0aec0;margin:0 0 4px;">
+                      PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
+                    </p>
+                    <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#cbd5e0;margin:0;">
+                      NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
