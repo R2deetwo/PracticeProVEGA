@@ -289,3 +289,31 @@ Stage Summary:
 - All user-facing "ALOA" references renamed to "ARIA" across the codebase
 - Notice Board tab is now always available on property detail pages
 - System inbox renamed from "PracticePro Team" to "ARIA Assistant"
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix critical portal user access control issue — Tenant/Client roles leaking into team views
+
+Work Log:
+- Identified root cause: Tenant role added for Atrium but existing filters only excluded Client/ExternalCounsel
+- Found 13 leak sites across the codebase where portal users incorrectly appeared
+- Created centralized userUtils.ts utility with getInternalUsers(), getSeatUsers(), isPortalUser(), getSeatCount()
+- Fixed SubscriptionSettings: Tenant not excluded from seat count → caused overbilling
+- Fixed FirmSettings: Tenant not excluded from seat limit → blocked real staff from being added
+- Fixed Dashboard: raw users.length used for downgrade detection → false banners
+- Fixed UserTaskSummaryPanel: no filtering → portal users in task assignment filters
+- Fixed MatterIntakeWizard: no filtering → portal users as assignable team members
+- Fixed NewChannelForm: only excluded self → portal users addable to channels
+- Fixed SecuritySettings: no filtering → portal users in audit log user filter
+- Fixed ReportingView: no filtering → portal users in timesheet/utilization selectors
+- Fixed CaseManagementReports: portal users passed to caseload chart
+- Fixed invoiceHelpers: Tenant not excluded from isMultiUserFirm/findLeadProfessional
+- Fixed ShareDocumentModal: Tenant not excluded from document share recipients
+- Fixed NewDirectMessageForm: Tenant not excluded from DM recipient list
+
+Stage Summary:
+- All 13 portal user leak sites fixed and deployed
+- Portal users (Tenant, Client, Pending) now excluded from ALL internal team views
+- Billing/seat counts now correctly reflect only Admin/Lawyer/Paralegal roles
+- Centralized utility created for future consistency
