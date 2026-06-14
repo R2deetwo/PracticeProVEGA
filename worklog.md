@@ -149,3 +149,26 @@ Stage Summary:
 - Scheduled messages now have a working cron processor (every 5 minutes)
 - Slack dead-end option removed from AutomationSettings
 - Both Atrium and Vega contexts properly supported in Inbox
+---
+Task ID: 1
+Agent: Main Agent
+Task: Conversation-based messaging with file sharing and matter linking
+
+Work Log:
+- Added `portal_conversations` table to schema for threaded messaging
+- Added `conversationId`, `matterId`, `attachmentNames`, `isRead` fields to `portal_messages` table
+- Created backend functions: `sendPortalMessage` (auto-creates conversations), `sendAdminReply`, `getPortalConversationsByFirm`, `getPortalConversationsByParticipant`, `getConversationMessages`, `markConversationReadByAdmin`, `markConversationReadByParticipant`
+- Implemented file attachment support: files uploaded via Convex storage, stored IDs + original filenames
+- Implemented matter linking: when conversation has `matterId`, file attachments are auto-inserted as documents in the matter
+- Redesigned TenantPortal MessagesTab: chat-style threaded view with conversation list, chat bubbles, file attachments with preview/download
+- Updated admin MessagesView Inbox: uses conversations instead of flat messages, shows threaded conversation on right panel, admin can reply with file attachments
+- Updated ClientDashboard: uses `sendPortalMessage` for conversation-based messaging, added file attachment support
+- Legacy backward compat: `replyToPortalMessage` still works, auto-creates threaded messages
+
+Stage Summary:
+- Schema: 1 new table (portal_conversations), 5 new indexes, 4 new fields on portal_messages
+- Backend: 7 new query/mutation functions, backward compat maintained
+- Frontend: 3 files updated (TenantPortal, MessagesView, ClientDashboard)
+- File sharing: Works in both portal and admin side, images get preview, docs get download links
+- Matter linking: Auto-creates documents in matter when conversation has matterId
+- Deployed to Convex cloud and pushed to git (Vercel auto-deploys)
