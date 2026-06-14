@@ -80,3 +80,34 @@ Stage Summary:
 - Full forgot password flow for both portal types
 - Backend mutations and email templates for portal password reset
 - Both Convex backend and Vercel frontend deployed
+
+---
+Task ID: messaging-unification-phase1-2-5
+Agent: Main Agent
+Task: Unified messaging system overhaul — fix broken functions, create 3-tab hub, notification unification
+
+Work Log:
+- Deleted dead CommsView.tsx (900 lines of duplicate code never imported anywhere)
+- Fixed SendPostActivationEmailModal.tsx — now actually sends email via Brevo API instead of just showing a toast
+- Enabled webhook signature verification in sentryWebhook.ts — checks CHAKRA_WEBHOOK_SECRET env var, rejects unauthorized when configured
+- Implemented retryMessage in useMessaging.ts — finds original message, re-sends it, deletes the failed one
+- Fixed handleRequestFinancialDocument in useCommunications.ts — resolves actual client userId from matter instead of using 'client' placeholder
+- Fixed AtriumInbox reply handling — saves replies to automation_logs when Chakra integration not connected (previously discarded)
+- Marked Slack automation action as "Coming Soon" (disabled) in AutomationSettings.tsx
+- Built unified MessagesView with 3 tabs: Inbox, Team Chat, Scheduled
+- Inbox tab shows Atrium tenant messages (WhatsApp/Email/Portal) OR Vega client messages based on product mode
+- Team Chat tab preserves existing DMs/channels/system inbox functionality
+- Scheduled tab shows queued scheduled messages with cancel and status indicators
+- Integrated ComposeModal for inbox replies with product-aware channel selection
+- Updated Sidebar badge to count all unread messages (team chat + inbound tenant + portal)
+- Updated Header notification bell to surface Atrium inbound tenant messages
+- Added deep-linking: clicking tenant notification navigates to Messages Inbox tab and selects the message
+- Deployed Convex backend and pushed frontend to git
+
+Stage Summary:
+- Phase 1 (Fix Broken Things): ✅ Complete — 7 fixes applied
+- Phase 2 (Unified Messages Page): ✅ Complete — 3-tab hub with product-aware Inbox
+- Phase 5 (Notification Unification): ✅ Complete — sidebar badge, header bell, deep links
+- Phase 3 (Scheduled Messages Processor): Pending — needs cron job
+- Phase 4 (Admin Reply to Portal Messages): Pending — needs mutation + reply UI
+- All changes deployed to Convex cloud and pushed to GitHub main branch
