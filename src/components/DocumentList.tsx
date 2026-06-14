@@ -63,9 +63,9 @@ const DocumentRow: React.FC<{
     return (
         <div
             onClick={() => onViewDetails(doc.id)}
-            className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-zinc-800/50 border-b border-slate-100 dark:border-zinc-800 cursor-pointer group transition-colors ml-4"
+            className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-colors"
         >
-            <div className="flex items-center gap-3 min-w-0 flex-grow pr-4">
+            <div className="flex items-center gap-3 min-w-0 flex-grow pr-2">
                 <div className="relative flex-shrink-0">
                     {getFileIcon(fileName, fileType)}
                     {uploadedByClient && (
@@ -101,31 +101,31 @@ const DocumentRow: React.FC<{
                 </div>
             </div>
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 bg-white dark:bg-zinc-900 shadow-sm rounded-lg p-1 border border-slate-100 dark:border-zinc-800 -ml-24 z-10">
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                 <Tooltip text="View">
-                    <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                    <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
                         <EyeIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 {doc.file && (
                     <Tooltip text="Download">
-                        <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded text-slate-400 hover:text-green-600">
+                        <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
                             <DownloadIcon className="w-4 h-4" />
                         </button>
                     </Tooltip>
                 )}
                 <Tooltip text="Share">
-                    <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded text-slate-400 hover:text-blue-500">
+                    <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
                         <ShareIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 <Tooltip text="Edit">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 hover:bg-slate-200 dark:hover:bg-zinc-600 rounded text-slate-400 hover:text-primary-600">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
                         <EditIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 <Tooltip text="Delete">
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/30 rounded text-slate-400 hover:text-red-600">
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                         <TrashIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
@@ -148,15 +148,15 @@ const MatterGroup: React.FC<{
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <div className="mb-4">
-            <div className="flex items-center justify-between w-full p-2 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors group mb-1">
+        <div className="mb-3">
+            <div className="flex items-center justify-between w-full p-3 rounded-xl border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-800/80 transition-colors group">
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className="flex items-center gap-2 flex-grow text-left"
                 >
                     <ChevronDownIcon className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
                     <span className="font-bold text-sm text-slate-700 dark:text-zinc-200 truncate">{matterTitle}</span>
-                    <span className="text-xs text-slate-400 bg-white dark:bg-zinc-900 px-2 py-0.5 rounded-full border border-slate-200 dark:border-zinc-700">
+                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-full font-bold">
                         {documents.length}
                     </span>
                 </button>
@@ -165,7 +165,7 @@ const MatterGroup: React.FC<{
                     <Tooltip text="Upload to this Matter">
                         <button
                             onClick={(e) => { e.stopPropagation(); onUpload(matterId); }}
-                            className="p-1.5 bg-white dark:bg-zinc-700 rounded-md border border-slate-200 dark:border-zinc-600 text-slate-400 hover:text-primary-600 hover:border-primary-500 transition-all opacity-0 group-hover:opacity-100"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all opacity-0 group-hover:opacity-100"
                         >
                             <PlusIcon className="w-4 h-4" />
                         </button>
@@ -174,7 +174,7 @@ const MatterGroup: React.FC<{
             </div>
 
             {isOpen && (
-                <div className="border-l-2 border-slate-200 dark:border-zinc-700 ml-3 pl-1 animate-fade-in">
+                <div className="mt-1 space-y-1 pl-1 animate-fade-in">
                     {documents.map(doc => (
                         <DocumentRow
                             key={doc.id}
@@ -479,9 +479,9 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     {viewMode === 'local' ? (
                         <LocalDocumentManager onPreviewLocalFile={onPreviewLocalFile} />
                     ) : (
-                        <div className="p-2">
+                        <div className="p-3 sm:p-4">
                             {filteredDocuments.length > 0 ? (
-                                <div className="bg-white dark:bg-zinc-900 pb-20">
+                                <div className="space-y-2 pb-20">
                                     {groupedDocuments ? (
                                         <>
                                             {Object.keys(groupedDocuments.groups).sort().map(matterName => (
@@ -500,36 +500,40 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                             ))}
 
                                             {groupedDocuments.unassigned.length > 0 && (
-                                                <div className="mt-6">
-                                                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 px-3">Unassigned {terminology.matters}</h4>
-                                                    {groupedDocuments.unassigned.map(doc => (
-                                                        <DocumentRow
-                                                            key={doc.id}
-                                                            doc={doc}
-                                                            users={[]}
-                                                            onViewDetails={onViewDetails}
-                                                            onDownload={handleDownload}
-                                                            onEdit={(d) => openModal('editDocument', d.id)}
-                                                            onShare={(d) => openModal('shareDocument', d.id)}
-                                                            onDelete={handleDelete}
-                                                        />
-                                                    ))}
+                                                <div className="mt-4">
+                                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-2 px-1">Unassigned {terminology.matters}</h4>
+                                                    <div className="space-y-1">
+                                                        {groupedDocuments.unassigned.map(doc => (
+                                                            <DocumentRow
+                                                                key={doc.id}
+                                                                doc={doc}
+                                                                users={[]}
+                                                                onViewDetails={onViewDetails}
+                                                                onDownload={handleDownload}
+                                                                onEdit={(d) => openModal('editDocument', d.id)}
+                                                                onShare={(d) => openModal('shareDocument', d.id)}
+                                                                onDelete={handleDelete}
+                                                            />
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </>
                                     ) : (
-                                        filteredDocuments.map(doc => (
-                                            <DocumentRow
-                                                key={doc.id}
-                                                doc={doc}
-                                                users={[]}
-                                                onViewDetails={onViewDetails}
-                                                onDownload={handleDownload}
-                                                onEdit={(d) => openModal('editDocument', d.id)}
-                                                onShare={(d) => openModal('shareDocument', d.id)}
-                                                onDelete={handleDelete}
-                                            />
-                                        ))
+                                        <div className="space-y-1">
+                                            {filteredDocuments.map(doc => (
+                                                <DocumentRow
+                                                    key={doc.id}
+                                                    doc={doc}
+                                                    users={[]}
+                                                    onViewDetails={onViewDetails}
+                                                    onDownload={handleDownload}
+                                                    onEdit={(d) => openModal('editDocument', d.id)}
+                                                    onShare={(d) => openModal('shareDocument', d.id)}
+                                                    onDelete={handleDelete}
+                                                />
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             ) : (

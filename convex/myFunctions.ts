@@ -1861,6 +1861,45 @@ export const createItem = mutation({
   },
 });
 
+/**
+ * logActivity — Server-side audit trail logger.
+ * Use this in any Convex mutation to record who did what, when.
+ * Unlike the frontend logActivity (which goes through createItem),
+ * this is guaranteed to execute even if the client disconnects.
+ */
+export const logActivity = mutation({
+  args: {
+    firmId: v.string(),
+    userId: v.optional(v.string()),
+    userName: v.optional(v.string()),
+    action: v.string(),
+    targetType: v.optional(v.string()),
+    targetId: v.optional(v.string()),
+    targetName: v.optional(v.string()),
+    matterId: v.optional(v.string()),
+    metadata: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    const id = crypto.randomUUID();
+    await ctx.db.insert("firmActivity", {
+      firmId: args.firmId,
+      userId: args.userId,
+      userName: args.userName,
+      action: args.action,
+      timestamp: now,
+      targetType: args.targetType,
+      targetId: args.targetId,
+      targetName: args.targetName,
+      matterId: args.matterId,
+      metadata: args.metadata,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return id;
+  },
+});
 
 const INDEXED_CUSTOM_ID_TABLES = [
   "matters",

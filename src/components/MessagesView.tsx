@@ -8,12 +8,13 @@ import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { PaperClipIcon, SendIcon, TrashIcon, DocumentIcon, ChevronRightIcon, ClockIcon, CheckIcon, DownloadIcon, PlusIcon, BellIcon, SparklesIcon } from '../constants';
 import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
 import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
-import { usePropertyGroups, PropertyGroup } from '../hooks/usePropertyGroups';
+import { NoticeBoardTab, ScheduledTab } from './messaging';
+import { ListItemSkeleton } from './toolkit/DataSkeleton';
 
 // --- Icons (If not in constants) ---
 const DotsVerticalIcon = () => (
@@ -56,22 +57,6 @@ const CHANNEL_LABELS: Record<string, string> = {
     email: 'Email',
     sms: 'SMS',
     portal: 'Portal',
-};
-
-const MSG_TYPE_LABELS: Record<string, string> = {
-    custom: 'Custom',
-    rent_reminder: 'Rent Reminder',
-    late_notice: 'Late Notice',
-    payment_receipt: 'Payment Receipt',
-    service_charge_alert: 'Service Charge',
-    access_restriction: 'Access Restriction',
-    penalty_notice: 'Penalty Notice',
-    lease_renewal: 'Lease Renewal',
-    welcome_note: 'Welcome Note',
-    promotion: 'Promotion',
-    vendor_update: 'Vendor Update',
-    general_announcement: 'Announcement',
-    maintenance_update: 'Maintenance',
 };
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -205,7 +190,7 @@ const ChatWindow: React.FC<{
             </div>
 
             {/* Messages */}
-            <div ref={scrollContainerRef} onScroll={handleScroll} onClick={handleTaskClick} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth">
+            <div ref={scrollContainerRef} onScroll={handleScroll} onClick={handleTaskClick} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth bg-slate-50 dark:bg-zinc-900">
                 <div className="max-w-3xl mx-auto w-full pb-4">
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -224,27 +209,40 @@ const ChatWindow: React.FC<{
                         if (msg.isDeleted) {
                             return (
                                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} my-1`}>
-                                    <span className="text-xs text-slate-400 dark:text-zinc-600 italic px-4 py-2">Message deleted</span>
+                                    <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
+                                        isMe
+                                            ? 'bg-primary-600/20 text-primary-300/60 dark:text-primary-400/40 rounded-tr-none italic'
+                                            : 'bg-white dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-500 border border-slate-200/50 dark:border-zinc-700/50 rounded-tl-none italic'
+                                    }`}>
+                                        <p className="text-xs">This message was deleted</p>
+                                    </div>
                                 </div>
                             );
                         }
 
                         return (
-                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} mb-1 group relative ${showAvatar ? 'mt-3' : ''}`}>
+                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative ${showAvatar ? 'mt-4' : 'mt-1'}`}>
                                 {!isMe && showAvatar && (
-                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mr-2 mt-1 ${getUserColor(author?.name || 'U')}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 mr-2.5 mt-0.5 ${getUserColor(author?.name || 'U')}`}>
                                         {getInitials(author?.name || 'U')}
                                     </div>
                                 )}
-                                {!isMe && !showAvatar && <div className="w-7 mr-2 flex-shrink-0" />}
-                                <div className="flex flex-col max-w-[75%] relative">
-                                    {showAvatar && !isMe && (
-                                        <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 mb-0.5 px-1">{author?.name || 'Unknown'}</span>
-                                    )}
-                                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                                {!isMe && !showAvatar && <div className="w-8 mr-2.5 flex-shrink-0" />}
+                                <div className="flex flex-col max-w-[85%] relative">
+                                    {/* Sender label + timestamp — shown for both sides */}
+                                    <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                                            {isMe ? 'You' : (author?.name || 'Unknown')}
+                                        </span>
+                                        <span className="text-[10px] text-slate-300 dark:text-zinc-600">
+                                            {msg.timestamp ? timeAgo(msg.timestamp) : ''}
+                                        </span>
+                                    </div>
+                                    {/* Bubble */}
+                                    <div className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
                                         isMe
-                                            ? 'bg-primary-600 text-white rounded-tr-sm'
-                                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm'
+                                            ? 'bg-primary-600 text-white rounded-tr-none'
+                                            : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
                                     } ${isFailed ? 'border-red-300 bg-red-50 dark:bg-red-900/20' : ''}`}>
                                         {msg.content?.startsWith('[FILE:') ? (
                                             <div className="flex items-center gap-2">
@@ -252,13 +250,10 @@ const ChatWindow: React.FC<{
                                                 <span>File attachment</span>
                                             </div>
                                         ) : (
-                                            <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                                            <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>
                                         )}
-                                    </div>
-                                    <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <span className="text-[9px] text-slate-400">{msg.timestamp ? timeAgo(msg.timestamp) : ''}</span>
                                         {isFailed && (
-                                            <button onClick={() => onRetry(msg.id)} className="text-[9px] text-red-500 hover:text-red-700 font-bold ml-1">
+                                            <button onClick={() => onRetry(msg.id)} className="text-[10px] text-red-400 hover:text-red-300 font-bold ml-2">
                                                 Retry
                                             </button>
                                         )}
@@ -349,20 +344,24 @@ const MessagesView: React.FC = () => {
     const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
-    // Atrium: inbound WhatsApp/Email messages from tenants
-    const atriumInbound = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip') || [];
+    // Atrium: inbound WhatsApp/Email messages from residents
+    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip');
+    const atriumInbound = atriumInboundResult || [];
     // Atrium: portal conversations (conversation-based, replaces flat portal messages)
-    const portalConversations = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip') || [];
+    const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip');
+    const portalConversations = portalConversationsResult || [];
     // Legacy: still fetch portal messages for backward compat
-    const portalMessages = useQuery(api.portals.getPortalMessagesByFirm, firmId ? { firmId } : 'skip') || [];
+    const portalMessagesResult = useQuery(api.portals.getPortalMessagesByFirm, firmId ? { firmId } : 'skip');
+    const portalMessages = portalMessagesResult || [];
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
     // Audit trail for outbound messages
     const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100 } : 'skip') || [];
 
-    // ── Scheduled messages ──
-    const scheduledMessages = useQuery(api.portals.getScheduledMessagesByFirm, firmId ? { firmId } : 'skip') || [];
-    const cancelScheduled = useMutation(api.portals.cancelScheduledMessage);
+    // ── Loading state detection ──
+    const isInboxLoading = atriumInboundResult === undefined || portalConversationsResult === undefined || portalMessagesResult === undefined;
+
+    // ── Scheduled messages — state managed by ScheduledTab component ──
 
     // ── Compose modal for inbox replies ──
     const [showCompose, setShowCompose] = useState(false);
@@ -388,138 +387,18 @@ const MessagesView: React.FC = () => {
     const [adminAttachments, setAdminAttachments] = useState<{ storageId: string; name: string }[]>([]);
     const adminFileInputRef = useRef<HTMLInputElement>(null);
 
-    // ── Scheduled: schedule form state ──
-    const [showScheduleForm, setShowScheduleForm] = useState(false);
-    const [scheduleForm, setScheduleForm] = useState({
-        channel: 'email' as 'email' | 'whatsapp' | 'sms',
-        messageType: 'custom',
-        content: '',
-        scheduledFor: '',
-    });
-    const createScheduled = useMutation(api.portals.createScheduledMessage);
-
-    // ── Notice Board state ──
+    // ── Notice Board — count for tab badge (content rendered by NoticeBoardTab) ──
     const allNotices = useQuery(api.portals.getAllNotices, firmId ? { firmId } : 'skip') || [];
     const activeNoticesCount = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'active').length, [allNotices]);
-    const [showNoticeForm, setShowNoticeForm] = useState(false);
-    const [newNoticeTitle, setNewNoticeTitle] = useState('');
-    const [newNoticeBody, setNewNoticeBody] = useState('');
-    const [newNoticePriority, setNewNoticePriority] = useState<'normal' | 'important' | 'urgent'>('normal');
-    const [newNoticePinned, setNewNoticePinned] = useState(false);
-    const [newNoticePropertyId, setNewNoticePropertyId] = useState('');
-    const [newNoticeUnitId, setNewNoticeUnitId] = useState('');
-    const [isPostingNotice, setIsPostingNotice] = useState(false);
-    const createNotice = useMutation(api.portals.createNotice);
-    const archiveNotice = useMutation(api.portals.archiveNotice);
-    const restoreNotice = useMutation(api.portals.restoreNotice);
-    const sendNoticeEmails = useAction(api.portals.sendNoticeEmails);
 
-    // For email notification: fetch portal invites (to get resident emails) and notification prefs
-    const portalInvites = useQuery(api.portals.getFirmPortalInvites, firmId ? { firmId } : 'skip') || [];
-    const notificationPrefs = useQuery(api.portals.getNotificationPreferences, firmId ? { firmId } : 'skip');
-
-    // Property groups for notice targeting
-    const properties = (coreState as any).properties || (coreState as any).firmDetails?.properties || [];
-    const { groups: propertyGroups, flatUnits } = usePropertyGroups(properties);
-
-    // For property targeting dropdown — unique addresses with a representative propertyId
-    const propertyOptions = useMemo(() => {
-        const seen = new Map<string, { propertyId: string; address: string }>();
-        for (const u of flatUnits) {
-            const key = u.shortAddress;
-            if (!seen.has(key)) {
-                seen.set(key, { propertyId: u.id, address: u.address });
-            }
-        }
-        return Array.from(seen.values());
-    }, [flatUnits]);
-
-    // Units filtered by selected property
-    const unitsForProperty = useMemo(() => {
-        if (!newNoticePropertyId) return [];
-        const selected = flatUnits.find(u => u.id === newNoticePropertyId);
-        if (!selected) return [];
-        return flatUnits.filter(u => u.shortAddress === selected.shortAddress);
-    }, [flatUnits, newNoticePropertyId]);
-
-    const activeNotices = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'active'), [allNotices]);
-    const archivedNotices = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'archived'), [allNotices]);
-
-    const noticePriorityColors: Record<string, string> = {
-        urgent: 'bg-rose-100 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300',
-        important: 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
-        normal: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
-    };
-
-    const handlePostNotice = async () => {
-        if (!newNoticeTitle.trim() || !newNoticeBody.trim()) {
-            addToast('Please enter a title and message for the notice.', { type: 'error' });
-            return;
-        }
-        setIsPostingNotice(true);
-        // Capture values before resetting state
-        const title = newNoticeTitle.trim();
-        const body = newNoticeBody.trim();
-        const priority = newNoticePriority;
-        const propertyId = newNoticePropertyId || undefined;
-        try {
-            await createNotice({
-                firmId,
-                authorId: currentUser?.id || '',
-                authorName: currentUser?.name || '',
-                title,
-                body,
-                priority,
-                isPinned: newNoticePinned,
-                propertyId,
-                unitId: newNoticeUnitId || undefined,
-            });
-            setNewNoticeTitle('');
-            setNewNoticeBody('');
-            setNewNoticePriority('normal');
-            setNewNoticePinned(false);
-            setNewNoticePropertyId('');
-            setNewNoticeUnitId('');
-            setShowNoticeForm(false);
-            addToast('Notice posted successfully.', { type: 'success' });
-
-            // Check if notice_board_post emails are enabled, then send
-            const prefs = notificationPrefs as any;
-            if (prefs?.preferences?.notice_board_post?.enabled) {
-                try {
-                    const residents = (portalInvites as any[])
-                        .filter((inv: any) => inv.portalType === 'resident' && inv.status === 'accepted' && inv.inviteeEmail)
-                        .map((inv: any) => ({
-                            name: inv.inviteeName || 'Resident',
-                            email: inv.inviteeEmail,
-                            relatedId: inv.relatedId || undefined,
-                        }));
-                    if (residents.length > 0) {
-                        await sendNoticeEmails({
-                            firmId,
-                            noticeTitle: title,
-                            noticeBody: body,
-                            noticePriority: priority,
-                            noticePropertyId: propertyId,
-                            recipients: residents,
-                        });
-                    }
-                } catch (emailErr: any) {
-                    console.warn('[NoticeBoard] Email notification failed:', emailErr?.message);
-                }
-            }
-        } catch (err: any) {
-            addToast(err.message || 'Failed to create notice.', { type: 'error' });
-        } finally {
-            setIsPostingNotice(false);
-        }
-    };
+    // ── Scheduled — count for tab badge (content rendered by ScheduledTab) ──
+    const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId ? { firmId } : 'skip') || [];
+    const pendingScheduled = useMemo(() => (scheduledMessagesCount as any[]).filter((m: any) => m.status === 'scheduled').length, [scheduledMessagesCount]);
 
     // ── Inbox: compute unread counts ──
     const inboundUnreadCount = atriumInbound.filter((m: any) => !m.isRead).length;
     const portalUnreadCount = (portalConversations as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
     const totalInboxUnread = inboundUnreadCount + portalUnreadCount + clientMessages.filter(m => !m.isRead).length;
-    const pendingScheduled = (scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').length;
 
     // ── Inbox: find selected conversation/message ──
     const selectedInboundMsg = useMemo(() => {
@@ -831,15 +710,19 @@ const MessagesView: React.FC = () => {
                                 </button>
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {isProperty ? (
-                                    /* ── ATRIUM: Tenant inbound + portal messages ── */
+                                {isInboxLoading ? (
+                                    <div className="p-3">
+                                        <ListItemSkeleton count={6} />
+                                    </div>
+                                ) : isProperty ? (
+                                    /* ── ATRIUM: Resident inbound + portal messages ── */
                                     atriumInbound.length === 0 && portalMessages.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-16 text-center px-6">
                                             <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                                 <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                             </div>
                                             <p className="text-sm text-slate-400">No resident messages yet</p>
-                                            <p className="text-xs text-slate-300 mt-1">WhatsApp, email, and portal messages from tenants will appear here</p>
+                                            <p className="text-xs text-slate-300 mt-1">WhatsApp, email, and portal messages from residents will appear here</p>
                                         </div>
                                     ) : (
                                         <>
@@ -870,7 +753,7 @@ const MessagesView: React.FC = () => {
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
                                             ))}
-                                            {/* Portal conversations (Tenants only — clients shown in Vega mode) */}
+                                            {/* Portal conversations (Residents only — clients shown in Vega mode) */}
                                             {(portalConversations as any[]).filter((c: any) => c.participantRole !== 'Client').map((conv: any) => (
                                                 <div
                                                     key={conv._id}
@@ -1219,7 +1102,7 @@ const MessagesView: React.FC = () => {
                                         {isProperty ? 'Select a resident message to respond' : 'Select a client message to view'}
                                     </p>
                                     <p className="text-xs text-slate-400 mt-1">
-                                        {isProperty ? 'WhatsApp, email, and portal messages from tenants' : 'Messages from your clients on matters'}
+                                        {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}
                                     </p>
                                 </div>
                             )}
@@ -1263,8 +1146,14 @@ const MessagesView: React.FC = () => {
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {filteredConversations.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">No conversations found.</p>}
-                                {filteredConversations.map(c => {
+                                {!isDataLoaded ? (
+                                    <div className="p-3">
+                                        <ListItemSkeleton count={6} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        {filteredConversations.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">No conversations found.</p>}
+                                        {filteredConversations.map(c => {
                                     let displayName = c.name || 'Chat';
                                     let avatar = null;
                                     const convMessages = messages.filter((m: any) => m && m.conversationId?.toString() === c.id);
@@ -1357,6 +1246,8 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     );
                                 })}
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -1458,469 +1349,12 @@ const MessagesView: React.FC = () => {
 
                 {/* ═══ NOTICE BOARD TAB ═══ */}
                 {activeTab === 'notices' && isProperty && (
-                    <div className="w-full h-full flex flex-col">
-                        {/* Header */}
-                        <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-                            <div className="max-w-3xl mx-auto">
-                                <div className="flex items-center justify-between mb-1">
-                                    <div>
-                                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Notice Board</h2>
-                                        <p className="text-xs text-slate-500 dark:text-zinc-400">Post updates visible to residents on their portal. Emails are sent based on your notification settings.</p>
-                                    </div>
-                                    <button
-                                        onClick={() => setShowNoticeForm(!showNoticeForm)}
-                                        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
-                                            showNoticeForm
-                                                ? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300'
-                                                : 'bg-amber-600 text-white hover:bg-amber-700'
-                                        }`}
-                                    >
-                                        <PlusIcon className="w-3.5 h-3.5" />
-                                        {showNoticeForm ? 'Cancel' : 'New Notice'}
-                                    </button>
-                                </div>
-
-                                {/* Create Notice Form */}
-                                {showNoticeForm && (
-                                    <div className="mt-3 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
-                                        <input
-                                            type="text"
-                                            value={newNoticeTitle}
-                                            onChange={e => setNewNoticeTitle(e.target.value)}
-                                            placeholder="Notice title..."
-                                            className="w-full px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500"
-                                        />
-                                        <textarea
-                                            value={newNoticeBody}
-                                            onChange={e => setNewNoticeBody(e.target.value)}
-                                            placeholder="Notice content..."
-                                            rows={4}
-                                            className="w-full px-3 py-2 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 resize-none"
-                                        />
-
-                                        {/* Property / Unit Targeting */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Property</label>
-                                                <select
-                                                    value={newNoticePropertyId}
-                                                    onChange={e => { setNewNoticePropertyId(e.target.value); setNewNoticeUnitId(''); }}
-                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
-                                                >
-                                                    <option value="">All Properties (Global)</option>
-                                                    {propertyOptions.map(po => (
-                                                        <option key={po.propertyId} value={po.propertyId}>{po.address}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            {newNoticePropertyId && unitsForProperty.length > 1 && (
-                                                <div>
-                                                    <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Unit</label>
-                                                    <select
-                                                        value={newNoticeUnitId}
-                                                        onChange={e => setNewNoticeUnitId(e.target.value)}
-                                                        className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
-                                                    >
-                                                        <option value="">All Units</option>
-                                                        {unitsForProperty.map(u => (
-                                                            <option key={u.id} value={u.id}>{u.label}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Priority + Pin */}
-                                        <div className="flex items-center gap-4 flex-wrap">
-                                            <div className="flex items-center gap-2">
-                                                <label className="text-xs font-semibold text-slate-600 dark:text-zinc-400">Priority:</label>
-                                                {(['normal', 'important', 'urgent'] as const).map(p => (
-                                                    <button
-                                                        key={p}
-                                                        onClick={() => setNewNoticePriority(p)}
-                                                        className={`px-2.5 py-1 rounded text-[10px] font-bold transition-colors ${newNoticePriority === p ? noticePriorityColors[p] + ' ring-2 ring-offset-1' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500'}`}
-                                                    >
-                                                        {p.charAt(0).toUpperCase() + p.slice(1)}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <label className="flex items-center gap-1.5 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={newNoticePinned}
-                                                    onChange={e => setNewNoticePinned(e.target.checked)}
-                                                    className="rounded border-slate-300 dark:border-zinc-600 text-amber-500 focus:ring-amber-500/30"
-                                                />
-                                                <span className="text-xs font-medium text-slate-600 dark:text-zinc-400">Pin to top</span>
-                                            </label>
-                                        </div>
-
-                                        <div className="flex items-center gap-2 justify-end pt-1">
-                                            <button
-                                                onClick={() => setShowNoticeForm(false)}
-                                                className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                onClick={handlePostNotice}
-                                                disabled={isPostingNotice}
-                                                className="px-4 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                                            >
-                                                <BellIcon className="w-3.5 h-3.5" />
-                                                {isPostingNotice ? 'Posting...' : 'Post Notice'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Notices List */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            <div className="max-w-3xl mx-auto p-4 sm:p-6">
-                                {activeNotices.length === 0 && archivedNotices.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                                        <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                            <BellIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
-                                        </div>
-                                        <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400">No notices yet</p>
-                                        <p className="text-xs text-slate-400 mt-1">Post a notice to keep your residents informed</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {/* Active Notices */}
-                                        {activeNotices.length > 0 && (
-                                            <div>
-                                                <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-2">Active ({activeNotices.length})</h3>
-                                                <div className="space-y-2">
-                                                    {activeNotices.map((notice: any) => {
-                                                        // Find property name
-                                                        const matchedUnit = flatUnits.find((u: any) => u.id === notice.propertyId);
-                                                        const scopeLabel = notice.propertyId
-                                                            ? matchedUnit?.address || notice.propertyId
-                                                            : 'All Properties';
-                                                        return (
-                                                            <div key={notice._id} className="p-4 rounded-xl border bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700">
-                                                                <div className="flex items-start justify-between gap-3">
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                                                            {notice.isPinned && (
-                                                                                <svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-                                                                            )}
-                                                                            <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">{notice.title}</span>
-                                                                            <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${noticePriorityColors[notice.priority] || noticePriorityColors.normal}`}>
-                                                                                {notice.priority}
-                                                                            </span>
-                                                                        </div>
-                                                                        <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-2 mb-2">{notice.body}</p>
-                                                                        <div className="flex items-center gap-3 text-[10px] text-slate-400 dark:text-zinc-500">
-                                                                            <span>{new Date(notice.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                                                                            <span className="flex items-center gap-1">
-                                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                                                                                {scopeLabel}
-                                                                            </span>
-                                                                            {notice.authorName && (
-                                                                                <span>by {notice.authorName}</span>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => archiveNotice({ noticeId: notice._id }).then(() => addToast('Notice archived.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to archive.', { type: 'error' }))}
-                                                                        className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex-shrink-0"
-                                                                        title="Archive notice"
-                                                                    >
-                                                                        <TrashIcon className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Archived Notices */}
-                                        {archivedNotices.length > 0 && (
-                                            <details className="group">
-                                                <summary className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
-                                                    Archived ({archivedNotices.length})
-                                                </summary>
-                                                <div className="mt-2 space-y-2">
-                                                    {archivedNotices.map((notice: any) => (
-                                                        <div key={notice._id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 dark:bg-zinc-800/50 rounded-lg opacity-60">
-                                                            <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{notice.title}</span>
-                                                            <button
-                                                                onClick={() => restoreNotice({ noticeId: notice._id }).then(() => addToast('Notice restored.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to restore.', { type: 'error' }))}
-                                                                className="text-[10px] font-bold text-amber-600 hover:text-amber-500 flex-shrink-0"
-                                                            >
-                                                                Restore
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </details>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    <NoticeBoardTab firmId={firmId} allNotices={allNotices} />
                 )}
 
                 {/* ═══ SCHEDULED TAB ═══ */}
                 {activeTab === 'scheduled' && (
-                    <div className="w-full h-full flex flex-col">
-                        {/* Schedule Form */}
-                        <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-                            <div className="max-w-3xl mx-auto">
-                                <div className="flex items-center justify-between mb-3">
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Scheduled Messages</h2>
-                                    <div className="flex items-center gap-2">
-                                        {pendingScheduled > 0 && (
-                                            <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
-                                                {pendingScheduled} pending
-                                            </span>
-                                        )}
-                                        <button
-                                            onClick={() => setShowScheduleForm(!showScheduleForm)}
-                                            className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
-                                                showScheduleForm
-                                                    ? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300'
-                                                    : 'bg-primary-600 text-white hover:bg-primary-700'
-                                            }`}
-                                        >
-                                            <PlusIcon className="w-3.5 h-3.5" />
-                                            {showScheduleForm ? 'Cancel' : 'Schedule Message'}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {showScheduleForm && (
-                                    <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Channel</label>
-                                                <select
-                                                    value={scheduleForm.channel}
-                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, channel: e.target.value as any }))}
-                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
-                                                >
-                                                    <option value="email">Email</option>
-                                                    <option value="whatsapp">WhatsApp</option>
-                                                    <option value="sms" disabled>SMS (Not Available)</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Message Type</label>
-                                                <select
-                                                    value={scheduleForm.messageType}
-                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, messageType: e.target.value }))}
-                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
-                                                >
-                                                    {Object.entries(MSG_TYPE_LABELS).map(([key, label]) => (
-                                                        <option key={key} value={key}>{label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Send At</label>
-                                                <input
-                                                    type="datetime-local"
-                                                    value={scheduleForm.scheduledFor}
-                                                    onChange={(e) => setScheduleForm(prev => ({ ...prev, scheduledFor: e.target.value }))}
-                                                    min={new Date().toISOString().slice(0, 16)}
-                                                    className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Message</label>
-                                            <textarea
-                                                value={scheduleForm.content}
-                                                onChange={(e) => setScheduleForm(prev => ({ ...prev, content: e.target.value }))}
-                                                placeholder="Write your message here..."
-                                                rows={3}
-                                                className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm resize-none"
-                                            />
-                                        </div>
-                                        <div className="flex justify-end">
-                                            <button
-                                                onClick={async () => {
-                                                    if (!scheduleForm.content.trim()) {
-                                                        addToast('Please enter a message.', { type: 'error' });
-                                                        return;
-                                                    }
-                                                    if (!scheduleForm.scheduledFor) {
-                                                        addToast('Please select a date and time.', { type: 'error' });
-                                                        return;
-                                                    }
-                                                    try {
-                                                        await createScheduled({
-                                                            firmId,
-                                                            messageType: scheduleForm.messageType,
-                                                            channel: scheduleForm.channel,
-                                                            content: scheduleForm.content.trim(),
-                                                            scheduledFor: new Date(scheduleForm.scheduledFor).getTime(),
-                                                            isAutomation: false,
-                                                            triggeredBy: currentUser?.id,
-                                                        });
-                                                        addToast('Message scheduled successfully.', { type: 'success' });
-                                                        setScheduleForm({ channel: 'email', messageType: 'custom', content: '', scheduledFor: '' });
-                                                        setShowScheduleForm(false);
-                                                    } catch (e: any) {
-                                                        addToast(e.message || 'Failed to schedule message.', { type: 'error' });
-                                                    }
-                                                }}
-                                                disabled={!scheduleForm.content.trim() || !scheduleForm.scheduledFor}
-                                                className="px-4 py-2 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:cursor-not-allowed flex items-center gap-1.5"
-                                            >
-                                                <ClockIcon className="w-3.5 h-3.5" />
-                                                Schedule
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Scheduled Messages List */}
-                        <div className="flex-1 overflow-y-auto custom-scrollbar">
-                            <div className="max-w-3xl mx-auto p-4 sm:p-6">
-                                {(scheduledMessages as any[]).length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                                        <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                            <ClockIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
-                                        </div>
-                                        <p className="text-sm text-slate-400">No scheduled messages</p>
-                                        <p className="text-xs text-slate-300 mt-1">Schedule a message for future delivery using the button above</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-3">
-                                        {/* Pending */}
-                                        {(scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').length > 0 && (
-                                            <div className="mb-2">
-                                                <h3 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-2">Pending</h3>
-                                                {(scheduledMessages as any[]).filter((m: any) => m.status === 'scheduled').map((msg: any) => {
-                                                    const timeUntil = msg.scheduledFor - Date.now();
-                                                    const isOverdue = timeUntil < 0;
-                                                    const hoursUntil = Math.max(0, Math.floor(timeUntil / (1000 * 60 * 60)));
-                                                    const minsUntil = Math.max(0, Math.floor(timeUntil / (1000 * 60)));
-                                                    const timeLabel = isOverdue
-                                                        ? 'Processing...'
-                                                        : hoursUntil > 24
-                                                            ? `${Math.floor(hoursUntil / 24)}d ${hoursUntil % 24}h`
-                                                            : hoursUntil > 0
-                                                                ? `${hoursUntil}h ${minsUntil % 60}m`
-                                                                : `${minsUntil}m`;
-                                                    return (
-                                                        <div
-                                                            key={msg._id}
-                                                            className="p-4 rounded-xl border bg-white dark:bg-zinc-800 border-amber-200 dark:border-amber-800/50 mb-2"
-                                                        >
-                                                            <div className="flex items-start justify-between mb-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
-                                                                        {CHANNEL_LABELS[msg.channel] || msg.channel}
-                                                                    </span>
-                                                                    {msg.messageType && (
-                                                                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                                                            {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 flex items-center gap-1">
-                                                                        <ClockIcon className="w-3 h-3" />
-                                                                        {timeLabel}
-                                                                    </span>
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            if (window.confirm('Cancel this scheduled message?')) {
-                                                                                await cancelScheduled({ messageId: msg._id });
-                                                                            }
-                                                                        }}
-                                                                        className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                                                                        title="Cancel scheduled message"
-                                                                    >
-                                                                        <TrashIcon className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                            <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 line-clamp-3">{msg.content}</p>
-                                                            <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                                                                <span className="flex items-center gap-1">
-                                                                    <ClockIcon className="w-3 h-3" />
-                                                                    {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString() : 'No date'}
-                                                                </span>
-                                                                {msg.tenantIds && msg.tenantIds.length > 0 && (
-                                                                    <span>{msg.tenantIds.length} recipient{msg.tenantIds.length > 1 ? 's' : ''}</span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-
-                                        {/* Sent / Failed / Cancelled */}
-                                        {(scheduledMessages as any[]).filter((m: any) => m.status !== 'scheduled').length > 0 && (
-                                            <div>
-                                                <h3 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">History</h3>
-                                                {(scheduledMessages as any[]).filter((m: any) => m.status !== 'scheduled').map((msg: any) => (
-                                                    <div
-                                                        key={msg._id}
-                                                        className={`p-4 rounded-xl border mb-2 ${
-                                                            msg.status === 'cancelled'
-                                                                ? 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-60'
-                                                                : msg.status === 'failed'
-                                                                ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 opacity-75'
-                                                                : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 opacity-75'
-                                                        }`}
-                                                    >
-                                                        <div className="flex items-start justify-between mb-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded uppercase text-[10px] font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
-                                                                    {CHANNEL_LABELS[msg.channel] || msg.channel}
-                                                                </span>
-                                                                {msg.messageType && (
-                                                                    <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-                                                                        {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                                    msg.status === 'sent' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                                                    msg.status === 'cancelled' ? 'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400' :
-                                                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                                                }`}>
-                                                                    {msg.status}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <p className="text-sm text-slate-700 dark:text-slate-300 mb-2 line-clamp-2">{msg.content}</p>
-                                                        <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                                                            <span className="flex items-center gap-1">
-                                                                <ClockIcon className="w-3 h-3" />
-                                                                {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString() : 'No date'}
-                                                            </span>
-                                                            {msg.sentAt && (
-                                                                <span>Sent: {new Date(msg.sentAt).toLocaleString()}</span>
-                                                            )}
-                                                            {msg.failureReason && (
-                                                                <span className="text-red-500">{msg.failureReason}</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                    <ScheduledTab firmId={firmId} />
                 )}
             </div>
         </div>

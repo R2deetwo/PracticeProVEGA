@@ -3157,7 +3157,7 @@ export const updateFirmPortalSettings = mutation({
 // NOTICE BOARD — Property managers post notices visible to all tenants
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/** Create a new notice (admin only) */
+/** Create a new notice (admin only) — automatically triggers email notifications server-side */
 export const createNotice = mutation({
   args: {
     firmId: v.string(),
@@ -3173,7 +3173,7 @@ export const createNotice = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    return await ctx.db.insert("portal_notices", {
+    const noticeId = await ctx.db.insert("portal_notices", {
       firmId: args.firmId,
       authorId: args.authorId,
       authorName: args.authorName,
@@ -3188,6 +3188,29 @@ export const createNotice = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Schedule email notification server-side — guarantees delivery even if
+    // the client disconnects after the mutation completes.
+    await ctx.scheduler.runAfter(0, internal.portals.sendNoticeEmailsForFirm, {
+      firmId: args.firmId,
+      noticeTitle: args.title,
+      noticeBody: args.body,
+      noticePriority: args.priority,
+      noticePropertyId: args.propertyId,
+    });
+
+    // Log activity for audit trail
+    await ctx.runMutation(api.myFunctions.logActivity, {
+      firmId: args.firmId,
+      userId: args.authorId,
+      userName: args.authorName,
+      action: "Posted notice",
+      targetType: "notice",
+      targetId: noticeId,
+      targetName: args.title,
+    });
+
+    return noticeId;
   },
 });
 
@@ -3219,6 +3242,18 @@ export const archiveNotice = mutation({
   args: { noticeId: v.id("portal_notices") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.noticeId, { status: "archived", updatedAt: Date.now() });
+
+    // Log activity
+    const notice = await ctx.db.get(args.noticeId);
+    if (notice) {
+      await ctx.runMutation(api.myFunctions.logActivity, {
+        firmId: notice.firmId as string,
+        action: "Archived notice",
+        targetType: "notice",
+        targetId: args.noticeId,
+        targetName: notice.title as string,
+      });
+    }
   },
 });
 
@@ -3227,6 +3262,18 @@ export const restoreNotice = mutation({
   args: { noticeId: v.id("portal_notices") },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.noticeId, { status: "active", updatedAt: Date.now() });
+
+    // Log activity
+    const notice = await ctx.db.get(args.noticeId);
+    if (notice) {
+      await ctx.runMutation(api.myFunctions.logActivity, {
+        firmId: notice.firmId as string,
+        action: "Restored notice",
+        targetType: "notice",
+        targetId: args.noticeId,
+        targetName: notice.title as string,
+      });
+    }
   },
 });
 
@@ -3644,6 +3691,123 @@ export const sendNoticeEmails = internalAction({
       }
     }
     return { sent, total: targetedResidents.length };
+  },
+});
+
+/**
+ * sendNoticeEmailsForFirm — Server-side orchestrator called by createNotice.
+ * Queries portal invites, checks notification preferences, and sends emails.
+ * This eliminates the fragile client-side email orchestration pattern.
+ */
+export const sendNoticeEmailsForFirm = internalAction({
+  args: {
+    firmId: v.string(),
+    noticeTitle: v.string(),
+    noticeBody: v.string(),
+    noticePriority: v.string(),
+    noticePropertyId: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ sent: number; total: number; skipped: boolean }> => {
+    // Step 1: Check if notice_board_post emails are enabled for this firm
+    const prefsRow: any = await ctx.runQuery(internal.portals.getNotificationPreferencesInternal, {
+      firmId: args.firmId,
+    });
+    const saved: Record<string, boolean> = prefsRow?.preferences ?? {};
+    const meta = NOTIFICATION_TYPE_DEFAULTS["notice_board_post"];
+    const emailsEnabled = meta && (saved["notice_board_post"] ?? meta.defaultEnabled);
+
+    if (!emailsEnabled) {
+      console.log("[sendNoticeEmailsForFirm] Notice board emails disabled for firm", args.firmId);
+      return { sent: 0, total: 0, skipped: true };
+    }
+
+    // Step 2: Fetch all accepted resident portal invites for this firm
+    const invites: any[] = await ctx.runQuery(internal.portals.getFirmPortalInvitesInternal, {
+      firmId: args.firmId,
+    });
+
+    const residents = invites
+      .filter((inv: any) => inv.portalType === "resident" && inv.status === "accepted" && inv.inviteeEmail)
+      .map((inv: any) => ({
+        name: inv.inviteeName || "Resident",
+        email: inv.inviteeEmail,
+        relatedId: inv.relatedId || undefined,
+      }));
+
+    if (residents.length === 0) {
+      console.log("[sendNoticeEmailsForFirm] No resident recipients found");
+      return { sent: 0, total: 0, skipped: false };
+    }
+
+    // Step 3: Filter by property if the notice is property-scoped
+    const targetedResidents = args.noticePropertyId
+      ? residents.filter((r) => !r.relatedId || r.relatedId === args.noticePropertyId)
+      : residents;
+
+    if (targetedResidents.length === 0) {
+      console.log("[sendNoticeEmailsForFirm] No targeted residents after property filter");
+      return { sent: 0, total: residents.length, skipped: false };
+    }
+
+    // Step 4: Build and send light-mode email to each resident
+    let sent = 0;
+    const priorityLabel = args.noticePriority === "urgent" ? "URGENT" :
+                          args.noticePriority === "important" ? "Important" : "";
+
+    for (const resident of targetedResidents) {
+      try {
+        const htmlBody = buildLightModeNotificationEmail({
+          recipientName: resident.name || "Resident",
+          subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}${args.noticeTitle}`,
+          bodyContent: args.noticeBody,
+          productName: "ATRIUM",
+          brandColor: "#52797f",
+          gradientEnd: "#2a4a4f",
+          portalLabel: "Residents' Portal",
+          ctaLabel: "View Notice",
+          ctaUrl: `https://practice-pro-vega.vercel.app/portal/tenant/login`,
+        });
+
+        await ctx.runAction(api.communications.sendEmail, {
+          to: resident.email,
+          toName: resident.name || "Resident",
+          subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}New Notice: ${args.noticeTitle}`,
+          htmlContent: htmlBody,
+          firmId: args.firmId,
+        });
+        sent++;
+      } catch (err: any) {
+        console.error(`[sendNoticeEmailsForFirm] Failed for ${resident.email}:`, err?.message);
+      }
+    }
+    return { sent, total: targetedResidents.length, skipped: false };
+  },
+});
+
+/**
+ * getNotificationPreferencesInternal — Internal query used by sendNoticeEmailsForFirm
+ * to check preferences without exposing to the public API.
+ */
+export const getNotificationPreferencesInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("notification_preferences")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .first();
+  },
+});
+
+/**
+ * getFirmPortalInvitesInternal — Internal query used by sendNoticeEmailsForFirm.
+ */
+export const getFirmPortalInvitesInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("portal_invites")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
   },
 });
 
