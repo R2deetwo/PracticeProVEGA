@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -142,6 +142,7 @@ const ClientDashboard: React.FC = () => {
 
     // Repair mutation for fixing missing firmId on portal user records
     const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
+    const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const [isRepairing, setIsRepairing] = useState(false);
 
     const [activeTab, setActiveTab] = useState<PortalTab>(() => {
@@ -157,6 +158,9 @@ const ClientDashboard: React.FC = () => {
     const [messageText, setMessageText] = useState('');
     const [selectedMatterForMessage, setSelectedMatterForMessage] = useState<string>('');
     const [isComposing, setIsComposing] = useState(false);
+    const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
         theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
@@ -209,6 +213,18 @@ const ClientDashboard: React.FC = () => {
         api.portals.getClientConsentRecords,
         currentUser?.email ? { email: currentUser.email } : 'skip'
     );
+    // Conversation-based portal messages (new system)
+    const portalConversations = useQuery(
+        api.portals.getPortalConversationsByParticipant,
+        currentUser?.id ? { participantId: currentUser.id } : 'skip'
+    );
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const conversationMessages = useQuery(
+        api.portals.getConversationMessages,
+        activeConversationId ? { conversationId: activeConversationId } : 'skip'
+    );
+    const markRead = useMutation(api.portals.markConversationReadByParticipant);
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
     const clientMattersLoading = clientMattersResult === undefined;
@@ -366,20 +382,45 @@ const ClientDashboard: React.FC = () => {
         addToast('Upload coming soon', { type: 'info' });
     };
 
-    const handleSendMessage = () => {
-        if (!messageText.trim()) return;
+    const handleSendMessage = async () => {
+        if (!messageText.trim() && pendingFiles.length === 0) return;
         if (!selectedMatterForMessage) {
             addToast('Please select a matter first', { type: 'error' });
             return;
         }
         try {
-            handleSendClientMessage(selectedMatterForMessage, messageText.trim());
+            // Upload files first
+            const storageIds: string[] = [];
+            const fileNames: string[] = [];
+            for (const { file, name } of pendingFiles) {
+                try {
+                    const postUrl = await generateUploadUrl();
+                    const res = await fetch(postUrl, { method: 'POST', body: file });
+                    if (res.ok) {
+                        const { storageId } = await res.json();
+                        if (storageId) { storageIds.push(storageId); fileNames.push(name); }
+                    }
+                } catch {}
+            }
+            // Use the new conversation-based sendPortalMessage
+            await sendPortalMessage({
+                firmId: effectiveFirmId,
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderEmail: currentUser.email,
+                senderRole: 'Client',
+                content: messageText.trim(),
+                matterId: selectedMatterForMessage,
+                attachments: storageIds.length > 0 ? storageIds : undefined,
+                attachmentNames: fileNames.length > 0 ? fileNames : undefined,
+            });
             setMessageText('');
+            setPendingFiles([]);
             setIsComposing(false);
             setSelectedMatterForMessage('');
             addToast('Message sent', { type: 'success' });
-        } catch {
-            addToast('Failed to send message', { type: 'error' });
+        } catch (err: any) {
+            addToast(err.message || 'Failed to send message', { type: 'error' });
         }
     };
 
@@ -911,7 +952,7 @@ const ClientDashboard: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="p-4 space-y-3">
+                            <div className="p-4 space-y-3">
                             <div className="flex items-center gap-3">
                                 <label className="text-sm font-medium text-slate-700 dark:text-zinc-300 flex-shrink-0">Matter:</label>
                                 <select
@@ -932,16 +973,39 @@ const ClientDashboard: React.FC = () => {
                                 rows={3}
                                 className="w-full text-sm border border-slate-200 dark:border-zinc-600 rounded-lg px-4 py-3 bg-slate-50 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                             />
+                            {/* File attachments */}
+                            {pendingFiles.length > 0 && (
+                                <div className="flex gap-2 flex-wrap">
+                                    {pendingFiles.map((f, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-600 rounded-lg px-2.5 py-1.5 text-xs">
+                                            <DocumentIcon className="w-3 h-3 text-slate-400" />
+                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300">{f.name}</span>
+                                            <button onClick={() => setPendingFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <div className="flex items-center justify-end gap-2">
+                                <input type="file" ref={fileInputRef} onChange={(e) => {
+                                    const files = Array.from(e.target.files || []);
+                                    setPendingFiles(prev => [...prev, ...files.map(f => ({ file: f, name: f.name }))]);
+                                    if (fileInputRef.current) fileInputRef.current.value = '';
+                                }} multiple className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+                                <button onClick={() => fileInputRef.current?.click()} className="px-3 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5" title="Attach file">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    Attach
+                                </button>
                                 <button
-                                    onClick={() => { setIsComposing(false); setMessageText(''); setSelectedMatterForMessage(''); }}
+                                    onClick={() => { setIsComposing(false); setMessageText(''); setSelectedMatterForMessage(''); setPendingFiles([]); }}
                                     className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-300 hover:text-slate-800 dark:hover:text-zinc-100 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handleSendMessage}
-                                    disabled={!messageText.trim() || !selectedMatterForMessage}
+                                    disabled={(!messageText.trim() && pendingFiles.length === 0) || !selectedMatterForMessage}
                                     className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold text-sm hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     <SendIcon className="w-4 h-4" />

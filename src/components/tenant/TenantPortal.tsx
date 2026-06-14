@@ -1398,9 +1398,6 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
     activeConversationId ? { conversationId: activeConversationId } : 'skip'
   );
 
-  // File URL lookups for attachments
-  const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
-
   // Mutations
   const sendMessage = useMutation(api.portals.sendPortalMessage);
   const markRead = useMutation(api.portals.markConversationReadByParticipant);
