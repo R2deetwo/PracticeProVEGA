@@ -337,7 +337,7 @@ export const MiniAloa: React.FC = () => {
     const { dockedModalType, view } = useUI();
     const isActive = aloaState !== 'idle' || isLoading;
 
-    // HIDE MINI ALOA IF DOCKED MODAL IS OPEN (Side Panel)
+    // HIDE MINI ARIA IF DOCKED MODAL IS OPEN (Side Panel)
     if (dockedModalType) return null;
 
     // FADE OUT IN CERTAIN VIEWS
@@ -373,7 +373,7 @@ export const MiniAloa: React.FC = () => {
                         <AloaIcon className="w-3.5 h-3.5 text-white" />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-                        {isLoading ? 'Processing' : 'ALOA Mini'}
+                        {isLoading ? 'Processing' : 'ARIA Mini'}
                     </span>
                 </div>
 
@@ -381,7 +381,7 @@ export const MiniAloa: React.FC = () => {
                     <button
                         className="p-1 hover:bg-white/10 rounded-md text-white/70 hover:text-white transition-all active:scale-90"
                         onClick={handleExpand}
-                        title="Open Full ALOA Assistant"
+                        title="Open Full ARIA Assistant"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -482,7 +482,7 @@ export const MiniAloa: React.FC = () => {
                             <input autoComplete="off" data-lpignore="true" 
                                 value={textInput}
                                 onChange={e => setTextInput(e.target.value)}
-                                placeholder={isFirmSearchEnabled ? "Search documents..." : "Ask ALOA..."}
+                                placeholder={isFirmSearchEnabled ? "Search documents..." : "Ask ARIA..."}
                                 className="flex-1 bg-transparent border-none text-[12px] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 p-2 focus:ring-0"
                                 disabled={isLoading}
                             />

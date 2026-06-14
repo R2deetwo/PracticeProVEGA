@@ -29,7 +29,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ activeId, on
                 });
                 setConversations(list);
             } catch (e) {
-                console.error("Failed to load aloa conversations:", e);
+                console.error("Failed to load ARIA conversations:", e);
             }
         };
         load();

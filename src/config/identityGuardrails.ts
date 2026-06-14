@@ -1,6 +1,6 @@
 
 /**
- * ARIA & ALOA Identity Lock System
+ * ARIA Identity Lock System
  * Hardened identity enforcement for AI agents
  */
 
@@ -48,7 +48,7 @@ const ARIA_OPERATIONAL_RULES = `
 `;
 
 const ALOA_IDENTITY: AgentIdentity = {
-  name: "ALOA",
+  name: "ARIA",
   role: "Senior Legal Counsel",
   expertise: [
     "Nigerian Civil Procedure",

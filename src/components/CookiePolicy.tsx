@@ -103,7 +103,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => (
                     <h2>4. Third-Party Cookies</h2>
                     <p>
                         The Vega platform does not currently serve third-party advertising cookies. Where we integrate
-                        third-party services (such as Google AI APIs for the ALOA™ engine), those services may set
+                        third-party services (such as Google AI APIs for the ARIA™ engine), those services may set
                         their own cookies governed by their respective privacy policies. We recommend reviewing the
                         privacy documentation of any third-party service you interact with through our platform.
                     </p>

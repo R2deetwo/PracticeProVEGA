@@ -1,4 +1,4 @@
-// ALOA-X: Document Classifier (Enhanced with Vision fallback)
+// ARIA-X: Document Classifier (Enhanced with Vision fallback)
 import { ClassificationResult, LegalDocType, DocumentMetadata } from './indexerTypes';
 // NOTE: streamGemini was removed from geminiService; using @google/genai directly instead
 import { TextExtractor } from './TextExtractor';

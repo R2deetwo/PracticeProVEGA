@@ -1,4 +1,4 @@
-// ALOA-X: Checkpoint Manager — LocalStorage-based resume system
+// ARIA-X: Checkpoint Manager — LocalStorage-based resume system
 
 import { ChunkData } from './indexerTypes';
 

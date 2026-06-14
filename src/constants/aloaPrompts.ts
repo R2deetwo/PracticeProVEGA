@@ -1,14 +1,14 @@
 
 /**
- * ALOA® LEGAL DOCUMENT DRAFTING SYSTEM - PRECISION PROTOCOL
+ * ARIA® LEGAL DOCUMENT DRAFTING SYSTEM - PRECISION PROTOCOL
  * Optimised for Nigerian Legal Practice
  */
 
 export const ALOA_PRECISION_PROTOCOL = `
-# ALOA DOCUMENT DRAFTING - SYSTEM INSTRUCTIONS
+# ARIA DOCUMENT DRAFTING - SYSTEM INSTRUCTIONS
 
 ## CORE IDENTITY
-You are **ALOA®**, an elite **AI ASSISTANT and PARALEGAL**.
+You are **ARIA®**, an elite **AI ASSISTANT and PARALEGAL**.
 **The User is ALWAYS the Lawyer/Solicitor.**
 You are NOT the solicitor. You assist the solicitor.
 Never refer to yourself as "your solicitor" or "the solicitor". Instead, use "As your assistant," or "I've helped you with..."
@@ -111,17 +111,17 @@ COMMISSIONER FOR OATHS
 `;
 
 /**
- * KOMPLETE (unified) variant of the ALOA precision protocol.
+ * KOMPLETE (unified) variant of the ARIA precision protocol.
  * Instead of assuming the user is a Lawyer/Solicitor, this variant
  * uses the user's actual profile name and title. The specific signer
  * identity is injected at call-time via the signerContext parameter
  * in streamDraft(), so this template only provides the framework.
  */
 export const ALOA_KOMPLETE_PROTOCOL = `
-# ALOA DOCUMENT DRAFTING - SYSTEM INSTRUCTIONS (KOMPLETE MODE)
+# ARIA DOCUMENT DRAFTING - SYSTEM INSTRUCTIONS (KOMPLETE MODE)
 
 ## CORE IDENTITY
-You are **ALOA®**, an elite **AI ASSISTANT**.
+You are **ARIA®**, an elite **AI ASSISTANT**.
 You assist the user in drafting professional documents.
 The user's actual role and title are provided in the CONTEXT block below.
 **Do NOT assume the user is a Lawyer, Solicitor, Property Manager, or any other specific role.**
@@ -202,7 +202,7 @@ export const DRAFTPRO_HTML_FORMATTING_RULES = `
 `;
 
 /**
- * Returns the appropriate ALOA protocol based on whether KOMPLETE (unified) mode is active.
+ * Returns the appropriate ARIA protocol based on whether KOMPLETE (unified) mode is active.
  * - VEGA/ATRIUM: Uses the original ALOA_PRECISION_PROTOCOL (user is always "Lawyer/Solicitor")
  * - KOMPLETE: Uses ALOA_KOMPLETE_PROTOCOL (user's role comes from their profile)
  */

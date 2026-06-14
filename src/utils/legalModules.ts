@@ -256,7 +256,7 @@ export const LEGAL_MODULES: LegalModule[] = [
         version: 'Current',
         authority: 'Nigerian Law Publications',
         description:
-            'Full-text access to Nigerian Weekly Law Reports — searchable by court, subject matter, year, and principle. Powers ALOA case law reasoning.',
+            'Full-text access to Nigerian Weekly Law Reports — searchable by court, subject matter, year, and principle. Powers ARIA case law reasoning.',
         coverageAreas: [],
         primaryMatterTypes: Object.values(MatterType),
         status: 'coming_soon',
@@ -272,7 +272,7 @@ export const LEGAL_MODULES: LegalModule[] = [
         version: 'Current',
         authority: 'Supreme Court of Nigeria',
         description:
-            'Official Supreme Court judgments — searchable full text for citation, precedent analysis, and ALOA legal reasoning.',
+            'Official Supreme Court judgments — searchable full text for citation, precedent analysis, and ARIA legal reasoning.',
         coverageAreas: [],
         primaryMatterTypes: Object.values(MatterType),
         status: 'coming_soon',

@@ -1,6 +1,6 @@
 
 /**
- * ALOA Brain — Client-Side Brain Service
+ * ARIA Brain — Client-Side Brain Service
  *
  * Architecture: Client generates embeddings using the user's existing Gemini API key.
  * Only the resulting number vectors are sent to Convex for storage.

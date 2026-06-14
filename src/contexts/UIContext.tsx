@@ -147,7 +147,7 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'newDirectMessage': return 'New Message';
         case 'externalCounsel': return 'External Counsel Access';
         case 'newExternalCounsel': return 'Invite External Counsel';
-        case 'aloaHelp': return 'ALOA Help';
+        case 'aloaHelp': return 'ARIA Help';
         case 'feedback': return 'Send Feedback';
         case 'newBankAccount': return 'Add Bank Account';
         case 'editBankAccount': return 'Edit Bank Account';

@@ -663,7 +663,7 @@ const PropertyDetailViewContent: React.FC = () => {
                         {([
                             { id: 'summary', label: <><ClipboardList className="w-4 h-4 inline mr-1" /> Summary</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
-                            ...((isLeased || hasMultipleUnits) ? [{ id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> }] : []),
+                            { id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'revenue' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Revenue</> }] : []),
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
                             { id: 'docs', label: <><Folder className="w-4 h-4 inline mr-1" /> Docs <span className="hidden sm:inline">&amp; Financials</span></> },

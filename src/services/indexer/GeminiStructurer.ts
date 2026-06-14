@@ -1,4 +1,4 @@
-// ALOA-X: Gemini Structurer — three-mode extraction engine
+// ARIA-X: Gemini Structurer — three-mode extraction engine
 // ARCHITECTURE:
 //   Phase 0: TOC Blueprint extraction from first chunk (source of truth)
 //   Phase 1: Text-mode chunk extraction, anchored to TOC blueprint
@@ -289,12 +289,12 @@ ${firstChunkText.slice(0, 200000)}`;
     try {
       const result = await this.callGemini([{ text: prompt }], 8000);
       if (result && (result.content_tree || result.orders || result.chapters || result.suitNumber)) {
-        console.log('ALOA-X: TOC Blueprint extracted successfully.');
+        console.log('ARIA-X: TOC Blueprint extracted successfully.');
         this.tocBlueprint = result;
         return result;
       }
     } catch (err: any) {
-      console.warn('ALOA-X: TOC extraction failed:', err?.message?.slice(0, 100));
+      console.warn('ARIA-X: TOC extraction failed:', err?.message?.slice(0, 100));
     }
 
     this.tocBlueprint = null;
@@ -339,7 +339,7 @@ ${firstChunkText.slice(0, 200000)}`;
     // Gemini failed — use regex
     const regexResult = regexExtract(text, docType);
     if (regexResult && this.hasContent(regexResult)) {
-      console.log(`ALOA-X: Using regex fallback for pages ${startPage}-${endPage}`);
+      console.log(`ARIA-X: Using regex fallback for pages ${startPage}-${endPage}`);
       return regexResult;
     }
 
@@ -487,7 +487,7 @@ RETURN ONLY VALID JSON IN THIS FORMAT:
 
     // PHASE 4: Dedicated Mandatory Recovery Call
     if (missingNodes.length > 0 && rawTextSample.length > 0) {
-      console.log(`[ALOA-X] Triggering Mandatory Recovery for ${missingNodes.length} empty parents...`);
+      console.log(`[ARIA-X] Triggering Mandatory Recovery for ${missingNodes.length} empty parents...`);
       const recoveryPrompt = `${SYSTEM_CONTEXT}
       
 TASK: Recover missing rules.
@@ -664,7 +664,7 @@ Output ONLY the cleaned JSON. Ensure all "children" arrays are populated.`;
           const isRetryable = response.status === 429 || response.status === 404 || response.status === 503;
           const err = new Error(`Gemini ${response.status} (${modelName}): ${body.slice(0, 200)}`);
           if (isRetryable) {
-            console.warn(`ALOA-X: Model ${modelName} unavailable (${response.status}), trying next…`);
+            console.warn(`ARIA-X: Model ${modelName} unavailable (${response.status}), trying next…`);
             lastError = err;
             await new Promise(r => setTimeout(r, response.status === 429 ? 5000 : 500));
             continue;
@@ -674,11 +674,11 @@ Output ONLY the cleaned JSON. Ensure all "children" arrays are populated.`;
 
         const data = await response.json();
         const rawText: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-        if (!rawText) { console.warn(`ALOA-X: Empty response from ${modelName}`); continue; }
+        if (!rawText) { console.warn(`ARIA-X: Empty response from ${modelName}`); continue; }
 
         const parsed = this.parseJSON(rawText);
         if (parsed) {
-          console.log(`ALOA-X ✓ ${modelName}`);
+          console.log(`ARIA-X ✓ ${modelName}`);
           return parsed;
         }
 
@@ -692,7 +692,7 @@ Output ONLY the cleaned JSON. Ensure all "children" arrays are populated.`;
           msg.includes('unavailable') || msg.includes('404') || msg.includes('not found');
 
         if (isRetryable) {
-          console.warn(`ALOA-X: ${modelName} retryable error: ${err?.message?.slice(0, 80)}`);
+          console.warn(`ARIA-X: ${modelName} retryable error: ${err?.message?.slice(0, 80)}`);
           lastError = err;
           await new Promise(r => setTimeout(r, 2000));
           continue;

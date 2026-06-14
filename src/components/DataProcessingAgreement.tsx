@@ -65,7 +65,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <h3>2.1 Subject Matter</h3>
                             <p>This DPA applies to all Personal Data processed by the Processor in connection with the provision of the Services to the Controller, including {isVega ? 'client data, matter information' : 'tenant data, property information'}, documents, time entries, financial records, and communications entered into or generated through the Platform.</p>
                             <h3>2.2 Nature of Processing</h3>
-                            <p>The Processor shall process Personal Data only to the extent necessary to provide the Services, including hosting, storage, AI-powered analysis (via ALOA®), billing, and technical support.</p>
+                            <p>The Processor shall process Personal Data only to the extent necessary to provide the Services, including hosting, storage, AI-powered analysis (via ARIA®), billing, and technical support.</p>
                             <h3>2.3 Duration</h3>
                             <p>This DPA shall remain in force for the duration of the Service Agreement and shall terminate automatically upon the conclusion of all Services, subject to the data return and deletion obligations in Clause 13.</p>
                         </section>
@@ -126,7 +126,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                                     <tbody>
                                         {[
                                             ['Google Cloud Platform','USA / Multi-region','Cloud hosting, database, and storage infrastructure'],
-                                            ['Google Gemini API','USA','AI language model processing (ALOA® engine)'],
+                                            ['Google Gemini API','USA','AI language model processing (ARIA® engine)'],
                                             ['Convex Inc.','USA','Real-time database and backend infrastructure'],
                                             ['Paystack / Flutterwave','Nigeria / USA','Payment processing'],
                                         ].map(([sp, loc, purpose], i) => (

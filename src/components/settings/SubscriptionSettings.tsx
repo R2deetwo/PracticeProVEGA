@@ -85,7 +85,7 @@ const ENTERPRISE_MODALITIES: { specialty: FirmSpecialty; label: string; descript
     { specialty: FirmSpecialty.Corporate, label: 'Corporate & Commercial', description: 'CAC compliance, M&A due diligence checklists, annual returns tracking & board resolution storage.', abbr: 'CC', price: 30000 },
     { specialty: FirmSpecialty.Tax, label: 'Tax Law', description: 'FIRS audit management, 30-day objection deadline alerts, TAT appeal tracking & TCC processing.', abbr: 'TX', price: 30000 },
     { specialty: FirmSpecialty.RealEstate, label: 'Real Estate & Property', description: "Title perfection stages, Governor's Consent tracking, Deed drafting & recovery of premises workflow.", abbr: 'RE', price: 25000 },
-    { specialty: FirmSpecialty.Litigation, label: 'Civil Litigation', description: 'Court process tracking, hearing reminders, Rules of Court deadline automation & ALOA litigation briefing.', abbr: 'LIT', price: 20000 },
+    { specialty: FirmSpecialty.Litigation, label: 'Civil Litigation', description: 'Court process tracking, hearing reminders, Rules of Court deadline automation & ARIA litigation briefing.', abbr: 'LIT', price: 20000 },
 ];
 
 
@@ -230,7 +230,7 @@ const BillingCalculator: React.FC<{
                         <div className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
                             <div>
                                 <p className="text-sm font-bold text-white">Enterprise Platform Base</p>
-                                <p className="text-[10px] text-zinc-400">Unlimited users · Full ALOA suite · All core features</p>
+                                <p className="text-[10px] text-zinc-400">Unlimited users · Full ARIA suite · All core features</p>
                             </div>
                             <p className="font-mono font-bold text-amber-400">₦{(baseRate * multiplier).toLocaleString()}</p>
                         </div>
@@ -242,7 +242,7 @@ const BillingCalculator: React.FC<{
                                 <div key={s} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
                                     <div>
                                         <p className="text-sm font-bold text-white">{ModalityIcons[m.specialty]} {m.label} Modality</p>
-                                        <p className="text-[10px] text-zinc-400">Specialist dashboards · Statutory forms · ALOA Expert Mode</p>
+                                        <p className="text-[10px] text-zinc-400">Specialist dashboards · Statutory forms · ARIA Expert Mode</p>
                                     </div>
                                     <p className="font-mono font-bold text-amber-400">₦{(rate * multiplier).toLocaleString()}</p>
                                 </div>

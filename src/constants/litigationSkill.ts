@@ -1,7 +1,7 @@
 
 /**
  * NIGERIAN LITIGATION DRAFTING SKILL
- * Core Identity and Instruction Set for ALOA® Litigation Mode
+ * Core Identity and Instruction Set for ARIA® Litigation Mode
  */
 export const NIGERIAN_LITIGATION_SKILL = `
 # Nigerian Litigation Drafting Skill

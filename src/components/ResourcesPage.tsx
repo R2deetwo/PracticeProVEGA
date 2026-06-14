@@ -206,7 +206,7 @@ ISO/IEC 42001 is the first international standard specifically designed for AI m
 - **Ensure explainability** — maintain the ability to explain AI-generated outputs to clients and courts
 - **Monitor performance** — continuously audit AI systems for accuracy, bias, and drift
 
-For law firms, "explainability" is particularly critical. If ALOA® generates a legal research brief, the supervising lawyer must be able to articulate the reasoning independently — AI output is a starting point, not a conclusion.
+For law firms, "explainability" is particularly critical. If ARIA® generates a legal research brief, the supervising lawyer must be able to articulate the reasoning independently — AI output is a starting point, not a conclusion.
 
 ## 2. Data Minimization in Legal AI
 
@@ -241,9 +241,9 @@ AI tools must not substitute for:
 ## 5. PracticePro's Approach
 
 PracticePro VEGA implements AI responsibly through:
-- **Explicit consent capture** at onboarding — users must acknowledge AI processing before ALOA® is activated
+- **Explicit consent capture** at onboarding — users must acknowledge AI processing before ARIA® is activated
 - **Audit logging** of all AI-generated outputs, preserving accountability trails
-- **No secondary data use** — client data submitted to ALOA® is processed in context and not used to train models
+- **No secondary data use** — client data submitted to ARIA® is processed in context and not used to train models
 - **Human-in-the-loop design** — all AI suggestions require explicit lawyer confirmation before any action is taken
 
 ## Conclusion
@@ -464,7 +464,7 @@ Your firm profile appears on invoices, reports, and client portal communications
 - Go to **Settings** > **Firm Settings**
 - Upload your firm's letterhead logo
 - Enter your registered firm name and physical address
-- Set your primary jurisdiction (this influences ALOA's contextual awareness)
+- Set your primary jurisdiction (this influences ARIA's contextual awareness)
 
 ### 2. Invite Your Team
 Invite your partners, associates, and support staff.
@@ -485,14 +485,14 @@ A "Matter" is the central hub for any case or transaction.
     },
     {
         id: 'aloa-best-practices',
-        title: 'ALOA® AI Copilot — Best Practices', 
-        description: 'How to prompt ALOA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.', 
+        title: 'ARIA® AI Copilot — Best Practices', 
+        description: 'How to prompt ARIA effectively, interpret its outputs, and maintain professional responsibility when using AI assistance.', 
         tag: 'AI',
         readTime: '6 min read',
         content: `
-## Working with ALOA®
+## Working with ARIA®
 
-ALOA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Getting the best results from ALOA requires effective prompting.
+ARIA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Getting the best results from ARIA requires effective prompting.
 
 ### Principles of Good Prompting
 The way you ask a question determines the quality of the answer. Use the "Context + Task + Format" framework:
@@ -501,14 +501,14 @@ The way you ask a question determines the quality of the answer. Use the "Contex
 - **Task:** State exactly what you need. *"Draft a 7-day statutory notice of owner's intention to recover premises."*
 - **Format:** Specify how you want it delivered. *"Format this as a formal legal letter with placeholders for names."*
 
-### What ALOA Does Best
+### What ARIA Does Best
 - **Document Summarization:** Upload a 50-page judgment or contract and ask for key findings, obligations, or risks.
 - **First Drafts:** Generate routine correspondence, NDAs, and standard motions.
 - **Clause Analysis:** Compare multiple variations of an indemnity clause to find the most favorable one.
 
 ### Professional Responsibility
-ALOA is an assistant, not a lawyer.
-- **Always Verify:** AI can hallucinate citations. If ALOA cites a case (e.g., *Savannah Bank v. Ajilo*), verify it yourself.
+ARIA is an assistant, not a lawyer.
+- **Always Verify:** AI can hallucinate citations. If ARIA cites a case (e.g., *Savannah Bank v. Ajilo*), verify it yourself.
 - **Protect Client Confidentiality:** While PracticePro keeps your data isolated, you should still avoid entering unnecessary sensitive client information into conversational prompts if it isn't required for the task.
         `
     },

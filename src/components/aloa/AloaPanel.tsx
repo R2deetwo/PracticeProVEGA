@@ -75,7 +75,7 @@ const AloaPanel: React.FC = () => {
 
             {/* Mini Floating Mode - Shown when minimized (on Desktop or Mobile) */}
             {isPanelOpen && isMinimized && (
-                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ALOA Error</div>}>
+                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ARIA Error</div>}>
                     <MiniAloa />
                 </ErrorBoundary>
             )}

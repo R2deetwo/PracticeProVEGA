@@ -33,7 +33,7 @@ export const getSystemInstruction = (
     if (isFirmSearchEnabled && semanticContext) {
         firmRAGPrompt = `
         **FIRM SEARCH ENABLED (SEMANTIC RAG MODE):**
-        ALOA BRAIN RETRIEVAL:
+        ARIA BRAIN RETRIEVAL:
         The following snippets were retrieved from your firm's private memory based on the current query:
         
         ${semanticContext}
@@ -45,7 +45,7 @@ export const getSystemInstruction = (
     let libraryPrompt = "";
     if (aloaXLibrary && aloaXLibrary.length > 0) {
         libraryPrompt = `
-        **ALOAX LEGAL KNOWLEDGE BASE (OFFLINE LIBRARY):**
+        **ARIAX LEGAL KNOWLEDGE BASE (OFFLINE LIBRARY):**
         The user has the following indexed legal documents (Acts, Rules, Judgments) in their personal library:
         ${aloaXLibrary.map(d => `- [${d.documentType}] ${d.fileName} (${d.totalPages} pages)`).join('\n')}
         You can provide insights from these documents.
@@ -216,7 +216,7 @@ You MUST read the FULL_DATA block above before responding to any query. Do NOT a
     // Default to Legal Assistant
     return universalContext + `
     # IDENTITY & ROLE
-    You are **ALOA®**, an elite AI legal assistant and **Virtual Paralegal** designed for **Komplet** (Nigeria).
+    You are **ARIA®**, an elite AI legal assistant and **Virtual Paralegal** designed for **Komplet** (Nigeria).
     Your primary function is to serve as a **highly capable strategist** who proactively manages the user's practice.
 
     ## STRICT TERMINOLOGY & CONTEXT (CRITICAL):
@@ -259,7 +259,7 @@ You MUST read the FULL_DATA block above before responding to any query. Do NOT a
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INTERACTIVE FORM DELEGATION PROTOCOL
-// Appended to BOTH ARIA and ALOA system prompts.
+// Appended to BOTH ARIA system prompts.
 // Teaches the model to emit structured JSON forms instead of sequential questions.
 // ─────────────────────────────────────────────────────────────────────────────
 const INTERACTIVE_FORM_DELEGATION_PROTOCOL = `

@@ -88,11 +88,11 @@ export const publishRecord = mutation({
 });
 
 // ─────────────────────────────────────────────────────────────────
-// ALOA-X: Indexed Document Persistence
+// ARIA-X: Indexed Document Persistence
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Save a fully processed ALOA-X indexed document to Convex.
+ * Save a fully processed ARIA-X indexed document to Convex.
  * Called once after all chunks are merged.
  */
 export const saveAloaDocument = mutation({
@@ -140,7 +140,7 @@ export const saveAloaDocument = mutation({
 });
 
 /**
- * Get all ALOA-X indexed documents for a firm (or session-based if no firmId).
+ * Get all ARIA-X indexed documents for a firm (or session-based if no firmId).
  */
 export const getAloaDocuments = query({
   args: {
@@ -164,7 +164,7 @@ export const getAloaDocuments = query({
 });
 
 /**
- * Get a single ALOA-X document by session ID.
+ * Get a single ARIA-X document by session ID.
  */
 export const getAloaDocument = query({
   args: { sessionId: v.string() },
@@ -177,7 +177,7 @@ export const getAloaDocument = query({
 });
 
 /**
- * Delete an ALOA-X indexed document.
+ * Delete an ARIA-X indexed document.
  */
 export const deleteAloaDocument = mutation({
   args: { sessionId: v.string() },

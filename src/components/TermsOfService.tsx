@@ -79,9 +79,9 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <h3 className="text-xl font-bold">1.1 Definitions</h3>
                                     <p>In these Terms and Conditions, the following terms shall have the meanings set forth below:</p>
                                     <div className="space-y-8 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
-                                        <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>
+                                        <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>
                                         <p>"ARIA" or "ARIA™" means Advanced Revenue Intelligence Agent, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, tenant compliance, and portfolio revenue performance.</p>
-                                        <p><strong>"AI Agents"</strong> means collectively, ALOA™, ARIA™, Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
+                                        <p><strong>"AI Agents"</strong> means collectively, ARIA™, ARIA™, Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
                                         <p><strong>"ALDIA"</strong> means AI-Powered Document Intelligence Agent, which provides automated document summarization, risk analysis, metadata extraction, and clause identification services.</p>
                                         <p><strong>"Agreement"</strong> means these Terms and Conditions, together with all schedules, exhibits, and documents incorporated by reference, including the Privacy Policy.</p>
                                         <p><strong>"Company," "we," "us," "our"</strong> means PracticePro Technologies Limited, a company operating under the laws of the Federal Republic of Nigeria with its registered office at No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.</p>
@@ -215,7 +215,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <h2 className="text-3xl font-bold mb-8 transition-colors">5. ARTIFICIAL INTELLIGENCE SERVICES</h2>
                             <div className="space-y-16">
                                 <div id="5-1" className="space-y-8">
-                                    <p>Provides conversational AI assistance, research, document drafting, voice control, and proactive intelligence. ALOA™ processes matter context and team data to provide personalized assistance.</p>
+                                    <p>Provides conversational AI assistance, research, document drafting, voice control, and proactive intelligence. ARIA™ processes matter context and team data to provide personalized assistance.</p>
                                 </div>
                                 <div id="5-2" className="space-y-8">
                                     <h3 className="text-xl font-bold">5.2 ALDIA — Document Intelligence Agent</h3>

@@ -1,4 +1,4 @@
-// ALOA-X: Legal Chunker — three-mode extraction engine
+// ARIA-X: Legal Chunker — three-mode extraction engine
 //
 // Mode selection per chunk:
 //   A) Text density ≥ 80 chars/page  →  Text mode (Gemini text + JSON)
@@ -46,7 +46,7 @@ export class LegalChunker {
     const chunkSize = isScanned ? IMAGE_CHUNK_PAGES : TEXT_CHUNK_PAGES;
     const totalChunks = Math.ceil(totalPages / chunkSize);
 
-    console.log(`ALOA-X: Text density=${Math.round(textDensity)} chars/page | Mode=${isScanned ? 'VISION' : isHybrid ? 'HYBRID' : 'TEXT'} | ${totalChunks} chunks`);
+    console.log(`ARIA-X: Text density=${Math.round(textDensity)} chars/page | Mode=${isScanned ? 'VISION' : isHybrid ? 'HYBRID' : 'TEXT'} | ${totalChunks} chunks`);
 
     const allChunks: ChunkData[] = [];
 

@@ -358,9 +358,9 @@ function FeaturesOverview() {
   const features = [
     {
       icon: Bot,
-      title: 'ALOA AI Assistant',
+      title: 'ARIA AI Assistant',
       description:
-        'Ask ALOA to draft, review, or format any Nigerian legal document. From originating processes to conveyances, ALOA understands Nigerian legal practice.',
+        'Ask ARIA to draft, review, or format any Nigerian legal document. From originating processes to conveyances, ARIA understands Nigerian legal practice.',
       color: 'emerald',
     },
     {
@@ -473,7 +473,7 @@ function VegaSection() {
     },
     {
       icon: Bot,
-      title: 'ALOA AI Copilot',
+      title: 'ARIA AI Copilot',
       desc: 'AI-powered drafting assistant that understands Nigerian legal terminology, court rules, and document structures. Just ask.',
     },
     {
@@ -604,13 +604,13 @@ function VegaSection() {
               </div>
             </div>
 
-            {/* Floating ALOA panel */}
+            {/* Floating ARIA panel */}
             <div className="absolute -right-3 sm:-right-6 bottom-6 w-56 bg-white rounded-xl border border-violet-200/60 shadow-xl shadow-violet-100/20 p-3.5 animate-float-delayed">
               <div className="flex items-center gap-2 mb-2.5">
                 <div className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center">
                   <Sparkles className="w-3.5 h-3.5 text-violet-600" />
                 </div>
-                <span className="text-xs font-bold text-violet-700">ALOA</span>
+                <span className="text-xs font-bold text-violet-700">ARIA</span>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
                 "I've formatted this as an originating process per Lagos State High Court rules. Shall I add the verification affidavit?"
@@ -820,7 +820,7 @@ function PricingSection() {
         'Unlimited Active Matters',
         '20 GB Digital Case File Storage',
         'Client Portal — milestones, document vault, KYC uploads',
-        'ALOA AI Copilot (Standard)',
+        'ARIA AI Copilot (Standard)',
       ],
       cta: 'Start Growth Trial',
       popular: false,
@@ -837,7 +837,7 @@ function PricingSection() {
         'Unlimited Active Matters',
         '100 GB Digital Case File Storage',
         'Uncapped Client Portal — milestones, document vault, KYC',
-        'ALOA AI Copilot (Uncapped Priority)',
+        'ARIA AI Copilot (Uncapped Priority)',
       ],
       cta: 'Start Pro Trial',
       popular: true,
@@ -973,7 +973,7 @@ function TestimonialsSection() {
   const testimonials = [
     {
       quote:
-        'VEGA has completely transformed how we draft court documents. The auto-formatting alone saves us hours on every originating process. ALOA is like having a junior counsel who never sleeps.',
+        'VEGA has completely transformed how we draft court documents. The auto-formatting alone saves us hours on every originating process. ARIA is like having a junior counsel who never sleeps.',
       name: 'Barr. Adaeze Okonkwo',
       title: 'Managing Partner, Okonkwo & Associates',
       location: 'Lagos',
@@ -1174,8 +1174,8 @@ function FAQSection() {
       a: 'No. Every PracticePro plan includes both VEGA (legal drafting) and Atrium (property management). You get the complete platform — there are no hidden add-on costs for individual products.',
     },
     {
-      q: 'How does ALOA, the AI assistant, work?',
-      a: 'ALOA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian legal formatting, review content for completeness, or suggest improvements. ALOA understands Nigerian legal terminology, court structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
+      q: 'How does ARIA, the AI assistant, work?',
+      a: 'ARIA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian legal formatting, review content for completeness, or suggest improvements. ARIA understands Nigerian legal terminology, court structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
     },
     {
       q: 'Is my client data safe and NDPA-compliant?',

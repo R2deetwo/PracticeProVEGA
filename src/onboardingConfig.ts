@@ -33,7 +33,7 @@ export const tourSteps: TourStep[] = [
   {
     target: '#new-matter-button',
     title: 'Quick Create',
-    content: 'Open a new file instantly. You can also ask ALOA to "Create a new matter for [Client Name]" using voice commands.',
+    content: 'Open a new file instantly. You can also ask ARIA to "Create a new matter for [Client Name]" using voice commands.',
     placement: 'bottom',
     navigateTo: 'matters',
   },
@@ -46,7 +46,7 @@ export const tourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="aloa-fab"]',
-    title: 'Meet ALOA®',
+    title: 'Meet ARIA®',
     content: 'Your AI Paralegal is always one click away. Tap here to draft documents, summarize briefs, or navigate the app using voice or text.',
     placement: 'top',
     navigateTo: 'dashboard',

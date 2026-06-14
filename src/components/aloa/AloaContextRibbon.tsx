@@ -32,7 +32,7 @@ export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({
     const { isProperty, isVega } = useProduct();
     const { openWithContext } = useAloa();
 
-    const agentName = isProperty ? 'ARIA' : 'ALOA';
+    const agentName = isProperty ? 'ARIA' : 'ARIA';
     const agentColorClass = isProperty ? 'text-emerald-500' : 'text-amber-500';
     const agentBgClass = isProperty ? 'bg-emerald-500/10' : 'bg-amber-500/10';
     const agentBorderClass = isProperty ? 'border-emerald-500/20' : 'border-amber-500/20';

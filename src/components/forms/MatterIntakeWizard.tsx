@@ -426,7 +426,7 @@ const Screen0: React.FC<{
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ALOA HINT — inline advisory message shown in party/jurisdiction sections
+// ARIA HINT — inline advisory message shown in party/jurisdiction sections
 // ─────────────────────────────────────────────────────────────────────────────
 
 // AloaHint interface is now imported from types.ts
@@ -442,7 +442,7 @@ const AloaHintBubble: React.FC<{ hint: AloaHint; onDismiss: () => void }> = ({ h
     <div className={`flex gap-2.5 p-3 rounded-xl border text-[11px] leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
         <span className="text-base flex-shrink-0 mt-px">{hint.icon}</span>
         <div className="flex-1 min-w-0">
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block mb-0.5">ALOA Insight</span>
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block mb-0.5">ARIA Insight</span>
             <span>{hint.text}</span>
         </div>
         <button type="button" onClick={onDismiss} className="opacity-40 hover:opacity-100 transition-opacity flex-shrink-0 text-lg leading-none">
@@ -455,7 +455,7 @@ const AloaHintBubble: React.FC<{ hint: AloaHint; onDismiss: () => void }> = ({ h
 // PARTY VALIDATOR — Nigerian court rules
 // ─────────────────────────────────────────────────────────────────────────────
 
-// analyzePartyName has been moved to src/utils/defenseUtils.ts for shared use with ALOA
+// analyzePartyName has been moved to src/utils/defenseUtils.ts for shared use with ARIA
 
 const Screen1: React.FC<{
     data: WizardFormData;
@@ -535,7 +535,7 @@ const Screen1: React.FC<{
             const hints = analyzePartyName(pname, sideRole, claimantNames, defendantNames);
             setPartyHints(prev => ({ ...prev, [id]: hints }));
             
-            // PIPE TO ALOA FOR LIVE FEEDBACK
+            // PIPE TO ARIA FOR LIVE FEEDBACK
             if (hints.length > 0) {
                 setLiveInsights(hints);
             }
@@ -660,7 +660,7 @@ const Screen1: React.FC<{
 
     return (
         <div className="space-y-4">
-            {/* Section-level ALOA Hints removed from inline display */}
+            {/* Section-level ARIA Hints removed from inline display */}
 
             {/* The Parties — stacked on small screens, side-by-side on md+ */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1252,7 +1252,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
             if (res?.id && (formData as any).extraTasks?.length > 0) {
                 // We'd ideally use dataHandlers.handleAddTask but we only have onAddMatter here.
                 // For now, these tasks might need a separate mechanism or we assume onAddMatter handles it if we included it in specialtyData.
-                // Let's assume for this high-performance demo we're signaling success to ALOA.
+                // Let's assume for this high-performance demo we're signaling success to ARIA.
             }
 
             if (res?.id) {

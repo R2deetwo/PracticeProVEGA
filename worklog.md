@@ -266,3 +266,26 @@ Stage Summary:
 - Badge auto-dismisses when user opens conversation (markConversationReadByParticipant already fires on open)
 - Aloa chat echoes no longer pollute the System Inbox in MessagesView
 - All changes deployed to production
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix compliance section listing portal users + Rename Tenant Messages to Residents Chat + Unify Team Chat styling + Improve Document page UI + Clean up ALOA references
+
+Work Log:
+- Fixed ComplianceReports.tsx: filtered out Tenant/Client/Portal users, now only shows internal roles (Lawyer, Paralegal, External Counsel)
+- Added empty state for compliance when no team members found
+- Renamed "Tenant Messages" to "Residents Chat" in MessagesView.tsx (3 locations)
+- Unified Team Chat tab styling with Inbox/Residents Chat: changed from rounded-xl cards to border-b separators, matching header style
+- Improved DocumentList.tsx: added icon + subtitle header, better empty state text, improved sidebar styling
+- Made Notice Board tab always visible in PropertyDetailView (not conditional on isLeased/hasMultipleUnits)
+- Renamed "PracticePro Team" system inbox to "ARIA Assistant" in MessagesView.tsx (3 locations)
+- Renamed all ALOA→ARIA references across 50+ files (user-visible strings only, not code identifiers)
+- Removed outdated ALOA documentation files (ALOA_LOGO.md, ALOA_COMPLETE_FIX.md, ALOA_FIX_SUMMARY.md, ALOAGUIDE.md)
+
+Stage Summary:
+- Portal users (Tenants/Clients) no longer appear in Compliance & Standards report
+- Messaging tabs now have consistent styling across Inbox and Team Chat
+- All user-facing "ALOA" references renamed to "ARIA" across the codebase
+- Notice Board tab is now always available on property detail pages
+- System inbox renamed from "PracticePro Team" to "ARIA Assistant"

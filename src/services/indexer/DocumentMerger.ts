@@ -1,4 +1,4 @@
-// ALOA-X: Document Merger — client-side pre-merge + Gemini finalization
+// ARIA-X: Document Merger — client-side pre-merge + Gemini finalization
 
 import { ChunkData, LegalDocType, IndexedDocument, ActIndex, RulesIndex, JudgmentIndex } from './indexerTypes';
 import { GeminiStructurer } from './GeminiStructurer';
@@ -54,7 +54,7 @@ export class DocumentMerger {
 
     // ── FALLBACK: if ALL chunks failed AI parsing, do a combined raw-text extraction ──
     if (completedChunks.length === 0 && chunks.length > 0) {
-      console.log('ALOA-X: All chunks failed AI parsing. Running combined fallback extraction…');
+      console.log('ARIA-X: All chunks failed AI parsing. Running combined fallback extraction…');
       const rawTextSample = chunks
         .filter(c => c.rawText && c.rawText.length > 50)
         .sort((a, b) => a.chunkId - b.chunkId)

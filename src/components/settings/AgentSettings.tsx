@@ -335,9 +335,9 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                         </div>
                     </SettingsCard>
 
-                    <SettingsCard title={isProperty ? "ARIA Brain — Memory Index" : "ALOA Brain — Memory Index"} id="brain-index">
+                    <SettingsCard title={isProperty ? "ARIA Brain — Memory Index" : "ARIA Brain — Memory Index"} id="brain-index">
                         <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">
-                            {isProperty ? "ARIA's memory is built from your portfolio's documents and notes. This allows the AI to recall specific facts instead of guessing." : "ALOA's memory is built from your firm's documents and notes. This allows the AI to recall specific facts instead of guessing."}
+                            {isProperty ? "ARIA's memory is built from your portfolio's documents and notes. This allows the AI to recall specific facts instead of guessing." : "ARIA's memory is built from your firm's documents and notes. This allows the AI to recall specific facts instead of guessing."}
                         </p>
                         <SeedBrainButton
                             firmId={firmDetails.id}
@@ -409,7 +409,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             )}
             <SettingsCard title="Product Updates & Changelog" id="changelog" className="mt-8">
                 <p className="text-sm text-slate-600 dark:text-zinc-400 mb-6 font-medium">
-                    {isProperty ? "See the latest enhancements to Atrium OS and the ARIA Brain." : "See the latest enhancements to Vega OS and ALOA."}
+                    {isProperty ? "See the latest enhancements to Atrium OS and the ARIA Brain." : "See the latest enhancements to Vega OS and ARIA."}
                 </p>
                 <div className="space-y-8">
                     {CHANGELOG.map((entry) => (

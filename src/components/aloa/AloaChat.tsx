@@ -259,7 +259,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 actionData.insights = insights;
                             }
                         } catch (intelligenceError) {
-                            console.warn('[ALOA Intelligence] Skipping insights due to error:', intelligenceError);
+                            console.warn('[ARIA Intelligence] Skipping insights due to error:', intelligenceError);
                         }
 
                         feedbackMessage = `I've opened the form for you.`;
@@ -453,7 +453,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages(prev => [...prev, {
                 id: uuidv4(),
                 role: 'model',
-                content: "**Demo Limit Reached.** Start your account to unlock unlimited ALOA voice interactions.",
+                content: "**Demo Limit Reached.** Start your account to unlock unlimited ARIA voice interactions.",
                 toolAction: {
                     type: 'modal',
                     modalType: 'demoUpsell',
@@ -557,7 +557,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages(prev => [...prev, {
                 id: uuidv4(),
                 role: 'model',
-                content: "**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ALOA's capabilities and automate your legal practice, please create your account.",
+                content: "**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ARIA's capabilities and automate your legal practice, please create your account.",
                 toolAction: {
                     type: 'modal',
                     modalType: 'demoUpsell',
@@ -668,7 +668,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         return;
                     }
                 } catch (streamErr) {
-                    console.warn('[ALOA] Stream path failed, using tool-capable request:', streamErr);
+                    console.warn('[ARIA] Stream path failed, using tool-capable request:', streamErr);
                 }
             }
 
@@ -744,7 +744,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }
 
         } catch (error: any) {
-            console.error("ALOA Message Error:", error);
+            console.error("ARIA Message Error:", error);
 
             let errorMessage = "I encountered an issue processing your request.";
             let isAuthError = false;
@@ -870,7 +870,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     <div className="min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 overflow-hidden flex-wrap">
                             <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none truncate">
-                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : (isAtrium ? 'ARIA' : 'ALOA')}
+                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : 'ARIA'}
                             </h2>
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
                             {activeView === 'chat' && injectedContext && (
@@ -1080,7 +1080,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 <AloaIcon className="w-10 h-10 text-white" />
                             </div>
                             <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
-                                {isAtrium ? 'ARIA' : 'ALOA'}
+                                ARIA
                             </h3>
                             <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
                                 {isAtrium ? 'Asset & Revenue Intelligent Assistant' : 'Artificial Legal & Operational Assistant'}
@@ -1179,7 +1179,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     </div>
                                 </div>
                                 <div className={`mt-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'user' ? 'You' : (isAtrium ? 'ARIA' : 'ALOA')}
+                                    {msg.role === 'user' ? 'You' : 'ARIA'}
                                 </div>
                             </div>
                         </div>
@@ -1225,7 +1225,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 placeholder={
                                     isFirmSearchEnabled 
                                         ? (isProperty ? 'Search portfolio documents...' : 'Search firm documents...')
-                                        : (isAtrium ? 'Ask ARIA about your properties...' : 'Ask ALOA about your practice...')
+                                        : (isAtrium ? 'Ask ARIA about your properties...' : 'Ask ARIA about your practice...')
                                 }
                                 className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
                                 disabled={isLoading || aloaState !== 'idle'}

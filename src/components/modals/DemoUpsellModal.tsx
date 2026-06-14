@@ -43,7 +43,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
                 };
             case 'ai':
                 return {
-                    headline: "ALOA® AI is just getting warmed up.",
+                    headline: "ARIA® AI is just getting warmed up.",
                     subline: "You've tasted the power of deep legal research. Unlock full, unlimited AI analysis by creating your account.",
                     icon: <SparklesIcon className="w-12 h-12 text-purple-500 animate-pulse" />
                 };

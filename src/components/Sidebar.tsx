@@ -15,7 +15,7 @@ import {
     ShieldCheckIcon, LockClosedIcon
 } from '../constants';
 
-// ALOA-X inline icon
+// ARIA-X inline icon
 const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 3L3 9l9 6 9-6-9-6z" />
@@ -204,7 +204,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     // Allow all users to access the firm switcher to find their other offices or switch back to original offices 
     const canUseMultiFirm = true;
 
-    // Sidebar ALOA-X Toggle Visibility
+    // Sidebar ARIA-X Toggle Visibility
     const [showAloaX, setShowAloaX] = useState(() => localStorage.getItem('aloax_sidebar_enabled') === 'true');
     useEffect(() => {
         const handleToggle = () => setShowAloaX(localStorage.getItem('aloax_sidebar_enabled') === 'true');
@@ -391,7 +391,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     )}
                     {isHighTier && showAloaX && (
                         <NavItemLink
-                            item={{ view: 'indexer', text: 'ALOA-X', icon: <IndexerIcon /> }}
+                            item={{ view: 'indexer', text: 'ARIA-X', icon: <IndexerIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}

@@ -67,7 +67,7 @@ export const AloaTaskCoach: React.FC<AloaTaskCoachProps> = ({
                     <div className="p-1.5 bg-white dark:bg-zinc-800 rounded-lg shadow-sm">
                         <SparklesIcon className="w-3.5 h-3.5 text-primary-600" />
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">ALOA Smart Assistant</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">ARIA Smart Assistant</p>
                 </div>
                 <div className="px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 border border-primary-200/30">
                     <span className="text-[8px] font-black uppercase tracking-tighter text-primary-700">Enterprise Intelligence</span>

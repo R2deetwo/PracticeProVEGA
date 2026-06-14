@@ -323,7 +323,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     </div>
                                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{isProperty ? 'Advanced Property Document Intelligence' : 'Advanced Legal Document Intelligence'}</h3>
                                     <p className="text-slate-500 dark:text-zinc-400 max-w-md mx-auto mb-8">
-                                        Let {isProperty ? 'ALOA' : 'ALDIA'} analyze this document for risks, extract key dates, and ensure compliance with {isProperty ? 'industry' : 'Nigerian'} regulations.
+                                        Let {isProperty ? 'ARIA' : 'ALDIA'} analyze this document for risks, extract key dates, and ensure compliance with {isProperty ? 'industry' : 'Nigerian'} regulations.
                                     </p>
                                     <button
                                         onClick={handleRunAnalysis}

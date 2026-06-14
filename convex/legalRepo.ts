@@ -233,7 +233,7 @@ export const logUsage = mutation({
 });
 
 /**
- * Specifically used by ALOA to log usage while attributing the source
+ * Specifically used by ARIA to log usage while attributing the source
  */
 export const logAloaModuleUsage = mutation({
     args: {
@@ -246,7 +246,7 @@ export const logAloaModuleUsage = mutation({
         await ctx.db.insert("module_usage_logs", {
             firmId: args.firmId,
             moduleKey: args.moduleKey,
-            action: `ALOA Query: ${args.query}`,
+            action: `ARIA Query: ${args.query}`,
             sourceType: "module",
             loggedAt: new Date().toISOString(),
         });

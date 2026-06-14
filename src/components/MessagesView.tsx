@@ -485,11 +485,11 @@ const MessagesView: React.FC = () => {
 
         const hasSystemMessages = myFeedback.length > 0;
 
-        if (hasSystemMessages && (!searchQuery || 'system inbox practicepro team'.includes(searchQuery.toLowerCase()))) {
+        if (hasSystemMessages && (!searchQuery || 'system inbox aria practicepro team'.includes(searchQuery.toLowerCase()))) {
             const systemConv = {
                 id: 'system-inbox',
                 type: 'system',
-                name: 'PracticePro Team',
+                name: 'ARIA Assistant',
                 memberIds: [currentUser.id],
                 _isSystem: true,
                 unreadCount: systemUnreadCount,
@@ -682,7 +682,7 @@ const MessagesView: React.FC = () => {
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
                             <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {isProperty ? 'Tenant Messages' : 'Client Messages'}
+                                    {isProperty ? 'Residents Chat' : 'Client Messages'}
                                 </h3>
                                 <button
                                     onClick={() => setShowCompose(true)}
@@ -699,7 +699,7 @@ const MessagesView: React.FC = () => {
                                             <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                                 <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                             </div>
-                                            <p className="text-sm text-slate-400">No tenant messages yet</p>
+                                            <p className="text-sm text-slate-400">No resident messages yet</p>
                                             <p className="text-xs text-slate-300 mt-1">WhatsApp, email, and portal messages from tenants will appear here</p>
                                         </div>
                                     ) : (
@@ -1077,7 +1077,7 @@ const MessagesView: React.FC = () => {
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                     </div>
                                     <p className="text-base font-medium text-slate-500 dark:text-zinc-400">
-                                        {isProperty ? 'Select a tenant message to respond' : 'Select a client message to view'}
+                                        {isProperty ? 'Select a resident message to respond' : 'Select a client message to view'}
                                     </p>
                                     <p className="text-xs text-slate-400 mt-1">
                                         {isProperty ? 'WhatsApp, email, and portal messages from tenants' : 'Messages from your clients on matters'}
@@ -1102,13 +1102,13 @@ const MessagesView: React.FC = () => {
                 {activeTab === 'team' && (
                     <div className="flex h-full w-full">
                         <div className={`w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 ${selectedId ? 'hidden md:flex' : 'flex'}`}>
-                            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 shadow-sm border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900">
-                                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Team Chat</h2>
-                                <button onClick={() => openModal('newDirectMessage')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold">
-                                    <PlusIcon className="w-4 h-4" /> New
+                            <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Team Chat</h3>
+                                <button onClick={() => openModal('newDirectMessage')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1 text-xs font-bold">
+                                    <PlusIcon className="w-3.5 h-3.5" /> New
                                 </button>
                             </div>
-                            <div className="p-3">
+                            <div className="px-3 pb-2">
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -1123,7 +1123,7 @@ const MessagesView: React.FC = () => {
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar px-2 space-y-1">
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {filteredConversations.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">No conversations found.</p>}
                                 {filteredConversations.map(c => {
                                     let displayName = c.name || 'Chat';
@@ -1175,7 +1175,7 @@ const MessagesView: React.FC = () => {
                                         <div
                                             key={c.id}
                                             onClick={() => { setSelectedId(c.id); onNavigate('messaging', null, { activeConversationId: c.id }); }}
-                                            className={`flex items-center gap-3 p-3 cursor-pointer rounded-xl transition-all group relative ${selectedId === c.id ? 'bg-primary-50 dark:bg-primary-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
+                                            className={`flex items-center gap-3 p-3 cursor-pointer border-b border-slate-100 dark:border-zinc-800 transition-all group relative ${selectedId === c.id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
                                         >
                                             {avatar}
                                             <div className="flex-1 min-w-0">
@@ -1234,8 +1234,8 @@ const MessagesView: React.FC = () => {
                                                     <SparklesIcon className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-bold text-slate-900 dark:text-white text-base">System Inbox</h3>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400">Updates from the PracticePro Team</p>
+                                                    <h3 className="font-bold text-slate-900 dark:text-white text-base">ARIA Assistant</h3>
+                                                    <p className="text-xs text-slate-500 dark:text-zinc-400">Your AI assistant &amp; support</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -1247,7 +1247,7 @@ const MessagesView: React.FC = () => {
                                                     <div className="p-3.5 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl mb-4">
                                                         <SparklesIcon className="w-7 h-7 text-slate-400" />
                                                     </div>
-                                                    <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300">PracticePro Team</h3>
+                                                    <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300">ARIA Assistant</h3>
                                                     <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-xs mt-1.5">Submit feedback, report bugs, or ask for support. When our team replies, the messages will appear here.</p>
                                                 </div>
                                             ) : (
@@ -1275,7 +1275,7 @@ const MessagesView: React.FC = () => {
                                                                             <SparklesIcon className="w-4 h-4" />
                                                                         </div>
                                                                         <div className="flex flex-col items-start group">
-                                                                            <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">PracticePro Team</span>
+                                                                            <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">ARIA</span>
                                                                             <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm">
                                                                                 <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(item.adminReply) }} />
                                                                             </div>

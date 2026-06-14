@@ -1,4 +1,4 @@
-// ALOA-X: Nigerian Legal Document Indexer - Type Definitions
+// ARIA-X: Nigerian Legal Document Indexer - Type Definitions
 
 export type LegalDocType = 'JUDGMENT' | 'RULES' | 'ACT' | 'LFN' | 'GAZETTE';
 

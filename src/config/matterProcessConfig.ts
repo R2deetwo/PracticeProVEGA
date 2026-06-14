@@ -9,7 +9,7 @@
  *   1. Show the correct party labels (Appellant / Respondent, not Claimant / Defendant)
  *   2. Show the correct secondary party options (Co-Appellant, Cross-Respondent, etc.)
  *   3. Render the specific intake fields required for that process
- *   4. Surface the correct ALOA drafting expectation metadata
+ *   4. Surface the correct ARIA drafting expectation metadata
  *
  * Generated from the comprehensive Nigerian Legal Procedure schema (April 2026).
  */
@@ -300,7 +300,7 @@ export const MATTER_PROCESS_CONFIGS: MatterProcessConfig[] = [
     keyIntakeFields: [
       { fieldId: 'action_description', label: 'Describe the Legal Action',  type: 'textarea', required: true, placeholder: 'Briefly describe the nature of this matter...' },
     ],
-    draftingExpectations: 'ALOA will use the matter description to suggest appropriate documents.',
+    draftingExpectations: 'ARIA will use the matter description to suggest appropriate documents.',
   },
 ];
 

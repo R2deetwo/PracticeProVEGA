@@ -70,7 +70,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Legal Technologies Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
                                 </p>
                                 <p>
-                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including our AI-powered legal assistant ALOA™. By using PracticePro, you consent to the data practices described in this Privacy Policy.
+                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including our AI-powered legal assistant ARIA™. By using PracticePro, you consent to the data practices described in this Privacy Policy.
                                 </p>
                                 <p>
                                     <strong>Important Note:</strong> As a {isVega ? 'Litigation System' : 'Property Management System'}, PracticePro processes sensitive personal data and confidential {isVega ? 'client' : 'tenant'} information on behalf of {isVega ? 'legal practitioners' : 'property managers'}. Users ({isVega ? 'lawyers and law firms' : 'property managers and real estate firms'}) are Data Controllers for their {isVega ? 'clients\'' : 'tenants\''} data, while PracticePro acts as a Data Processor. This Privacy Policy governs our data processing practices and your rights as a data subject.
@@ -175,7 +175,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services (Consent)</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Process documents and case information through ALOA™ for legal research, document drafting, and analysis</li>
+                                        <li>Process documents and case information through ARIA™ for legal research, document drafting, and analysis</li>
                                         <li>Generate automated summaries, risk assessments, and legal document drafts</li>
                                         {isVega && <li>Calculate filing deadlines based on Nigerian court rules</li>}
                                         <li>Extract metadata and key information from uploaded documents</li>
@@ -248,10 +248,10 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">5. AI Processing and Third-Party Service Providers</h2>
                             <div className="space-y-12">
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.1 ALOA™ AI Processing</h3>
-                                    <p>ALOA™ is our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities. When you use ALOA™ features, your data (including case facts, document content, and queries) is processed as follows:</p>
+                                    <h3 className="text-xl font-bold">5.1 ARIA™ AI Processing</h3>
+                                    <p>ARIA™ is our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities. When you use ARIA™ features, your data (including case facts, document content, and queries) is processed as follows:</p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>AI Service Provider:</strong> We use Google's Gemini API (via Google Cloud Vertex AI) to power ALOA™'s natural language processing and generation capabilities.</li>
+                                        <li><strong>AI Service Provider:</strong> We use Google's Gemini API (via Google Cloud Vertex AI) to power ARIA™'s natural language processing and generation capabilities.</li>
                                         <li><strong>Data Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, that data is securely transmitted to Google's API for processing.</li>
                                         <li><strong>Processing Purpose:</strong> The data is processed solely to generate the requested output and is returned to you through the Platform.</li>
                                         <li><strong>No Model Training:</strong> Under our agreements with Google, your data is not used to train Google's public AI models. We have configured our API usage and contractual arrangements to prohibit the use of your data for model training purposes.</li>
@@ -355,7 +355,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold transition-colors">10.2 PracticePro as Data Processor</h3>
                                     <p>
-                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ALOA™ queries that you input into the Platform, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro acts as your Data Processor, handling this information only under your instruction and strictly for the provision of the Platform's services.
+                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ARIA™ queries that you input into the Platform, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro acts as your Data Processor, handling this information only under your instruction and strictly for the provision of the Platform's services.
                                     </p>
                                 </div>
                             </div>

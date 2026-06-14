@@ -18,7 +18,7 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
             
             <div className="text-sm text-slate-600 dark:text-slate-300 space-y-4 mb-8 text-center px-2">
                 <p>
-                    PracticePro VEGA uses specialized AI Agents (ALOA, ALDIA, etc.) to assist with legal drafting, research, and data extraction.
+                    PracticePro VEGA uses specialized AI Agents (ARIA, ALDIA, etc.) to assist with legal drafting, research, and data extraction.
                 </p>
                 <div className="bg-slate-50 dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 text-left">
                     <ul className="list-disc pl-5 space-y-2">

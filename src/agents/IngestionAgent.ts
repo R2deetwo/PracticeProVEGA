@@ -116,7 +116,7 @@ export const analyzeIngestedMatterFiles = async (
         const model = AI_CONFIG.gemini.defaultModel;
 
         const parts: any[] = [{
-            text: `You are ALOA, an elite Legal Ingestion Engine. 
+            text: `You are ARIA, an elite Legal Ingestion Engine. 
 Review the following document streams or text extracts provided by the user.
 Your job is to determine the precise Matter Title, Primary Client Name, Matter Type, Suit Number, and Opposing Parties.
 
@@ -189,7 +189,7 @@ Instructions:
         };
 
     } catch (error: any) {
-        console.error("ALOA Ingestion Analysis Failed:", error);
+        console.error("ARIA Ingestion Analysis Failed:", error);
 
         // Fallback
         const isVersus = fallbackTitle.toLowerCase().includes(' v. ') || fallbackTitle.toLowerCase().includes(' vs ');

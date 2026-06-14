@@ -346,9 +346,17 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                 accept=".pdf,.docx,.doc,.txt"
             />
 
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
+            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-800">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                            <DocumentIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>
+                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium">Manage firm documents and files</p>
+                        </div>
+                    </div>
                     <div className="flex gap-2 items-center">
                         <button
                             onClick={() => openEditor()}
@@ -418,7 +426,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
 
             <div className="flex flex-grow overflow-hidden">
                 {!isCompact && (
-                    <div className="hidden md:block w-60 flex-shrink-0 border-r border-slate-100 dark:border-zinc-800 overflow-y-auto p-2">
+                    <div className="hidden md:block w-56 flex-shrink-0 border-r border-slate-200 dark:border-zinc-800 overflow-y-auto p-3 bg-slate-50/50 dark:bg-zinc-900/50">
                         <h4 className="px-2 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Folders</h4>
                         <div className="space-y-0.5">
                             <button
@@ -526,11 +534,11 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                 </div>
                             ) : (
                                 <EmptyState
-                                    title="No Documents"
-                                    description={searchTerm ? "No matches found." : (selectedCategory ? "This folder is empty." : "No documents yet.")}
+                                    title="No Documents Yet"
+                                    description={searchTerm ? "No matches found for your search." : (selectedCategory ? "This folder is empty. Upload a document to get started." : "Upload your first document to get started. You can organize files by matter, category, or keep them firm-wide.")}
                                     icon={<DocumentIcon className="w-full h-full" />}
-                                    actionLabel="Upload Document"
-                                    onAction={() => openModal('newDocument')}
+                                    actionLabel={searchTerm ? undefined : "Upload Document"}
+                                    onAction={searchTerm ? undefined : () => openModal('newDocument')}
                                 />
                             )}
                         </div>

@@ -1,4 +1,4 @@
-// ALOA-X: Text Extractor — PDF page → raw text OR base64 image
+// ARIA-X: Text Extractor — PDF page → raw text OR base64 image
 export class TextExtractor {
   /**
    * Extract text from a range of pages in a PDF document.

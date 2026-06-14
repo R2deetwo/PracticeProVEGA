@@ -106,23 +106,23 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem title="Using ALOA (AI Assistant)">
+                        <AccordionItem title="Using ARIA (AI Assistant)">
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg">What is ALOA?</h4>
-                                    <p>ALOA is your AI-powered assistant, designed to help you with tasks, provide insights, and streamline your workflow. You can interact with it by typing or using your voice via the microphone icon.</p>
+                                    <h4 className="font-bold text-lg">What is ARIA?</h4>
+                                    <p>ARIA is your AI-powered assistant, designed to help you with tasks, provide insights, and streamline your workflow. You can interact with it by typing or using your voice via the microphone icon.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>
-                                    <p>ALOA uses **Retrieval Augmented Generation (RAG)** to answer questions based directly on your firm's documents. When you ask about a case, ALOA scans related files to provide accurate, evidence-based answers with citations.</p>
+                                    <p>ARIA uses **Retrieval Augmented Generation (RAG)** to answer questions based directly on your firm's documents. When you ask about a case, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Actionable Insights</h4>
-                                    <p>ALOA doesn't just talk; it acts. Responses often include smart buttons to **View Tasks**, **Open Matters**, or **Draft Replies** based on the current context of your conversation.</p>
+                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to **View Tasks**, **Open Matters**, or **Draft Replies** based on the current context of your conversation.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">On-Demand Briefings</h4>
-                                    <p>You can ask ALOA for a summary of your day at any time. Simply say "Give me a briefing" to see a snapshot of your overdue tasks, upcoming court dates, and pending invoices.</p>
+                                    <p>You can ask ARIA for a summary of your day at any time. Simply say "Give me a briefing" to see a snapshot of your overdue tasks, upcoming court dates, and pending invoices.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -238,7 +238,7 @@ export const HelpSettings: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg">Intake & Lifecycle Management</h4>
-                                    <p>{isProperty ? 'Experience intelligent property onboarding through the Intake Wizard. ALOA safeguards data entry and seamlessly bridges you into the Drafting Lab to auto-populate agreements.' : 'Experience intelligent onboarding through the Enterprise Intake Wizard. ALOA safeguards data entry according to Nigerian procedural rules, and seamlessly bridges you into the Drafting Lab to auto-populate Writs and agreements.'}</p>
+                                    <p>{isProperty ? 'Experience intelligent property onboarding through the Intake Wizard. ARIA safeguards data entry and seamlessly bridges you into the Drafting Lab to auto-populate agreements.' : 'Experience intelligent onboarding through the Enterprise Intake Wizard. ARIA safeguards data entry according to Nigerian procedural rules, and seamlessly bridges you into the Drafting Lab to auto-populate Writs and agreements.'}</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">{isProperty ? 'Leasing & Maintenance' : 'Procedural Drafting Lab & Research'}</h4>
@@ -246,7 +246,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">{isProperty ? 'Document Management' : 'Document Intelligence (ALDIA)'}</h4>
-                                    <p>{isProperty ? 'Let ALOA organize your property documents, tenancy agreements, and title deeds in a central, searchable repository.' : 'Let ALDIA scan your documents for risks, Governing Law, and extracted metadata to save you hours of manual review.'}</p>
+                                    <p>{isProperty ? 'Let ARIA organize your property documents, tenancy agreements, and title deeds in a central, searchable repository.' : 'Let ALDIA scan your documents for risks, Governing Law, and extracted metadata to save you hours of manual review.'}</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -291,7 +291,7 @@ export const HelpSettings: React.FC = () => {
                                     <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-2">
                                         <li><strong>DraftPro:</strong> AI-augmented legal word processor for high-speed drafting.</li>
                                         <li><strong>Research Studio:</strong> Advanced deep-dive analysis and chronology building tool.</li>
-                                        <li><strong>ALOA Voice:</strong> Real-time voice interaction with your legal assistant.</li>
+                                        <li><strong>ARIA Voice:</strong> Real-time voice interaction with your legal assistant.</li>
                                     </ul>
                                 </div>
                                 <div>

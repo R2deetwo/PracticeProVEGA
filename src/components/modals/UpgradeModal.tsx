@@ -23,7 +23,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                     "Unlimited Users",
                     "Unlimited Matters & Units",
                     "Unlimited Active Tenants",
-                    "ALOA® AI Copilot (Uncapped Priority)",
+                    "ARIA® AI Copilot (Uncapped Priority)",
                     "Full Legal + Property Suite"
                 ],
                 buttonText: "Upgrade to Komplete",
@@ -35,7 +35,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                 title: "Pro Plan",
                 price: "₦80,000",
                 features: [
-                    "ALOA® AI Assistant (Uncapped Priority)",
+                    "ARIA® AI Assistant (Uncapped Priority)",
                     "Unlimited Team Users",
                     "Advanced Legal Billing & Analytics",
                     "Unlimited Active Matters",
