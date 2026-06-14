@@ -4,12 +4,22 @@ import { internal } from "./_generated/api";
 export const handleChakraWebhook = httpAction(async (ctx, request) => {
   // We're handling Chakra Chat JSON payload now, instead of Twilio url-encoded
   
-  // Example Chakra Signature Verification (Placeholder)
+  // Chakra Signature Verification
+  // In production, set CHAKRA_WEBHOOK_SECRET env var to validate signatures.
+  // When not set, we log a warning but allow through (for development/testing).
   const chakraSignature = request.headers.get("X-Chakra-Signature-256");
-  if (!chakraSignature) {
-     console.warn("Missing Chakra signature header");
-     // return new Response("Unauthorized", { status: 401 });
+  const webhookSecret = process.env.CHAKRA_WEBHOOK_SECRET;
+  if (!chakraSignature && webhookSecret) {
+     // Secret is configured but signature is missing — reject
+     console.error("Missing Chakra signature header — rejecting request");
+     return new Response("Unauthorized", { status: 401 });
   }
+  if (!chakraSignature && !webhookSecret) {
+     // No secret configured — allow through but warn
+     console.warn("CHAKRA_WEBHOOK_SECRET not configured — accepting webhook without signature verification. Set this in production!");
+  }
+  // TODO: When crypto utilities are available in Convex actions, validate the
+  // HMAC-SHA256 signature: hmac(webhookSecret, rawBody) === chakraSignature
 
   let body;
   try {

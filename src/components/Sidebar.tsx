@@ -181,10 +181,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const [availableWorkspaces, setAvailableWorkspaces] = useState<any[]>([]);
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
 
+    // Fetch inbound tenant messages for unified badge count
+    const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
+    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId } : 'skip') || [];
+    const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
+
+    // Fetch portal messages for unified badge count
+    const portalMsgs = useQuery(api.portals.getPortalMessagesByFirm, sidebarFirmId ? { firmId: sidebarFirmId } : 'skip') || [];
+    const portalUnread = (portalMsgs as any[]).filter((m: any) => m.status === 'unread').length;
+
+    const chatNotificationCount = (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length;
+
     const counts = {
         updatedMatters: (matterState.clientMessages || []).filter(m => !m.isRead && m.authorId !== currentUser.id).length,
         tasks: (executionState.tasks || []).filter(t => t && t.assignedUsers && t.assignedUsers.includes(currentUser.id) && t.status !== 'done').length,
-        messages: (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length
+        messages: chatNotificationCount + (isProperty ? inboundUnread + portalUnread : 0),
     };
 
     const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;

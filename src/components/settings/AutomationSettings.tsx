@@ -224,7 +224,7 @@ const RuleBuilder: React.FC<{
                             <option value="create_task">Create a Task</option>
                             <option value="send_email">Send Email (Template)</option>
                             <option value="send_whatsapp">Send WhatsApp Message</option>
-                            <option value="notify_slack">Notify Slack Channel</option>
+                            <option value="notify_slack" disabled>Notify Slack Channel (Coming Soon)</option>
                             <option value="generate_document">Generate Document from Template</option>
                         </select>
                     </div>

@@ -89,9 +89,32 @@ export const useMessaging = (appState: AppState, actions: any) => {
         await actions.updateItem('chatMessages', { id: messageId, content: newContent }, 'Message');
     }, [actions]);
 
-    const retryMessage = useCallback((messageId: string, isClientMessage: boolean) => {
-        addToast("Message retry is not yet available. Please send a new message.", { type: 'info' });
-    }, [addToast]);
+    const retryMessage = useCallback(async (messageId: string, isClientMessage: boolean) => {
+        // Find the original message and re-send it
+        const sourceArray = isClientMessage ? appState.clientMessages : appState.chatMessages;
+        const original = sourceArray.find((m: any) => m.id === messageId);
+        if (!original) {
+            addToast("Original message not found. Please send a new message.", { type: 'error' });
+            return;
+        }
+        try {
+            if (isClientMessage) {
+                await actions.addItem('clientMessages', {
+                    matterId: original.matterId,
+                    content: original.content,
+                    timestamp: new Date().toISOString(),
+                }, 'Client Message');
+            } else {
+                await handleSendMessage(original.conversationId, original.content, original.authorId);
+            }
+            // Remove the old failed message
+            await actions.deleteItem(isClientMessage ? 'clientMessages' : 'chatMessages', messageId, 'Message');
+            addToast("Message re-sent successfully.", { type: 'success' });
+        } catch (e) {
+            console.error('[retryMessage] Failed:', e);
+            addToast("Failed to retry message. Please send a new message.", { type: 'error' });
+        }
+    }, [appState.clientMessages, appState.chatMessages, actions, handleSendMessage, addToast]);
 
     return {
         handleSendMessage,

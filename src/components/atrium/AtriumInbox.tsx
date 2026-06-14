@@ -65,6 +65,7 @@ export const AtriumInbox: React.FC = () => {
     const messages = useQuery(api.sentry.getInboundMessages, firmId ? { firmId } : 'skip') || [];
     const deleteMessage = useMutation(api.sentry.deleteInboundMessage);
     const markAsRead = useMutation(api.sentry.markMessageAsRead);
+    const logAutomation = useMutation(api.sentry.logAutomation);
 
     // Audit trail state
     const [activeTab, setActiveTab] = useState<InboxTab>('inbox');
@@ -150,11 +151,29 @@ export const AtriumInbox: React.FC = () => {
                 setReplyText("");
                 setIsSending(false);
             } else {
-                setTimeout(() => {
+                // Save reply to automation_logs so it's not lost
+                try {
+                    await logAutomation({
+                        firmId: firmId!,
+                        unitId: selectedMessage.unitId || undefined,
+                        tenantId: selectedMessage.tenantId || undefined,
+                        messageType: 'custom' as any,
+                        channel: (selectedMessage.channel as AutomationChannel) || 'whatsapp',
+                        recipient: selectedMessage.senderContact || selectedMessage.senderName || '',
+                        messageContent: replyText.trim(),
+                        messagePreview: replyText.trim().substring(0, 80),
+                        direction: 'outbound',
+                        senderName: currentUser?.name || 'Admin',
+                        status: 'simulated',
+                        triggeredBy: 'manual_reply_offline',
+                    });
+                    addToast("Reply saved to audit trail. Connect a messaging channel (Email/WhatsApp) to deliver replies automatically.", { type: "info" });
+                } catch (logErr) {
+                    console.warn('[AtriumInbox] Could not save reply to audit log:', logErr);
                     addToast("Reply saved. Connect a messaging channel (Email/WhatsApp) to deliver replies automatically.", { type: "info" });
-                    setReplyText("");
-                    setIsSending(false);
-                }, 600);
+                }
+                setReplyText("");
+                setIsSending(false);
             }
         } catch (e: any) {
             addToast(`Error: ${e.message}`, { type: "error" });

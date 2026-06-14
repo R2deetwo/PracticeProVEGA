@@ -40,18 +40,40 @@ export const useCommunications = (actions: any) => {
 
     const handleRequestFinancialDocument = useCallback(async (matterId: string, type: string) => {
         addToast(`Requesting ${type} for matter...`, { type: 'info' });
-        // In a real system, this would send an email/notification to the client
-        await actions.addItem('notifications', {
-            userId: 'client', // Placeholder
-            title: 'Document Request',
-            message: `A ${type} has been requested for your matter.`,
-            type: 'document',
-            isRead: false,
-            createdAt: new Date().toISOString(),
-            firmId: currentUser?.firmId,
-        }, 'Notification');
-        addToast("Request sent to client.", { type: 'success' });
-    }, [currentUser, actions, addToast]);
+        try {
+            // Resolve the actual client userId from the matter's assigned client
+            const matter = await convex.query(api.matters.getMatterById, { id: matterId });
+            const clientId = matter?.clientId || matter?.clientIds?.[0];
+            if (!clientId) {
+                addToast("Could not identify the client for this matter. Request not sent.", { type: 'error' });
+                return;
+            }
+            await actions.addItem('notifications', {
+                userId: clientId,
+                title: 'Document Request',
+                message: `A ${type} has been requested for your matter.`,
+                type: 'document',
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                firmId: currentUser?.firmId,
+                link: { view: 'matterDetail', id: matterId, context: { initialTab: 'documents' } },
+            }, 'Notification');
+            addToast("Request sent to client.", { type: 'success' });
+        } catch (e) {
+            console.error('[handleRequestFinancialDocument] Failed:', e);
+            // Fallback: still send notification to current user as a reminder
+            await actions.addItem('notifications', {
+                userId: currentUser?.id || '',
+                title: 'Document Request Reminder',
+                message: `A ${type} has been requested for matter ${matterId}. Client notification pending.`,
+                type: 'document',
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                firmId: currentUser?.firmId,
+            }, 'Notification');
+            addToast("Request logged. Could not reach client — reminder saved.", { type: 'warning' });
+        }
+    }, [currentUser, actions, addToast, convex]);
 
     return {
         handleSendEmail,

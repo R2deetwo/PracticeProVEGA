@@ -12,6 +12,8 @@ import { usePermissions } from '../hooks/usePermissions';
 import ConnectionStatus from './auth/ConnectionStatus';
 import { PresenceAvatars } from './toolkit/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 interface HeaderProps {
     onToggleToolkit: () => void;
@@ -37,6 +39,7 @@ const Header: React.FC = React.memo(() => {
     const { clientMessages } = matterState;
     const chatMessages: any[] = []; // chat messages loaded per-conversation in MessagesView
     const permissions = usePermissions();
+    const { isProperty } = useProduct();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement>(null);
@@ -46,7 +49,10 @@ const Header: React.FC = React.memo(() => {
     const [demoProduct, setDemoProduct] = useState<'vega' | 'atrium'>(
         () => (sessionStorage.getItem('practicepro_demo_product') as 'vega' | 'atrium') || 'vega'
     );
-    const { isProperty } = useProduct();
+
+    // Fetch inbound tenant messages for notification bell (Atrium/Property only)
+    const headerFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
+    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, isProperty && headerFirmId ? { firmId: headerFirmId } : 'skip') || [];
 
     const rawUserName = currentUser?.name || currentUser?.email?.split('@')[0] || 'User';
     const displayUserName = isProperty ? rawUserName.replace(/Lawyer/g, 'Manager').replace(/Attorney/g, 'Agent') : rawUserName;
@@ -61,23 +67,11 @@ const Header: React.FC = React.memo(() => {
             timestampStr: n.timestamp
         }));
 
-        // 2. Unread Chat Messages (Direct & Channels)
-        // Group by conversation to avoid clutter
-        const unreadChats = chatMessages.filter(m => !m.isDeleted && m.authorId !== currentUser.id); // Simple filter, real "unread" logic would check a read status per user
-        // Assuming we rely on a simplified "unread count" or just latest ones for now since individual read status tracking might be complex without a read_receipts table.
-        // Actually, let's use the local storage 'last_viewed' logic logic or similar if available, otherwise just show recent ones.
-        // For this implementation, we will mock "unread" status for chat messages based on a simple "isRead" flag if it existed, or just recent ones.
-        // BUT wait, coreState.notifications tracks some things. 
-        // Let's assume for this specific request, we want to SEE the messages in the list.
-
-        // Better approach: Use the "unreadMessagesCount" logic from Sidebar to flag which conversations have activity.
-        // Since we don't have per-message read status in the schema for group chats easily, we'll stick to system notifications for now,
-        // BUT we will inject Client Messages as they are critical.
-
+        // Unread Client Messages (Vega/legal)
         const unreadClientMessages = clientMessages.filter(m => !m.isRead && m.authorId !== currentUser.id).map(m => ({
             id: m.id,
             userId: currentUser.id,
-            message: `New message from Client in matter`, // Simplified, could look up matter title
+            message: `New message from Client in matter`,
             link: { view: 'matterDetail', id: m.matterId, context: { initialTab: 'messages' } },
             isRead: false,
             timestamp: m.timestamp,
@@ -85,10 +79,25 @@ const Header: React.FC = React.memo(() => {
             timestampStr: m.timestamp
         }));
 
-        // Combine and Sort
-        return [...systemNotes, ...unreadClientMessages].sort((a, b) => new Date(b.timestampStr).getTime() - new Date(a.timestampStr).getTime());
+        // Inbound Tenant Messages (Atrium/property) — shown in notification bell
+        const unreadTenantMessages = (inboundTenantMessages as any[])
+            .filter((m: any) => !m.isRead)
+            .slice(0, 10)
+            .map((m: any) => ({
+                id: m._id,
+                userId: currentUser.id,
+                message: `${m.senderName || m.senderContact}: ${m.content?.substring(0, 60) || 'New message'}`,
+                link: { view: 'messaging' as View, id: null, context: { initialTab: 'inbox', selectedInboxId: m._id } },
+                isRead: false,
+                timestamp: m.receivedAt ? new Date(m.receivedAt).toISOString() : new Date().toISOString(),
+                type: 'message',
+                timestampStr: m.receivedAt ? new Date(m.receivedAt).toISOString() : new Date().toISOString(),
+            }));
 
-    }, [notifications, clientMessages, currentUser]);
+        // Combine and Sort
+        return [...systemNotes, ...unreadClientMessages, ...unreadTenantMessages].sort((a, b) => new Date(b.timestampStr).getTime() - new Date(a.timestampStr).getTime());
+
+    }, [notifications, clientMessages, currentUser, inboundTenantMessages]);
 
     const unreadCount = aggregatedNotifications.filter(n => !n.isRead).length;
 
