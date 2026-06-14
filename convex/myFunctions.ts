@@ -1341,6 +1341,52 @@ export const requestPasswordReset = mutation({
   }
 });
 
+/**
+ * requestPortalPasswordReset — Password reset for portal users (Client/Tenant).
+ *
+ * Similar to requestPasswordReset but sends the recovery link to the
+ * appropriate portal login page (/portal/client/login or /portal/tenant/login)
+ * so the user can reset their password within the portal context.
+ */
+export const requestPortalPasswordReset = mutation({
+  args: { email: v.string(), portalType: v.union(v.literal("client"), v.literal("tenant")) },
+  handler: async (ctx, args) => {
+    const token = args.email.toLowerCase().trim();
+    const allUsers = await ctx.db.query("users").take(500);
+    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+
+    // Always return success to prevent email enumeration attacks
+    if (!user) return { success: true };
+
+    // Only allow password reset for portal users (Client or Tenant role)
+    const userRole = (user as any).role;
+    if (userRole !== "Client" && userRole !== "Tenant") {
+      // Non-portal user trying to use portal reset — silently ignore
+      // to avoid revealing that this email is a non-portal account
+      return { success: true };
+    }
+
+    const code = "RCV-" + Math.floor(100000 + Math.random() * 900000).toString();
+    await ctx.db.patch(user._id, { recoveryCode: code });
+
+    try {
+      const appDomain = "https://practice-pro-vega.vercel.app";
+      const recoveryLink = `${appDomain}/portal/${args.portalType}/login?recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
+
+      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendPortalRecoveryEmail, { 
+        email: user.email, 
+        code: code,
+        recoveryLink: recoveryLink,
+        portalType: args.portalType,
+      });
+    } catch (e) {
+      console.error("Failed to send portal recovery email", e);
+    }
+
+    return { success: true };
+  }
+});
+
 export const createFirm = mutation({
   args: { 
     name: v.string(), 
@@ -2245,6 +2291,68 @@ export const sendRecoveryEmail = internalAction({
     await sendBrevoEmail({
       to: args.email,
       subject: "Reset your PracticePro Password",
+      html,
+    });
+  }
+});
+
+/**
+ * sendPortalRecoveryEmail — Sends a password reset email to portal users.
+ *
+ * Branded with the appropriate portal product name (Vega for Client,
+ * Atrium for Tenant) so the user recognizes the product they use.
+ */
+export const sendPortalRecoveryEmail = internalAction({
+  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), portalType: v.string() },
+  handler: async (ctx, args) => {
+    const isTenant = args.portalType === 'tenant';
+    const brandName = isTenant ? 'ATRIUM' : 'VEGA';
+    const brandColor = isTenant ? '#52797f' : '#4cc9f0';
+    const gradientEnd = isTenant ? '#2a4a4f' : '#1a3a5c';
+    const portalLabel = isTenant ? 'Residents' : 'Client';
+
+    const html = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+        
+        <div style="background: linear-gradient(135deg, #0d1b2a 0%, ${gradientEnd} 100%); padding: 32px 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">PracticePro <span style="color: ${brandColor};">${brandName}</span></h1>
+          <p style="color: #8ab4cc; margin: 6px 0 0 0; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;">${portalLabel} Portal</p>
+        </div>
+        
+        <div style="padding: 40px 32px;">
+          <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">Reset Your Portal Password</p>
+          <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 32px 0;">
+            We received a request to reset the password for your ${portalLabel} Portal account. Click the secure link below to set a new password.
+          </p>
+          
+          <div style="text-align: center; margin-bottom: 32px;">
+            <a href="${args.recoveryLink}" style="display: inline-block; background-color: ${isTenant ? '#52797f' : '#4f46e5'}; color: #ffffff; padding: 14px 28px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">Reset Password</a>
+          </div>
+
+          <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">
+            If the button doesn't work, you can also enter this recovery code manually on the portal login page:
+          </p>
+          <div style="background: #f7fafc; border: 2px dashed #cbd5e0; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 32px;">
+            <span style="display: inline-block; font-size: 24px; font-weight: 800; color: #0d1b2a; letter-spacing: 4px;">${args.code}</span>
+          </div>
+          
+          <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0;">
+            If you did not request a password reset, please ignore this email. Your account is safe. You can also contact your ${isTenant ? 'property manager' : 'law firm'} if you have concerns.
+          </p>
+        </div>
+
+        <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; text-align: center;">
+          <p style="color: #a0aec0; font-size: 12px; margin: 0;">
+            &copy; ${new Date().getFullYear()} PracticePro Legal Technologies Limited. All rights reserved.<br/>
+            No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendBrevoEmail({
+      to: args.email,
+      subject: `Reset your PracticePro ${brandName} Portal Password`,
       html,
     });
   }

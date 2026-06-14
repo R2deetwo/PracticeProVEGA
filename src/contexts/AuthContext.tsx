@@ -403,14 +403,27 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setOriginalSessionToken(null);
         }
 
-        // Then clear all persisted session data
-        sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-        sessionStorage.removeItem(PORTAL_SESSION_KEY);
-        localStorage.removeItem(PORTAL_SESSION_KEY);
+        // SECURITY: When a portal user logs out, only clear the PORTAL session.
+        // NEVER clear practicepro_user_session — that's the admin's session and
+        // clearing it from localStorage would kill the admin's session on any
+        // other open tab, which can cause cross-session contamination.
+        if (isPortalUser) {
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+            sessionStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_portal_type');
+            // Do NOT clear LOCAL_STORAGE_USER_KEY — that belongs to the admin
+        } else {
+            // Admin logout — clear only the admin session
+            sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            // Also clear any stale portal session since admin is fully logging out
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+            sessionStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_portal_type');
+        }
         localStorage.removeItem('practicepro_session_locked');
-        sessionStorage.removeItem('practicepro_portal_type');
-        localStorage.removeItem('practicepro_portal_type');
 
         // Redirect portal users to their specific login page, not the main landing page
         if (isPortalUser) {
@@ -506,14 +519,18 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 } else {
                     console.warn("[Auth] Session load timed out after retry. Falling back to landing page.");
                     setHasTimedOut(true);
-                    sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-                    sessionStorage.removeItem(PORTAL_SESSION_KEY);
-                    localStorage.removeItem(PORTAL_SESSION_KEY);
-                    localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-                    // CRITICAL: Also clear the portal type flag — otherwise the
-                    // App.tsx hasRememberedPortal check keeps showing "Loading
-                    // your portal..." spinner forever even though the session is
-                    // dead. This was causing the blank screen after timeout.
+
+                    // SECURITY: Only clear the session that belongs to the current user.
+                    // If this is a portal user timeout, don't nuke the admin's session.
+                    const isPortalSession = isPortalRoute();
+                    if (isPortalSession) {
+                        sessionStorage.removeItem(PORTAL_SESSION_KEY);
+                        localStorage.removeItem(PORTAL_SESSION_KEY);
+                    } else {
+                        sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                        localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+                    }
+                    // Clear portal type flag regardless
                     sessionStorage.removeItem('practicepro_portal_type');
                     localStorage.removeItem('practicepro_portal_type');
                 }

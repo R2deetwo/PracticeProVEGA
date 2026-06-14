@@ -482,6 +482,11 @@ export const App: React.FC = () => {
     // Handle revoked portal accounts: when the backend confirms the user's account
     // has been revoked (isVerified=false + role=Pending), clear their session and
     // redirect to the appropriate portal login page with a clear "access revoked" message.
+    //
+    // SECURITY: Only clear the PORTAL session — NEVER touch the app user's session.
+    // If an admin is logged in on another tab, clearing practicepro_user_session
+    // from localStorage would nuke their session too, which can cause cross-session
+    // contamination (the portal user could accidentally end up in the admin dashboard).
     useEffect(() => {
         if (!isAccountRevoked) return;
         if (location.pathname === '/portal/client/login' || location.pathname === '/portal/tenant/login') return; // Already on login page
@@ -490,15 +495,20 @@ export const App: React.FC = () => {
         const portalType = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
         const loginPath = portalType === 'client' ? '/portal/client/login' : '/portal/tenant/login';
 
-        // Clear all session data so the revoked state doesn't persist
+        // SECURITY: Only clear the PORTAL session — NEVER touch the app user's session.
+        // Clearing practicepro_user_session from localStorage would also kill the
+        // admin's session on any other open tab, which is a security disaster.
         sessionStorage.removeItem('practicepro_portal_session');
         localStorage.removeItem('practicepro_portal_session');
-        sessionStorage.removeItem('practicepro_user_session');
-        localStorage.removeItem('practicepro_user_session');
+        sessionStorage.removeItem('practicepro_portal_type');
+        localStorage.removeItem('practicepro_portal_type');
 
-        // Add a query param so the login page can show the revoked banner
-        navigate(`${loginPath}?revoked=1`, { replace: true });
-    }, [isAccountRevoked, location.pathname, navigate]);
+        // Hard-redirect instead of SPA navigate to guarantee a complete state reset.
+        // Using window.location.href ensures all React state is torn down and
+        // re-initialized cleanly — no risk of stale session tokens persisting
+        // in memory and causing cross-boundary access.
+        window.location.href = `${loginPath}?revoked=1`;
+    }, [isAccountRevoked, location.pathname]);
 
     useEffect(() => {
         if (isLoadingSession && !hasSavedSession) {
@@ -606,6 +616,32 @@ export const App: React.FC = () => {
     const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
 
     const renderAppContent = () => {
+        // ── SECURITY: Portal user boundary guard ──
+        // If a portal user (Client/Tenant) is authenticated but NOT on a portal route,
+        // redirect them immediately. This prevents cross-boundary access where a portal
+        // user could end up in the main app's dashboard or any admin-only view.
+        if (currentUser && isPortalUserRole) {
+            const isOnPortalRoute = location.pathname.startsWith('/portal/');
+            if (!isOnPortalRoute) {
+                const portalPath = currentUser.role === UserRole.Client ? '/portal/client' : '/portal/tenant';
+                // Hard redirect to guarantee clean state
+                window.location.href = portalPath;
+                return null;
+            }
+        }
+
+        // ── SECURITY: Admin user on portal route guard ──
+        // If an admin/internal user somehow lands on a portal route, redirect them
+        // to the main app. This prevents confusion where an admin sees the portal
+        // view instead of their dashboard.
+        if (currentUser && !isPortalUserRole) {
+            const isOnPortalDashboard = location.pathname === '/portal/client' || location.pathname === '/portal/tenant';
+            if (isOnPortalDashboard) {
+                navigate('/', { replace: true });
+                return null;
+            }
+        }
+
         // ── Portal login routes ──
         // If user is already authenticated as a portal user, redirect them to their dashboard
         // instead of showing the login page again. This handles the case where a portal user
@@ -651,8 +687,9 @@ export const App: React.FC = () => {
             }
 
             if (hasRememberedPortal && !portalRememberTimedOut) {
-                // Session might still be loading (e.g. slow Convex query). Show a minimal
-                // portal-themed loading screen rather than the public LandingPage.
+                // Session might still be loading (e.g. slow Convex query). Show the
+                // branded splash screen instead of a generic spinner — this provides
+                // a polished experience that matches the main app's loading flow.
                 // Auto-timeout after 15s: if the session truly isn't valid, clear the
                 // remembered portal type and fall through to the login redirect.
                 setTimeout(() => {
@@ -661,13 +698,19 @@ export const App: React.FC = () => {
                     sessionStorage.removeItem('practicepro_portal_type');
                     localStorage.removeItem('practicepro_portal_type');
                 }, 15000);
+                // Determine which product splash to show based on portal type
+                const rememberedPortalType = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
                 return (
-                    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
-                        <div className="text-center">
-                            <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-slate-400 text-sm">Loading your portal...</p>
-                        </div>
-                    </div>
+                    <SplashScreen
+                        isVisible={true}
+                        statusMessage="Loading your portal..."
+                        onForceEnter={() => {
+                            setPortalRememberTimedOut(true);
+                            sessionStorage.removeItem('practicepro_portal_type');
+                            localStorage.removeItem('practicepro_portal_type');
+                        }}
+                        product={rememberedPortalType === 'client' ? 'vega' : 'atrium'}
+                    />
                 );
             }
 
