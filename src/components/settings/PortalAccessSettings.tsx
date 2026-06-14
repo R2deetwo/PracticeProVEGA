@@ -270,7 +270,12 @@ const InviteForm: React.FC<{
 
       const feedback = parts.length > 0 ? parts.join(', ') : 'invitation created';
       const hasErrors = result.emailError || result.whatsappError;
-      addToast(`Invitation sent — ${feedback}`, { type: hasErrors ? 'info' : 'success' });
+      const isSimulated = result.emailSimulated && !result.emailSent;
+      // CRITICAL: When email is simulated (Brevo API key not configured), show a WARNING
+      // instead of success. The email was NOT actually delivered — the recipient won't
+      // receive the invitation. The admin needs to know this is a configuration issue.
+      const toastType = hasErrors ? 'error' : isSimulated ? 'warning' : 'success';
+      addToast(`Invitation created — ${feedback}${isSimulated ? '. IMPORTANT: The email was NOT actually sent — configure the Brevo API key in Convex environment variables.' : ''}`, { type: toastType });
       onSent();
     } catch (err: any) {
       const msg = err?.message || 'Failed to send invitation';
@@ -864,11 +869,16 @@ export const PortalAccessSettings: React.FC = () => {
     if (!deleteTarget || isDeleting) return;
     const inviteId = deleteTarget._id;
     const inviteEmail = deleteTarget.inviteeEmail || '';
-    console.log('[PortalAccessSettings] Confirming delete:', { inviteId, inviteEmail, inviteIdType: typeof inviteId });
+    const invitePhone = deleteTarget.inviteePhone || '';
+    console.log('[PortalAccessSettings] Confirming delete:', { inviteId, inviteEmail, invitePhone, inviteIdType: typeof inviteId });
     setIsDeleting(true);
     try {
-      // Try the full cleanup mutation first
-      await deleteInvite({ inviteId: inviteId as any, inviteeEmail: inviteEmail || undefined });
+      // Try the full cleanup mutation first — pass both email and phone for robust user lookup
+      await deleteInvite({
+        inviteId: inviteId as any,
+        inviteeEmail: inviteEmail || undefined,
+        inviteePhone: invitePhone || undefined,
+      });
       console.log('[PortalAccessSettings] Delete succeeded for:', inviteId);
       addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
       setDeleteTarget(null);
@@ -878,7 +888,7 @@ export const PortalAccessSettings: React.FC = () => {
       try {
         console.log('[PortalAccessSettings] Attempting fallback revoke for:', inviteId);
         await revokeInvite({ inviteId: inviteId as any });
-        addToast('Portal access revoked (cleanup partially failed — user account may need manual reset).', { type: 'success' });
+        addToast('Portal access revoked (cleanup partially failed — user account may need manual reset).', { type: 'warning' });
         setDeleteTarget(null);
       } catch (fallbackErr: any) {
         console.error('[PortalAccessSettings] Fallback revoke also failed:', fallbackErr);

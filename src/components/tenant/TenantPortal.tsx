@@ -456,9 +456,12 @@ const TenantPortal: React.FC = () => {
               onClick={async () => {
                 setIsRepairing(true);
                 try {
-                  const result = await relinkToProperty({ email, firmId: effectiveFirmId });
-                  if (result.success && result.linked) {
-                    addToast('Property link repaired! Refreshing...', { type: 'success' });
+                  // First try to repair the firmId (it might be wrong/stale)
+                  const firmResult = await repairFirmId({ email });
+                  // Then try to relink to property
+                  const result = await relinkToProperty({ email, firmId: firmResult?.firmId || effectiveFirmId });
+                  if ((result.success && result.linked) || (firmResult?.success && firmResult?.firmId)) {
+                    addToast('Account repaired! Refreshing...', { type: 'success' });
                     setTimeout(() => window.location.reload(), 1500);
                   } else {
                     addToast('Could not auto-repair. Please ask your property manager to re-send your portal invitation.', { type: 'error' });

@@ -613,44 +613,81 @@ export const deletePortalInviteAndCleanup = mutation({
   args: {
     inviteId: v.id("portal_invites"),
     inviteeEmail: v.optional(v.string()),
+    inviteePhone: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const email = (args.inviteeEmail || "").toLowerCase().trim();
 
+    // 0. Read the target invite first to check its current status
+    const targetInvite = await ctx.db.get(args.inviteId);
+    const alreadyRevoked = targetInvite?.status === "revoked";
+
     // 1. Mark the specified invite as revoked (DO NOT delete — preserving the
     //    firmId on invite records is critical for resolveFirmFromInvite to work
     //    when the user is re-invited. Deleted records can't be searched.)
-    await ctx.db.patch(args.inviteId, {
-      status: "revoked",
-      updatedAt: Date.now(),
-    } as any);
+    if (!alreadyRevoked) {
+      await ctx.db.patch(args.inviteId, {
+        status: "revoked",
+        updatedAt: Date.now(),
+      } as any);
+    }
 
     // 2. Mark any OTHER invite records for the same email as revoked too.
-    //    Previously these were hard-deleted, which destroyed the firmId
-    //    resolution path — the #1 cause of permanent skeleton screens.
-    if (!email) return;
+    //    CRITICAL FIX: Only cascade-revoke if the target invite was NOT already
+    //    revoked. If the admin clicks delete on an already-revoked invite, we
+    //    should NOT revoke newer pending/accepted invites for the same email.
+    //    Previously this would silently destroy a fresh re-invitation.
+    if (!alreadyRevoked && email) {
+      const otherInvites = await ctx.db
+        .query("portal_invites")
+        .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+        .collect();
 
-    const otherInvites = await ctx.db
-      .query("portal_invites")
-      .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
-      .collect();
-
-    for (const inv of otherInvites) {
-      if (String(inv._id) === String(args.inviteId)) continue; // Already revoked above
-      if (inv.status === "revoked") continue; // Already revoked
-      try {
-        await ctx.db.patch(inv._id, {
-          status: "revoked",
-          updatedAt: Date.now(),
-        } as any);
-      } catch (e) { /* ignore */ }
+      for (const inv of otherInvites) {
+        if (String(inv._id) === String(args.inviteId)) continue; // Already revoked above
+        if (inv.status === "revoked") continue; // Already revoked
+        try {
+          await ctx.db.patch(inv._id, {
+            status: "revoked",
+            updatedAt: Date.now(),
+          } as any);
+        } catch (e) { /* ignore */ }
+      }
     }
 
     // 3. Find and reset the associated portal user
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
-      .first();
+    //    Search by email first, then by phone (for WhatsApp-only invites)
+    let existingUser = email
+      ? await ctx.db
+          .query("users")
+          .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
+          .first()
+      : null;
+
+    // Fallback: try to find user by phone if email search failed (WhatsApp-only invites)
+    if (!existingUser && args.inviteePhone) {
+      const phone = args.inviteePhone.trim();
+      // Search all users for a matching phone number
+      const allUsers = await ctx.db.query("users").collect();
+      existingUser = allUsers.find((u: any) => {
+        const userPhone = (u.phone || u.phoneNumber || "").trim();
+        return userPhone === phone;
+      }) || null;
+    }
+
+    // Also try to find user from the invite's relatedId if we still can't find them
+    if (!existingUser && targetInvite) {
+      const relatedId = (targetInvite as any).relatedId;
+      if (relatedId) {
+        // For resident invites, the relatedId might contain the unit/property reference
+        // Try finding a user with this email stored in a different field
+        const allUsers = await ctx.db.query("users").collect();
+        existingUser = allUsers.find((u: any) => {
+          const uEmail = (u.email || u.tokenIdentifier || "").toLowerCase().trim();
+          return uEmail && email && uEmail === email;
+        }) || null;
+      }
+    }
 
     if (!existingUser) return;
 
@@ -1102,13 +1139,70 @@ export const repairPortalUserFirmId = mutation({
       .first();
 
     if (!user) return { success: false, message: "User not found." };
-    if (user.firmId) return { success: true, firmId: user.firmId, message: "firmId already set." };
 
     // 1.5. If the user's role is "Pending" (from deletePortalInviteAndCleanup),
     // we also need to restore their role so they can access the portal.
     // Determine the correct role from invite records or user's product field.
     const needsRoleRestore = (user as any).role === "Pending";
     const userProduct = (user as any).product;
+
+    // 1.6. If firmId is set, verify it's valid by checking if the user has
+    // properties in that firm. A wrong firmId (from a previous firm) causes
+    // getTenantInfo to search the wrong firm and return empty results.
+    if (user.firmId) {
+      const firmProperties = await ctx.db
+        .query("properties")
+        .withIndex("by_firm", (q) => q.eq("firmId", user.firmId!))
+        .collect();
+
+      // Check if the user is linked to any property in this firm
+      const userId = String(user._id);
+      let foundInFirm = false;
+      for (const prop of firmProperties) {
+        const propTenantId = (prop as any).currentTenantId || (prop as any).tenantId;
+        const propTenantEmail = ((prop as any).rentalDetails?.tenantEmail || (prop as any).tenantEmail || "").toLowerCase();
+        if (propTenantId === userId || propTenantId === email ||
+            (propTenantEmail && email && propTenantEmail === email)) {
+          foundInFirm = true;
+          break;
+        }
+        const units = (prop as any).units || [];
+        for (const unit of units) {
+          const unitTenantId = unit.currentTenantId || unit.tenantId;
+          const unitTenantEmail = (unit.tenantEmail || '').toLowerCase();
+          if (unitTenantId === userId || unitTenantId === email ||
+              (unitTenantEmail && email && unitTenantEmail === email)) {
+            foundInFirm = true;
+            break;
+          }
+        }
+        if (foundInFirm) break;
+      }
+
+      if (foundInFirm) {
+        // firmId is valid — user has properties in this firm
+        // Still restore role if needed
+        if (needsRoleRestore) {
+          const invites = await ctx.db
+            .query("portal_invites")
+            .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
+            .collect();
+          const activeInvite = invites.find(inv => inv.status !== 'revoked' && inv.firmId);
+          const portalRole = activeInvite?.portalType === 'client' ? 'Client' : 'Tenant';
+          await ctx.db.patch(user._id, {
+            role: portalRole,
+            isVerified: true,
+            emailVerified: true,
+          } as any);
+          return { success: true, firmId: user.firmId, message: "firmId valid, role restored." };
+        }
+        return { success: true, firmId: user.firmId, message: "firmId already set and valid." };
+      }
+
+      // firmId is set but user has NO properties in that firm — it's stale/wrong.
+      // Continue below to find the correct firmId from invite/property records.
+      console.log(`[repairPortalUserFirmId] User firmId "${user.firmId}" is stale — no properties found. Searching for correct firmId...`);
+    }
 
     // 2. Try to find firmId from invite records
     const invites = await ctx.db
