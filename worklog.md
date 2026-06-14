@@ -111,3 +111,41 @@ Stage Summary:
 - Phase 3 (Scheduled Messages Processor): Pending — needs cron job
 - Phase 4 (Admin Reply to Portal Messages): Pending — needs mutation + reply UI
 - All changes deployed to Convex cloud and pushed to GitHub main branch
+---
+Task ID: messaging-unification-phase1
+Agent: Main Agent
+Task: Fix critical messaging bugs and implement Phase 1 of messaging unification plan
+
+Work Log:
+- Analyzed uploaded screenshots showing portal message click not opening conversation detail
+- Identified root cause: selectedInboundMsg only searched atriumInbound array, missing portalMessages
+- Added replyToPortalMessage mutation and getPortalMessageById query to convex/portals.ts
+- Added processScheduledMessages internal mutation with cron (every 5 minutes) to convex/portals.ts
+- Added cron entry in convex/crons.ts for scheduled message processing
+- Fixed selectedInboundMsg to search both atriumInbound AND portalMessages arrays
+- Added _inboxType discriminant to distinguish inbound vs portal messages
+- Added portal message reply capability (replyToPortal mutation) in admin detail panel
+- Added admin reply bubble display in conversation view for replied portal messages
+- Fixed portal message click to mark as read via markPortalRead mutation
+- Added replied status indicators (checkmark + badge) in portal message list items
+- Removed Slack option from AutomationSettings (dead-end with no backend)
+- Removed slackChannel state variable and form fields from RuleBuilder
+- Changed "Overdue Task Rescue" recipe to use create_task instead of notify_slack
+- Enhanced Scheduled Messages tab with:
+  - Schedule Message form (channel, message type, datetime, content)
+  - Time-until delivery countdown for pending messages
+  - Pending/History grouping
+  - Failure reason display for failed messages
+  - Sent timestamp display
+- Added Vega client portal message support (senderRole === 'Client') in admin Inbox
+- Added Atrium tenant filtering (senderRole !== 'Client') for portal messages
+- Updated TenantPortal to show admin replies below tenant's sent messages
+- Deployed Convex backend and pushed frontend to Vercel
+
+Stage Summary:
+- CRITICAL BUG FIXED: Portal messages now show conversation detail when clicked
+- Admin can now reply to portal messages directly from Inbox
+- Tenant portal now displays admin replies
+- Scheduled messages now have a working cron processor (every 5 minutes)
+- Slack dead-end option removed from AutomationSettings
+- Both Atrium and Vega contexts properly supported in Inbox
