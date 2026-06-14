@@ -1214,6 +1214,29 @@ export const verifyLogin = action({
         });
       }
 
+      // AUTO-REPAIR: If a portal user (Client/Tenant) has no firmId, try to repair it
+      // on login. This handles the case where a previous version of
+      // deletePortalInviteAndCleanup cleared firmId and deleted invite records,
+      // leaving the user unable to load any portal data. We search multiple sources
+      // to find the correct firmId and patch the user record.
+      if ((user.role === "Client" || user.role === "Tenant") && !user.firmId) {
+        try {
+          const repairResult: any = await ctx.runMutation(api.portals.repairPortalUserFirmId, {
+            email: token,
+          });
+          if (repairResult.success) {
+            // Update the user object we're about to return so the client
+            // gets the firmId immediately without needing a refresh
+            (user as any).firmId = repairResult.firmId;
+            (user as any).product = repairResult.firmId ? undefined : (user as any).product;
+          }
+        } catch (e) {
+          // Non-blocking: if repair fails, the user can still log in
+          // and will see the "Repair My Account" UI in their portal
+          console.warn("[verifyLogin] Auto-repair of firmId failed:", e);
+        }
+      }
+
       // Strip sensitive fields before returning user to client
       const { password: _pw, mfaCode: _mfa, verificationCode: _vc, recoveryCode: _rc, ...safeUser } = user;
       return { success: true, user: safeUser };
