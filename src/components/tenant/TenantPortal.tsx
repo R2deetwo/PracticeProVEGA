@@ -386,38 +386,36 @@ const TenantPortal: React.FC = () => {
             </button>
           </div>
         </div>
-        {/* Prominent Unit/Property Info */}
-        {tenantInfo?.primaryUnitName && (
-          <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
-              <OfficeBuildingIcon className="w-3.5 h-3.5" />
-              Unit: {tenantInfo.primaryUnitName}
-            </span>
-            {tenantInfo.primaryPropertyName && (
-              <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
-                {tenantInfo.primaryPropertyName}
-              </span>
-            )}
-            {tenantInfo.primaryPropertyAddress && (
-              <span className="text-xs text-slate-400 dark:text-zinc-500">
-                — {tenantInfo.primaryPropertyAddress}
-              </span>
-            )}
-          </div>
-        )}
-        {!tenantInfo?.primaryUnitName && tenantInfo?.primaryPropertyName && (
-          <div className="mt-3 flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
-              <OfficeBuildingIcon className="w-3.5 h-3.5" />
-              {tenantInfo.primaryPropertyName}
-            </span>
-            {tenantInfo.primaryPropertyAddress && (
-              <span className="text-xs text-slate-400 dark:text-zinc-500">
-                — {tenantInfo.primaryPropertyAddress}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Prominent Unit/Property Info — deduplicate property name vs address */}
+        {(() => {
+          const unitName = tenantInfo?.primaryUnitName;
+          const propName = tenantInfo?.primaryPropertyName;
+          const propAddr = tenantInfo?.primaryPropertyAddress;
+          // Avoid showing property name if it's identical to the address
+          const displayPropName = propName && propName !== propAddr ? propName : null;
+          const hasInfo = unitName || displayPropName || propAddr;
+          if (!hasInfo) return null;
+          return (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              {unitName && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
+                  <OfficeBuildingIcon className="w-3.5 h-3.5" />
+                  Unit: {unitName}
+                </span>
+              )}
+              {displayPropName && (
+                <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
+                  {displayPropName}
+                </span>
+              )}
+              {propAddr && (
+                <span className="text-xs text-slate-400 dark:text-zinc-500">
+                  {unitName || displayPropName ? '— ' : ''}{propAddr}
+                </span>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Tab Bar */}

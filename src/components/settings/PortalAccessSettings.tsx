@@ -1055,6 +1055,11 @@ export const PortalAccessSettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Notice Board — prominent placement for property managers */}
+        {showResidentPortal && (
+          <NoticeBoardAdmin firmId={firmId} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
+        )}
+
         {/* Client Portal Section — primary for Komplete/lawyers */}
         <div className="bg-violet-50/30 dark:bg-violet-900/5 rounded-2xl border border-violet-100 dark:border-violet-900/20 p-4 sm:p-6">
           <PortalSection
@@ -1175,6 +1180,11 @@ export const PortalAccessSettings: React.FC = () => {
         </div>
       </div>
 
+      {/* Notice Board — prominent placement right after settings */}
+      {showResidentPortal && (
+        <NoticeBoardAdmin firmId={firmId} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
+      )}
+
       <PortalSection
         portalType={singlePortalType}
         invites={singleInvites}
@@ -1191,11 +1201,6 @@ export const PortalAccessSettings: React.FC = () => {
         onCopyLink={handleCopyInviteLink}
         onPreview={handlePreview}
       />
-
-      {/* Notice Board Management — only for property/unified products */}
-      {showResidentPortal && (
-        <NoticeBoardAdmin firmId={firmId} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
-      )}
 
       <SecurityNotice isProperty={isProperty} isUnified={false} />
     </div>

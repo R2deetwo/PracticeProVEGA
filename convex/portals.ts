@@ -181,6 +181,62 @@ export const createPortalInvite = action({
       expiresAt,
     });
 
+    // 1.5. Write tenant details back to the unit/property record immediately
+    // This ensures the unit has the tenant's name, email, and phone even before
+    // they accept the invite and set their password. Without this, getTenantInfo
+    // may not find the tenant because the unit has no tenantEmail/tenantName.
+    if (args.portalType === "resident" && args.relatedId) {
+      try {
+        const parts = args.relatedId.split("_");
+        const propertyCustomId = parts[0];
+        const unitId = parts.length > 1 ? parts.slice(1).join("_") : null;
+
+        const property: any = await ctx.runQuery(internal.portals.findPropertyByCustomId, {
+          customId: propertyCustomId,
+        });
+
+        if (property) {
+          const units = property.units || [];
+          if (units.length > 0 && unitId) {
+            // Multi-unit: update the specific unit with tenant details
+            let unitFound = false;
+            const updatedUnits = units.map((u: any) => {
+              if (u.id === unitId || u.unitName === unitId || u.id === args.relatedId) {
+                unitFound = true;
+                return {
+                  ...u,
+                  tenantName: resolvedInviteeName || u.tenantName,
+                  tenantEmail: args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : u.tenantEmail,
+                  tenantPhone: args.inviteePhone || u.tenantPhone,
+                  // Don't set currentTenantId yet — that's set when the user accepts
+                };
+              }
+              return u;
+            });
+            if (unitFound) {
+              await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+                propertyId: property._id,
+                updates: { units: updatedUnits },
+              });
+            }
+          } else {
+            // Single property: update property-level tenant fields
+            await ctx.runMutation(internal.portals.linkPortalUserToProperty, {
+              propertyId: property._id,
+              updates: {
+                tenantName: resolvedInviteeName || (property as any).tenantName,
+                tenantEmail: args.inviteeEmail ? args.inviteeEmail.toLowerCase().trim() : (property as any).tenantEmail,
+              },
+            });
+          }
+        }
+      } catch (e) {
+        // Non-blocking: if write-back fails, the invite is still created.
+        // The tenant details will be written again when they accept the invite.
+        console.warn("[createPortalInvite] Tenant detail write-back failed:", (e as any)?.message);
+      }
+    }
+
     // 2. Build the magic-link URL (setup-password page, not login)
     const portalBase = "https://practice-pro-vega.vercel.app/setup-password";
     const inviteUrl = `${portalBase}?token=${token}`;
@@ -1125,6 +1181,7 @@ export const setupPortalPassword = action({
                   tenantId: portalUserDocId,
                   tenantEmail: email,
                   tenantName: tenantName,
+                  tenantPhone: invite.inviteePhone || u.tenantPhone,
                 };
               }
               return u;
@@ -1144,6 +1201,7 @@ export const setupPortalPassword = action({
                 tenantId: portalUserDocId,
                 tenantEmail: email,
                 tenantName: tenantName,
+                tenantPhone: invite.inviteePhone,
               },
             });
           }
@@ -1586,8 +1644,8 @@ export const getTenantInfo = query({
       // Convenience fields for maintenance ticket creation
       primaryPropertyId: primaryProperty?.id || null,
       primaryUnitId: primaryUnit?.id || null,
-      primaryPropertyName: primaryProperty?.name || null,
-      primaryUnitName: primaryUnit?.unitName || null,
+      primaryPropertyName: primaryProperty?.name || (primaryProperty?.address ? primaryProperty.address.split(',')[0] : null),
+      primaryUnitName: primaryUnit?.unitName || primaryUnit?.name || primaryUnit?.label || null,
       primaryPropertyAddress: primaryProperty?.address || null,
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
