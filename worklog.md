@@ -317,3 +317,29 @@ Stage Summary:
 - Portal users (Tenant, Client, Pending) now excluded from ALL internal team views
 - Billing/seat counts now correctly reflect only Admin/Lawyer/Paralegal roles
 - Centralized utility created for future consistency
+---
+Task ID: 1
+Agent: Main
+Task: Notice Board relocation, notification email settings, light-mode email templates
+
+Work Log:
+- Added `notification_preferences` table to Convex schema with per-firm JSON preferences
+- Added `NOTIFICATION_TYPE_DEFAULTS` constant with 22 notification types across 4 categories
+- Created `getNotificationPreferences`, `updateNotificationPreferences`, `isEmailNotificationEnabled` functions
+- Built `sendNoticeEmails` internal action with light-mode HTML email template
+- Created `buildLightModeNotificationEmail` function generating professional light-mode emails
+- Moved `NoticeBoardAdmin` from PortalAccessSettings to MessagesView as new "Notices" tab
+- Added property/unit targeting dropdown to notice creation form
+- Added `activeNoticesCount` badge on the Notices tab
+- Created `NotificationSettings.tsx` component with toggle switches per notification type
+- Added "Notifications" tab to SettingsView (bell icon, between Communications and Portal)
+- Removed old `NoticeBoardAdmin` component from PortalAccessSettings.tsx
+- Deployed to Convex cloud, verified Vite build passes
+
+Stage Summary:
+- Notice Board is now in Messages page (Notices tab) with property/unit selection
+- 22 notification types with toggleable email preferences in Settings > Notifications
+- Types with ⚠️ are OFF by default; always-on types are locked
+- Light-mode email template (white bg, navy header) used for all non-invitation emails
+- Invitation emails retain their dark blue theme as user specified
+- All changes deployed and pushed to production
