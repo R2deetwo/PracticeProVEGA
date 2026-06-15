@@ -258,10 +258,10 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
 
             const verifyResult: any = await verifyLoginAction({ 
-                email: token, 
+                email: String(token || ''), 
                 passwordHash: "",        // No longer used client-side
-                rawPassword: password,   // Sent over TLS; hashed PBKDF2 server-side
-                mfaCode: mfaCode
+                rawPassword: String(password || ''),   // Sent over TLS; hashed PBKDF2 server-side
+                mfaCode: mfaCode ? String(mfaCode) : undefined
             });
 
             if (!verifyResult.success) {
@@ -351,8 +351,17 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         );
 
         try {
+            // Sanitize args to guarantee only serializable primitives are passed to Convex.
+            // This prevents "Converting circular structure to JSON" errors if a React
+            // synthetic event or DOM element accidentally leaks into the arguments.
+            const safeArgs = {
+                fullName: String(fullName || ''),
+                email: String(email || ''),
+                password: password ? String(password) : undefined,
+                product: product ? String(product) : undefined,
+            };
             const result: any = await Promise.race([
-                startSignupAction({ fullName, email, password, product }),
+                startSignupAction(safeArgs),
                 timeoutPromise
             ]);
 
@@ -363,9 +372,14 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             return { success: true, requiresConfirmation: true, debugCode: result?.debugCode };
         } catch (e: any) {
             console.error("Signup error:", e);
-            let msg = e.message || "Could not start signup.";
-            if (e.message && e.message.includes("timed out")) msg = "Server connection timed out.";
-            if (e.message && e.message.includes("Network")) msg = "Network error. Check your connection.";
+            let msg = "Could not start signup. Please try again.";
+            if (typeof e?.message === 'string') {
+                if (e.message.includes("timed out")) msg = "Server connection timed out. Please check your internet and try again.";
+                else if (e.message.includes("Network")) msg = "Network error. Check your connection.";
+                else if (e.message.includes("circular") || e.message.includes("JSON")) msg = "A technical error occurred. Please refresh the page and try again.";
+                else if (e.message.includes("Unrecognized") || e.message.includes("Invalid argument")) msg = "Invalid signup data. Please check your inputs.";
+                else msg = e.message;
+            }
 
             return { success: false, message: msg };
         }
@@ -388,7 +402,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const resendConfirmation = async (email: string) => {
         try {
-            const result: any = await startSignupAction({ fullName: "User", email });
+            const safeArgs = { fullName: String("User"), email: String(email || ''), password: undefined, product: undefined };
+            const result: any = await startSignupAction(safeArgs);
             // startSignup now returns { success: false } for verified accounts instead of throwing
             if (result && !result.success) {
                 if (result.code === 'EMAIL_EXISTS') {

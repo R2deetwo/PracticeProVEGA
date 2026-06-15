@@ -1007,6 +1007,8 @@ export const updateUserPassword = internalMutation({
 });
 
 export const createUser = internalMutation({
+  // Internal mutation — accepts any user fields for flexibility across callers
+  // (signup, portal invitation, etc.). Public-facing actions use strict validation.
   args: v.any(),
   handler: async (ctx, args) => {
     return await ctx.db.insert("users", args);
@@ -1014,14 +1016,24 @@ export const createUser = internalMutation({
 });
 
 export const startSignup = action({
-  args: v.any(),
+  args: {
+    fullName: v.string(),
+    email: v.string(),
+    password: v.optional(v.string()),
+    product: v.optional(v.string()),
+  },
   handler: async (ctx: any, args: any): Promise<any> => {
     return await startSignupLogic(ctx, args);
   }
 });
 
 export const startRegistration = action({
-  args: v.any(),
+  args: {
+    fullName: v.string(),
+    email: v.string(),
+    password: v.optional(v.string()),
+    product: v.optional(v.string()),
+  },
   handler: async (ctx: any, args: any): Promise<any> => {
     return await startSignupLogic(ctx, args);
   }
