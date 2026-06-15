@@ -187,3 +187,48 @@ Stage Summary:
 - Base Modal and DockedModal headers slimmer on mobile
 - No functional changes - all logic, imports, and functionality preserved
 - Build passes cleanly
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Remove all law-specific references from Atrium/property mode - comprehensive brand consistency audit
+
+Work Log:
+- Deep searched entire /src/ for "legal", "lawyer", "attorney", "court", "litigation", "paralegal", "ALOA/Advanced Legal Office Assistant", "case" (legal context), "client" (without product awareness), "firm" (without product awareness)
+- Found 88 distinct bugs across 28+ files where law-specific terminology was hardcoded without product conditionals
+- Fixed HelpView.tsx: 19 references (Litigation System→Property Management System, case→property, paralegal→staff, court dates→inspections, etc.)
+- Fixed AloaHelpModal.tsx: ARIA no longer called "AI Paralegal" or "legal assistant" in Atrium mode
+- Fixed HelpSettings.tsx: Case Analytics→Property Analytics, Client Analytics→Tenant Analytics, legal word processor→document editor
+- Fixed TermsOfService.tsx: ARIA definition now conditionally shows correct definition per product; "legal practice"→"property management" for Atrium
+- Fixed PrivacyPolicy.tsx: "legal assistant ARIA"→"property assistant ARIA"; "case information"→"property information"
+- Fixed DataProcessingAgreement.tsx: "legal documents"→"property documents" for Atrium
+- Fixed LandingPage.tsx: "Real Estate Lawyer" banner hidden in Atrium; case management→property management
+- Fixed AloaChat.tsx: "legal practice"→"property operations", "legal guidance"→"property guidance"
+- Fixed ClientMatterDetailView.tsx: "Your lawyer"→"Your manager"
+- Fixed ClientDashboard.tsx: "Your Legal Team"→"Your Property Team"
+- Fixed IntakeSettings.tsx: "attorneys"→"managers", "prospective clients"→"prospective tenants"
+- Fixed SendPostActivationEmailModal.tsx: "firm"→"agency", "client"→"tenant"
+- Fixed ComplianceReports.tsx: "lawyers or paralegals"→"managers or staff"
+- Fixed EventForm.tsx: "Case Association"→"Property Association"
+- Fixed TaskForm.tsx: legal placeholder→property placeholder
+- Fixed AloaXView.tsx: "Legal Indexer"→"Document Indexer"
+- Fixed ResearchChat.tsx: "case files"→"documents"
+- Fixed CookiePolicy.tsx: "case file"→"documents"
+- Fixed RequestFinancialDocumentForm.tsx: "legal team"→"property team"
+- Fixed AgencyHub.ts: Now uses getAloaProtocol() for product-aware protocol selection instead of hardcoded ALOA_PRECISION_PROTOCOL
+- Added ALOA_ATRIUM_PROTOCOL to aloaPrompts.ts with full property-specific identity
+- Fixed geminiService.ts: Atrium drafting now says "property management professional" / "Property Manager" not "Lawyer/Solicitor"
+- Fixed identityGuardrails.ts: Nigerian Legal Context→Nigerian Property Context for ARIA agent
+- Fixed ProductContext.tsx: "Case Stage"→"Stage" for unified mode
+- Fixed useFeatures.ts: Default product fallback from 'legal' to 'unified'
+- Fixed AloaProvider.tsx: Court rules insight gated behind product check; Atrium gets tenancy law insight
+- Fixed onboardingUtils.ts: Default address "Legal Avenue"→"Enterprise Road"
+- Build passes cleanly
+- Git pushed and Convex deployed
+
+Stage Summary:
+- 88 law-specific references fixed across 28 files
+- Atrium app now consistently uses property management terminology throughout
+- ARIA correctly identified as "Advanced Revenue Intelligence Agent" / "AI Assistant" in Atrium (not "Advanced Legal Office Assistant" / "AI Paralegal")
+- All changes use isProperty ternaries so Vega (legal) mode retains original legal terminology
+- No functional changes - only UI text and AI prompt content
