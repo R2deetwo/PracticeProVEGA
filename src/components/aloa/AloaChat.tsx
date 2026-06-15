@@ -63,7 +63,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
 export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; onMinimize?: () => void; isMobile?: boolean }> = ({ onClose, onDraftStream, onMinimize, isMobile }) => {
     const {
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
-        preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
+        preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled,
         activeConversationId, setActiveConversationId, activeView, setActiveView,
         activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent,
         injectedContext, setInjectedContext
@@ -428,7 +428,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             };
                             
                             feedbackMessage = repoResults.length > 0 
-                                ? `I found ${repoResults.length} relevant document(s) in your firm's knowledge base.`
+                                ? `I found ${repoResults.length} relevant document(s) in your ${isProperty ? 'portfolio' : "firm's"} knowledge base.`
                                 : isProperty
                                     ? "I didn't find matching documents in your indexed files. I can still provide general property guidance based on Nigerian tenancy law principles."
                                     : "I didn't find matching documents in your firm's indexed files. I can still provide general legal guidance based on Nigerian law principles.";
@@ -498,7 +498,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         const apiKey = getGeminiApiKey();
         if (!apiKey) {
-            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "AI settings not configured. Please check your API key in Settings." }]);
+            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. Here's how to get one:\n\n1. **Get your free key** at [Google AI Studio](https://aistudio.google.com/app/apikey)\n2. **Paste it** in **Settings → Agents → API Key Configuration**\n\n> 💡 The key is stored locally on your device and never sent to our servers.", actions: [{ type: 'navigate', target: '/settings?tab=agents', label: 'Go to API Settings' }] }]);
             return;
         }
 
@@ -607,7 +607,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
         if (!overrideContent) setTextInput('');
         setIsLoading(true);
-        setAloaStatus(isFirmSearchEnabled ? 'Searching firm records…' : 'Thinking…');
+        setAloaStatus('Thinking…');
         isGeneratingRef.current = true;
         let currentConvId = activeConversationId;
 
@@ -652,11 +652,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
             const { brain } = await import('../../services/brainService');
 
-            const wantsDataSearch = /\b(find|show|list|how many|what are|who are|which|all my|my current|pending|outstanding|overdue|recent|last|today|summary|status|balance|total|count)\b/i.test(content);
+            // Intelligent auto-RAG: Always search institutional knowledge when the query is
+            // data-related, context-specific, or mentions entities the user would have stored.
+            // This replaces the manual "Firm RAG" toggle with seamless auto-detection.
+            const wantsDataSearch = /\b(find|show|list|how many|what are|who are|which|all my|my current|pending|outstanding|overdue|recent|last|today|summary|status|balance|total|count|details|information|record|document|contract|lease|tenant|landlord|property|matter|invoice|payment|rent|charge|fee|agreement|compliance|report)\b/i.test(content);
 
+            // Always provide the brain search function — the backend (AgencyHub system prompt)
+            // will decide whether to invoke it based on the search_legal_repo tool.
+            // This ensures ARIA always has access to institutional knowledge.
             aiContext.searchBrain = async (query: string) => {
-                if (!isFirmSearchEnabled && !wantsDataSearch) return "";
-                setAloaStatus('Searching firm records…');
+                if (!wantsDataSearch) return "";
+                setAloaStatus('Searching records…');
                 return await brain.search({
                     query,
                     firmId: coreState.firmDetails?.id || '',
@@ -664,9 +670,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     convexQuery: (name: any, args: any) => convex.query(name, args)
                 });
             };
+            aiContext.isFirmSearchEnabled = true; // Always enabled for intelligent retrieval
 
-            if (wantsDataSearch && !isFirmSearchEnabled) {
-                setAloaStatus('Searching firm records…');
+            if (wantsDataSearch) {
+                setAloaStatus('Searching records…');
             }
 
             const wantsToolAction = /\b(create|open|add|new|draft|navigate|show me|find my|schedule|invoice|task|matter|contact)\b/i.test(content);
@@ -794,7 +801,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 if (error.message.includes('API key') || error.message.includes('403')) {
                     errorMessage = "Authentication Error: API Key is invalid or missing.";
                     isAuthError = true;
-                    helpText = "Please check your AI Settings and verify your API key.";
+                    helpText = "Please check your AI Settings and verify your API key.\n\n**Need a key?** Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**Where to paste it?** Settings → Agents → API Key Configuration";
                 }
                 else if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
                     errorMessage = "Quota Exceeded: Your AI usage limit has been reached.";
@@ -902,7 +909,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             setActiveView('chat');
                             setActiveNoteId(null);
                         }}
-                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-2xl shadow-lg transition-all duration-500 hover:scale-105 active:scale-95 ${activeView === 'chat' ? (isFirmSearchEnabled ? 'bg-blue-600 shadow-blue-500/20' : 'bg-green-600 shadow-green-600/20') : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
+                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-2xl shadow-lg transition-all duration-500 hover:scale-105 active:scale-95 ${activeView === 'chat' ? 'bg-green-600 shadow-green-600/20' : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
                     >
                         <AloaIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${activeView === 'chat' ? 'text-white' : ''} ${aloaState === 'speaking' ? 'animate-pulse' : ''}`} />
                     </button>
@@ -1263,18 +1270,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                          <button onClick={resetChat} className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm" title="Reset Chat">
                             <TrashIcon className="w-4 h-4" />
                         </button>
-
-                        <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800 mx-1" />
-                        
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Firm RAG</span>
-                            <button
-                                onClick={() => setIsFirmSearchEnabled(!isFirmSearchEnabled)}
-                                className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${isFirmSearchEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
-                            >
-                                <span className={`inline-block h-2 w-2 transform rounded-full bg-white transition-transform ${isFirmSearchEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
-                            </button>
-                        </div>
                     </div>
                     <form
                         onSubmit={(e) => {
@@ -1283,14 +1278,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }}
                         className="flex gap-3 items-center"
                     >
-                        <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 ${isFirmSearchEnabled ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800' : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20'}`}>
+                        <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
                             <input autoComplete="off" data-lpignore="true" 
                                 value={textInput}
                                 onChange={e => setTextInput(e.target.value)}
                                 placeholder={
-                                    isFirmSearchEnabled 
-                                        ? (isProperty ? 'Search portfolio documents...' : 'Search firm documents...')
-                                        : (isAtrium ? 'Ask ARIA about your properties...' : 'Ask ARIA about your practice...')
+                                    isAtrium ? 'Ask ARIA about your properties…' : 'Ask ARIA about your practice…'
                                 }
                                 className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
                                 disabled={isLoading || aloaState !== 'idle'}
@@ -1298,7 +1291,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             <button
                                 type="submit"
                                 disabled={!textInput.trim() || isLoading}
-                                className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md ${isFirmSearchEnabled ? 'bg-blue-600 text-white' : 'bg-primary-600 text-white'}`}
+                                className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white`}
                             >
                                 <SendIcon />
                             </button>

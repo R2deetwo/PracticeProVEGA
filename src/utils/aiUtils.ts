@@ -42,7 +42,7 @@ export const streamGemini = async (
     } = {}
 ): Promise<string> => {
     const apiKey = options.apiKeyOverride || getGeminiApiKey();
-    if (!apiKey) throw new Error("API Key missing. Please set your Gemini API key in Settings.");
+    if (!apiKey) throw new Error("API Key missing. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration");
 
     const getSystemInstruction = (
         appState: AppState,
@@ -151,7 +151,7 @@ export const streamGeminiMultipart = async (
     options: { model?: string; apiKeyOverride?: string } = {}
 ): Promise<string> => {
     const apiKey = options.apiKeyOverride || getGeminiApiKey();
-    if (!apiKey) throw new Error("API Key missing. Please set your Gemini API key in Settings.");
+    if (!apiKey) throw new Error("API Key missing. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration");
 
     const modelName = options.model || AI_CONFIG.gemini.defaultModel;
     const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
@@ -260,7 +260,7 @@ export const stripPII = (text: string): string => {
  */
 export const generateEmbedding = async (text: string): Promise<number[]> => {
     const apiKey = getGeminiApiKey();
-    if (!apiKey) throw new Error("API Key missing");
+    if (!apiKey) throw new Error("API Key missing. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration");
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.embeddingModel}:embedContent?key=${apiKey}`;
 

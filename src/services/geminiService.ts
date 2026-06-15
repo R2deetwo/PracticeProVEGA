@@ -217,7 +217,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "search_legal_repo",
-        description: "Searches the firm's indexed legal documents and knowledge base. Returns matches from uploaded and indexed files only — not a national case law database. Use this for finding firm-specific precedents, contracts, and research notes.",
+        description: "Searches your indexed documents and institutional knowledge base. Returns matches from uploaded and indexed files. Use this for finding specific documents, contracts, research notes, and portfolio records.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -455,7 +455,7 @@ export const streamMessage = async (
     }).filter((c): c is Content => c !== null);
 
     const clientKey = firmKey || getGeminiApiKey();
-    if (!clientKey) throw new Error('No Gemini API key configured.');
+    if (!clientKey) throw new Error('No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration');
 
     const modelTag = preferredModelName.includes('models/') ? preferredModelName : `models/${preferredModelName}`;
     const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:streamGenerateContent?alt=sse&key=${clientKey}`;
@@ -576,7 +576,7 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
 
     const clientKey = getGeminiApiKey();
     if (!clientKey) {
-        throw new Error("No Gemini API key found. Please add VITE_GEMINI_API_KEY in your environment settings.");
+        throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration");
     }
     
     // ─── STRATEGY: Direct REST Stream (mirrors the working sendMessage pattern) ─

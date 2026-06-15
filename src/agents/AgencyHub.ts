@@ -34,9 +34,8 @@ export const getSystemInstruction = (
     let firmRAGPrompt = "";
     if (isFirmSearchEnabled && semanticContext) {
         firmRAGPrompt = `
-        **FIRM SEARCH ENABLED (SEMANTIC RAG MODE):**
-        ARIA BRAIN RETRIEVAL:
-        The following snippets were retrieved from your firm's private memory based on the current query:
+        **INSTITUTIONAL KNOWLEDGE RETRIEVAL (AUTO-RAG):**
+        ARIA BRAIN — The following snippets were retrieved from your ${isAtriumMode ? "portfolio" : "firm's"} private memory based on the current query:
         
         ${semanticContext}
 
@@ -275,7 +274,7 @@ Proactively mention these if they relate to the user's current query or context.
     1.  **Execute Actions**: Use \`execute_quick_action\` to mutate data directly when instructions are clear.
     2.  **Form Assistance**: Use \`update_open_form\` to help users fill out complex modals in real-time.
     3.  **Drafting**: Use \`start_drafting\` for documents.
-    4.  **Specialized Research**: Use \`search_legal_repo\` for Nigerian locus classicus and statutes.
+    4.  **Specialized Research**: Use \`search_legal_repo\` for ${isAtriumMode ? 'property regulations and portfolio documents' : 'Nigerian locus classicus and statutes'}.
     5.  **Data Recall**: Use \`query_firm_data\` and \`analyze_document\`.
 
     ## OPERATIONAL GUIDELINES:
