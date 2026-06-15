@@ -71,3 +71,29 @@ Stage Summary:
 - AuthContext now sanitizes all Convex action arguments with String() coercion
 - Convex deployment: https://gregarious-malamute-537.convex.cloud
 - Git commit: 76b2ec3
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Comprehensive onboarding & UX overhaul - 6 fixes from user feedback
+
+Work Log:
+- Analyzed two screenshots: (1) email showing "PracticePro VEGA" for Atrium signup, (2) pricing plans with text spillover and container overflow
+- Fixed Modal.tsx: added body scroll lock, auto-focus first input, focus trap, focus restoration
+- Fixed email branding: sendVerificationEmail and sendRecoveryEmail now product-aware with PRODUCT_BRANDING config
+- Updated BREVO_SENDER to generic "PracticePro" with product-specific sender names
+- Overhauled OnboardingWizard: removed duplicate product selection, uses user's product from signup
+- Fixed pricing plans UI: replaced 4-col overflow grid with responsive 3-col, capped feature list height
+- Fixed billing: Atrium shows "Annual Billing Only" badge, no monthly toggle; Vega shows monthly/annual toggle
+- Created product-specific onboarding tours: Vega (7 steps), Atrium (7 steps), Komplete (6 steps)
+- Updated OnboardingTour to use getTourStepsForProduct() from ProductContext
+- Deployed Convex backend and pushed to git for Vercel auto-deploy
+
+Stage Summary:
+- Modal now locks background scroll and auto-focuses first input
+- Atrium users get green-accented "PracticePro ATRIUM" emails, Vega gets blue "PracticePro VEGA"
+- Onboarding flow: signup product → verify email → workspace name → plan selection (no duplicate product step)
+- Pricing cards are contained with scrollable feature lists, no text spillover
+- Atrium: annual-only, no monthly toggle. Vega: monthly/annual toggle. Komplete: single flat-rate card.
+- Tour auto-detects product and shows relevant steps (Properties for Atrium, Matters for Vega, etc.)
+- Git commit: 79bc866
