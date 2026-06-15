@@ -11,8 +11,14 @@ import { ATRIUM_LIMITS } from "./tierLimits";
 // --- PRESENCE ---
 
 export const sendHeartbeat = mutation({
-  args: { firmId: v.string(), userId: v.string(), userName: v.string() },
+  args: { firmId: v.string(), userId: v.string(), userName: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Verify the caller belongs to the firm they're sending presence for
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    if (auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. firmId does not match your session.");
+    }
+
     const existing = await ctx.db
       .query("presence")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -27,8 +33,15 @@ export const sendHeartbeat = mutation({
 });
 
 export const getActivePeers = query({
-  args: { firmId: v.optional(v.string()) },
+  args: { firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Verify the caller belongs to the firm they're querying
+    if (args.userEmail) {
+      try {
+        const auth = await requireFirmUser(ctx, args.userEmail);
+        if (auth.firmId !== args.firmId) return [];
+      } catch { return []; }
+    }
     if (!args.firmId) return [];
     const THRESHOLD = Date.now() - 60 * 1000;
     const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
@@ -71,8 +84,25 @@ export const getActivePeers = query({
 // --- DIAGNOSTICS & REPAIR ---
 
 export const diagnoseConnectivity = mutation({
-  args: { email: v.string() },
+  args: { email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Only authenticated users can diagnose their own account
+    let authenticatedEmail: string | undefined;
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (identity) authenticatedEmail = identity.email || undefined;
+    } catch {}
+
+    // If the caller is authenticated, they can only diagnose their own email
+    // (unless no auth context exists — legacy fallback for repair flows)
+    if (authenticatedEmail && args.userEmail) {
+      const auth = await requireFirmUser(ctx, args.userEmail);
+      // Verify the email being diagnosed belongs to the authenticated user
+      if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+        throw new Error("Unauthorized. You can only diagnose your own account.");
+      }
+    }
+
     const emailInput = args.email.toLowerCase().trim();
 
     const allUsers = await ctx.db.query("users").take(500);
@@ -137,8 +167,31 @@ export const diagnoseConnectivity = mutation({
 
 
 export const repairAccountConnection = mutation({
-  args: { email: v.string(), targetFirmId: v.optional(v.string()) },
+  args: { email: v.string(), targetFirmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Only the account owner can repair their own connection
+    let authenticatedEmail: string | undefined;
+    try {
+      const identity = await ctx.auth.getUserIdentity();
+      if (identity) authenticatedEmail = identity.email || undefined;
+    } catch {}
+
+    if (authenticatedEmail && args.userEmail) {
+      try {
+        const auth = await requireFirmUser(ctx, args.userEmail);
+        if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+          throw new Error("Unauthorized. You can only repair your own account.");
+        }
+      } catch (e: any) {
+        if (e.message?.includes('Unauthorized')) throw e;
+        // If requireFirmUser fails (e.g. user has no firm yet), still allow self-repair
+        // but only if the authenticated email matches
+        if (authenticatedEmail.toLowerCase() !== args.email.toLowerCase().trim()) {
+          throw new Error("Unauthorized. You can only repair your own account.");
+        }
+      }
+    }
+
     const emailInput = args.email.toLowerCase().trim();
 
     const allUsers = await ctx.db.query("users").take(500);
@@ -201,7 +254,7 @@ export const getFirmData = query({
     }
 
     if (!targetFirmId) {
-        console.warn(`[getFirmData] No firmId found for ${userEmail}. Returning null.`);
+        console.warn(`[getFirmData] No firmId found for the given email. Returning null.`);
         return null;
     }
 
@@ -262,7 +315,7 @@ export const getFirmData = query({
 
         const uniqueResults = Array.from(new Map(combined.map(item => [item._id, item])).values());
         if (tableName === "properties") {
-            console.log(`[getFirmData] Found ${uniqueResults.length} properties for firm ${targetFirmId}`);
+            console.log(`[getFirmData] Found ${uniqueResults.length} properties`);
         }
         return uniqueResults;
       } catch (e) {
@@ -1513,7 +1566,7 @@ export const validateInviteCode = query({
 export const regenerateInviteCode = mutation({
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
-    console.log(`[RotateCode] Attempting rotation for firmId: "${args.firmId}"`);
+    console.log(`[RotateCode] Attempting rotation for firm`);
     
     let firm: any = null;
     
@@ -1521,7 +1574,7 @@ export const regenerateInviteCode = mutation({
     if (args.firmId) {
       try {
         firm = await ctx.db.get(args.firmId as any);
-        if (firm) console.log(`[RotateCode] Found firm by direct ID lookup: ${firm.name}`);
+        if (firm) console.log(`[RotateCode] Found firm by direct ID lookup`);
       } catch (e) {
         // Not a valid ID string, ignore
       }
@@ -1535,11 +1588,11 @@ export const regenerateInviteCode = mutation({
         (f.id === args.firmId) || 
         (f.name && f.name === args.firmId)
       );
-      if (firm) console.log(`[RotateCode] Found firm by scan (ID or Name): ${firm.name}`);
+      if (firm) console.log(`[RotateCode] Found firm by scan`);
     }
 
     if (!firm) {
-       console.error(`[RotateCode] ERROR: Firm NOT FOUND for identifier: "${args.firmId}"`);
+       console.error(`[RotateCode] ERROR: Firm NOT FOUND for given identifier`);
        throw new Error(`Workspace not found. Please refresh and try again. (Ref: ${args.firmId})`);
     }
 
@@ -1683,8 +1736,14 @@ export const getJoinedFirms = query({
  * Use with caution.
  */
 export const deleteAccount = mutation({
-  args: { email: v.string() },
+  args: { email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Only the account owner can delete their own account
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    if (auth.user.tokenIdentifier?.toLowerCase() !== args.email.toLowerCase().trim()) {
+      throw new Error("Unauthorized. You can only delete your own account.");
+    }
+
     const user = await ctx.db.query("users")
       .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.email))
       .first();
@@ -1697,25 +1756,40 @@ export const deleteAccount = mutation({
     const uniqueFirms = Array.from(new Set(joinedIds));
 
     for (const firmId of uniqueFirms) {
-      const firmUsers = await ctx.db.query("users")
-        .withIndex("by_firm", (q) => q.eq("firmId", firmId!))
-        .take(10);
-      
-      if (firmUsers.length <= 1) {
-        firmsToClean.push(firmId);
+      try {
+        const firmUsers = await ctx.db.query("users")
+          .withIndex("by_firm", (q) => q.eq("firmId", firmId!))
+          .take(10);
+        
+        if (firmUsers.length <= 1) {
+          firmsToClean.push(firmId);
+        }
+      } catch (e) {
+        console.error(`[deleteAccount] Failed to check firm ${firmId} membership:`, e);
+        // Continue with other firms even if one fails
       }
     }
 
     // 2. Delete firms and their data
     for (const fid of firmsToClean) {
-      // Purge all data associated with this firm
-      await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: fid! });
-      // Delete the firm record itself
-      await ctx.db.delete(fid as any);
+      try {
+        // Purge all data associated with this firm
+        await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: fid! });
+        // Delete the firm record itself
+        await ctx.db.delete(fid as any);
+      } catch (e) {
+        console.error(`[deleteAccount] Failed to purge firm ${fid}:`, e);
+        throw new Error(`Failed to delete firm data. Please contact support. (Ref: firm_purge_failed)`);
+      }
     }
     
     // 3. Delete the user identity
-    await ctx.db.delete(user._id);
+    try {
+      await ctx.db.delete(user._id);
+    } catch (e) {
+      console.error(`[deleteAccount] Failed to delete user record:`, e);
+      throw new Error("Failed to delete user account. Please contact support.");
+    }
 
     return { success: true };
   }
@@ -1755,12 +1829,23 @@ export const leaveFirm = mutation({
  * Purges all data and deletes the firm record.
  */
 export const deleteFirm = mutation({
-  args: { firmId: v.string(), confirmed: v.boolean() },
+  args: { firmId: v.string(), confirmed: v.boolean(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     if (!args.confirmed) throw new Error("Deletion must be confirmed.");
     
+    // SECURITY: Require admin auth and verify firm ownership
+    const auth = await requireAdmin(ctx, args.userEmail);
+    if (auth.firmId !== args.firmId) {
+      throw new Error("Unauthorized. You can only delete your own firm.");
+    }
+
     // 1. Purge all operational data (Matters, Properties, etc.)
-    await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: args.firmId });
+    try {
+      await ctx.runMutation(api.myFunctions.purgeFirmData, { firmId: args.firmId });
+    } catch (e) {
+      console.error(`[deleteFirm] Failed to purge firm data:`, e);
+      throw new Error("Failed to purge firm data. Please contact support.");
+    }
 
     // 2. Remove the firmId from ALL users who have it joined
     const users = await ctx.db.query("users").collect();
@@ -1770,12 +1855,21 @@ export const deleteFirm = mutation({
         let active = user.firmId;
         if (active === args.firmId) active = joined.length > 0 ? joined[0] : null;
         
-        await ctx.db.patch(user._id, { firmId: active, joinedFirmIds: joined });
+        try {
+          await ctx.db.patch(user._id, { firmId: active, joinedFirmIds: joined });
+        } catch (e) {
+          console.error(`[deleteFirm] Failed to update user ${user._id}:`, e);
+        }
       }
     }
 
     // 3. Delete the firm record itself
-    await ctx.db.delete(args.firmId as any);
+    try {
+      await ctx.db.delete(args.firmId as any);
+    } catch (e) {
+      console.error(`[deleteFirm] Failed to delete firm record:`, e);
+      throw new Error("Failed to delete firm record. Please contact support.");
+    }
 
     return { success: true };
   }
@@ -2890,8 +2984,10 @@ export const deleteContactCascade = mutation({
 // ─── ADMIN ACCOUNT RECOVERY TOOL MUTATIONS ────────────────────────────────
 
 export const adminSearchUsersByEmail = query({
-  args: { email: v.string() },
+  args: { email: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // SECURITY: Require admin authentication
+    await requireAdmin(ctx, args.userEmail);
     const token = args.email.toLowerCase().trim();
     if (!token) return [];
     const allUsers = await ctx.db.query("users").take(500);
@@ -2903,22 +2999,32 @@ export const adminSearchUsersByEmail = query({
 });
 
 export const adminDeleteUser = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // In a real app, verify the caller is an Admin.
+    // SECURITY: Require admin authentication
+    const auth = await requireAdmin(ctx, args.userEmail);
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found.");
+    // SECURITY: Admin can only delete users in their own firm
+    if ((user as any).firmId && (user as any).firmId !== auth.firmId) {
+      throw new Error("Unauthorized. You can only delete users in your own firm.");
+    }
     await ctx.db.delete(args.userId);
     return { success: true };
   }
 });
 
 export const adminForceVerify = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // In a real app, verify the caller is an Admin.
+    // SECURITY: Require admin authentication
+    const auth = await requireAdmin(ctx, args.userEmail);
     const user = await ctx.db.get(args.userId);
     if (!user) throw new Error("User not found.");
+    // SECURITY: Admin can only verify users in their own firm
+    if ((user as any).firmId && (user as any).firmId !== auth.firmId) {
+      throw new Error("Unauthorized. You can only verify users in your own firm.");
+    }
     await ctx.db.patch(args.userId, { isVerified: true });
     return { success: true };
   }

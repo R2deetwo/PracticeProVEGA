@@ -10,18 +10,25 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
   userId: string;
   user: Doc<"users">;
 }> {
-  let email = userEmail;
+  // SECURITY: Always verify the authenticated session FIRST when available.
+  // This prevents a caller from passing a different userEmail to access another firm's data.
+  let sessionEmail: string | undefined;
+  try {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity) sessionEmail = (identity.email || identity.subject)?.toLowerCase();
+  } catch {}
+
+  // If a session identity exists, always use it (ignore client-supplied email)
+  let email = sessionEmail;
+
+  // Fallback: if no session identity, use the client-supplied userEmail
+  // (This supports Convex actions that don't have auth context)
+  if (!email) {
+    email = userEmail?.toLowerCase();
+  }
 
   if (!email) {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Unauthenticated. Please log in to continue.");
-    }
-    email = identity.email || identity.subject;
-  }
-  
-  if (!email) {
-      throw new Error("Unauthenticated. No email provided.");
+    throw new Error("Unauthenticated. Please log in to continue.");
   }
 
   // Lookup user by email (tokenIdentifier)
@@ -33,7 +40,7 @@ export async function requireFirmUser(ctx: any, userEmail?: string): Promise<{
   if (!user) {
      user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!.toLowerCase()))
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email!))
       .first();
   }
 

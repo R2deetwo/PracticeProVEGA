@@ -30,8 +30,8 @@ export const withFirmAuth = <
 
     if (!userRecord) {
       console.warn(`[withFirmAuth] No user found for firmId ${firmId}`);
-      // Allow the query to proceed in read-only mode
-      // (The caller already authenticated via their session token)
+      // SECURITY: Block unauthenticated access — no silent bypass
+      throw new Error("Unauthorized. No authenticated user found for this firm.");
     }
 
     return handler(ctx, args, userRecord);

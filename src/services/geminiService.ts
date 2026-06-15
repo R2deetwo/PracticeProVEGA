@@ -217,7 +217,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "search_legal_repo",
-        description: "Searches the specialized Nigerian Legal Repository for case law, statutes, or procedural rules. Use this for specific legal research questions.",
+        description: "Searches the firm's indexed legal documents and knowledge base. Returns matches from uploaded and indexed files only — not a national case law database. Use this for finding firm-specific precedents, contracts, and research notes.",
         parameters: {
             type: Type.OBJECT,
             properties: {

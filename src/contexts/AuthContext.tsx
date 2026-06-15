@@ -83,7 +83,7 @@ const getInitialToken = () => {
             if (session && session.token) return session.token.toLowerCase();
         }
     } catch (e) {
-        console.error("Failed to parse session", e);
+        console.error("Failed to parse session");
     }
     return null;
 };
@@ -123,8 +123,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, []);
 
     const currentUser: User | null = React.useMemo(() => {
-        // DEMO MODE BYPASS
-        if (sessionToken === 'demo@practicepro.ng') {
+        // DEMO MODE BYPASS — development builds only
+        // SECURITY: This bypass is disabled in production to prevent unauthorized access
+        if (import.meta.env.DEV && sessionToken === 'demo@practicepro.ng') {
             const demoProduct = sessionStorage.getItem('practicepro_demo_product') || 'vega';
             const isAtrium = demoProduct === 'atrium';
             return {
@@ -244,8 +245,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true) => {
         const token = email.toLowerCase().trim();
 
-        // Bypass check for demo user
-        if (token === 'demo@practicepro.ng') {
+        // Bypass check for demo user — DEV builds only
+        if (import.meta.env.DEV && token === 'demo@practicepro.ng') {
             setSessionToken(token);
             sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token }));
             return { success: true };
@@ -315,7 +316,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             return { success: true };
 
         } catch (error: any) {
-            console.error("Login verification failed:", error);
+            // Login verification failed
             const errorMsg = error?.message || String(error);
 
             // Return standard error without giving admin bypass
@@ -326,7 +327,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const refreshUser = async () => {
         if (!sessionToken) return;
 
-        console.log("Manual Refresh Requested. Attempting Database Repair...");
+        // Manual Refresh Requested
 
         try {
             // 2. Run the Repair Mutation explicitly
@@ -334,14 +335,14 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             const repairResult = await repairAccountMutation({ email: sessionToken });
 
             if (repairResult.success) {
-                console.log("✅ Repair Successful! Found and linked firm.");
+                // Repair Successful
                 // Force a query re-fetch by toggling the token briefly? No, mutation triggers update.
             } else {
-                console.log("⚠️ Repair check complete. No hidden firm found for this email.", repairResult.message);
+                // Repair check complete — no hidden firm found
             }
 
         } catch (e) {
-            console.error("Refresh/Repair failed:", e);
+            // Refresh/Repair failed
         }
     };
 
@@ -609,6 +610,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setLocalUserOverrides(prev => ({ ...prev, ...data }));
         },
         loginAsDemoUser: (email?: string) => {
+            // SECURITY: Demo login only works in development builds
+            if (!import.meta.env.DEV) {
+                console.warn("[Auth] Demo login is not available in production.");
+                return Promise.resolve({ success: false, message: "Demo mode is not available in production." });
+            }
             if (email) {
                 // Fire-and-forget tracking
                 trackEventMutation({

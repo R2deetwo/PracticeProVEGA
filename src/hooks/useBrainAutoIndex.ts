@@ -30,7 +30,7 @@ export const useBrainAutoIndex = () => {
 
         const apiKey = getGeminiApiKey();
         if (!apiKey) {
-            console.warn('[Brain] Auto-index skipped: No API key found in settings.');
+            if (import.meta.env.DEV) console.warn('[Brain] Auto-index skipped: No API key found in settings.');
             return;
         }
 
@@ -43,7 +43,7 @@ export const useBrainAutoIndex = () => {
             const needsIndex = !lastIndexTime || (now - parseInt(lastIndexTime)) > (24 * 60 * 60 * 1000);
 
             if (needsIndex) {
-                console.log('[Brain] Starting silent background index for firm');
+                if (import.meta.env.DEV) console.log('[Brain] Starting silent background index');
                 isRunning.current = true;
 
                 try {
@@ -56,9 +56,9 @@ export const useBrainAutoIndex = () => {
                     });
 
                     localStorage.setItem(STORAGE_KEY, now.toString());
-                    console.log(`[Brain] Silent index complete: ${result.indexed} chunks stored, ${result.errors} errors.`);
+                    if (import.meta.env.DEV) console.log(`[Brain] Silent index complete: ${result.indexed} chunks stored.`);
                 } catch (e) {
-                    console.error('[Brain] Silent index failed:', e);
+                    if (import.meta.env.DEV) console.error('[Brain] Silent index failed:', e);
                 } finally {
                     isRunning.current = false;
                 }

@@ -70,8 +70,8 @@ function buildAtriumFeatures(t: Pick<TierDef, 'maxUsers' | 'maxUnits' | 'maxMana
       : `Up to ${t.maxActiveTenants} Total Tenant Capacity`;
   const wa =
     t.whatsappLimit == null
-      ? 'Unlimited automated WhatsApp rent & demand notices'
-      : `${t.whatsappLimit} automated WhatsApp rent & demand notices included`;
+      ? 'Unlimited WhatsApp rent & demand notices'
+      : `${t.whatsappLimit} WhatsApp rent & demand notices included`;
   const unitsLine =
     t.maxUnits == null
       ? 'Unlimited managed units across portfolio'

@@ -400,27 +400,39 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         isTerminal = false; // Allow AI to continue talking while form is filled
                     } else if (name === 'search_legal_repo') {
                         const { query, jurisdiction } = args;
-                        feedbackMessage = `Searching Nigerian Legal Repository for "${query}" in ${jurisdiction} jurisdiction...`;
+                        feedbackMessage = `Searching for "${query}" in ${jurisdiction || 'all'} jurisdiction...`;
                         
                         try {
-                            // We replace the deprecated searchLegalRepo with generic agent/rag. Wait, maybe the backend API doesn't have it anymore.
-                            // We can use a basic agent query or simulate it. For now, comment out the searchLegalRepo call or mock it.
-                            const repoResults: any[] = []; // await convex.query(api.legalRepo.searchLegalRepo, { query, jurisdiction });
-                            toolOutput = { results: repoResults };
+                            // Use the firm's brain (indexed documents) for research
+                            // If brain search is available, query it; otherwise provide a helpful fallback
+                            let repoResults: any[] = [];
+                            
+                            if (context?.searchBrain) {
+                                try {
+                                    const brainResult = await context.searchBrain(query);
+                                    if (brainResult) {
+                                        repoResults = [{ title: 'Firm Document Match', snippet: brainResult.substring(0, 300), source: 'firm_knowledge_base' }];
+                                    }
+                                } catch (brainErr) {
+                                    // Brain search failed, continue with empty results
+                                }
+                            }
+                            
+                            toolOutput = { results: repoResults, note: repoResults.length === 0 ? 'No indexed documents matched. Results are from your firm\'s uploaded documents only — not a national case law database.' : undefined };
                             
                             actionData = {
                                 type: 'legal_search',
                                 query,
                                 results: repoResults,
-                                label: 'View Search Results'
+                                label: repoResults.length > 0 ? 'View Search Results' : undefined
                             };
                             
                             feedbackMessage = repoResults.length > 0 
-                                ? `I found ${repoResults.length} relevant legal authorities. ${repoResults[0].title} seems most relevant.`
-                                : "I couldn't find any specific authorities in the repository, but I can provide general legal positions.";
+                                ? `I found ${repoResults.length} relevant document(s) in your firm's knowledge base.`
+                                : "I didn't find matching documents in your firm's indexed files. I can still provide general legal guidance based on Nigerian law principles.";
                         } catch (err: any) {
                             toolOutput = { error: err.message };
-                            feedbackMessage = `Legal search failed: ${err.message}`;
+                            feedbackMessage = `Legal search encountered an issue. I can still help with general legal guidance.`;
                         }
                     }
                 }

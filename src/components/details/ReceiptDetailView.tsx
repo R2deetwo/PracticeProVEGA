@@ -20,7 +20,23 @@ const ReceiptDetailViewContent: React.FC = () => {
 
   const invoice = financeState.invoices.find((i: any) => i.id === invoiceId);
   const firmDetails = coreState.firmDetails;
-  const client = invoice ? (matterState.contacts.find((c: any) => c.id === invoice.client?.id) || invoice.client) : null;
+  // Robust client lookup: handle rent receipts where client.id may be 'tenant-legacy' or 'tenant'
+  const client = invoice ? (() => {
+    const invClient = invoice.client;
+    if (!invClient) return null;
+    // Try exact contact lookup first
+    const found = matterState.contacts.find((c: any) => c.id === invClient.id);
+    if (found) return found;
+    // For rent receipts with non-contact IDs, try matching by name or email
+    if (invClient.id === 'tenant-legacy' || invClient.id === 'tenant' || invClient.id === 'firm-general') {
+      const byName = matterState.contacts.find((c: any) => 
+        c.name === invClient.name || c.name?.toLowerCase() === invClient.name?.toLowerCase()
+      );
+      if (byName) return byName;
+    }
+    // Fallback: use the invoice's embedded client data (has name at minimum)
+    return invClient;
+  })() : null;
 
   if (!invoice) return (
     <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
@@ -42,7 +58,8 @@ const ReceiptDetailViewContent: React.FC = () => {
     if (client) {
       generateReceiptPdf(invoice, firmDetails, client as any);
     } else {
-      alert("Client details could not be found to generate the PDF.");
+      // Generate PDF with invoice's embedded client data as fallback
+      generateReceiptPdf(invoice, firmDetails, invoice.client || { name: 'Tenant' } as any);
     }
   };
 

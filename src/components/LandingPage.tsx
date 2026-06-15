@@ -251,7 +251,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
                 <p className="text-xs text-slate-600">© {new Date().getFullYear()} PracticePro Tech Ltd. Lagos, Nigeria.</p>
-                <p className="text-xs text-slate-700">ISO 27001 Aligned · NDPA 2023 Compliant · TLS Encrypted</p>
+                <p className="text-xs text-slate-700">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
             </div>
         </div>
     </footer>
@@ -260,10 +260,10 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
 // ─── TRUST BADGES ─────────────────────────────────────────────────────────────
 
 const BADGES = [
-    { label: 'ISO 27001 Aligned', Icon: ShieldCheckIcon },
     { label: 'NDPA 2023 Compliant', Icon: ScalesIcon },
     { label: 'TLS 1.3 Encrypted', Icon: LockClosedIcon },
-    { label: 'AES-256 at Rest', Icon: KeyIcon }
+    { label: 'Data Encrypted at Rest*', Icon: KeyIcon },
+    { label: 'SOC 2 Principles', Icon: ShieldCheckIcon }
 ];
 
 const TrustBadgesStrip: React.FC = () => (
@@ -383,7 +383,7 @@ const HubHero: React.FC<{
                 </button>
 
                 {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
-                <p className="text-[10px] text-slate-600 mt-12 tracking-wide">NDPA 2023 Compliant · TLS 1.3 · AES-256</p>
+                <p className="text-[10px] text-slate-600 mt-12 tracking-wide">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
@@ -520,7 +520,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         items: [
             { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
             { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
-            { title: 'WhatsApp Automation', desc: 'Automated rent reminders and demand notices via WhatsApp. Tiered volume limits with morning notification throttles on Pro plans.', badge: 'Pro' },
+            { title: 'WhatsApp Notifications', desc: 'Send rent reminders and demand notices via WhatsApp directly from the platform. Tiered volume limits with morning notification throttles on Pro plans.', badge: 'Pro' },
             { title: 'Lease Management', desc: 'Lease expiry alerts and calendar integration. Send renewal notices and rent review communications. Never miss a critical date again.' },
         ],
     },
