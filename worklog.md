@@ -48,3 +48,26 @@ Stage Summary:
 - Cross-session memory: ARIA can reference past conversations naturally
 - Morning briefings appear as ARIA conversations with ☀️ indicator
 - No multi-model routing as per user instruction
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix critical signup error - "Converting circular structure to JSON" with HTMLButtonElement
+
+Work Log:
+- Analyzed error screenshot using VLM - identified "Converting circular structure to JSON" toast error on signup form
+- Explored entire auth flow: Signup.tsx → AuthContext.signup() → Convex startSignup action → startSignupLogic
+- Found root cause: startSignup and startRegistration used v.any() args validation, allowing Convex to attempt serialization of any value
+- Fixed: Replaced v.any() with strict v.string()/v.optional(v.string()) on startSignup and startRegistration actions
+- Added String() coercion in AuthContext.signup(), resendConfirmation(), and verifyLoginAction calls to prevent non-serializable values
+- Improved error messages for circular JSON, timeout, network, and invalid argument errors
+- Kept createUser internal mutation as v.any() for portal flexibility
+- Deployed to Convex backend successfully
+- Built frontend and pushed to git (triggers Vercel auto-deploy)
+
+Stage Summary:
+- startSignup action now validates: fullName (string), email (string), password (optional string), product (optional string)
+- startRegistration action now validates same schema
+- AuthContext now sanitizes all Convex action arguments with String() coercion
+- Convex deployment: https://gregarious-malamute-537.convex.cloud
+- Git commit: 76b2ec3
