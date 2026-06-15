@@ -114,11 +114,11 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>
-                                    <p>ARIA uses **Retrieval Augmented Generation (RAG)** to answer questions based directly on your firm's documents. When you ask about a case, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
+                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your firm's documents. When you ask about a case, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Actionable Insights</h4>
-                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to **View Tasks**, **Open Matters**, or **Draft Replies** based on the current context of your conversation.</p>
+                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to <strong>View Tasks</strong>, <strong>Open Matters</strong>, or <strong>Draft Replies</strong> based on the current context of your conversation.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">On-Demand Briefings</h4>

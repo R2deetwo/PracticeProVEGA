@@ -632,9 +632,12 @@ export const App: React.FC = () => {
             const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
             if (isPortal) return;
             const hasCompletedTour = localStorage.getItem('practicepro_tour_completed');
-            if (hasCompletedTour !== 'true') setTimeout(() => startTour(), 500);
+            if (hasCompletedTour !== 'true') {
+                const timer = setTimeout(() => startTour(), 800);
+                return () => clearTimeout(timer);
+            }
         }
-    }, [flowState, currentUser, startTour]);
+    }, [flowState, currentUser, startTour, isDataLoaded, forceEntry]);
 
     const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
 

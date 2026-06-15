@@ -329,14 +329,43 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
 
                         {/* Managed Migration opt-in */}
                         {isAtrium && (
-                            <div className="max-w-md mx-auto p-5 rounded-2xl bg-amber-50 border border-amber-100">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-4 h-4 rounded border-amber-200 text-amber-600 focus:ring-amber-500" />
-                                    <label htmlFor="data-migration" className="text-xs font-black text-amber-900 uppercase tracking-tight">Request Managed Data Migration</label>
+                            <div className="max-w-md mx-auto p-4 rounded-xl bg-amber-50/60 border border-amber-100">
+                                <div className="flex items-start gap-3">
+                                    <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-amber-200 text-amber-600 focus:ring-amber-500" />
+                                    <div className="flex-1 min-w-0">
+                                        <label htmlFor="data-migration" className="text-[11px] font-bold text-amber-900 cursor-pointer">
+                                            Managed Data Migration <span className="font-normal text-amber-600">+₦150k</span>
+                                        </label>
+                                        <details className="mt-1 group/det">
+                                            <summary className="text-[10px] font-semibold text-amber-500 cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
+                                                What's included
+                                                <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                                            </summary>
+                                            <div className="mt-2 space-y-1.5 text-[10px] text-amber-800 leading-relaxed">
+                                                <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
+                                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                                                        <span>Up to <strong>50 tenant/unit</strong> entries</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                                                        <span><strong>Lease terms</strong> & rent cycles</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                                                        <span><strong>Property details</strong> & unit specs</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />
+                                                        <span><strong>Opening balances</strong> if available</span>
+                                                    </div>
+                                                </div>
+                                                <p className="text-amber-600/80 mt-1.5">Additional entries beyond 50 units: ₦2,500 per entry.</p>
+                                            </div>
+                                        </details>
+                                    </div>
                                 </div>
-                                <p className="text-[11px] text-amber-700 font-medium leading-relaxed ml-7">
-                                    Our team digitizes your existing property records. <strong>Adds a one-time ₦150,000 setup fee.</strong>
-                                </p>
                             </div>
                         )}
 

@@ -402,7 +402,7 @@ const HelpView: React.FC = () => {
                                         The Philosophy of Atrium
                                     </h4>
                                     <p className="text-emerald-800 dark:text-emerald-200 text-sm leading-relaxed">
-                                        Atrium isn't just property management; it's a **Revenue Monitor**. It is designed to secure landlord cash flow by treating every unit as a critical financial asset. The monitor enforces payment discipline through transparency and automated oversight.
+                                        Atrium isn't just property management; it's a <strong>Revenue Monitor</strong>. It is designed to secure landlord cash flow by treating every unit as a critical financial asset. The monitor enforces payment discipline through transparency and automated oversight.
                                     </p>
                                 </div>
 

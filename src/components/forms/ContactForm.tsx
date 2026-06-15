@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Contact, ContactCategory, ContactType, Property } from '../../types';
-import SmartPasteBox from './SmartPasteBox';
 import { v4 as uuidv4 } from 'uuid';
 import { UserCircleIcon, PhoneIcon, MailIcon, MapPinIcon, BriefcaseIcon, GlobeIcon, SaveIcon, XIcon, PlusIcon, InfoIcon, TagIcon, TrashIcon } from '../../constants';
 import { Building as BuildingIcon, ShieldCheck as ShieldCheckIcon, Building2 as OfficeBuildingIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
@@ -263,9 +262,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2 group">
                             <label className={labelClass}>Type</label>
-                            <div className="flex flex-wrap gap-1.5 bg-slate-50 dark:bg-zinc-900/50 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700 shadow-inner">
-                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Individual</button>
-                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-4 py-2 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Corporate</button>
+                            <div className="inline-flex gap-1 bg-slate-50 dark:bg-zinc-900/50 p-0.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700">
+                                <button type="button" onClick={() => setContactType(ContactType.Individual)} className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Individual ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Individual</button>
+                                <button type="button" onClick={() => setContactType(ContactType.Company)} className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-widest rounded-md transition-all ${contactType === ContactType.Company ? 'bg-white dark:bg-zinc-800 text-primary-600 shadow-sm ring-1 ring-slate-100 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}>Corporate</button>
                             </div>
                         </div>
                         <div className="space-y-2 group">
@@ -385,17 +384,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                             <textarea id="contactAddress" value={address} onChange={e => setAddress(e.target.value)} rows={2} className={`${commonInputClass} pl-11 resize-none`} placeholder="Full physical or registered address..." />
                         </div>
                     </div>
-                </div>
-
-                <div className="px-1">
-                    <SmartPasteBox 
-                        onExtract={(data) => {
-                            if (data.name) setName(data.name);
-                            if (data.email) setEmail(data.email);
-                            if (data.phone) setPhone(data.phone);
-                            if (data.address) setAddress(data.address);
-                        }} 
-                    />
                 </div>
 
                 {/* Additional Detail Sections */}
