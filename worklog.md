@@ -160,3 +160,30 @@ Stage Summary:
 - Consistent modern button design across all confirmation/action modals
 - No more double-chrome issues in ComposeEmail, QuickLook, Upgrade modals
 - ComposeEmail no longer overloads deleteConfirmation for simple subject confirmation
+
+---
+Task ID: 1
+Agent: Super Z (main)
+Task: Mobile Modal UX Deep Dive - Fix chunky modals on mobile, ensure collapsibles closed by default
+
+Work Log:
+- Analyzed user's screenshot showing "New Contact" modal on mobile - accordions open by default, chunky spacing
+- Cataloged ALL 36 modal files and 34 form files in the codebase
+- Identified root causes: (1) Accordion animation using fragile max-h approach, (2) oversized padding/gaps on mobile, (3) action buttons too wide
+- Rewrote toolkit/Accordion.tsx to use grid-template-rows for smooth height animation (grid-rows-[1fr]/grid-rows-[0fr])
+- Fixed AccordionContent to properly pass className to inner wrapper instead of hardcoded p-2 space-y-2
+- Made AccordionTrigger properly handle className override with fallback
+- Fixed ContactForm.tsx - responsive padding (px-4 sm:px-8, py-3 sm:py-5), gaps (gap-3 sm:gap-4), buttons (px-6 sm:px-10)
+- Fixed Modal.tsx - slimmer header (px-4 py-3 sm:px-6 sm:py-4), smaller title (text-base sm:text-lg), thinner accent bar (h-1 sm:h-1.5), tighter content padding (px-3 py-3 sm:px-6 sm:py-5)
+- Fixed DockedModal.tsx - responsive header (px-4 sm:px-6, h-14 sm:h-16)
+- Fixed 12 form files via parallel agents: MatterForm, PropertyForm, TaskForm, EventForm, DocumentForm, InvoiceForm, ExpenseForm, TimeEntryForm, UserForm, LeadForm, WorkflowForm, SmartMatterModal, MatterIntakeWizard, SaveToNoteForm, InvoiceGeneratorForm
+- Common pattern applied across all forms: p-3 sm:p-4 cards, gap-3 sm:gap-4 grids, px-6 sm:px-10 / px-8 sm:px-12 buttons, space-y-2 sm:space-y-3, pt-4 sm:pt-8 footers
+- Fixed syntax error in ContactForm (stray }> from edit)
+- Build verified successfully
+
+Stage Summary:
+- Accordion component rewritten with proper CSS Grid animation - sections now smoothly expand/collapse and start CLOSED by default
+- All major forms now use responsive mobile-first spacing - tighter on mobile, original sizing on desktop (sm: breakpoint)
+- Base Modal and DockedModal headers slimmer on mobile
+- No functional changes - all logic, imports, and functionality preserved
+- Build passes cleanly

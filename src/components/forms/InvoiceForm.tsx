@@ -218,11 +218,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
     const commonInputClass = inputModern;
   const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
       <div className="flex flex-col gap-4 -m-2">
-        <div className="space-y-3 pb-6">
+        <div className="space-y-2 sm:space-y-3 pb-6">
           {/* Financial Header Section */}
-          <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+          <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
               <div className="flex items-center gap-4 mb-2 px-1">
                   <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                       <CalculatorIcon className="w-4 h-4" />
@@ -233,7 +233,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2 group">
                       <label className={labelClass}>Client Asset</label>
                       <select value={clientId} onChange={e => setClientId(e.target.value)} className={commonInputClass} required>
@@ -252,7 +252,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           </div>
 
           {/* Line Items Section */}
-          <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+          <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
               <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-4">
                       <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
@@ -268,7 +268,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
               <div className="space-y-3">
                   {lineItems.map((item, index) => (
-                      <div key={index} className="flex flex-wrap items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
+                      <div key={index} className="flex flex-wrap items-center gap-4 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                           <div className="flex-1 min-w-[200px]">
                               <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Narrative</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={item.description} onChange={e => handleLineItemChange(index, 'description', e.target.value)} placeholder="Description of service..." className={commonInputClass} />
@@ -298,8 +298,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           </div>
 
           {/* Totals & Parameters Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 px-1">
-              <div className="p-4 bg-slate-900 dark:bg-zinc-950 rounded-xl border border-zinc-800 flex flex-col justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 px-1">
+              <div className="p-3 sm:p-4 bg-slate-900 dark:bg-zinc-950 rounded-xl border border-zinc-800 flex flex-col justify-between">
                   <div>
                       <p className="text-[10px] font-bold text-emerald-500/70 uppercase tracking-widest leading-none mb-4">Financial Summation</p>
                       <div className="space-y-3">
@@ -340,10 +340,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
               </div>
 
               <div className="space-y-3">
-                  <div className="p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Temporal Parameters</label>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-2 gap-3 sm:gap-4">
                               <div>
                                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Issue</p>
                                   <input autoComplete="off" data-lpignore="true"  type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className={commonInputClass} required />
@@ -356,7 +356,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                       </div>
                   </div>
                   
-                  <div className="p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Payment Routing</label>
                           {safeBankAccounts.length > 0 ? (
@@ -375,11 +375,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           </div>
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-50">
-          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+        <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
+          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Discard
           </button>
-          <button onClick={handleSubmit} type="submit" disabled={!paymentAccountId && safeBankAccounts.length === 0} className="flex-1 sm:flex-none px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+          <button onClick={handleSubmit} type="submit" disabled={!paymentAccountId && safeBankAccounts.length === 0} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
               <SaveIcon className="w-4 h-4" /> {isEditing ? 'Authorize Update' : 'Initialize Invoice'}
           </button>
         </div>

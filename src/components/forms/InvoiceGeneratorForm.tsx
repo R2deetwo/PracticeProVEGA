@@ -143,7 +143,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const commonInputClass = inputClassic;
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matter</label>
                 <p className="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
@@ -151,7 +151,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
 
             <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unbilled Items</label>
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-gray-200 dark:border-gray-700">
+                <div className="space-y-2 sm:space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-gray-200 dark:border-gray-700">
                     {fixedFeeItem && (
                         <>
                             <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Fixed Fee</div>
@@ -205,7 +205,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4 border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 border-t pt-4 border-gray-200 dark:border-gray-700">
                 <div>
                     <label htmlFor="paymentAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Account</label>
                     <select id="paymentAccount" value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)} className={commonInputClass} required>

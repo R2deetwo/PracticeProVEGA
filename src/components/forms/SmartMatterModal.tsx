@@ -322,7 +322,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 <div className="h-1 w-full flex-shrink-0 bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500" />
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 sm:px-6 pt-3 sm:pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         {step === 1 && (
                             <button onClick={() => setStep(0)} className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors">
@@ -342,7 +342,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
 
                     {/* Step 0 — Type picker */}
                     {step === 0 && (
@@ -351,7 +351,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                 <button
                                     key={mt.type}
                                     onClick={() => handleTypeSelect(mt.type)}
-                                    className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-slate-100 dark:border-zinc-800 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-600 bg-white dark:bg-zinc-800/50 transition-all group text-center"
+                                    className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl border-2 border-slate-100 dark:border-zinc-800 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-600 bg-white dark:bg-zinc-800/50 transition-all group text-center"
                                 >
                                     <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${mt.color} flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform`}>
                                         <Icon d={mt.icon} className="w-5 h-5" />
@@ -434,7 +434,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* ── Process-specific dynamic intake fields ── */}
                                     {activeProcessConfig.keyIntakeFields.length > 0 && (
-                                        <div className="space-y-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
+                                        <div className="space-y-2 sm:space-y-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
                                             <p className="text-[10px] font-black text-primary-500 uppercase tracking-[0.15em]">Process-Specific Details</p>
                                             {activeProcessConfig.keyIntakeFields.map(field => (
                                                 <div key={field.fieldId}>
@@ -619,7 +619,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Tenanted / Rental sub-section */}
                                     {(propertyCategory === 'Tenanted Property' || propertyCategory === 'Personal Residence' || propertyCategory === 'Other') && (
-                                        <div className="space-y-3 p-4 bg-emerald-50/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-fade-in">
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-fade-in">
                                             <div className="flex justify-between items-center">
                                                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em]">
                                                     {numberOfUnits > 1 ? `${unitsData[activeUnitIndex].unitName} Details` : 'Rental / Lease Details'}
@@ -694,7 +694,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* For Sale sub-section */}
                                     {propertyCategory === 'Property For Sale' && (
-                                        <div className="space-y-3 p-4 bg-blue-50/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-xl animate-fade-in">
+                                        <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-xl animate-fade-in">
                                             <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.15em]">Listing Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -717,7 +717,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                                     {/* Disputed sub-section */}
                                     {propertyCategory === 'Disputed Property' && (
-                                        <div className="space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
+                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
                                             <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -747,7 +747,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                         </label>
                                     )}
                                     {reHasLitigation && propertyCategory !== 'Disputed Property' && (
-                                        <div className="space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
+                                        <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
                                             <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em]">Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
@@ -832,7 +832,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     </div>
                                 )}
                                 {billingModel === BillingModel.Percentage && (
-                                    <div className="space-y-3 col-span-2">
+                                    <div className="space-y-2 sm:space-y-3 col-span-2">
                                         <div className="grid grid-cols-3 gap-3">
                                             <div>
                                                 <label className={lbl}>Percentage (%)</label>
@@ -900,14 +900,14 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
                 {/* Footer */}
                 {step === 1 && (
-                    <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-3 bg-white dark:bg-zinc-900">
+                    <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-3 bg-white dark:bg-zinc-900">
                         <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">
                             Cancel
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={isSubmitting}
-                            className="px-6 py-2 text-sm font-bold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
+                            className="px-4 sm:px-6 py-2 text-sm font-bold bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors flex items-center gap-2 shadow-sm"
                         >
                             {isSubmitting ? 'Creating…' : startDrafting ? 'Create & Open DraftPro' : 'Create Matter'}
                         </button>

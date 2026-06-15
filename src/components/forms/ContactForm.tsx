@@ -234,11 +234,11 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
-            <div className="space-y-3 pb-20">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4 -m-2">
+            <div className="space-y-2 sm:space-y-3 pb-20">
                 {/* Entity definition header */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
-                    <div className="flex items-center gap-4 mb-2 px-1">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                    <div className="flex items-center gap-3 sm:gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <UserCircleIcon className="w-3.5 h-3.5" />
                         </div>
@@ -259,7 +259,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div className="space-y-2 group">
                             <label className={labelClass}>Type</label>
                             <div className="inline-flex gap-1 bg-slate-50 dark:bg-zinc-900/50 p-0.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700">
@@ -346,7 +346,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         </div>
                     </div>
 
-                    <div className={`grid ${gridClass} gap-4`}>
+                    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
                         <div className="space-y-2 group">
                             <label htmlFor="contactName" className={labelClass}>{contactType === ContactType.Company ? 'Company Name' : 'Full Name'}</label>
                             <input autoComplete="off" data-lpignore="true"  type="text" id="contactName" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} placeholder={contactType === ContactType.Individual ? "e.g. Adewale Olanrewaju" : "e.g. Zenith Legal Holdings"} required autoFocus />
@@ -360,7 +360,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         </div>
                     </div>
 
-                    <div className={`grid ${gridClass} gap-4`}>
+                    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
                         <div className="space-y-2 group">
                             <label htmlFor="contactPhone" className={labelClass}>Phone</label>
                             <div className="relative">
@@ -387,22 +387,22 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                 </div>
 
                 {/* Additional Detail Sections */}
-                <div className="px-1">
-                    <Accordion type="single" className="space-y-3">
+                <div className="px-0 sm:px-1">
+                    <Accordion type="single" className="space-y-2 sm:space-y-3">
                         <AccordionItem value="kyc_details" className="bg-slate-50/50 dark:bg-zinc-800/30 border border-slate-100 dark:border-zinc-700/50 rounded-xl overflow-hidden transition-all duration-300">
-                            <AccordionTrigger className="px-8 py-5 hover:no-underline hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-colors">
-                                <div className="flex items-center gap-4">
+                            <AccordionTrigger className="px-4 sm:px-8 py-3 sm:py-5 hover:no-underline hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <div className="flex items-center gap-3 sm:gap-4">
                                     <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                                         <ShieldCheckIcon className="w-4 h-4" />
                                     </div>
                                     <div className="text-left">
                                         <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Due Diligence</p>
-                                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Compliance & KYC</h3>
+                                        <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-white tracking-tight">Compliance & KYC</h3>
                                     </div>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="px-8 pb-8 pt-2">
-                                <div className={`grid ${gridClass} gap-4`}>
+                            <AccordionContent className="px-4 sm:px-8 pb-4 sm:pb-8 pt-2">
+                                <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
                                     {contactType === ContactType.Individual ? (
                                         <>
                                             <div className="space-y-2 group">
@@ -443,9 +443,9 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         </AccordionItem>
 
                         <AccordionItem value="properties" className="bg-slate-50/50 dark:bg-zinc-800/30 border border-slate-100 dark:border-zinc-700/50 rounded-xl overflow-hidden transition-all duration-300">
-                            <AccordionTrigger className="px-8 py-5 hover:no-underline hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-colors">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2.5 bg-amber-600 text-white rounded-2xl shadow-sm ring-4 ring-amber-500/10">
+                            <AccordionTrigger className="px-4 sm:px-8 py-3 sm:py-5 hover:no-underline hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <div className="flex items-center gap-3 sm:gap-4">
+                                    <div className="p-2 sm:p-2.5 bg-amber-600 text-white rounded-xl sm:rounded-2xl shadow-sm ring-2 sm:ring-4 ring-amber-500/10">
                                         <OfficeBuildingIcon className="w-4 h-4" />
                                     </div>
                                     <div className="text-left">
@@ -454,18 +454,18 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                     </div>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="px-8 pb-8 pt-2">
+                            <AccordionContent className="px-4 sm:px-8 pb-4 sm:pb-8 pt-2">
                                 {!isEditing ? (
-                                    <div className="text-center py-12 bg-white/50 dark:bg-zinc-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
-                                        <OfficeBuildingIcon className="w-12 h-12 text-slate-300 mx-auto mb-4 opacity-50" />
-                                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mb-2 px-6">Portfolio management requires a saved contact</p>
-                                        <p className="text-[11px] text-slate-500 mb-6 px-8">Save this contact first to enable property registration and management.</p>
-                                        <button type="button" disabled className="inline-flex items-center gap-3 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-400 px-8 py-3 rounded-2xl cursor-not-allowed">
+                                    <div className="text-center py-8 sm:py-12 bg-white/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                                        <OfficeBuildingIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-3 sm:mb-4 opacity-50" />
+                                        <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mb-2 px-4 sm:px-6">Portfolio management requires a saved contact</p>
+                                        <p className="text-[11px] text-slate-500 mb-4 sm:mb-6 px-4 sm:px-8">Save this contact first to enable property registration.</p>
+                                        <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl cursor-not-allowed">
                                             <PlusIcon className="w-4 h-4" /> Register New Property
                                         </button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="space-y-4 sm:space-y-6">
                                         <div className="flex justify-between items-center px-2">
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Property Portfolio</span>
                                             <button type="button" onClick={handleAddProperty} className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline">+ Register New Property</button>
@@ -489,8 +489,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="text-center py-10 bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
-                                                <p className="text-xs text-slate-400 font-bold mb-4">No properties registered yet</p>
+                                            <div className="text-center py-6 sm:py-10 bg-slate-50/50 dark:bg-zinc-900/50 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                                                <p className="text-xs text-slate-400 font-bold mb-3 sm:mb-4">No properties registered yet</p>
                                                 <button type="button" onClick={handleAddProperty} className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline">+ Map First Property</button>
                                             </div>
                                         )}
@@ -502,11 +502,11 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-20">
-                <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-55">
+            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
+                <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-55">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-55">
+                <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-55">
                     <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Contact')}
                 </button>
             </div>

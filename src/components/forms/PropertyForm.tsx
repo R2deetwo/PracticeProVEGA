@@ -579,9 +579,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
     return (
         <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
-            <div className="space-y-3 pb-6">
+            <div className="space-y-2 sm:space-y-3 pb-6">
                 {/* Core Profile Section */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
@@ -593,8 +593,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     </div>
 
                     {/* Core Info */}
-                    <div className="space-y-3">
-                        <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-4`}>
+                    <div className="space-y-2 sm:space-y-3">
+                        <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Address</label>
                                 <textarea
@@ -637,7 +637,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
 
                         {!activeUnitId && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Category</label>
                                 <select value={category} onChange={e => setCategory(e.target.value as Property['category'])} className={commonInputClass}>
@@ -675,7 +675,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                         {/* Status moved to unit level */}
                         {!isRental && (
                             <div className="space-y-2 group animate-fade-in">
@@ -706,7 +706,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Amenities Section --- */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <SparklesIcon className="w-3.5 h-3.5" />
@@ -717,7 +717,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                         <div className="flex gap-2">
                             <input autoComplete="off" data-lpignore="true" 
                                 type="text"
@@ -753,7 +753,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Automation Settings --- */}
-                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-amber-500 text-white rounded-lg shadow-sm ring-2 ring-amber-400/10">
                             <ZapIcon className="w-3.5 h-3.5" />
@@ -763,18 +763,18 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Automation</h3>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindLeaseExpiry} onChange={e => setRemindLeaseExpiry(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Lease Expiry Alerts</span>
                         </label>
                         {rentCollectionMode === 'Full (Collect Rent)' && (
-                            <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                            <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                                 <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={remindRentDue} onChange={e => setRemindRentDue(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
                                 <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Rent Due Alerts</span>
                             </label>
                         )}
-                        <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
+                        <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-amber-500/20 transition-all">
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={autoCreateMaintenanceTask} onChange={e => setAutoCreateMaintenanceTask(e.target.checked)} className="mt-1 rounded border-slate-200 text-amber-500 focus:ring-amber-500" />
                             <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Maintenance Tasks</span>
                         </label>
@@ -782,7 +782,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
 
                 {/* --- Minimum Vend / Estate Fees --- */}
-                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-teal-500 text-white rounded-lg shadow-sm ring-2 ring-teal-400/10">
                             <CalculatorIcon className="w-3.5 h-3.5" />
@@ -792,12 +792,12 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Minimum Vend / Estate Fees</h3>
                         </div>
                     </div>
-                    <label className="flex items-start gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
+                    <label className="flex items-start gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-teal-500/20 transition-all">
                         <input autoComplete="off" data-lpignore="true" type="checkbox" checked={minimumVendEnabled} onChange={e => setMinimumVendEnabled(e.target.checked)} className="mt-1 rounded border-slate-200 text-teal-500 focus:ring-teal-500" />
                         <span className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tight">Enable Minimum Vend Tracking</span>
                     </label>
                     {minimumVendEnabled && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 animate-fade-in">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Minimum Vend Amount</label>
                                 <div className="relative rounded-xl shadow-xs">
@@ -829,7 +829,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 1. Dispute Details */}
                 {isDisputed && (
-                    <div className="p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900 shadow-sm space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-100 dark:border-rose-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-rose-600 text-white rounded-lg shadow-sm ring-2 ring-rose-500/10">
                                 <GavelIconLarge className="w-3.5 h-3.5" />
@@ -839,7 +839,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Dispute Details</h3>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Court</label>
                                 <input autoComplete="off" data-lpignore="true"  type="text" value={court} onChange={e => setCourt(e.target.value)} className={commonInputClass} placeholder="e.g. Lagos High Court" />
@@ -855,7 +855,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         </div>
 
                         {/* Matter Link Section */}
-                        <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-3">
+                        <div className="pt-4 border-t border-rose-200 dark:border-rose-800 mt-2 space-y-2 sm:space-y-3">
                             <label className={labelClass}>Linked Matter (Dispute)</label>
                             {linkedMatterId ? (
                                 <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-rose-200 dark:border-zinc-700 shadow-sm">
@@ -906,7 +906,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 2. Sale Details */}
                 {isSale && (
-                    <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-3 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm space-y-2 sm:space-y-3 animate-fade-in">
                         <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-blue-600 text-white rounded-lg shadow-sm ring-2 ring-blue-500/10">
                                 <CalculatorIcon className="w-3.5 h-3.5" />
@@ -916,7 +916,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Listing Info</h3>
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Target Price (<NairaSymbol />)</label>
                                 <input autoComplete="off" data-lpignore="true" 
@@ -941,7 +941,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                 {/* 3. Rental Details */}
                 {(isRental || category === 'Personal Residence' || category === 'Other') && (
-                    <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-4 animate-fade-in">
+                    <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3 sm:space-y-4 animate-fade-in">
                          <div className="flex items-center gap-4 px-1">
                             <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                                 <CalendarIcon className="w-3.5 h-3.5" />
@@ -987,7 +987,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                         )}
 
-                        <div className="space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
+                        <div className="space-y-3 sm:space-y-4 pt-1 animate-fade-in" key={activeUnitIndex}>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Unit Description</label>
                                 <input autoComplete="off" data-lpignore="true" 
@@ -999,7 +999,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 />
                                 <p className="text-[9px] text-slate-400 dark:text-zinc-500 px-1">Describe this specific unit's style, layout, or features. {autoSyncUnits && activeUnitIndex === 0 && unitsData.length > 1 ? 'Auto-copied to other units.' : ''}</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>
                                     <input autoComplete="off" data-lpignore="true" 
@@ -1031,7 +1031,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Service Charge (Monthly <NairaSymbol />)</label>
                                     <input autoComplete="off" data-lpignore="true" 
@@ -1057,7 +1057,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Service Charge Status</label>
                                     <select
@@ -1122,7 +1122,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className={labelClass}>Agency Fee (%)</label>
@@ -1178,7 +1178,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
 
                             {/* Total Tenancy Package Summary Card */}
-                            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
+                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
                                     <div>
                                         <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
@@ -1199,7 +1199,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group col-span-1 md:col-span-2">
                                     <label className={labelClass}>Tenant Name</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-[minmax(5.5rem,auto)_1fr_1fr] gap-2">
@@ -1262,7 +1262,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Lease Start</label>
                                     <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].leaseStart} onChange={e => updateUnit(activeUnitIndex, 'leaseStart', e.target.value)} className={commonInputClass} />
@@ -1288,7 +1288,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-end">
                                 {activeUnitIndex === 0 && ownershipType !== 'owned' && ( // Management fee is property-level, only show it once
                                     <div className="space-y-2 group">
                                         <label className={labelClass}>Management Fee (%)</label>
@@ -1306,7 +1306,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     </div>
                                 )}
 
-                                <label className={`flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-primary-500/20 transition-all ${activeUnitIndex !== 0 ? 'md:col-start-2' : ''}`}>
+                                <label className={`flex items-center gap-3 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-xs cursor-pointer group hover:ring-2 hover:ring-primary-500/20 transition-all ${activeUnitIndex !== 0 ? 'md:col-start-2' : ''}`}>
                                     <input autoComplete="off" data-lpignore="true" 
                                         type="checkbox"
                                         checked={unitsData[activeUnitIndex].isPeriodicReviewEnabled}
@@ -1318,7 +1318,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
 
                             {unitsData[activeUnitIndex].isPeriodicReviewEnabled && (
-                                <div className="p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm animate-fade-in space-y-2 group">
+                                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm animate-fade-in space-y-2 group">
                                     <label className={labelClass}>Next Rent Review</label>
                                     <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].nextRentReview} onChange={e => updateUnit(activeUnitIndex, 'nextRentReview', e.target.value)} className={commonInputClass} />
                                 </div>
@@ -1328,7 +1328,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 )}
 
                 {/* Image Upload Section */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center px-1">
                         <div className="flex items-center gap-4">
                             <div className="p-1.5 bg-slate-600 text-white rounded-lg shadow-sm ring-2 ring-slate-500/10">
@@ -1355,7 +1355,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 sm:gap-4">
                         {images.length > 0 ? images.map((img, idx) => (
                             <div key={idx} className="relative group aspect-square rounded-2xl border border-slate-100 dark:border-zinc-800 overflow-hidden bg-slate-50 dark:bg-zinc-900 shadow-sm">
                                 {img.type.startsWith('image/') ? (
@@ -1375,7 +1375,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </button>
                             </div>
                         )) : (
-                            <div className="col-span-full py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-3xl text-center">
+                            <div className="col-span-full py-8 sm:py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-3xl text-center">
                                 <OfficeBuildingIcon className="w-8 h-8 mx-auto text-slate-200 dark:text-zinc-800 mb-2" />
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No photos yet</p>
                             </div>
@@ -1384,14 +1384,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 </div>
             </div>
 
-            <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-50 mt-4 rounded-b-2xl">
+            <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50 mt-4 rounded-b-2xl">
                 <button type="button" onClick={() => {
                     if (formTouched.current && !window.confirm('You have unsaved changes. Discard them?')) return;
                     onClose();
-                }} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
+                }} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     <SaveIcon className="w-4 h-4" /> Save Property
                 </button>
             </div>

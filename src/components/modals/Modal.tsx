@@ -154,11 +154,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Brand Accent Bar */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
+        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
 
-        <div className="flex-shrink-0 flex justify-between items-center px-5 py-4 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md z-10">
+        <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md z-10">
           <div className="flex flex-col">
-            <h2 id="modal-title" className="text-lg font-black text-slate-800 dark:text-white tracking-tight leading-tight truncate pr-4">{title}</h2>
+            <h2 id="modal-title" className="text-base sm:text-lg font-black text-slate-800 dark:text-white tracking-tight leading-tight truncate pr-4">{title}</h2>
           </div>
           <button
             onClick={() => onClose()}
@@ -169,7 +169,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
           </button>
         </div>
 
-        <div className={`flex-1 overflow-y-auto custom-scrollbar ${size === 'xl' ? 'p-0' : 'px-4 py-4 sm:px-6 sm:py-5'}`}>
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${size === 'xl' ? 'p-0' : 'px-3 py-3 sm:px-6 sm:py-5'}`}>
           {children}
         </div>
       </div>

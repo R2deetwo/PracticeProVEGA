@@ -265,7 +265,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
-            <div className="space-y-3 pb-6">
+            <div className="space-y-2 sm:space-y-3 pb-6">
                 {isEditing && !fullDoc && (
                     <div className="absolute inset-x-0 top-0 -bottom-10 z-[60] bg-white/60 dark:bg-zinc-800/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl">
                         <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-zinc-300">
@@ -276,7 +276,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 )}
                 
                 {error && (
-                    <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-2">
+                    <div className="p-3 sm:p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-2">
                         <div className="flex items-center gap-2">
                             <InfoIcon className="w-4 h-4" />
                             {error}
@@ -306,7 +306,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 )}
 
                 {/* Core Document Definitions */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 mb-2 px-1">
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <DocumentsIcon className="w-4 h-4" />
@@ -322,7 +322,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                         <input autoComplete="off" data-lpignore="true"  type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder={coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? "Enter name of the legal instrument..." : "Enter document name..."} required />
                     </div>
 
-                    <div className={`grid ${gridClass} gap-4`}>
+                    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
                         <div className="space-y-2 group">
                             <label className={labelClass}>{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Matter / Client Link' : 'Property / Tenant Link'}</label>
                             <div className="relative">
@@ -347,7 +347,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 </div>
 
                 {/* Document Creation Method */}
-                <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center gap-4 px-1">
                         <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
                             <CloudArrowUpIcon className="w-4 h-4" />
@@ -359,7 +359,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     </div>
 
                     {content !== undefined ? (
-                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
+                        <div className="space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
                             <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 flex justify-between items-center px-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
@@ -392,14 +392,14 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                         </div>
                     ) : (
                         <div
-                            className={`relative group border-2 border-dashed p-10 rounded-xl text-center transition-all duration-300 ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10 scale-[1.01]' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'}`}
+                            className={`relative group border-2 border-dashed p-6 sm:p-10 rounded-xl text-center transition-all duration-300 ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10 scale-[1.01]' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'}`}
                             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
                         >
                             {file ? (
                                 <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
-                                    <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl mb-4">
+                                    <div className="p-3 sm:p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl mb-4">
                                         <CheckBadgeIcon className="w-8 h-8" />
                                     </div>
                                     <p className="text-sm font-black text-slate-800 dark:text-white mb-1 truncate max-w-xs">{file.name}</p>
@@ -407,7 +407,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     <button type="button" onClick={() => setFile(null)} className="mt-6 px-4 py-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">Remove File</button>
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="space-y-2 sm:space-y-3">
                                     <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-all">
                                         <CloudArrowUpIcon className="w-8 h-8 text-slate-400 group-hover:text-primary-600" />
                                     </div>
@@ -429,7 +429,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 </div>
 
                 {/* Litigation Logic */}
-                <div className="p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
+                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 px-1">
                             <div className={`p-2.5 rounded-2xl shadow-sm ring-4 transition-all ${isCourtProcess ? 'bg-amber-600 text-white ring-amber-500/10' : 'bg-slate-100 text-slate-400 dark:bg-zinc-900 dark:text-zinc-600 ring-slate-100 dark:ring-zinc-900/20'}`}>
@@ -475,14 +475,14 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-3 z-50">
-                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2" disabled={isSubmitting}>
+            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
+                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2" disabled={isSubmitting}>
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 sm:flex-none px-12 py-3 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-1 sm:flex-none px-8 sm:px-12 py-3 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     {isSubmitting ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />

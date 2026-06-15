@@ -402,7 +402,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                             value={content}
                             onChange={e => setContent(e.target.value)}
                             onScroll={handleScroll}
-                            className="flex-1 w-full p-4 sm:p-12 pb-32 bg-transparent border-none outline-none focus:ring-0 text-lg sm:text-xl leading-relaxed text-slate-800 dark:text-zinc-100 placeholder-slate-300 dark:placeholder-zinc-800 resize-none font-medium scrollbar-thin shadow-none"
+                            className="flex-1 w-full p-4 sm:p-8 pb-32 bg-transparent border-none outline-none focus:ring-0 text-lg sm:text-xl leading-relaxed text-slate-800 dark:text-zinc-100 placeholder-slate-300 dark:placeholder-zinc-800 resize-none font-medium scrollbar-thin shadow-none"
                             placeholder="What's on your mind? Start speaking..."
                             spellCheck={false}
                             autoCorrect="off"
@@ -414,7 +414,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                         {interimTranscript && (
                             <div 
                                 ref={overlayRef}
-                                className="absolute inset-0 p-4 sm:p-12 pb-32 pointer-events-none select-none overflow-y-auto scrollbar-hide"
+                                className="absolute inset-0 p-4 sm:p-8 pb-32 pointer-events-none select-none overflow-y-auto scrollbar-hide"
                             >
                                 <div className="text-lg sm:text-xl leading-relaxed font-medium block whitespace-pre-wrap break-words">
                                     <span className="opacity-0">{content}</span>
@@ -509,7 +509,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             {/* STEP 2: SAVE TARGET SELECTOR (Overlay Drawer) */}
             {viewMode === 'target' && (
                 <div className="absolute inset-0 z-[100] bg-black/40 backdrop-blur-sm animate-fade-in flex flex-col justify-end">
-                    <div className="bg-white dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-4 pb-6 sm:p-10 animate-slide-up max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-3 sm:p-4 pb-6 sm:p-8 animate-slide-up max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-8">
                             <div>
                                 <h3 className="text-2xl font-black text-slate-900 dark:text-zinc-100 italic tracking-tight">SAVE NOTE</h3>
@@ -520,7 +520,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                             </button>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-2 sm:space-y-3">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Title</label>
                                 <input autoComplete="off" data-lpignore="true"  
@@ -558,7 +558,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
 
                             <div className="animate-fade-in pt-2">
                                 {destinationType === 'property' ? (
-                                    <div className="space-y-3">
+                                    <div className="space-y-2 sm:space-y-3">
                                         <div className="relative">
                                             <select
                                                 value={selectedPropertyId}
@@ -580,7 +580,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                         </div>
                                     </div>
                                 ) : destinationType === 'matter' ? (
-                                    <div className="space-y-3">
+                                    <div className="space-y-2 sm:space-y-3">
                                         <div className="relative">
                                             <select
                                                 value={selectedMatterId}

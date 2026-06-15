@@ -218,7 +218,7 @@ export const DockedModal: React.FC = () => {
                         ${isVisible ? 'translate-x-0' : 'translate-x-full'}
                     `}
                 >
-                    <header className="flex-shrink-0 flex justify-between items-center px-6 h-16 border-b border-slate-200/50 dark:border-zinc-700/50 bg-slate-50/80 dark:bg-zinc-900/80">
+                    <header className="flex-shrink-0 flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 border-b border-slate-200/50 dark:border-zinc-700/50 bg-slate-50/80 dark:bg-zinc-900/80">
                         <div className="text-base font-bold text-slate-800 dark:text-white truncate max-w-xs">{title}</div>
                         <button onClick={() => closeModal()} className="p-2 rounded-full text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                             <DismissIcon className="w-5 h-5" />

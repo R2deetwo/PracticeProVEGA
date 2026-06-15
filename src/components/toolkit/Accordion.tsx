@@ -92,7 +92,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({ value, children, .
 };
 
 export const AccordionTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(
-  ({ children, ...props }, ref) => {
+  ({ children, className, ...props }, ref) => {
     const { value, isOpen, triggerId, contentId } = useAccordionItem();
     const { onValueChange } = useAccordion();
 
@@ -104,11 +104,11 @@ export const AccordionTrigger = React.forwardRef<HTMLButtonElement, React.Button
         onClick={() => onValueChange(value)}
         aria-expanded={isOpen}
         aria-controls={contentId}
-        className="w-full flex justify-between items-center p-2 text-sm font-bold text-slate-800 dark:text-white rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700"
+        className={`w-full flex justify-between items-center text-sm font-bold text-slate-800 dark:text-white rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 ${className || 'p-2'}`}
         {...props}
       >
         {children}
-        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDownIcon className={`w-4 h-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
     );
   }
@@ -116,7 +116,7 @@ export const AccordionTrigger = React.forwardRef<HTMLButtonElement, React.Button
 AccordionTrigger.displayName = 'AccordionTrigger';
 
 export const AccordionContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ children, ...props }, ref) => {
+  ({ children, className, ...props }, ref) => {
     const { isOpen, triggerId, contentId } = useAccordionItem();
     return (
       <div
@@ -125,10 +125,13 @@ export const AccordionContent = React.forwardRef<HTMLDivElement, React.HTMLAttri
         role="region"
         aria-labelledby={triggerId}
         aria-hidden={!isOpen}
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}
-        {...props}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
-        <div className="p-2 space-y-2">{children}</div>
+        <div className={`overflow-hidden ${isOpen ? '' : ''}`}>
+          <div className={className || 'p-2 space-y-2'}>
+            {children}
+          </div>
+        </div>
       </div>
     );
   }

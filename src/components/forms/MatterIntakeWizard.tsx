@@ -358,8 +358,8 @@ const Screen0: React.FC<{
                         </div>
                     )}
 
-                    <div className="p-4 bg-slate-50/50 dark:bg-zinc-800/30 space-y-3">
-                        <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 space-y-2 sm:space-y-3">
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
                             {/* Required Filings */}
                             <div>
                                 <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
@@ -558,7 +558,7 @@ const Screen1: React.FC<{
     };
 
     const renderPartySection = (side: 'claimants' | 'defendants', roleLabel: string) => (
-        <div className="p-3.5 bg-slate-100/50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner-sm space-y-3">
+        <div className="p-3.5 bg-slate-100/50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner-sm space-y-2 sm:space-y-3">
             <div className="flex items-center gap-3 px-1">
                 <span className="text-[11px] uppercase font-black tracking-[0.14em] text-slate-500 dark:text-zinc-400 whitespace-nowrap flex-shrink-0">
                     {roleLabel}s ({data[side].length})
@@ -659,7 +659,7 @@ const Screen1: React.FC<{
     }, [data.title, data.jurisdiction]);
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             {/* Section-level ARIA Hints removed from inline display */}
 
             {/* The Parties — stacked on small screens, side-by-side on md+ */}
@@ -917,7 +917,7 @@ const Screen2: React.FC<{
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
             <div>
                 <label className={labelCls}>Assign Team Members</label>
                 <div className="space-y-1.5 mt-2">
@@ -1021,8 +1021,8 @@ const Screen3: React.FC<{
     const partyRoles = PARTY_ROLES[data.legalAction || ''] || { claimant: 'Parties', defendant: 'Opposing Parties' };
 
     return (
-        <div className="space-y-4">
-            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 shadow-inner-sm space-y-0.5">
+        <div className="space-y-3 sm:space-y-4">
+            <div className="p-4 sm:p-6 rounded-2xl bg-slate-50 dark:bg-zinc-800/80 border border-slate-200 dark:border-zinc-700 shadow-inner-sm space-y-0.5">
                 <Row label="Suit Name"      value={data.title} highlight />
                 <Row label="Legal Action"   value={data.legalAction} />
                 <Row label="System Rules"   value={activeModule?.name || 'Generic / Bespoke'} />
@@ -1286,7 +1286,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 <div className="h-1 w-full flex-shrink-0 bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-500" />
 
                 {/* Header */}
-                <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 dark:border-zinc-800">
+                <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-5 pb-3 sm:pb-4 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <p className="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
@@ -1338,7 +1338,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 </div>
 
                 {/* Screen content */}
-                <div className="flex-1 overflow-y-auto px-6 py-5">
+                <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-5">
                     {screen === 0 && <Screen0 data={formData} onChange={update} />}
                     {screen === 1 && <Screen1 data={formData} contacts={contacts} onChange={update} />}
                     {screen === 2 && <Screen2 data={formData} users={users} onChange={update} />}
@@ -1346,7 +1346,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-6 py-4 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 gap-3">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 flex items-center justify-between border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 gap-3">
                     <button
                         type="button"
                         onClick={() => screen === 0 ? onClose() : setScreen(s => s - 1)}
