@@ -4,6 +4,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon } from '../../constants';
 import { UserAssignment } from './UserAssignment';
 import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
@@ -40,6 +41,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const { addToast } = useUI();
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
+    const { isProperty } = useProduct();
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
@@ -575,13 +577,13 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         </div>
                         <div>
                             <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Practice Area</h3>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice Area'}</h3>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
                         <div className="space-y-1.5">
-                            <label className={labelClass}>Practice Area</label>
+                            <label className={labelClass}>{isProperty ? 'Category' : 'Practice Area'}</label>
                             {!isCreatingNewType ? (
                                 <select
                                     value={matterType}
@@ -589,9 +591,9 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     className={commonInputClass}
                                     required
                                 >
-                                    <option value="" disabled>-- Select Area --</option>
+                                    <option value="" disabled>{isProperty ? '-- Select Category --' : '-- Select Area --'}</option>
                                     {(availableWorkflows || []).map(w => <option key={w.id} value={w.type}>{w.type}</option>)}
-                                    <option value="___NEW___">+ Add New Area</option>
+                                    <option value="___NEW___">{isProperty ? '+ Add New Category' : '+ Add New Area'}</option>
                                 </select>
                             ) : (
                                 <div className="flex gap-2">
@@ -678,7 +680,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
                     <div className="space-y-2 sm:space-y-3">
                         <div className="flex justify-between items-center mb-1">
-                            <label className={labelClass}>Client</label>
+                            <label className={labelClass}>{isProperty ? 'Tenant' : 'Client'}</label>
                             <button
                                 type="button"
                                 onClick={() => setIsCreatingClient(!isCreatingClient)}
@@ -691,7 +693,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         {isCreatingClient ? (
                             <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder="Client Legal Name" />
+                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder={isProperty ? 'Tenant Name' : 'Client Legal Name'} />
                                     <input autoComplete="off" data-lpignore="true"  type="email" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} className={commonInputClass} placeholder="Contact Email" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -709,7 +711,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className="relative group">
                                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
                                 <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${commonInputClass} pl-11 ring-primary-500/0 focus:ring-primary-500/20`} required>
-                                    <option value="" disabled>-- Select Client --</option>
+                                    <option value="" disabled>{isProperty ? '-- Select Tenant --' : '-- Select Client --'}</option>
                                     {contacts.filter(c => c.category === 'Client').map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
@@ -855,8 +857,8 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <GavelIconLarge className="w-3 h-3" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">Legal</p>
-                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Case Details</h3>
+                                <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">{isProperty ? 'Details' : 'Legal'}</p>
+                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Property Details' : 'Case Details'}</h3>
                             </div>
                         </div>
                         <button

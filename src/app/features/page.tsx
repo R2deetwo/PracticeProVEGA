@@ -35,13 +35,13 @@ import Link from 'next/link'
 
 const vegaFeatures = [
   {
-    category: 'Case Management',
+    category: 'Matter Management',
     icon: Scale,
     color: 'emerald',
     items: [
       {
         title: 'Matter Management',
-        desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.',
+        desc: 'Organize matters by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.',
         icon: FileText,
       },
       {
@@ -73,14 +73,14 @@ const vegaFeatures = [
         icon: LayoutGrid,
       },
       {
-        title: 'ALOA AI Copilot',
+        title: 'VEGA AI Copilot',
         desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.',
         icon: Bot,
         badge: 'Growth+',
       },
       {
         title: 'Document Vault',
-        desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.',
+        desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your practice\'s document library.',
         icon: FolderOpen,
       },
       {
@@ -103,13 +103,13 @@ const vegaFeatures = [
       },
       {
         title: 'Financial Dashboard',
-        desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable, which clients are overdue, and where your firm stands financially.',
+        desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable, which clients are overdue, and where your practice stands financially.',
         icon: BarChart3,
         badge: 'Pro',
       },
       {
         title: 'Bank Transfer Payments',
-        desc: 'Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your firm\'s account.',
+        desc: 'Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your practice\'s account.',
         icon: CreditCard,
       },
     ],

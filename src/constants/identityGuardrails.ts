@@ -168,6 +168,19 @@ END OF IDENTITY LOCK
 `;
 
 /**
+ * Dynamic identity guardrail selector — returns the correct identity lock
+ * prompt based on the current product mode.
+ *
+ * Use this as the single entry point when building system instructions.
+ * Consumers should call `getIdentityGuardrail(isProperty)` instead of
+ * importing `ALOA_IDENTITY_GUARDRAIL` or `ARIA_IDENTITY_GUARDRAIL` directly,
+ * which ensures the correct product identity is always selected.
+ */
+export const getIdentityGuardrail = (isProperty: boolean): string => {
+    return isProperty ? ARIA_IDENTITY_GUARDRAIL : ALOA_IDENTITY_GUARDRAIL;
+};
+
+/**
  * Post-generation validator: Strips any accidental generic AI leakage
  * from ARIA responses before they are shown to the user.
  */

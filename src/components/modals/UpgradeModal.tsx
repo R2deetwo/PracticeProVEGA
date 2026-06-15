@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { CheckIcon, SparklesIcon } from '../../constants';
 import { SubscriptionPlan } from '../../types';
+import { useIsProperty } from '../../contexts/ProductContext';
 
 interface UpgradeModalProps {
     featureName: string;
@@ -11,6 +12,7 @@ interface UpgradeModalProps {
 }
 
 const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onClose, targetPlan = SubscriptionPlan.Pro }) => {
+    const isProperty = useIsProperty();
 
     const planConfig = useMemo(() => {
         if (targetPlan === SubscriptionPlan.Komplete) {
@@ -19,10 +21,10 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                 price: "₦130,000",
                 features: [
                     "Unlimited Users",
-                    "Unlimited Matters & Units",
+                    isProperty ? 'Unlimited Properties & Units' : 'Unlimited Matters & Units',
                     "Unlimited Active Tenants",
                     "ARIA AI Copilot (Uncapped Priority)",
-                    "Full Legal + Property Suite"
+                    isProperty ? 'Full Property Suite' : 'Full Legal + Property Suite'
                 ],
                 buttonText: "Upgrade to Komplete",
                 accentColor: "text-indigo-600"
@@ -34,15 +36,15 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                 features: [
                     "ARIA AI Assistant (Uncapped Priority)",
                     "Unlimited Team Users",
-                    "Advanced Legal Billing & Analytics",
-                    "Unlimited Active Matters",
-                    "Uncapped Client Portal Deployments"
+                    isProperty ? 'Advanced Revenue Billing & Analytics' : 'Advanced Legal Billing & Analytics',
+                    isProperty ? 'Unlimited Active Properties' : 'Unlimited Active Matters',
+                    isProperty ? "Uncapped Residents' Portal Deployments" : 'Uncapped Client Portal Deployments'
                 ],
                 buttonText: "Start 14-Day Free Trial",
                 accentColor: "text-emerald-600"
             };
         }
-    }, [targetPlan]);
+    }, [targetPlan, isProperty]);
 
     return (
         <div className="space-y-6">

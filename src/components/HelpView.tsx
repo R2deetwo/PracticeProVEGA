@@ -85,7 +85,7 @@ const HelpView: React.FC = () => {
                             <HelpCircleIcon className="w-6 h-6" />
                         </div>
                         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400">Getting Started</h3>
-                        <p className="text-sm text-slate-600 dark:text-zinc-400">New to PracticePro? Learn the basics of setting up your firm and managing cases.</p>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">New to PracticePro? Learn the basics of setting up your {isProperty ? 'agency' : 'firm'} and managing {isProperty ? 'properties' : 'cases'}.</p>
                     </button>
 
                     <button
@@ -258,8 +258,8 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Tools available in the Studio</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Chronology Builder:</strong> Automatically extracts dates and events from all uploaded documents to {isProperty ? 'create a property timeline' : 'create a case timeline'}.</li>
-                                        <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format).</li>
-                                        <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies.</li>
+                                        {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format).</li>}
+                                        {!isProperty && <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies.</li>}
                                         <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go.</li>
                                     </ul>
                                 </div>
@@ -295,21 +295,21 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Analysis Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
-                                        <li><strong>Metadata Extraction:</strong> Parties, dates, governing law, jurisdiction</li>
-                                        <li><strong>Opposing Counsel Detection:</strong> Automatically extracts contact information for quick saving</li>
+                                        <li><strong>Metadata Extraction:</strong> {isProperty ? 'Parties, dates, and key terms' : 'Parties, dates, governing law, jurisdiction'}</li>
+                                        <li><strong>{isProperty ? 'Stakeholder Detection' : 'Opposing Counsel Detection'}:</strong> Automatically extracts {isProperty ? 'stakeholder' : 'opposing counsel'} contact information for quick saving</li>
                                         <li><strong>Data Protection:</strong> Identifies PII and assesses NDPA compliance</li>
-                                        <li><strong>RPC Guardian:</strong> Ethical compliance check against Nigerian legal rules</li>
+                                        {!isProperty && <li><strong>RPC Guardian:</strong> Ethical compliance check against Nigerian legal rules</li>}
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Save Opposing Counsel</h4>
-                                    <p>When ALDIA detects opposing counsel contact information in a document, you'll see a <strong>"Save to Contacts"</strong> button. Click it to automatically create a contact with the extracted details.</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Save {isProperty ? 'Stakeholder' : 'Opposing Counsel'}</h4>
+                                    <p>When ALDIA detects {isProperty ? 'stakeholder' : 'opposing counsel'} contact information in a document, you'll see a <strong>"Save to Contacts"</strong> button. Click it to automatically create a contact with the extracted details.</p>
                                 </div>
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem
+                        {!isProperty && <AccordionItem
                             id="litigation-tracking"
                             title="Litigation Tracking"
                             isOpen={activeSection === 'litigation-tracking'}
@@ -349,7 +349,7 @@ const HelpView: React.FC = () => {
                                     </ol>
                                 </div>
                             </div>
-                        </AccordionItem>
+                        </AccordionItem>}
 
                         <AccordionItem
                             id="property-management"
@@ -472,7 +472,7 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is DraftPro?</h4>
-                                    <p>DraftPro is PracticePro's built-in legal document editor with AI-powered drafting assistance. Create professional legal documents without leaving the app — then save to a matter, print, or copy to your preferred word processor.</p>
+                                    <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a matter, print, or copy to your preferred word processor.</p>
                                 </div>
 
                                 <div>
@@ -481,7 +481,7 @@ const HelpView: React.FC = () => {
                                         <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers</li>
                                         <li><strong>AI Drafting:</strong> Use ARIA to generate document sections</li>
                                         <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
-                                        <li><strong>Template System:</strong> Start from pre-built legal templates</li>
+                                        <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'}</li>
                                         <li><strong>Auto-Save:</strong> Your work is saved automatically</li>
                                         <li><strong>Export Options:</strong> Save to matters, print, or copy to Word or Google Docs with formatting preserved</li>
                                     </ul>
@@ -504,7 +504,7 @@ const HelpView: React.FC = () => {
                                 </div>
                             </div>
                         </AccordionItem>
-                        <AccordionItem
+                        {!isProperty && <AccordionItem
                             id="enterprise-jurisdiction"
                             title={
                                 <div className="flex items-center gap-2">
@@ -534,7 +534,7 @@ const HelpView: React.FC = () => {
                                     <p className="text-sm">During intake, ARIA will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
                                 </div>
                             </div>
-                        </AccordionItem>
+                        </AccordionItem>}
                     </Accordion>
                 </div>
             </div>

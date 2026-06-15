@@ -346,7 +346,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
             <div className="flex flex-col h-full animate-fade-in space-y-6">
                 <div className="text-center mb-2">
                     <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Choose Your Solution</h2>
-                    <p className="text-sm text-slate-500 mt-2">Which Procedural solution fits your firm?</p>
+                    <p className="text-sm text-slate-500 mt-2">Which Procedural solution fits your practice?</p>
                 </div>
 
                 <div className="space-y-4">

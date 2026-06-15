@@ -85,16 +85,24 @@ function buildAtriumFeatures(t: Pick<TierDef, 'maxUsers' | 'maxUnits' | 'maxMana
   return [...base, ...(t.extras || [])];
 }
 
-function buildVegaFeatures(t: Pick<TierDef, 'maxUsers' | 'maxActiveMatters' | 'maxCaseFileStorageGb'> & { extras: string[] }): string[] {
+function buildVegaFeatures(t: Pick<TierDef, 'maxUsers' | 'maxActiveMatters' | 'maxCaseFileStorageGb'> & { extras: string[]; isProperty?: boolean }): string[] {
+  const { isProperty = false } = t;
   const matters =
     t.maxActiveMatters == null
       ? 'Unlimited active matters'
       : `${t.maxActiveMatters} active matters`;
-  const storage = `${t.maxCaseFileStorageGb} GB digital case file storage`;
+  const storage = `${t.maxCaseFileStorageGb} GB digital ${isProperty ? 'property' : 'case'} file storage`;
+  const extras = t.extras.map(e =>
+    isProperty
+      ? e
+          .replace('Advanced legal billing & analytics', 'Advanced revenue billing & analytics')
+          .replace('Legal billing', 'Revenue billing')
+      : e
+  );
   return [
     matters,
     storage,
-    ...t.extras,
+    ...extras,
   ];
 }
 

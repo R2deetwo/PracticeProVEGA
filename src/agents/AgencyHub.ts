@@ -1,6 +1,6 @@
 import { AppState, User, HistoryEntry, TaskStatus, AriaChatContext } from '../types';
 import { ALOA_PRECISION_PROTOCOL, getAloaProtocol } from '../constants/aloaPrompts';
-import { identityLock } from '../config/identityGuardrails';
+import { getIdentityGuardrail } from '../constants/identityGuardrails';
 import { getAtriumSystemInstruction } from './PropertyManagementAgent';
 
 export const getSystemInstruction = (
@@ -166,7 +166,7 @@ export const getSystemInstruction = (
     // IDENTITY GUARDRAIL — injected FIRST, before ANY context or RAG data.
     // This is the primary defense against Gemini defaulting to generic LLM identity.
     // ─────────────────────────────────────────────────────────────────────
-    const identityLockStr = identityLock(isAtriumMode ? 'ARIA' : 'ALOA');
+    const identityLockStr = getIdentityGuardrail(isAtriumMode);
 
     // ─────────────────────────────────────────────────────────────────────
     // DEEP CONTEXT INJECTION — entity-level context from the calling screen
@@ -252,7 +252,7 @@ Proactively mention these if they relate to the user's current query or context.
 
     // Return the specialized agent prompt
     if (isAtriumMode) {
-        return universalContext + getAtriumSystemInstruction(appState, currentUser, currentHistoryEntry, currentTime) + INTERACTIVE_FORM_DELEGATION_PROTOCOL;
+        return universalContext + getAtriumSystemInstruction(appState, currentUser, currentHistoryEntry, currentTime) + getInteractiveFormDelegationProtocol(true);
     }
 
     // Default to Legal Assistant
@@ -296,7 +296,7 @@ Proactively mention these if they relate to the user's current query or context.
     1. **Direct Over Modal**: If the user says "Change status to X", use \`execute_quick_action\`. If they say "I want to create a new matter", use \`create_matter\`.
     2. **Precision Drafting**: Always follow the Precision Protocol before calling \`start_drafting\`.
     3. **Intelligence Sharing**: If asked about firm data, always use \`query_firm_data\` to ensure accuracy.
-    ` + INTERACTIVE_FORM_DELEGATION_PROTOCOL;
+    ` + getInteractiveFormDelegationProtocol(false);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ Proactively mention these if they relate to the user's current query or context.
 // Appended to BOTH ARIA system prompts.
 // Teaches the model to emit structured JSON forms instead of sequential questions.
 // ─────────────────────────────────────────────────────────────────────────────
-const INTERACTIVE_FORM_DELEGATION_PROTOCOL = `
+const getInteractiveFormDelegationProtocol = (isAtriumMode: boolean) => `
 
 ## CONTEXT-AWARE FORM DELEGATION (ANTI-INTERROGATION PROTOCOL)
 
@@ -337,7 +337,7 @@ Instead, emit a SINGLE JSON block using the INTERACTIVE_FORM schema:
 **FORM FIELD TYPE RULES:**
 - Use \`chips\` for single-choice from a short list (≤6 options) — e.g., rent frequency, property type.
 - Use \`checkbox_group\` for multi-select — e.g., amenities, services included.
-- Use \`slider\` for numeric percentages or ratings — e.g., legal fee %, agency fee %.
+- Use \`slider\` for numeric percentages or ratings — e.g., ${isAtriumMode ? 'agency fee %, commission %' : 'legal fee %, agency fee %'}.
 - Use \`date\` for any date field — e.g., lease start, lease end.
 - Use \`number\` for monetary or numeric values — e.g., rent amount, caution deposit.
 - Use \`select\` for dropdowns when options exceed 6 items.

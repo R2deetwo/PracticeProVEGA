@@ -4,6 +4,7 @@ import { AloaArtifact, AloaConfirmationData, ModalType } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { PlusIcon, EditIcon } from '../../constants';
 import { Button } from '../toolkit/Button';
+import { useProduct } from '../../contexts/ProductContext';
 
 const FormArtifact: React.FC<{ artifact: AloaArtifact }> = ({ artifact }) => {
     const { openModal, activeFormSnapshot } = useUI();
@@ -44,6 +45,7 @@ const FormArtifact: React.FC<{ artifact: AloaArtifact }> = ({ artifact }) => {
 // ... rest of file (DraftArtifact, ConfirmationArtifact, ArtifactRenderer) remains same
 const DraftArtifact: React.FC<{ data: { title: string; content: string } }> = ({ data }) => {
     const { openModal } = useUI();
+    const { terminology } = useProduct();
     const handleSave = () => {
         openModal('newDocument', null, { openedByAloa: true, draftTitle: data.title, draftContent: data.content });
     };
@@ -55,7 +57,7 @@ const DraftArtifact: React.FC<{ data: { title: string; content: string } }> = ({
                 <p className="whitespace-pre-wrap">{data.content}</p>
             </div>
             <button onClick={handleSave} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700">
-                <PlusIcon className="w-4 h-4" /> Save to Matter
+                <PlusIcon className="w-4 h-4" /> Save to {terminology.matter}
             </button>
         </div>
     );

@@ -4,6 +4,7 @@ import { GavelIconLarge, PlusIcon, TrashIcon, ChevronDownIcon, SaveIcon, XIcon, 
 import { ChevronUp as ChevronUpIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WorkflowFormProps {
@@ -32,6 +33,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
     context
 }) => {
     const { coreState, isDataLoaded } = useCoreState();
+    const { isProperty } = useProduct();
     const [type, setType] = useState('');
     const [subCategoryName, setSubCategoryName] = useState('');
     const [stages, setStages] = useState<string[]>(['']);
@@ -78,7 +80,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!type.trim()) {
-            alert("Please provide a workflow type (Practice Area).");
+            alert(`Please provide a workflow type (${isProperty ? 'Category' : 'Practice Area'}).`);
             return;
         }
         const finalStages = stages.filter(s => s.trim() !== '');
@@ -164,19 +166,19 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                         </div>
                         <div>
                             <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Practice Area</h3>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice Area'}</h3>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                         <div className="space-y-2 group">
-                            <label className={labelClass}>Practice Area</label>
+                            <label className={labelClass}>{isProperty ? 'Category' : 'Practice Area'}</label>
                             <input autoComplete="off" data-lpignore="true" 
                                 type="text"
                                 value={type}
                                 onChange={e => setType(e.target.value)}
                                 className={commonInputClass}
-                                placeholder="e.g. Civil Litigation"
+                                placeholder={isProperty ? 'e.g. Property Management' : 'e.g. Civil Litigation'}
                                 required
                                 readOnly={!!workflowToEdit}
                             />
@@ -189,7 +191,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                                     value={subCategoryName}
                                     onChange={e => setSubCategoryName(e.target.value)}
                                     className={commonInputClass}
-                                    placeholder="e.g. Divorce Petition"
+                                    placeholder={isProperty ? 'e.g. Lease Renewal' : 'e.g. Divorce Petition'}
                                     required
                                     autoFocus
                                 />

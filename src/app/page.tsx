@@ -163,7 +163,7 @@ function Hero() {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200/60 rounded-full mb-8">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span className="text-xs font-semibold text-emerald-700 tracking-wide uppercase">
-              Built for Nigerian Legal Practice
+              Built for Nigerian Legal & Property Practice
             </span>
           </div>
 
@@ -179,9 +179,9 @@ function Hero() {
 
           {/* Sub-headline */}
           <p className="text-lg sm:text-xl text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            PracticePro brings you <strong className="text-slate-700">VEGA</strong> — AI-powered legal
+            PracticePro brings you <strong className="text-slate-700">VEGA</strong> — AI-powered
             document drafting — and <strong className="text-slate-700">Atrium</strong> — seamless
-            property management. Designed for Nigerian legal practitioners, compliant with NDPA 2023.
+            property management. Designed for Nigerian legal practitioners and property managers, compliant with NDPA 2023.
           </p>
 
           {/* CTA */}
@@ -207,7 +207,7 @@ function Hero() {
           <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 text-center">
             {[
               { value: '₦ Naira', label: 'Native Billing' },
-              { value: 'Court-Ready', label: 'Document Formatting' },
+              { value: 'Print-Ready', label: 'Document Formatting' },
               { value: '99.9%', label: 'Platform Uptime' },
               { value: 'NDPA 2023', label: 'Data Compliant' },
             ].map((s) => (
@@ -328,7 +328,7 @@ function Hero() {
 function TrustBar() {
   const badges = [
     { icon: Shield, label: 'NDPA 2023 Compliant' },
-    { icon: Scale, label: 'NBA Rules Aligned' },
+    { icon: Scale, label: 'Regulatory Standards Aligned' },
     { icon: Globe, label: 'African Data Centers' },
     { icon: Zap, label: '99.9% Uptime SLA' },
   ]
@@ -358,16 +358,16 @@ function FeaturesOverview() {
   const features = [
     {
       icon: Bot,
-      title: 'ARIA AI Assistant',
+      title: 'AI Assistant',
       description:
-        'Ask ARIA to draft, review, or format any Nigerian legal document. From originating processes to conveyances, ARIA understands Nigerian legal practice.',
+        'Ask ARIA to draft, review, or format any Nigerian legal or property document. From originating processes to conveyances, ARIA understands Nigerian practice.'
       color: 'emerald',
     },
     {
       icon: FileText,
       title: 'True Document Pagination',
       description:
-        'Court-ready documents with real page breaks, proper formatting, and NDPA-compliant metadata. Print or export exactly as it appears on screen.',
+        'Professional documents with real page breaks, proper formatting, and NDPA-compliant metadata. Print or export exactly as it appears on screen.',
       color: 'teal',
     },
     {
@@ -388,7 +388,7 @@ function FeaturesOverview() {
       icon: Users,
       title: 'Matter Management',
       description:
-        'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in one unified workspace.',
+        'Organize cases by jurisdiction, court, and matter type. Link documents, parties, and deadlines in one unified workspace.',
       color: 'teal',
     },
     {
@@ -430,8 +430,8 @@ function FeaturesOverview() {
             One platform. <span className="gradient-text">Two powerful products.</span>
           </h2>
           <p className="text-lg text-slate-500 leading-relaxed">
-            PracticePro combines legal document drafting and property management in a single,
-            seamless platform purpose-built for Nigerian legal practitioners.
+            PracticePro combines document drafting and property management in a single,
+            seamless platform purpose-built for Nigerian professionals.
           </p>
         </div>
 
@@ -469,27 +469,27 @@ function VegaSection() {
     {
       icon: FileText,
       title: 'DraftPro Editor',
-      desc: 'Rich-text editor with true A4 pagination, Nigerian legal fonts, and court-compliant formatting. What you see is what prints.',
+      desc: 'Rich-text editor with true A4 pagination, Nigerian professional fonts, and compliant formatting. What you see is what prints.',
     },
     {
       icon: Bot,
-      title: 'ARIA AI Copilot',
-      desc: 'AI-powered drafting assistant that understands Nigerian legal terminology, court rules, and document structures. Just ask.',
+      title: 'AI Copilot',
+      desc: 'AI-powered drafting assistant that understands Nigerian professional terminology, regulatory compliance, and document structures. Just ask.',
     },
     {
       icon: LayoutGrid,
       title: 'Auto-Format Rules',
-      desc: 'One-click formatting for originating processes, affidavits, written addresses, and conveyances. Nigerian legal standards, automated.',
+      desc: 'One-click formatting for originating processes, affidavits, written addresses, and conveyances. Nigerian professional standards, automated.',
     },
     {
       icon: Users,
       title: 'Party Grouping',
-      desc: 'Structured claimant and respondent listings with bracketed numbering. Format parties exactly as the court requires.',
+      desc: 'Structured claimant and respondent listings with bracketed numbering. Format parties exactly as courts and regulators require.',
     },
     {
       icon: Sparkles,
       title: 'Smart Placeholders',
-      desc: 'Fill-in-the-blank fields for variable content — court names, party details, dates. Complete documents in minutes, not hours.',
+      desc: 'Fill-in-the-blank fields for variable content — court and registry names, party details, dates. Complete documents in minutes, not hours.',
     },
     {
       icon: Lock,
@@ -512,12 +512,12 @@ function VegaSection() {
               <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">VEGA</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight mb-5">
-              Legal Drafting,{' '}
+              Document Drafting,{' '}
               <span className="gradient-text">Reimagined</span>
             </h2>
             <p className="text-lg text-slate-500 leading-relaxed mb-10">
-              VEGA is your AI-powered legal drafting workspace. From originating processes to complex
-              conveyances, draft court-ready documents that meet Nigerian legal formatting standards
+              VEGA is your AI-powered drafting workspace. From originating processes to complex
+              conveyances, draft professional documents that meet Nigerian formatting standards
               — with an AI assistant that actually understands your practice.
             </p>
 
@@ -802,7 +802,7 @@ function PricingSection() {
         '1 User Account',
         '10 Active Matters',
         '1 GB Digital Case File Storage',
-        'Legal billing & ledger record-keeping',
+        'Billing & ledger record-keeping',
         'Client Portal — Not Included',
       ],
       cta: 'Get Started',
@@ -814,13 +814,13 @@ function PricingSection() {
       name: 'Growth',
       price: '₦45,000',
       period: '/month',
-      description: 'For growing law firms',
+      description: 'For growing practices',
       features: [
         'Up to 5 Users',
         'Unlimited Active Matters',
         '20 GB Digital Case File Storage',
         'Client Portal — milestones, document vault, KYC uploads',
-        'ARIA AI Copilot (Standard)',
+        'AI Copilot (Standard)',
       ],
       cta: 'Start Growth Trial',
       popular: false,
@@ -837,7 +837,7 @@ function PricingSection() {
         'Unlimited Active Matters',
         '100 GB Digital Case File Storage',
         'Uncapped Client Portal — milestones, document vault, KYC',
-        'ARIA AI Copilot (Uncapped Priority)',
+        'AI Copilot (Uncapped Priority)',
       ],
       cta: 'Start Pro Trial',
       popular: true,
@@ -852,7 +852,7 @@ function PricingSection() {
       features: [
         'Unlimited Users',
         'Unlimited Matters & Storage',
-        'Custom Court Document Archives',
+        'Custom Document Archives',
         'Uncapped Client Portal (all features)',
         'Dedicated Onboarding & SLA',
       ],
@@ -973,7 +973,7 @@ function TestimonialsSection() {
   const testimonials = [
     {
       quote:
-        'VEGA has completely transformed how we draft court documents. The auto-formatting alone saves us hours on every originating process. ARIA is like having a junior counsel who never sleeps.',
+        'VEGA has completely transformed how we draft professional documents. The auto-formatting alone saves us hours on every originating process. The AI Copilot is like having a junior associate who never sleeps.',
       name: 'Barr. Adaeze Okonkwo',
       title: 'Managing Partner, Okonkwo & Associates',
       location: 'Lagos',
@@ -989,9 +989,9 @@ function TestimonialsSection() {
     },
     {
       quote:
-        'The NDPA compliance features give me peace of mind. As a data protection officer, I need to know our firm\'s client data is handled properly. PracticePro does this by default.',
+        'The NDPA compliance features give me peace of mind. As a data protection officer, I need to know our practice\'s client data is handled properly. PracticePro does this by default.',
       name: 'Mrs. Funke Adeyemi',
-      title: 'DPO, Adeyemi Legal Consultants',
+      title: 'DPO, Adeyemi Consultants',
       location: 'Port Harcourt',
       avatar: 'FA',
     },
@@ -1066,11 +1066,11 @@ function ComplianceSection() {
             </div>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-5">
               Built for Nigeria's{' '}
-              <span className="gradient-text">legal & data standards</span>
+              <span className="gradient-text">regulatory & data standards</span>
             </h2>
             <p className="text-lg text-slate-500 leading-relaxed mb-8">
               PracticePro isn't just adapted for Nigeria — it's built from the ground up
-              to comply with Nigerian regulatory frameworks. From the NDPA 2023 to NBA
+              to comply with Nigerian regulatory frameworks. From the NDPA 2023 to industry
               professional standards, every feature is designed with compliance in mind.
             </p>
 
@@ -1084,7 +1084,7 @@ function ComplianceSection() {
                 {
                   icon: Lock,
                   title: '7-Year Data Retention',
-                  desc: 'Automatic retention policies for client matters, financial records, and legal documents. Configurable per practice area.',
+                  desc: 'Automatic retention policies for client matters, financial records, and professional documents. Configurable per practice area.',
                 },
                 {
                   icon: Globe,
@@ -1093,8 +1093,8 @@ function ComplianceSection() {
                 },
                 {
                   icon: Scale,
-                  title: 'NBA Professional Standards',
-                  desc: 'Client account rules, conflict checking, and matter management that align with Nigerian Bar Association requirements.',
+                  title: 'Regulatory Standards',
+                  desc: 'Client account rules, conflict checking, and matter management that align with Nigerian regulatory and professional body requirements.',
                 },
               ].map((item) => (
                 <div key={item.title} className="flex gap-4">
@@ -1167,15 +1167,15 @@ function FAQSection() {
   const faqs = [
     {
       q: 'Is PracticePro only for Nigerian legal practitioners?',
-      a: 'PracticePro is purpose-built for the Nigerian legal market. Our templates, formatting rules, and compliance features are designed specifically for Nigerian courts, NBA standards, and NDPA 2023 requirements. However, the document editor and property management tools can be used by practitioners in other jurisdictions as well.',
+      a: 'PracticePro is purpose-built for the Nigerian market. Our templates, formatting rules, and compliance features are designed specifically for Nigerian courts, regulatory standards, and NDPA 2023 requirements. However, the document editor and property management tools can be used by practitioners in other jurisdictions as well.',
     },
     {
       q: 'Do I need to pay separately for VEGA and Atrium?',
-      a: 'No. Every PracticePro plan includes both VEGA (legal drafting) and Atrium (property management). You get the complete platform — there are no hidden add-on costs for individual products.',
+      a: 'No. Every PracticePro plan includes both VEGA (document drafting) and Atrium (property management). You get the complete platform — there are no hidden add-on costs for individual products.',
     },
     {
       q: 'How does ARIA, the AI assistant, work?',
-      a: 'ARIA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian legal formatting, review content for completeness, or suggest improvements. ARIA understands Nigerian legal terminology, court structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
+      a: 'ARIA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian professional formatting, review content for completeness, or suggest improvements. ARIA understands Nigerian professional terminology, regulatory structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
     },
     {
       q: 'Is my client data safe and NDPA-compliant?',
@@ -1183,7 +1183,7 @@ function FAQSection() {
     },
     {
       q: 'Can I import my existing documents and templates?',
-      a: 'Yes. PracticePro supports importing .docx files directly into the VEGA editor. Your formatting, styles, and content are preserved. You can also save frequently used documents as templates for your firm.',
+      a: 'Yes. PracticePro supports importing .docx files directly into the VEGA editor. Your formatting, styles, and content are preserved. You can also save frequently used documents as templates for your practice.',
     },
     {
       q: 'What happens after the 14-day Pro trial?',
@@ -1247,7 +1247,7 @@ function CTASection() {
           Ready to transform your practice?
         </h2>
         <p className="text-lg text-emerald-100 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Join over 2,400 Nigerian legal practitioners who draft faster, manage smarter,
+          Join over 2,400 Nigerian professionals who draft faster, manage smarter,
           and stay compliant with PracticePro. Start free today.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -1292,7 +1292,7 @@ function Footer() {
     {
       title: 'Portals',
       links: [
-        { label: 'Client Portal (VEGA)', href: '/portal/client/login' },
+        { label: 'Client Portal', href: '/portal/client/login' },
         { label: 'Tenant Portal (Atrium)', href: '/portal/tenant/login' },
       ],
     },
@@ -1343,7 +1343,7 @@ function Footer() {
               </span>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed mb-4">
-              Legal practice & property management, purpose-built for Nigeria.
+              Legal & property practice management, purpose-built for Nigeria.
             </p>
             <div className="flex gap-3">
               <a href="#" className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors" aria-label="Twitter">
@@ -1396,7 +1396,7 @@ function Footer() {
             <span>·</span>
             <span className="flex items-center gap-1">
               <Scale className="w-3 h-3 text-emerald-500" />
-              NBA Rules Aligned
+              Regulatory Standards Aligned
             </span>
           </div>
         </div>

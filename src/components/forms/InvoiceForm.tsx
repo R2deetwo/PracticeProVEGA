@@ -7,6 +7,7 @@ import { formatNumberWithCommas, parseFormattedNumber, formatNaira } from '../..
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { calculateScaleIFees } from '../../utils/remunerationScale';
 import NairaSymbol from '../NairaSymbol';
 import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
@@ -24,6 +25,7 @@ interface InvoiceFormProps {
 export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bankAccounts, invoiceToEdit, onAddInvoice, onUpdateInvoice, onClose }) => {
   const { coreState, isDataLoaded } = useCoreState();
   const { financeState } = useFinanceState();
+  const { isProperty, terminology } = useProduct();
     const { openModal, navigateTo, addToast } = useUI();
 
   const vatRate = coreState.firmDetails.taxSettings?.vatRate || 0.075;
@@ -136,7 +138,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
   const addLineItem = () => setLineItems([...lineItems, { description: '', total: 0, hours: 0, rate: 0 }]);
   const removeLineItem = (index: number) => lineItems.length > 1 && setLineItems(lineItems.filter((_, i) => i !== index));
-  const addScaleFeeItem = (amount: number) => setLineItems([...lineItems, { description: 'Legal Fees (Scale)', total: amount, hours: 0, rate: 0 }]);
+  const addScaleFeeItem = (amount: number) => setLineItems([...lineItems, { description: isProperty ? 'Service Fees (Scale)' : 'Legal Fees (Scale)', total: amount, hours: 0, rate: 0 }]);
 
   const subTotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const vatAmount = applyVat ? subTotal * vatRate : 0;
@@ -156,7 +158,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || !matterId) {
-      addToast("Please select a client and matter.", { type: 'info' });
+      addToast(`Please select a ${terminology.client.toLowerCase()} and ${terminology.matter.toLowerCase()}.`, { type: 'info' });
       return;
     }
 
@@ -191,7 +193,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
     }
 
     if (!matter || !client) {
-      addToast("Required matter or client information is missing.", { type: 'info' });
+      addToast(`Required ${terminology.matter.toLowerCase()} or ${terminology.client.toLowerCase()} information is missing.`, { type: 'info' });
       return;
     }
 
@@ -235,16 +237,16 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2 group">
-                      <label className={labelClass}>Client Asset</label>
+                      <label className={labelClass}>{terminology.client} Asset</label>
                       <select value={clientId} onChange={e => setClientId(e.target.value)} className={commonInputClass} required>
                           <option value="" disabled>Select Principal</option>
                           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                   </div>
                   <div className="space-y-2 group">
-                      <label className={labelClass}>Matter Association</label>
+                      <label className={labelClass}>{terminology.matter} Association</label>
                       <select value={matterId} onChange={e => setMatterId(e.target.value)} className={commonInputClass} required disabled={!clientId}>
-                          <option value="" disabled>Select Case Context</option>
+                          <option value="" disabled>{isProperty ? 'Select Property Context' : 'Select Case Context'}</option>
                           {matters.filter(m => m.clientId === clientId).map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                       </select>
                   </div>

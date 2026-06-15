@@ -11,6 +11,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useIsProperty } from '../../contexts/ProductContext';
 import { ModalType, FileDetails } from '../../types';
 
 // Auth
@@ -206,7 +207,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
                 <div className="mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40">
                     <p className="text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
                         <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
-                        Formal <strong>Invoices</strong> (for professional/legal fees) are managed separately in Billing.
+                        Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
                     </p>
                 </div>
             </div>
@@ -255,6 +256,7 @@ const ModalManager: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const dataHandlers = useDataActions();
     const { currentUser, appMode } = useAuth();
+    const isProperty = useIsProperty();
 
     if (!modal) return null;
 
@@ -519,7 +521,7 @@ const ModalManager: React.FC = () => {
             if (folder) {
                 content = <FolderPermissionsModal
                     folder={folder}
-                    allRoles={['Lawyer', 'Paralegal', 'Admin'] as any}
+                    allRoles={(isProperty ? ['Manager', 'Associate', 'Admin'] : ['Lawyer', 'Paralegal', 'Admin']) as any}
                     currentPermissions={coreState.folderPermissions?.[folder.id] || []}
                     onUpdatePermissions={(fid, roles) => {
                         const updatedPermissions = { ...(coreState.folderPermissions || {}), [fid]: roles };

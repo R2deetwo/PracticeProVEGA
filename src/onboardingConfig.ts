@@ -78,8 +78,8 @@ const atriumTourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="nav-properties"]',
-    title: 'Property Portfolio',
-    content: 'Manage all your properties and units here. Add buildings, track occupancy, and monitor each property\'s financial performance.',
+    title: 'Property Management',
+    content: 'Your central hub for managing all properties and units. Track occupancy, monitor lease timelines, and oversee each property\'s financial performance in one unified view.',
     placement: 'right',
     navigateTo: 'properties',
   },
@@ -160,8 +160,8 @@ const kompleteTourSteps: TourStep[] = [
 
 // ─── EXPORTS ──────────────────────────────────────────────────────────────
 
-// Legacy default — used if no product is specified
-export const tourSteps = vegaTourSteps;
+// REMOVED: Legacy `export const tourSteps = vegaTourSteps` — always returned Vega (legal) steps,
+// which could leak legal terminology to Atrium (property) users. Use getTourStepsForProduct() instead.
 
 /** Get the correct tour steps for the user's product */
 export function getTourStepsForProduct(product?: string | null): TourStep[] {

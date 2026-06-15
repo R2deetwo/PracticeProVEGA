@@ -13,6 +13,7 @@ import {
     ChevronRightIcon
 } from '../../constants';
 import { ProcessActionCenter } from './ProcessActionCenter';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface MatterProcessTrackingProps {
     matter: Matter;
@@ -26,6 +27,7 @@ interface MatterProcessTrackingProps {
 }
 
 const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, onUpdate, hideSuggestions = false, documents = [], onViewDocumentDetails, tasks = [], onUpdateTaskStatus, openModal }) => {
+    const { isProperty, terminology } = useProduct();
     // Enterprise detection: has any specialtyData subkey populated
     const isEnterpriseMatter = !!(matter.specialtyData && (
         matter.specialtyData.maritime || matter.specialtyData.oilGas ||
@@ -46,16 +48,16 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
         {
             id: 'sugg-1',
             type: 'deadline',
-            title: 'Response overdue: Motion to Dismiss',
-            description: 'The response period for the Motion to Dismiss filed on Oct 10 has expired.',
+            title: isProperty ? 'Response overdue: Tenant Notice' : 'Response overdue: Motion to Dismiss',
+            description: isProperty ? 'The response period for the Tenant Notice issued on Oct 10 has expired.' : 'The response period for the Motion to Dismiss filed on Oct 10 has expired.',
             dueDate: '2023-10-24',
             dismissed: false
         },
         {
             id: 'sugg-2',
             type: 'event',
-            title: 'Schedule Case Management Conference',
-            description: 'Pleadings have closed. Consider scheduling a CMC.',
+            title: isProperty ? 'Schedule Property Inspection' : 'Schedule Case Management Conference',
+            description: isProperty ? 'Lease renewal is approaching. Consider scheduling a property inspection.' : 'Pleadings have closed. Consider scheduling a CMC.',
             dismissed: false
         }
     ] as ProcessSuggestion[]).filter((s: ProcessSuggestion) => !s.dismissed);
@@ -147,7 +149,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
             {isEnterpriseMatter && (
                 <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-700" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Filed Processes</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">{isProperty ? 'Tracked Processes' : 'Filed Processes'}</span>
                     <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-700" />
                 </div>
             )}
@@ -211,7 +213,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
             {/* Processes List */}
             <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
                 <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-zinc-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">Filed Processes & Responses</h3>
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{isProperty ? 'Tracked Processes & Responses' : 'Filed Processes & Responses'}</h3>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="flex gap-2 text-xs font-medium text-slate-500">
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500"></span> Responded</span>
@@ -223,7 +225,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs rounded-lg font-bold shadow-sm transition-all"
                         >
                             <PlusIcon className="w-4 h-4" />
-                            Record New Filing
+                            {isProperty ? 'Record New Process' : 'Record New Filing'}
                         </button>
                     </div>
                 </div>
@@ -234,12 +236,12 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                             <DocumentTextIcon className="w-8 h-8 text-slate-400" />
                         </div>
                         <h4 className="text-slate-900 dark:text-white font-bold mb-2">No processes tracked yet</h4>
-                        <p className="text-slate-500 dark:text-zinc-400 text-sm mb-6">Start tracking your court filings and expected responses.</p>
+                        <p className="text-slate-500 dark:text-zinc-400 text-sm mb-6">{isProperty ? `Start tracking your ${terminology.matter.toLowerCase()} processes and expected responses.` : 'Start tracking your court filings and expected responses.'}</p>
                         <button
                             onClick={() => setShowAddModal(true)}
                             className="px-4 py-2 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
                         >
-                            Record First Filing
+                            {isProperty ? 'Record First Process' : 'Record First Filing'}
                         </button>
                     </div>
                 ) : (
@@ -354,13 +356,13 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                     type="text"
                                     value={newProcess.processName}
                                     onChange={e => setNewProcess({ ...newProcess, processName: e.target.value })}
-                                    placeholder="e.g. Motion to Dismiss, Statement of Defence"
+                                    placeholder={isProperty ? 'e.g. Lease Renewal, Tenant Notice' : 'e.g. Motion to Dismiss, Statement of Defence'}
                                     className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">Date Filed</label>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">{isProperty ? 'Date Initiated' : 'Date Filed'}</label>
                                 <input autoComplete="off" data-lpignore="true" 
                                     type="date"
                                     value={newProcess.filedDate}

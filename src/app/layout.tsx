@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PracticePro — Legal Practice & Property Management for Nigeria",
+  title: "PracticePro — Legal & Property Practice Management for Nigeria",
   description:
     "The all-in-one platform for Nigerian legal practitioners and property managers. Draft court documents with VEGA, manage properties with Atrium. Built for Nigeria, powered by AI.",
   keywords: [
@@ -22,30 +22,30 @@ export const metadata: Metadata = {
     "VEGA",
     "Atrium",
     "Nigeria legal software",
-    "legal practice management",
+    "legal & property practice management",
     "property management Nigeria",
     "legal document drafting",
-    "NBA compliant",
+    "Nigerian regulatory compliance",
     "NDPA 2023",
-    "AI legal assistant",
+    "AI practice assistant",
   ],
   authors: [{ name: "PracticePro" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "PracticePro — Legal Practice & Property Management for Nigeria",
+    title: "PracticePro — Legal & Property Practice Management for Nigeria",
     description:
-      "Draft court documents with AI. Manage properties effortlessly. Built for Nigerian legal practitioners.",
+      "Draft court documents with AI. Manage properties effortlessly. Built for Nigerian legal practitioners and property managers.",
     url: "https://practicepro.ng",
     siteName: "PracticePro",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PracticePro — Legal Practice & Property Management for Nigeria",
+    title: "PracticePro — Legal & Property Practice Management for Nigeria",
     description:
-      "Draft court documents with AI. Manage properties effortlessly. Built for Nigerian legal practitioners.",
+      "Draft court documents with AI. Manage properties effortlessly. Built for Nigerian legal practitioners and property managers.",
   },
 };
 

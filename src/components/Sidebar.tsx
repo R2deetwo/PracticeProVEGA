@@ -213,7 +213,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     }, []);
 
     // Logo / Initials Logic
-    const firmName = coreState.firmDetails.name || 'My Firm';
+    const firmName = coreState.firmDetails.name || (isProperty ? 'My Agency' : 'My Firm');
     const firmInitials = firmName.substring(0, 2).toUpperCase();
     const logoUrl = coreState.firmDetails.logoUrl;
 

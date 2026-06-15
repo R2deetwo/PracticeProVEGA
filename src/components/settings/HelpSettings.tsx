@@ -53,9 +53,9 @@ export const HelpSettings: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">How the App Works – End-to-End Flow</h4>
                                     <ol className="list-decimal pl-5 space-y-2">
-                                        <li><strong>{isProperty ? 'Portfolio' : 'Firm'} Setup:</strong> An <strong>Admin</strong> navigates to <code>Settings</code> and adds {isProperty ? 'portfolio' : 'firm'} details (name, address, logo) for letterheads and invoices. Users ({isProperty ? 'Managers, Staff' : 'Lawyers, Paralegals'}) are invited and assigned roles. {isProperty ? 'Operation' : 'Practice area'} workflows are configured for different {isProperty ? 'property' : 'matter'} types (e.g., {isProperty ? 'Residential Lease, Commercial Sale' : 'Civil Litigation, Company Incorporation'}).</li>
+                                        <li><strong>{isProperty ? 'Portfolio' : 'Firm'} Setup:</strong> An <strong>Admin</strong> navigates to <code>Settings</code> and adds {isProperty ? 'portfolio' : 'firm'} details (name, address, logo) for letterheads and invoices. Users ({isProperty ? 'Managers, Associates' : 'Lawyers, Paralegals'}) are invited and assigned roles. {isProperty ? 'Operation' : 'Practice area'} workflows are configured for different {isProperty ? 'property' : 'matter'} types (e.g., {isProperty ? 'Residential Lease, Commercial Sale' : 'Civil Litigation, Company Incorporation'}).</li>
                                         <li><strong>{isProperty ? 'Property' : 'Matter'} Creation & Intake:</strong> A new {isProperty ? 'property record' : 'case/matter'} is dynamically opened via the {isProperty ? 'Intake Wizard' : 'Enterprise Matter Intake Wizard'}{!isProperty && ', providing real-time AI validation for Nigerian Court rules, catching party conflicts or informal joinders automatically'}.</li>
-                                        <li><strong>Task Assignment:</strong> Tasks (e.g., {isProperty ? '“Conduct Inspection”' : '“Draft Statement of Claim”'}) are created and assigned to the relevant team members. Depending on your {isProperty ? 'portfolio\'s' : 'firm\'s'} structure, an <strong>Admin</strong> might assign work to a <strong>{isProperty ? 'Manager' : 'Lawyer'}</strong>, who can then delegate sub-tasks to a <strong>{isProperty ? 'Staff' : 'Paralegal'}</strong>.</li>
+                                        <li><strong>Task Assignment:</strong> Tasks (e.g., {isProperty ? '“Conduct Inspection”' : '“Draft Statement of Claim”'}) are created and assigned to the relevant team members. Depending on your {isProperty ? 'portfolio\'s' : 'firm\'s'} structure, an <strong>Admin</strong> might assign work to a <strong>{isProperty ? 'Manager' : 'Lawyer'}</strong>, who can then delegate sub-tasks to a <strong>{isProperty ? 'Associate' : 'Paralegal'}</strong>.</li>
                                         <li><strong>Document Management:</strong> All {isProperty ? 'related' : 'case'} documents are uploaded and organized by {isProperty ? 'property' : 'matter'}. Version control ensures the latest draft is always available.</li>
                                         <li><strong>Scheduling & Calendar:</strong> {isProperty ? 'Inspections, rent reviews, and meetings' : 'Hearings, filing deadlines, and client meetings'} are added to the shared calendar. Reminders help avoid missed {isProperty ? 'deadlines' : 'court dates'}.</li>
                                         <li><strong>{isProperty ? 'Financials' : 'Billing'} & Payments:</strong> {isProperty ? 'Rent collections' : 'Time entries'} and expenses are recorded. {isProperty ? 'Receipts' : 'Invoices'} are generated and sent to {isProperty ? 'tenants' : 'clients'}. Payment status is tracked.</li>
@@ -89,19 +89,19 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Financial Reports</h4>
-                                    <p>Track your team's revenue with the Client Billing Summary. Filter by date ranges to see total amounts billed, collected, and outstanding. This tab also includes a <strong>Tax Intelligence</strong> section to provide estimated VAT liability based on your professional fees. <br /><em>Note: This is for guidance only and is not a substitute for professional tax advice.</em></p>
+                                    <p>Track your team's revenue with the {isProperty ? 'Tenant' : 'Client'} Billing Summary. Filter by date ranges to see total amounts billed, collected, and outstanding. This tab also includes a <strong>Tax Intelligence</strong> section to provide estimated VAT liability based on your {isProperty ? 'service charges' : 'professional fees'}. <br /><em>Note: This is for guidance only and is not a substitute for professional tax advice.</em></p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Business Intelligence</h4>
                                     <p>This powerful, consolidated tab gives you a multi-faceted view of your team's health. Use the toggles to switch between:</p>
                                     <ul className="list-disc pl-5 mt-2">
-                                        <li><strong>{isProperty ? 'Property Analytics' : 'Case Analytics'}:</strong> An operational dashboard to monitor the status of all matters and identify {isProperty ? 'stale records' : 'stale cases'} needing attention.</li>
+                                        <li><strong>{isProperty ? 'Property Analytics' : 'Case Analytics'}:</strong> An operational dashboard to monitor the status of all {isProperty ? 'properties' : 'matters'} and identify {isProperty ? 'stale records' : 'stale cases'} needing attention.</li>
                                         <li><strong>{isProperty ? 'Tenant Analytics' : 'Client Analytics'}:</strong> A complete overview of your {isProperty ? 'tenant' : 'client'} portfolio, helping you identify {isProperty ? 'top tenants' : 'top clients'} and manage receivables.</li>
                                     </ul>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Compliance Reports</h4>
-                                    <p>Stay on top of your professional obligations. This report provides a summary of your <strong>Trust Account</strong> balances, flagging any overdrawn accounts. It also {isProperty ? 'helps managers track compliance' : 'helps lawyers track their <strong>Professional Standards</strong>'}, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings → My Profile</code>).</p>
+                                    <p>Stay on top of your professional obligations. This report provides a summary of your {isProperty ? <strong>Operating Account</strong> : <strong>Trust Account</strong>} balances, flagging any overdrawn accounts. It also {isProperty ? 'helps managers track compliance, including the status of regulatory requirements and health & safety obligations across the portfolio' : 'helps lawyers track their <strong>Professional Standards</strong>, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings → My Profile</code>)'}.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -114,11 +114,11 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>
-                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your firm's documents. {isProperty ? 'When you ask about a property' : 'When you ask about a case'}, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
+                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your {isProperty ? "portfolio's" : "firm's"} documents. {isProperty ? 'When you ask about a property' : 'When you ask about a case'}, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Actionable Insights</h4>
-                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to <strong>View Tasks</strong>, <strong>Open Matters</strong>, or <strong>Draft Replies</strong> based on the current context of your conversation.</p>
+                                    <p>ARIA doesn't just talk; it acts. Responses often include smart buttons to <strong>View Tasks</strong>, <strong>{isProperty ? 'Open Properties' : 'Open Matters'}</strong>, or <strong>Draft Replies</strong> based on the current context of your conversation.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">On-Demand Briefings</h4>
@@ -135,7 +135,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Team Member Roles & Onboarding</h4>
-                                    <p>Admins can invite new users and assign roles ({isProperty ? 'Manager, Staff' : 'Lawyer, Paralegal'}, etc.). Each role has specific permissions. You can also monitor team performance via the Reporting module.</p>
+                                    <p>Admins can invite new users and assign roles ({isProperty ? 'Manager, Associate' : 'Lawyer, Paralegal'}, etc.). Each role has specific permissions. You can also monitor team performance via the Reporting module.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Configuring {isProperty ? 'Operational' : 'Practice Area'} Workflows</h4>
@@ -251,7 +251,7 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem title={isProperty ? "Staff Guide" : "Paralegal Guide"} defaultOpen={false}>
+                        <AccordionItem title={isProperty ? "Associate Guide" : "Paralegal Guide"} defaultOpen={false}>
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg">Task Management & Delegation</h4>

@@ -100,8 +100,8 @@ const analysisSchema: Schema = {
   required: ['summary', 'riskAnalysis', 'extractedMetadata', 'dataProtection']
 };
 
-const SYSTEM_PROMPT = `You are ALDIA (Advanced Legal Document Intelligence Agent), the Orchestrator for PracticePro Nigeria.
-Your role is to coordinate a multi-agent analysis of the provided legal document.
+const getSystemPrompt = (isProperty?: boolean) => `You are ALDIA (${isProperty ? 'Advanced Document Intelligence Agent' : 'Advanced Legal Document Intelligence Agent'}), the Orchestrator for PracticePro Nigeria.
+Your role is to coordinate a multi-agent analysis of the provided ${isProperty ? 'property' : 'legal'} document.
 
 You must emulate the output of three distinct sub-agents:
 
@@ -160,7 +160,8 @@ const getFilePart = async (file: FileDetails): Promise<any> => {
  * This runs client-side to ensure maximum speed and direct connectivity to Gemini.
  */
 export const analyzeDocument = async (
-  document: AnalyzableDocument
+  document: AnalyzableDocument,
+  isProperty?: boolean
 ): Promise<AldiaFullReport> => {
   try {
     const apiKey = getGeminiApiKey();
@@ -172,7 +173,7 @@ export const analyzeDocument = async (
     const model = AI_CONFIG.gemini.defaultModel;
 
     const parts: any[] = [];
-    parts.push({ text: SYSTEM_PROMPT });
+    parts.push({ text: getSystemPrompt(isProperty) });
 
     if (document.file && document.file.dataUrl) {
       try {

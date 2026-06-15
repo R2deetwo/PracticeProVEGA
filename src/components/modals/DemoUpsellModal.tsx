@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ShieldCheckIcon, LockClosedIcon, SparklesIcon } from '../../constants';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface DemoUpsellModalProps {
     context?: 'matter' | 'contact' | 'task' | 'invoice' | 'document' | 'ai' | 'generic';
@@ -9,18 +10,19 @@ interface DemoUpsellModalProps {
 }
 
 const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', onSignup, onClose }) => {
+    const { isProperty } = useProduct();
     const getContent = () => {
         switch (context) {
             case 'matter':
                 return {
-                    headline: "Your firm handles more than one matter at a time!",
-                    subline: "You've unlocked a preview by creating your first demo matter. To manage your entire portfolio, create an account.",
+                    headline: isProperty ? "Your agency handles more than one property at a time!" : "Your firm handles more than one matter at a time!",
+                    subline: isProperty ? "You've unlocked a preview by creating your first demo property. To manage your entire portfolio, create an account." : "You've unlocked a preview by creating your first demo matter. To manage your entire portfolio, create an account.",
                     icon: <SparklesIcon className="w-12 h-12 text-primary-500" />
                 };
             case 'contact':
                 return {
-                    headline: "Build your full client database.",
-                    subline: "One contact is just the start. Legal practice is built on relationships—store unlimited clients with an account.",
+                    headline: isProperty ? "Build your full tenant database." : "Build your full client database.",
+                    subline: isProperty ? "One contact is just the start. Property management is built on relationships—store unlimited tenants with an account." : "One contact is just the start. Legal practice is built on relationships—store unlimited clients with an account.",
                     icon: <ShieldCheckIcon className="w-12 h-12 text-primary-500" />
                 };
             case 'task':
@@ -38,13 +40,13 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
             case 'document':
                 return {
                     headline: "Secure, structured document management.",
-                    subline: "Store, sign, and share all your legal processes in one place. Unlimited storage is waiting for you.",
+                    subline: isProperty ? "Store, sign, and share all your property processes in one place. Unlimited storage is waiting for you." : "Store, sign, and share all your legal processes in one place. Unlimited storage is waiting for you.",
                     icon: <LockClosedIcon className="w-12 h-12 text-primary-500" />
                 };
             case 'ai':
                 return {
                     headline: "ARIA® AI is just getting warmed up.",
-                    subline: "You've tasted the power of deep legal research. Unlock full, unlimited AI analysis by creating your account.",
+                    subline: isProperty ? "You've tasted the power of deep property analysis. Unlock full, unlimited AI analysis by creating your account." : "You've tasted the power of deep legal research. Unlock full, unlimited AI analysis by creating your account.",
                     icon: <SparklesIcon className="w-12 h-12 text-purple-500 animate-pulse" />
                 };
             default:

@@ -91,6 +91,99 @@ Empowering tenants to log maintenance requests digitally, track their status, an
 
 Investing in a digital property management system is not just about making the manager's life easier; it is fundamentally about improving the product offered to the tenant. A superior tenant experience can contribute to higher lease renewal rates and more stable, long-term yields for property owners.
         `
+    },
+    {
+        id: 'digital-property-agency',
+        tag: 'PropTech',
+        tagColor: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+        title: 'The Digital Property Agency: A Transformation Roadmap',
+        summary: 'A strategic guide to digitizing a Nigerian property agency — covering the five stages of digital maturity, how to build a business case for technology investment, and a practical implementation framework that minimizes disruption to active operations.',
+        readTime: '10 min read',
+        content: `
+## Introduction
+
+Digital transformation in property management is not about replacing property managers — it is about eliminating the administrative burden that keeps managers from doing what only humans can do: exercise judgment, build relationships, and deliver exceptional tenant experiences.
+
+This roadmap is designed for agency principals and operations managers who are evaluating or actively undertaking the digitization of their property management operations.
+
+## Stage 1: Record Digitization
+
+The starting point for most Nigerian agencies is the physical archive. Years of lease agreements, rent receipts, tenant correspondences, and inspection reports exist only on paper — inaccessible, ungovernable, and at perpetual risk of loss.
+
+**Key activities:**
+- High-resolution scanning of lease files with OCR (Optical Character Recognition)
+- Naming convention standardization (Property → Unit → Tenant → Document Type)
+- Digital file cabinet structure mirroring existing physical organization
+- Secure cloud storage with access controls by role and property
+
+**Success metric:** Active properties accessible digitally, with reduced reliance on paper for day-to-day management.
+
+## Stage 2: Process Standardization
+
+Before adding technology, standardize the processes technology will automate. This stage identifies the workflows that exist implicitly in your agency and makes them explicit.
+
+**Key activities:**
+- Map the tenant lifecycle from onboarding to move-out
+- Define stage gates and required actions at each stage
+- Build standard checklists for common property events (lease renewal, maintenance escalation, vacancy processing)
+- Define billing trigger points and approval workflows
+
+**Success metric:** Any team member can pick up any property and know exactly what stage each unit is at and what is required next.
+
+## Stage 3: Property Management Platform
+
+With standardized processes, a property management platform amplifies efficiency rather than creating confusion. At this stage, the agency migrates from ad-hoc tools (WhatsApp, Excel, physical ledgers) to a unified system.
+
+**Key features to prioritize:**
+- Property and tenant database
+- Automated invoicing and rent tracking
+- Maintenance request management with vendor assignment
+- Financial reporting and owner statements
+
+**Success metric:** Agency administration (rent collection, maintenance tracking, owner reporting) requires measurably less time than before.
+
+## Stage 4: AI Augmentation
+
+With data organized and processes structured, AI tools can now deliver meaningful value. At this stage, AI is applied to repetitive, high-volume tasks.
+
+**Effective AI applications in property management:**
+- Lease analysis — identifying non-standard clauses, missing provisions, risk flags
+- Rent forecasting — predicting payment patterns and flagging potential defaults early
+- Document generation — template-based creation of lease agreements, quit notices, and receipts
+- Maintenance categorization — automatically classifying and prioritizing incoming requests
+
+**What AI cannot replace:**
+- Strategic property decisions
+- Tenant relationship management
+- Judgment in the face of complex disputes
+
+**Success metric:** Managers can handle a larger portfolio without increasing working hours.
+
+## Stage 5: Data and Intelligence
+
+The final stage extracts business intelligence from the data now flowing through the agency's digital systems. This includes:
+
+- Revenue and occupancy analytics by property type, location, and unit category
+- Rent collection rate tracking (collected vs. expected as % of total)
+- Maintenance cost monitoring and vendor performance benchmarking
+- Tenant retention and turnover analysis
+
+**Success metric:** Management decisions are driven by data, not intuition.
+
+## Building the Business Case
+
+The return on technology investment for property agencies can be quantified across three dimensions:
+
+**Time savings:** Reducing time spent on administrative tasks can free up significant hours per week for portfolio growth and tenant engagement, depending on the agency's existing workflows.
+
+**Error reduction:** Missed rent payments, lost documents, and reconciliation errors each carry direct financial and reputational costs that can be reduced with proper systems.
+
+**Growth capacity:** Digitized, automated agencies can scale more easily without proportional increases in headcount, allowing smaller agencies to manage larger portfolios efficiently.
+
+## Conclusion
+
+The digital transformation of a property agency is a journey measured in years, not months. The agencies that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. PracticePro Atrium is designed to support agencies at every stage of this journey.
+        `
     }
 ];
 
@@ -149,6 +242,8 @@ The true power of Atrium lies in its financial automation.
 
 ### Next Steps
 Now that your core data is in the system, you can begin utilizing the Maintenance log and Messaging features to interact with your tenants and vendors.
+
+**Pro-tip:** Use the Property Tags feature to categorize properties by type (e.g., *Residential*, *Commercial*, *Mixed-Use*) for easier portfolio filtering and reporting.
         `
     },
     {
@@ -902,7 +997,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900 dark:text-white">White Papers</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Original research on legal technology, compliance, and practice management</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{isVega ? 'Original research on legal technology, compliance, and practice management' : 'Original research on property technology, compliance, and agency management'}</p>
                         </div>
                     </div>
                     <div className="grid md:grid-cols-1 gap-5">
