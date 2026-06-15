@@ -242,6 +242,8 @@ export const sendMessage = async (
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
         injectedContext?: AriaChatContext | null;
+        conversationMemoryContext?: string | null;
+        proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
     },
     modelPreference: 'auto' | 'flash' | 'pro' = 'auto'
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
@@ -271,7 +273,9 @@ export const sendMessage = async (
         isFirmSearchEnabled,
         semanticContext,
         new Date().toISOString(),
-        context.injectedContext
+        context.injectedContext,
+        context.conversationMemoryContext,
+        context.proactiveInsights
     );
 
     const preferredModelName = 
@@ -399,6 +403,8 @@ export const streamMessage = async (
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
         injectedContext?: AriaChatContext | null;
+        conversationMemoryContext?: string | null;
+        proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
     },
     onChunk: (text: string) => void,
     modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
@@ -428,7 +434,9 @@ export const streamMessage = async (
         isFirmSearchEnabled,
         semanticContext,
         new Date().toISOString(),
-        context.injectedContext
+        context.injectedContext,
+        context.conversationMemoryContext,
+        context.proactiveInsights
     );
 
     const preferredModelName =

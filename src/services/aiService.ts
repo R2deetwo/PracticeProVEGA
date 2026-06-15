@@ -5,15 +5,7 @@ import { getAIProvider } from '../utils/aiUtils';
 import * as geminiService from './geminiService';
 export const sendMessage = async (
     history: AloaMessage[],
-    context: {
-        appState: AppState;
-        currentUser: User;
-        currentHistoryEntry: HistoryEntry;
-        localFiles?: any[];
-        aloaXLibrary?: any[];
-        isFirmSearchEnabled?: boolean;
-        searchBrain?: (query: string) => Promise<string>;
-    },
+    context: Parameters<typeof geminiService.sendMessage>[1],
     modelPreference: 'auto' | 'flash' | 'pro' = 'auto'
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
     // Default to Gemini

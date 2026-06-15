@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAloa } from '../../contexts/AloaProvider';
-import { useConvex, useMutation, useAction } from 'convex/react';
+import { useConvex, useMutation, useAction, useQuery } from 'convex/react';
 import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
 import { GoogleGenAI } from '@google/genai';
 import { useMatterState } from '../../contexts/MatterContext';
@@ -83,6 +83,22 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const saveMessageMutation = useMutation(api.myFunctions.saveAloaMessage);
     const createConversationMutation = useMutation(api.myFunctions.createAloaConversation);
     const deleteConversationMutation = useMutation(api.myFunctions.deleteAloaConversation);
+
+    // ─── Phase 2: Proactive Intelligence & Conversation Memory ──────────
+    const firmId = coreState?.firmDetails?.id;
+    const userId = currentUser?.id;
+
+    // Fetch cross-session conversation memory for context injection
+    const conversationMemory = useQuery(
+        api.conversationMemory.getInjectionContext,
+        firmId && userId ? { firmId, userId } : 'skip'
+    );
+
+    // Fetch un-dismissed proactive insights (deadlines, anomalies, briefings)
+    const proactiveInsights = useQuery(
+        api.proactive.getInsights,
+        firmId ? { firmId, dismissed: false, limit: 10 } : 'skip'
+    );
 
     const [textInput, setTextInput] = useState('');
     const [aloaStatus, setAloaStatus] = useState('');
@@ -588,6 +604,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             isFirmSearchEnabled,
             searchBrain: undefined as ((query: string) => Promise<string>) | undefined,
             injectedContext,
+            conversationMemoryContext: conversationMemory ?? null,
+            proactiveInsights: proactiveInsights?.map(i => ({
+                category: i.category,
+                severity: i.severity,
+                title: i.title,
+                body: i.body,
+            })) ?? null,
         };
 
         try {
@@ -1090,6 +1113,32 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     ? 'I can help manage your property portfolio, track revenue, handle tenant communications, and monitor defaulters.'
                                     : 'I can help draft legal documents, manage cases, research Nigerian law, and streamline your practice operations.'}
                             </p>
+
+                            {/* ─── Proactive Insight Badges ────────────────── */}
+                            {proactiveInsights && proactiveInsights.length > 0 && (
+                                <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-[300px]">
+                                    {proactiveInsights.filter(i => i.severity === 'critical').length > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                            {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent
+                                        </span>
+                                    )}
+                                    {proactiveInsights.filter(i => i.severity === 'warning').length > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''}
+                                        </span>
+                                    )}
+                                    {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                            onClick={() => setTextInput("Show me today's morning briefing")}
+                                        >
+                                            ☀️ Briefing Ready
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-[300px]">
                                 {(isAtrium ? [
                                     'Show revenue summary',

@@ -12,7 +12,9 @@ export const getSystemInstruction = (
     isFirmSearchEnabled?: boolean,
     semanticContext?: string,
     currentTime?: string,
-    injectedContext?: AriaChatContext | null
+    injectedContext?: AriaChatContext | null,
+    conversationMemoryContext?: string | null,
+    proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null
 ): string => {
     // Determine the active agent mode early to avoid hoisting issues
     const isAtriumMode = currentUser.product === 'property' || 
@@ -193,6 +195,44 @@ You MUST read the FULL_DATA block above before responding to any query. Do NOT a
 `;
     }
     
+    // ─────────────────────────────────────────────────────────────────────
+    // CROSS-SESSION CONVERSATION MEMORY — injected before dashboard context
+    // so ARIA can reference past conversations naturally.
+    // ─────────────────────────────────────────────────────────────────────
+    let conversationMemoryBlock = '';
+    if (conversationMemoryContext) {
+        conversationMemoryBlock = `
+${conversationMemoryContext}
+
+`;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // PROACTIVE INSIGHTS — active alerts surfaced by the Proactive Engine
+    // ─────────────────────────────────────────────────────────────────────
+    let proactiveInsightsBlock = '';
+    if (proactiveInsights && proactiveInsights.length > 0) {
+        const criticalInsights = proactiveInsights.filter(i => i.severity === 'critical');
+        const warningInsights = proactiveInsights.filter(i => i.severity === 'warning');
+
+        if (criticalInsights.length > 0) {
+            proactiveInsightsBlock = `
+**URGENT ALERTS (require immediate attention):**
+${criticalInsights.map(i => `- 🔴 ${i.title}: ${i.body}`).join('\n')}
+
+You MUST acknowledge these alerts when relevant and guide the user to address them.
+`;
+        }
+        if (warningInsights.length > 0) {
+            proactiveInsightsBlock += `
+**Active Warnings:**
+${warningInsights.map(i => `- 🟡 ${i.title}: ${i.body}`).join('\n')}
+
+Proactively mention these if they relate to the user's current query or context.
+`;
+        }
+    }
+
     // Inject the base universal context AFTER identity lock
     const universalContext = `
     ${identityLockStr}
@@ -200,10 +240,12 @@ You MUST read the FULL_DATA block above before responding to any query. Do NOT a
     ${deepContextBlock}
     ${ALOA_PRECISION_PROTOCOL}
     ${demoGuide}
+    ${conversationMemoryBlock}
     ${firmRAGPrompt}
     ${localDocsPrompt}
     ${libraryPrompt}
     ${dashboardContext}
+    ${proactiveInsightsBlock}
     ${contextualMatterInsight}
     ${teamScheduleContext}
     `;

@@ -1,4 +1,3 @@
-
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 
@@ -60,6 +59,51 @@ crons.interval(
   "processScheduledMessages",
   { minutes: 5 },
   internal.portals.processScheduledMessages,
+  {}
+);
+
+// ─── PHASE 2: PROACTIVE INTELLIGENCE CRONS ──────────────────────────────────
+
+// Deadline Scanner: every 6 hours
+// Scans tasks, events, and service charges for upcoming & overdue deadlines.
+// Creates proactive insights and in-app notifications for urgent items.
+crons.interval(
+  "scanDeadlines",
+  { hours: 6 },
+  internal.proactive.scanDeadlines,
+  {}
+);
+
+// Anomaly Detector: daily at 6:00 AM UTC (7:00 AM WAT)
+// Detects stalled matters, high defaulter ratios, unassigned matters,
+// and unread messages. Runs before the morning briefing so anomalies
+// are included in the daily briefing.
+crons.daily(
+  "detectAnomalies",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.proactive.detectAnomalies,
+  {}
+);
+
+// AI Morning Briefing: daily at 6:15 AM UTC (7:15 AM WAT)
+// Generates an AI-powered morning briefing for each firm summarizing
+// deadlines, anomalies, revenue at risk, and suggested priorities.
+// Stored as both a proactive insight and an ARIA chat conversation.
+crons.daily(
+  "generateMorningBriefing",
+  { hourUTC: 6, minuteUTC: 15 },
+  internal.proactive.generateMorningBriefing,
+  {}
+);
+
+// Conversation Memory: Nightly Summarization at 11:00 PM UTC (midnight WAT)
+// Compresses conversations older than 24h into structured summaries
+// stored in conversation_summaries. These are injected into new ARIA
+// sessions to provide cross-session continuity.
+crons.daily(
+  "batchSummarizeConversations",
+  { hourUTC: 23, minuteUTC: 0 },
+  internal.conversationMemory.batchSummarize,
   {}
 );
 

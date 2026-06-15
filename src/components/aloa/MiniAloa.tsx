@@ -195,6 +195,8 @@ export const MiniAloa: React.FC = () => {
             aloaXLibrary: loadAloaXLibrary(),
             isFirmSearchEnabled,
             searchBrain: undefined as ((query: string) => Promise<string>) | undefined,
+            conversationMemoryContext: null as string | null,
+            proactiveInsights: null as { category: string; severity: string; title: string; body: string }[] | null,
         };
 
         try {
