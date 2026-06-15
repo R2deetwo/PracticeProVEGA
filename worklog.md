@@ -131,3 +131,32 @@ Stage Summary:
 - Frontend deployed via Vercel (auto-deploy from git push)
 - Convex backend changes need manual deploy (user must authenticate first)
 - Key files modified: convex/myFunctions.ts, convex/authHelpers.ts, convex/lib/withAuth.ts, src/contexts/AuthContext.tsx, src/contexts/MatterContext.tsx, src/components/details/ReceiptDetailView.tsx, src/components/LandingPage.tsx, src/constants/tiers.ts, src/components/aloa/AloaChat.tsx, src/services/geminiService.ts, src/hooks/useBrainAutoIndex.ts
+---
+Task ID: 3
+Agent: Main Agent
+Task: Deep modal audit & simplification — fix all modal UX issues
+
+Work Log:
+- Audited all 34 modals in the app (Modal.tsx base, ModalManager.tsx routing, DockedModal.tsx, 31 individual modals)
+- Identified 14 critical and medium issues across the modal system
+- COMPOSE EMAIL: Removed double chrome (own header inside Modal wrapper), removed non-functional toolbar buttons, replaced deleteConfirmation modal overload with inline confirmation for missing subject
+- GOOGLE DRIVE PICKER: Removed deceptive mock data showing fake files, replaced with honest "coming soon" placeholder
+- DOCUMENT COMPARISON: Removed fake DiffSimulator with hardcoded legal text, replaced with honest placeholder
+- QUICK LOOK: Removed double chrome (own brand strip + header inside Modal wrapper)
+- UPGRADE: Removed double chrome (own rounded card wrapper inside Modal)
+- WORKSPACE SETUP: Removed 3x fake setTimeout delays simulating progress steps
+- AI CONSENT: Made product-aware (ATRIUM vs VEGA) using useProduct context
+- BUTTON CONSISTENCY: Updated 8 modals from old gray-200/gray-600 rounded-lg to modern slate-100/zinc-800 rounded-xl design
+- SEND INTAKE LINK: Replaced alert() with addToast()
+- DOCKED MODAL: Fixed dead code path where isAloaTriggered || dockedModalType always evaluates true
+- MODAL MANAGER: Better size mapping (lg for email, sm for simple confirmations), added composeEmail title override
+- Build verified: npx vite build passes clean
+- Git push: 39f104d
+- Convex deploy: successful
+
+Stage Summary:
+- 17 files changed, 412 insertions, 600 deletions (net -188 lines — simplified)
+- All deceptive/mock UI replaced with honest placeholders
+- Consistent modern button design across all confirmation/action modals
+- No more double-chrome issues in ComposeEmail, QuickLook, Upgrade modals
+- ComposeEmail no longer overloads deleteConfirmation for simple subject confirmation
