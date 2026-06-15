@@ -97,3 +97,37 @@ Stage Summary:
 - Atrium: annual-only, no monthly toggle. Vega: monthly/annual toggle. Komplete: single flat-rate card.
 - Tour auto-detects product and shows relevant steps (Properties for Atrium, Matters for Vega, etc.)
 - Git commit: 79bc866
+---
+Task ID: 1
+Agent: Main Agent
+Task: Address all issues from Atrium pre-launch audit report
+
+Work Log:
+- Read and analyzed the full audit report (audit.txt) covering 20 Must-Fix, 8 Remove, and 14 Optional items
+- Identified which issues were already fixed vs. still needing attention
+- SECURITY: Added auth to 7 previously unauthenticated Convex endpoints (adminDeleteUser, adminForceVerify, adminSearchUsersByEmail, diagnoseConnectivity, repairAccountConnection, sendHeartbeat, getActivePeers)
+- SECURITY: Fixed withFirmAuth silent bypass - now throws error instead of allowing unauthenticated access
+- SECURITY: Fixed requireFirmUser to prioritize session identity over client-supplied email, preventing cross-firm access
+- SECURITY: Added requireAdmin + firm-scoped checks to admin endpoints
+- SECURITY: Gated demo login bypass behind import.meta.env.DEV (disabled in production builds)
+- SECURITY: Removed sensitive data from console.log statements across AuthContext, useBrainAutoIndex, myFunctions.ts
+- DATA INTEGRITY: Fixed ReceiptDetailView client lookup for rent receipts (handles tenant-legacy IDs with fallback)
+- DATA INTEGRITY: Fixed ReceiptDetailView PDF download to use fallback instead of alert()
+- DATA INTEGRITY: Wired deleteMatterCascade from MatterContext (was only using simple deleteItem)
+- DATA INTEGRITY: Added auth + proper error handling to deleteAccount and deleteFirm mutations
+- MARKETING: Replaced misleading 'ISO 27001 Aligned' badge with 'SOC 2 Principles'
+- MARKETING: Replaced misleading 'AES-256 at Rest' with 'Data Encrypted at Rest*' (with asterisk explaining infrastructure-provided)
+- MARKETING: Renamed 'WhatsApp Automation' to 'WhatsApp Notifications' on landing page and tiers
+- MARKETING: Removed 'automated' from WhatsApp tier feature descriptions
+- MARKETING: Fixed ALOA search_legal_repo to use brain search with honest description
+- MARKETING: Updated search_legal_repo tool description to be honest about scope (firm docs only, not national case law)
+- Build verified: npx vite build passes successfully
+- Git push to origin/main completed (Vercel auto-deploys frontend)
+- Convex backend deploy needs user to run: npx convex deploy (requires auth token)
+
+Stage Summary:
+- 20+ security, data integrity, marketing, and reliability fixes applied
+- All Must-Fix items from audit addressed
+- Frontend deployed via Vercel (auto-deploy from git push)
+- Convex backend changes need manual deploy (user must authenticate first)
+- Key files modified: convex/myFunctions.ts, convex/authHelpers.ts, convex/lib/withAuth.ts, src/contexts/AuthContext.tsx, src/contexts/MatterContext.tsx, src/components/details/ReceiptDetailView.tsx, src/components/LandingPage.tsx, src/constants/tiers.ts, src/components/aloa/AloaChat.tsx, src/services/geminiService.ts, src/hooks/useBrainAutoIndex.ts
