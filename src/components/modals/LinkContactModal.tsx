@@ -70,8 +70,8 @@ const LinkContactModal: React.FC<LinkContactModalProps> = ({ matter, allContacts
                 )) : <p className="text-sm text-center text-slate-500 py-4">No contacts found.</p>}
             </div>
             <div className="pt-4 flex justify-end gap-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold">Save Links</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 rounded-xl font-bold text-sm text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md">Save Links</button>
             </div>
         </form>
     );

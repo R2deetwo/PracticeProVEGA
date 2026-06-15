@@ -201,8 +201,8 @@ export const DockedModal: React.FC = () => {
         }
     }
 
-    if (isAloaTriggered || dockedModalType) {
-        // SIDE DRAWER LAYOUT (For AI interaction context preservation)
+    // Always render as side drawer when there's a docked modal type
+    if (dockedModalType) {
         return (
             <>
                 <div 

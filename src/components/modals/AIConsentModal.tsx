@@ -1,4 +1,5 @@
 import React from 'react';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface AIConsentModalProps {
     onAccept: () => void;
@@ -6,26 +7,32 @@ interface AIConsentModalProps {
 }
 
 const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) => {
+    const { isProperty } = useProduct();
+    const productName = isProperty ? 'ATRIUM' : 'VEGA';
+    const productLabel = isProperty ? 'Property OS' : 'Legal OS';
+
     return (
-        <div className="p-2 sm:p-6 max-w-lg mx-auto">
-            <div className="flex items-center justify-center w-16 h-16 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-full mb-6 mx-auto">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+        <div className="max-w-lg mx-auto space-y-6">
+            <div className="text-center">
+                <div className="w-14 h-14 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white mb-1">AI Processing Consent</h2>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">PracticePro {productName} — {productLabel}</p>
             </div>
             
-            <h2 className="text-2xl font-bold text-center text-slate-900 dark:text-white mb-2">AI Processing Consent</h2>
-            
-            <div className="text-sm text-slate-600 dark:text-slate-300 space-y-4 mb-8 text-center px-2">
+            <div className="text-sm text-slate-600 dark:text-slate-300 space-y-3">
                 <p>
-                    PracticePro VEGA uses specialized AI Agents (ARIA, ALDIA, etc.) to assist with legal drafting, research, and data extraction.
+                    PracticePro {productName} uses specialized AI agents (ARIA, ALDIA, etc.) to assist with {isProperty ? 'property management, tenant screening, and document processing' : 'legal drafting, research, and data extraction'}.
                 </p>
                 <div className="bg-slate-50 dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 text-left">
                     <ul className="list-disc pl-5 space-y-2">
                         <li><strong>Data Minimization:</strong> Only relevant data is processed by the AI.</li>
-                        <li><strong>No Model Training:</strong> Your private case data is <strong>never</strong> used to train foundational AI models.</li>
+                        <li><strong>No Model Training:</strong> Your private data is <strong>never</strong> used to train foundational AI models.</li>
                         <li><strong>Security:</strong> All inputs remain isolated within your firm's encrypted workspace.</li>
-                        <li><strong>Oversight:</strong> The AI acts as a tool; human legal review is always required.</li>
+                        <li><strong>Oversight:</strong> The AI acts as a tool; human review is always required.</li>
                     </ul>
                 </div>
                 <p className="font-medium text-slate-700 dark:text-slate-200">

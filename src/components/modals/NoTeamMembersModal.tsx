@@ -14,7 +14,7 @@ const NoTeamMembersModal: React.FC<NoTeamMembersModalProps> = ({ onNavigate, onC
 
   return (
     <div className="space-y-4 text-center">
-      <h3 className="text-xl font-bold">Add Your Team</h3>
+      <h3 className="text-xl font-bold text-slate-900 dark:text-white">Add Your Team</h3>
       <p className="text-gray-600 dark:text-gray-300">
         You are the only user in your firm. To assign this matter to someone else, you first need to invite them to join your PracticePro workspace.
       </p>
@@ -22,14 +22,14 @@ const NoTeamMembersModal: React.FC<NoTeamMembersModalProps> = ({ onNavigate, onC
         <button 
             type="button" 
             onClick={onClose} 
-            className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+            className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
         >
           Cancel
         </button>
         <button 
             type="button" 
             onClick={handleNavigate} 
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm"
+            className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md"
         >
           Go to Settings
         </button>

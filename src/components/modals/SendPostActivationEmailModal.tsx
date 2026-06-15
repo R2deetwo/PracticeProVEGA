@@ -73,14 +73,14 @@ const SendPostActivationEmailModal: React.FC = () => {
                 </div>
             </div>
              <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
-                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                     Close
                 </button>
                  <button 
                     type="button"
                     onClick={handleSend}
                     disabled={isSending}
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <MailIcon className="w-4 h-4" />
                     {isSending ? 'Sending...' : 'Send Email'}

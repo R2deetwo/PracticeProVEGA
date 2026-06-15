@@ -128,12 +128,12 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
         </div>
       )}
 
-      <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-gray-100 dark:border-gray-700 mt-4">
-        <button type="button" onClick={() => onCancel()} className="w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+      <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-2 border-t border-slate-100 dark:border-zinc-800 mt-4">
+        <button type="button" onClick={() => onCancel()} className="w-full sm:w-auto px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
           Cancel
         </button>
         {onConfirmArchive && step === 1 && (
-             <button type="button" onClick={() => onConfirmArchive()} className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">
+             <button type="button" onClick={() => onConfirmArchive()} className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md">
                 {archiveText}
             </button>
         )}

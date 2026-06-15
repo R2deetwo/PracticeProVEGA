@@ -8,7 +8,7 @@ import { useUI } from '../../contexts/UIContext';
 import { MailIcon } from '../../constants';
 
 const SendIntakeLinkModal: React.FC = () => {
-    const { closeModal, editingId } = useUI();
+    const { closeModal, addToast, editingId } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
     const { loginAsUser } = useAuth();
     const lead = coreState.leads.find(l => l.id === editingId);
@@ -23,7 +23,7 @@ const SendIntakeLinkModal: React.FC = () => {
             loginAsUser(clientUser);
             closeModal();
         } else {
-            alert('Simulation Error: Could not find the created client user account.');
+            addToast('Could not find the client user account for simulation.', { type: 'error' });
         }
     };
 
@@ -53,13 +53,13 @@ const SendIntakeLinkModal: React.FC = () => {
             </div>
              <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
                 {/* FIX: Wrapped closeModal in an arrow function to prevent passing the event object and causing a type error. */}
-                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">
+                <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                     Close
                 </button>
                  <button 
                     type="button"
                     onClick={handleViewAsClient} 
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors shadow-sm"
+                    className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md"
                 >
                     View Intake Portal as Client
                 </button>

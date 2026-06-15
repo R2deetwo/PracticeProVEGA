@@ -38,19 +38,19 @@ const CloseMatterModal: React.FC<CloseMatterModalProps> = ({ matter, unbilledTim
             </div>
         )}
         <div>
-            <label htmlFor="closingNote" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Closing Summary (Optional)</label>
+            <label htmlFor="closingNote" className="block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Closing Summary (Optional)</label>
             <textarea
                 id="closingNote"
                 rows={4}
                 value={closingNote}
                 onChange={e => setClosingNote(e.target.value)}
                 placeholder="Enter any final notes about the matter's resolution..."
-                className="text-gray-900 dark:text-gray-300 w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500"
+                className="text-slate-900 dark:text-zinc-200 w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-sm p-3 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm resize-none outline-none"
             />
         </div>
         <div className="pt-4 flex justify-end space-x-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Confirm & Close Matter</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
+            <button type="submit" className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md">Confirm & Close</button>
         </div>
     </form>
   );

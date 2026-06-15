@@ -1,8 +1,6 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Document, DocumentVersion } from '../../types';
-import { useUI } from '../../contexts/UIContext';
-import { formatBytes } from '../../utils/formatting';
 
 interface DocumentComparisonModalProps {
     currentDocument: Document;
@@ -10,90 +8,29 @@ interface DocumentComparisonModalProps {
     onClose: () => void;
 }
 
-// Simple diff simulation since we don't have a real backend diff engine
-const DiffSimulator: React.FC<{ original: string, modified: string }> = ({ original, modified }) => {
-    return (
-        <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap">
-            {/* Simulated diff output */}
-            <span className="text-slate-400">...clause 12.4 regarding termination...</span><br/>
-            <span className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 line-through decoration-red-500">The notice period shall be 30 days.</span>
-            <span className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 px-1">The notice period shall be 60 days, provided that all outstanding invoices are settled.</span>
-            <br/><br/>
-            <span className="text-slate-400">...jurisdiction...</span><br/>
-            Any disputes arising from this agreement shall be settled in the <span className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200 px-1">Lagos Multi-Door Courthouse</span><span className="bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 line-through decoration-red-500">High Court of Lagos State</span>.
-        </div>
-    );
-};
-
 export const DocumentComparisonModal: React.FC<DocumentComparisonModalProps> = ({ currentDocument, versionToCompare, onClose }) => {
-    const [viewMode, setViewMode] = useState<'side-by-side' | 'inline'>('inline');
-
-    const renderSideBySide = () => (
-        <div className="grid grid-cols-2 gap-4 h-full overflow-hidden">
-            <div className="flex flex-col h-full">
-                <div className="p-2 bg-red-50 dark:bg-red-900/20 border-b border-red-100 dark:border-red-900 mb-2 rounded-t-lg">
-                    <p className="font-bold text-red-700 dark:text-red-300 text-sm">Version {new Date(versionToCompare.uploadedAt).toLocaleDateString('en-GB')}</p>
-                </div>
-                <div className="flex-grow bg-slate-50 dark:bg-zinc-800 p-4 rounded-b-lg overflow-y-auto border border-slate-200 dark:border-zinc-700 text-sm">
-                    <p className="text-slate-600 dark:text-zinc-400 italic">
-                        [Content from old version...] The notice period shall be 30 days. Disputes settled in High Court of Lagos State.
-                    </p>
-                </div>
-            </div>
-            <div className="flex flex-col h-full">
-                 <div className="p-2 bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-900 mb-2 rounded-t-lg">
-                    <p className="font-bold text-green-700 dark:text-green-300 text-sm">Current Version (Active)</p>
-                </div>
-                <div className="flex-grow bg-white dark:bg-zinc-900 p-4 rounded-b-lg overflow-y-auto border border-slate-200 dark:border-zinc-700 text-sm">
-                    <p className="text-slate-800 dark:text-zinc-200">
-                        [Content from current version...] The notice period shall be 60 days, provided that all outstanding invoices are settled. Disputes settled in Lagos Multi-Door Courthouse.
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
-        <div className="flex flex-col h-[80vh]">
-             <div className="flex-shrink-0 mb-4">
-                <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">
-                    Comparing <strong>Current Version</strong> against <strong>Version from {new Date(versionToCompare.uploadedAt).toLocaleDateString('en-GB')}</strong>.
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+            </div>
+            <h4 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Version Comparison</h4>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md leading-relaxed mb-3">
+                Comparing <strong className="text-slate-700 dark:text-zinc-200">{currentDocument.title}</strong> — current version vs. version from <strong className="text-slate-700 dark:text-zinc-200">{new Date(versionToCompare.uploadedAt).toLocaleDateString('en-GB')}</strong>.
+            </p>
+            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl max-w-md">
+                <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+                    <strong>Coming Soon:</strong> Inline redline diff and side-by-side comparison views are under development. For now, open both versions from the document history to compare manually.
                 </p>
-                <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg w-fit">
-                    <button 
-                        onClick={() => setViewMode('inline')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'inline' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}
-                    >
-                        Inline (Redline)
-                    </button>
-                    <button 
-                        onClick={() => setViewMode('side-by-side')}
-                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'side-by-side' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}
-                    >
-                        Side-by-Side
-                    </button>
-                </div>
             </div>
-
-            <div className="flex-grow overflow-hidden min-h-0">
-                {viewMode === 'inline' ? (
-                    <div className="h-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg p-6 overflow-y-auto shadow-inner">
-                        <DiffSimulator 
-                            original="The notice period shall be 30 days." 
-                            modified="The notice period shall be 60 days." 
-                        />
-                    </div>
-                ) : (
-                    renderSideBySide()
-                )}
-            </div>
-            
-             <div className="pt-4 flex justify-end gap-2 border-t border-slate-200 dark:border-zinc-700 mt-4">
-                <button 
+            <div className="mt-6">
+                <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-slate-200 dark:bg-zinc-700 text-slate-800 dark:text-white rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
+                    className="px-6 py-2 bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-white rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors"
                 >
-                    Close Comparison
+                    Close
                 </button>
             </div>
         </div>

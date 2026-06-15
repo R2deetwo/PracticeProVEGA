@@ -971,8 +971,15 @@ const ModalManager: React.FC = () => {
     if (modal === 'batchUpload') {
         modalTitle = 'Uploading Files';
     }
+    if (modal === 'composeEmail') {
+        modalTitle = 'Compose Email';
+    }
 
-    const modalSize = (modal === 'matterIngestion' || modal === 'editMatter' || modal === 'newDraft' || modal === 'newDocument' || modal === 'editDocument') ? 'xl' : (modal === 'leadCapture' ? 'sm' : 'md');
+    // Size mapping: xl for document-heavy forms, lg for email/comparison, sm for simple confirmations, md default
+    const modalSize = (modal === 'matterIngestion' || modal === 'editMatter' || modal === 'newDraft' || modal === 'newDocument' || modal === 'editDocument' || modal === 'newMatter') ? 'xl' 
+        : (modal === 'composeEmail' ? 'lg' 
+        : (modal === 'leadCapture' || modal === 'deleteConfirmation' || modal === 'aiConsent' || modal === 'keyboardShortcuts' || modal === 'noTeamMembers' || modal === 'aloaHelp' || modal === 'feedback' || modal === 'upgradePlan' ? 'sm' 
+        : 'md'));
 
     return (
         <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize}>
