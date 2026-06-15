@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { XIcon } from '../../constants';
 
 interface ModalProps {
@@ -13,14 +13,98 @@ interface ModalProps {
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      // Save the currently focused element so we can restore it later
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      // Prevent background scrolling
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = 'hidden';
+      // Compensate for scrollbar disappearing to prevent layout shift
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`;
+      }
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+        // Restore focus to the element that had it before the modal opened
+        if (previousFocusRef.current && previousFocusRef.current.focus) {
+          try { previousFocusRef.current.focus(); } catch { /* element may have been unmounted */ }
+        }
+      };
+    }
+  }, [isOpen]);
+
+  // Auto-focus the first focusable element inside the modal
+  useEffect(() => {
+    if (isOpen && isMounted && modalRef.current) {
+      // Small delay to let animation start and content render
+      const timer = setTimeout(() => {
+        if (!modalRef.current) return;
+        // Look for the first input, select, textarea, or button that isn't the close button
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length > 0) {
+          focusable[0].focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isMounted]);
+
+  // Focus trap: keep Tab navigation inside the modal
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+
+    if (event.key === 'Tab' && modalRef.current) {
+      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusableElements.length === 0) return;
+
+      const firstFocusable = focusableElements[0];
+      const lastFocusable = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey) {
+        // Shift+Tab: if focus is on first element, wrap to last
+        if (document.activeElement === firstFocusable) {
+          event.preventDefault();
+          lastFocusable.focus();
+        }
+      } else {
+        // Tab: if focus is on last element, wrap to first
+        if (document.activeElement === lastFocusable) {
+          event.preventDefault();
+          firstFocusable.focus();
+        }
+      }
+    }
+  }, [onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleKeyDown]);
+
+  // Mount/unmount with animation
   useEffect(() => {
     let unmountTimer: number;
 
     if (isOpen) {
-      // Mount immediately and start animation in the same render cycle
-      // Using a single rAF to ensure the DOM has painted the initial state
-      // before triggering the transition — this feels instant to the user
       setIsMounted(true);
       requestAnimationFrame(() => {
         setIsAnimatingIn(true);
@@ -36,22 +120,6 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       clearTimeout(unmountTimer);
     };
   }, [isOpen]);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
 
   if (!isMounted) return null;
 
@@ -81,6 +149,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
       />
       
       <div
+        ref={modalRef}
         className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-white/20 dark:border-zinc-800/50 ${modalWidthClass} ${modalAnimation}`}
         onClick={(e) => e.stopPropagation()}
       >

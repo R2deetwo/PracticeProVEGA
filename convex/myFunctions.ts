@@ -1103,7 +1103,7 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
     }
 
     try {
-      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code: code });
+      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code: code, product: selectedProduct });
     } catch (e) {
       console.error("Failed to schedule email", e);
     }
@@ -1195,7 +1195,7 @@ export const verifyLogin = action({
             fields: { mfaCode: code },
           });
           try {
-            await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code });
+            await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendVerificationEmail, { email: args.email, code, product: user.product || 'legal' });
           } catch (e) {
             console.error("Failed to send MFA email", e);
           }
@@ -2218,18 +2218,35 @@ export const forceDeleteItem = mutation({
 // Migrated from Resend to Brevo (April 2026) for improved deliverability.
 // Sender: practiceprovega@gmail.com (verified individual sender on Brevo)
 
-const BREVO_SENDER = { name: "PracticePro VEGA", email: "practiceprovega@gmail.com" };
+const BREVO_SENDER = { name: "PracticePro", email: "practiceprovega@gmail.com" };
+
+// Product-specific branding for emails
+const PRODUCT_BRANDING: Record<string, { name: string; accent: string; tagline: string }> = {
+  legal: { name: "VEGA", accent: "#4cc9f0", tagline: "Nigerian Legal Practice System" },
+  property: { name: "ATRIUM", accent: "#34d399", tagline: "Nigerian Property Management System" },
+  unified: { name: "KOMPLETE", accent: "#a78bfa", tagline: "Nigerian Legal & Property Platform" },
+};
+
+function getProductBranding(product?: string) {
+  const key = product || 'legal';
+  return PRODUCT_BRANDING[key] || PRODUCT_BRANDING.legal;
+}
 
 async function sendBrevoEmail(args: {
   to: string;
   subject: string;
   html: string;
+  productName?: string;
 }) {
   const apiKey = process.env.PracticePro_Vega_Mailer;
   if (!apiKey) {
     console.warn("[Brevo] CRITICAL: BREVO_API_KEY environment variable is missing. Email not sent.");
     return { success: false, error: "API key missing" };
   }
+
+  const senderName = args.productName
+    ? `PracticePro ${args.productName}`
+    : BREVO_SENDER.name;
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -2238,7 +2255,7 @@ async function sendBrevoEmail(args: {
       "api-key": apiKey,
     },
     body: JSON.stringify({
-      sender: BREVO_SENDER,
+      sender: { name: senderName, email: BREVO_SENDER.email },
       to: [{ email: args.to }],
       subject: args.subject,
       htmlContent: args.html,
@@ -2256,17 +2273,19 @@ async function sendBrevoEmail(args: {
 }
 
 export const sendVerificationEmail = internalAction({
-  args: { email: v.string(), code: v.string() },
+  args: { email: v.string(), code: v.string(), product: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const brand = getProductBranding(args.product);
+
     const html = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
         
         <!-- Header -->
         <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 32px 24px; text-align: center;">
           <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px;">
-            PracticePro <span style="color: #4cc9f0;">VEGA</span>
+            PracticePro <span style="color: ${brand.accent};">${brand.name}</span>
           </h1>
-          <p style="color: #8ab4cc; margin: 6px 0 0 0; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;">Nigerian Legal Practice System</p>
+          <p style="color: #8ab4cc; margin: 6px 0 0 0; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;">${brand.tagline}</p>
         </div>
         
         <!-- Body -->
@@ -2299,20 +2318,23 @@ export const sendVerificationEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: "PracticePro VEGA — Your Verification Code",
+      subject: `PracticePro ${brand.name} — Your Verification Code`,
       html,
+      productName: brand.name,
     });
   }
 });
 
 export const sendRecoveryEmail = internalAction({
-  args: { email: v.string(), code: v.string(), recoveryLink: v.string() },
+  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), product: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    const brand = getProductBranding(args.product);
+
     const html = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
         
         <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 32px 24px; text-align: center;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">PracticePro <span style="color: #4cc9f0;">VEGA</span></h1>
+          <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">PracticePro <span style="color: ${brand.accent};">${brand.name}</span></h1>
         </div>
         
         <div style="padding: 40px 32px;">
@@ -2341,8 +2363,9 @@ export const sendRecoveryEmail = internalAction({
 
     await sendBrevoEmail({
       to: args.email,
-      subject: "Reset your PracticePro Password",
+      subject: `Reset your PracticePro ${brand.name} Password`,
       html,
+      productName: brand.name,
     });
   }
 });

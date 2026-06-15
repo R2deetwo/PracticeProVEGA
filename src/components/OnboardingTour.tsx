@@ -2,16 +2,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useUI } from '../contexts/UIContext';
-import { tourSteps } from '../onboardingConfig';
+import { getTourStepsForProduct } from '../onboardingConfig';
+import { useProduct } from '../contexts/ProductContext';
 import { DismissIcon, ChevronRightIcon, ChevronLeftIcon } from '../constants';
 
 const OnboardingTour: React.FC = () => {
     const { isTourRunning, stepIndex, nextStep, backStep, stopTour } = useOnboarding();
     const { navigateTo, view } = useUI();
+    const { product } = useProduct();
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const tourRef = useRef<HTMLDivElement>(null);
 
+    const tourSteps = getTourStepsForProduct(product);
     const currentStep = tourSteps[stepIndex];
 
     useEffect(() => {

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { SubscriptionPlan } from '../../types';
@@ -8,62 +8,78 @@ import { LogoutIcon, CheckIcon, LockClosedIcon, RevertIcon } from '../../constan
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
-import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef } from '../../constants/tiers';
+import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
 
 interface OnboardingWizardProps {
     onComplete: () => void;
 }
 
-const PlanOption: React.FC<{
+const PlanCard: React.FC<{
     tier: TierDef;
     selected: boolean;
     onSelect: () => void;
     billingCycle: 'monthly' | 'annual';
-}> = ({ tier, selected, onSelect, billingCycle }) => {
-    const price = billingCycle === 'annual' ? tier.annualPriceDisplay : tier.monthlyPriceDisplay;
-    const per   = tier.monthlyPrice === null ? '' : (billingCycle === 'annual' ? '/yr' : '/mo');
-    const sce   = billingCycle === 'annual' ? tier.scePer_annual : tier.scePer;
+    isAtrium: boolean;
+}> = ({ tier, selected, onSelect, billingCycle, isAtrium }) => {
+    const { price, per } = formatTierPrice(tier, billingCycle);
+    const effectiveBilling = isAtrium ? 'annual' : billingCycle;
+    const sce = effectiveBilling === 'annual' ? tier.scePer_annual : tier.scePer;
 
     return (
         <div
             onClick={onSelect}
-            className={`relative flex flex-col p-6 sm:p-8 rounded-[40px] border-2 cursor-pointer transition-all duration-300 ${selected ? 'border-primary-500 bg-primary-50/30 shadow-2xl shadow-primary-500/10 scale-[1.03] z-10' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50'}`}
+            className={`relative flex flex-col rounded-2xl border-2 cursor-pointer transition-all duration-200 h-full ${
+                selected
+                    ? 'border-primary-500 bg-primary-50/20 shadow-lg shadow-primary-500/10'
+                    : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
+            }`}
         >
+            {/* Recommended badge */}
             {tier.recommended && (
-                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-[10px] font-black px-5 py-1.5 rounded-full uppercase tracking-widest shadow-xl whitespace-nowrap">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-[9px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap z-10">
                     Most Popular
                 </div>
             )}
-            <div className="flex justify-between items-center mb-3">
-                <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{tier.label}</h4>
-                {selected && <div className="w-5 h-5 bg-primary-600 rounded-full flex items-center justify-center text-white p-1"><CheckIcon className="w-full h-full" /></div>}
-            </div>
-            <div className="mb-4">
-                <p className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{price}</p>
-                <p className="text-[10px] font-bold text-slate-300 mt-1">{per || 'contact us'}</p>
-            </div>
 
-            {sce && (
-                <div className="mb-4 p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 flex flex-col items-start gap-1">
-                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">SCE*</p>
-                    <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <p className="text-sm font-black text-slate-900 leading-tight">{sce}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">/tenant</p>
-                    </div>
+            <div className="p-5 flex flex-col h-full">
+                {/* Tier name + check */}
+                <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{tier.label}</h4>
+                    {selected && <div className="w-4 h-4 bg-primary-600 rounded-full flex items-center justify-center text-white p-0.5"><CheckIcon className="w-full h-full" /></div>}
                 </div>
-            )}
 
-            <ul className="space-y-2.5 mb-2 flex-grow">
-                {tier.features.map((f, i) => (
-                    <li key={i} className="text-[10px] text-slate-500 font-bold flex items-start gap-2 leading-tight">
-                        <CheckIcon className="w-3.5 h-3.5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                        <span>{f}</span>
-                    </li>
-                ))}
-            </ul>
-            {tier.requiresSetupFee && (
-                <p className="text-[9px] text-amber-600 font-black uppercase tracking-widest mt-2 border-t border-slate-100 pt-2">+ ₦150k One-Time Setup Fee</p>
-            )}
+                {/* Price */}
+                <div className="mb-4">
+                    <p className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{price}</p>
+                    <p className="text-[10px] font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
+                </div>
+
+                {/* SCE block */}
+                {sce && (
+                    <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50/80 border border-emerald-100">
+                        <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">SCE*</p>
+                        <div className="flex items-baseline gap-1">
+                            <p className="text-xs font-black text-slate-900 leading-tight">{sce}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase">/tenant</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Features — scrollable if tall */}
+                <ul className="space-y-1.5 flex-grow overflow-y-auto custom-scrollbar text-left pr-1" style={{ maxHeight: '180px' }}>
+                    {tier.features.map((f, i) => (
+                        <li key={i} className="text-[10px] text-slate-500 font-medium flex items-start gap-1.5 leading-snug">
+                            <CheckIcon className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />
+                            <span className="break-words">{f}</span>
+                        </li>
+                    ))}
+                </ul>
+
+                {/* Setup fee notice */}
+                {tier.requiresSetupFee && (
+                    <p className="text-[8px] text-amber-600 font-black uppercase tracking-widest mt-3 border-t border-slate-100 pt-2">+ ₦150k One-Time Setup Fee</p>
+                )}
+            </div>
         </div>
     );
 };
@@ -74,11 +90,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     const { navigateTo } = useUI();
     const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
 
-    // Step 1: Workspace name  |  Step 2: Product  |  Step 3: Plan
+    // Use the product the user selected during signup
+    // This is stored on the user record by the backend
+    const userProduct = (currentUser as any)?.product as ProductMode | undefined;
+
+    // Step 1: Workspace name  |  Step 2: Plan selection (product already known from signup)
     const [step, setStep] = useState(1);
     const [mode, setMode] = useState<'create' | 'join'>('create');
     const [firmName, setFirmName] = useState('');
-    const [product, setProduct] = useState<ProductMode>('legal');
+    const [product, setProduct] = useState<ProductMode>(userProduct || 'legal');
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
     const [selectedTierId, setSelectedTierId] = useState<TierId>('Pro');
     const [inviteCode, setInviteCode] = useState('');
@@ -88,9 +108,18 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     const [isRecovering, setIsRecovering] = useState(false);
     const [hasAgreed, setHasAgreed] = useState(false);
 
+    // If user already chose product during signup, set it immediately
+    useEffect(() => {
+        if (userProduct) {
+            setProduct(userProduct);
+        }
+    }, [userProduct]);
+
     // Derive plan display from tiers matrix
     const tiers = getTiersForProduct(product);
-    const tierIds: TierId[] = DISPLAY_TIER_IDS;
+    const tierIds: TierId[] = isKomplete(product) ? ['Core'] : DISPLAY_TIER_IDS;
+    const isAtrium = product === 'property' || product === 'atrium';
+    const productName = product === 'legal' ? 'Vega' : product === 'property' ? 'Atrium' : 'Komplete';
 
     // Map TierId → SubscriptionPlan enum for backend
     const tierToSubscriptionPlan: Record<TierId, SubscriptionPlan> = {
@@ -100,14 +129,12 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
         Enterprise: SubscriptionPlan.Enterprise,
     };
 
-    const isPropertyMode = product === 'property' || product === 'atrium';
-
     const handleCreate = async () => {
         if (!firmName.trim()) return;
         setIsSubmitting(true);
         setError(null);
         try {
-            const plan = tierToSubscriptionPlan[selectedTierId];
+            const plan = isKomplete(product) ? SubscriptionPlan.Komplete : tierToSubscriptionPlan[selectedTierId];
             const fid = await createFirm(
                 firmName.trim(),
                 'Address Pending',
@@ -171,7 +198,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 <button onClick={logout} className="flex items-center gap-2 text-xs text-slate-400 hover:text-red-600 border border-slate-100 px-3 py-2 rounded-xl transition-colors shadow-sm"><LogoutIcon className="w-4 h-4" /> Sign Out</button>
             </div>
 
-            <div className="w-full max-w-2xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
+            <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
                 {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm text-center border border-red-100 font-bold">{error}</div>}
 
                 {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
@@ -194,8 +221,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
                                         <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100 rounded-2xl bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 placeholder:text-slate-300" autoFocus />
                                     </div>
-                                    {/* Always go to Step 2 (product selection) first */}
-                                    <button onClick={() => setStep(2)} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Choose Your Product</button>
+                                    <button onClick={() => setStep(2)} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Select Plan</button>
                                 </div>
                             ) : (
                                 <div className="space-y-6">
@@ -220,128 +246,110 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     </div>
                 )}
 
-                {/* ── STEP 2: Product Selection ──────────────────────────── */}
+                {/* ── STEP 2: Plan Selection ─────────────────────────────── */}
                 {step === 2 && (
-                    <div className="space-y-8 max-w-lg mx-auto">
+                    <div className="space-y-6">
                         <div className="text-center">
-                            <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Choose Your Solution</h2>
-                            <p className="text-slate-500 mt-2 text-sm font-medium">What will you use the platform for at <span className="text-primary-600 font-bold">{firmName}</span>?</p>
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Choose Your Plan</h2>
+                            <p className="text-slate-500 mt-1 text-sm font-medium">
+                                For your <span className="font-bold text-slate-700">{productName}</span> workspace{firmName ? ` at ${firmName}` : ''}
+                            </p>
                         </div>
 
-                        <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-6 duration-700 fill-mode-both">
-                            {/* Vega */}
-                            <button onClick={() => setProduct('legal')} className={`p-6 text-left border-2 rounded-[32px] transition-all flex items-start gap-4 group relative ${product === 'legal' ? 'border-amber-500 bg-amber-50/50 shadow-xl shadow-amber-500/10 scale-[1.02]' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
-                                <div className={`p-3 rounded-2xl transition-colors ${product === 'legal' ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-500'}`}><CheckIcon className="w-6 h-6" /></div>
-                                <div>
-                                    <div className="font-black text-xl text-slate-900">Vega <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Legal</span></div>
-                                    <div className="text-xs text-slate-500 mt-1 font-medium">For law firms and legal departments.</div>
-                                    <div className="text-[10px] text-amber-600 font-black uppercase tracking-widest mt-2">From Free · ₦45k/mo Growth · ₦80k/mo Pro</div>
-                                </div>
-                            </button>
+                        {/* Product switcher — only if no product was pre-selected from signup */}
+                        {!userProduct && (
+                            <div className="flex justify-center gap-3">
+                                {(['legal', 'property', 'unified'] as ProductMode[]).map(p => {
+                                    const name = p === 'legal' ? 'Vega' : p === 'property' ? 'Atrium' : 'Komplete';
+                                    const active = product === p;
+                                    return (
+                                        <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                                            {name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
 
-                            {/* Atrium */}
-                            <button onClick={() => setProduct('property')} className={`p-6 text-left border-2 rounded-[32px] transition-all flex items-start gap-4 group relative ${product === 'property' ? 'border-blue-500 bg-blue-50/50 shadow-xl shadow-blue-500/10 scale-[1.02]' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
-                                <div className={`p-3 rounded-2xl transition-colors ${product === 'property' ? 'bg-blue-100 text-blue-600' : 'bg-slate-50 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-500'}`}><CheckIcon className="w-6 h-6" /></div>
-                                <div>
-                                    <div className="font-black text-xl text-slate-900">Atrium <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Property</span></div>
-                                    <div className="text-xs text-slate-500 mt-1 font-medium">For property managers and owners.</div>
-                                    <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-2">₦190K/yr Core · ₦360K/yr Growth · ₦840K/yr Pro</div>
-                                </div>
-                            </button>
-
-                            {/* Komplete Unified */}
-                            <button onClick={() => setProduct('unified')} className={`p-6 text-left border-2 rounded-[32px] transition-all flex items-start gap-4 group relative ${product === 'unified' ? 'border-indigo-500 bg-indigo-50/50 shadow-xl shadow-indigo-500/10 scale-[1.02]' : 'border-slate-100 bg-white hover:border-slate-200'}`}>
-                                <div className={`p-3 rounded-2xl transition-colors ${product === 'unified' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-500'}`}><CheckIcon className="w-6 h-6" /></div>
-                                <div className="w-full relative">
-                                    <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[9px] font-black px-4 py-1 rounded-full uppercase tracking-widest">Premium Bundle</div>
-                                    <div className="font-black text-xl text-slate-900">Komplete <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Unified</span></div>
-                                    <div className="text-xs text-slate-500 mt-1 font-medium pr-24">Full Vega (Legal) + Atrium (Property) in one workspace.</div>
-                                    <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest mt-2">₦130K/mo · ₦1.248M/yr — All features, unlimited</div>
-                                </div>
-                            </button>
-                        </div>
-
-                        <div className="flex gap-4 pt-4">
-                            <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all">Back</button>
-                            <button onClick={() => setStep(3)} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl transition-all active:scale-95 ${product === 'unified' ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20' : product === 'property' ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20'}`}>Next: Select Plan</button>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── STEP 3: Plan Selection ─────────────────────────────── */}
-                {step === 3 && (
-                    <div className="space-y-6 max-w-5xl mx-auto">
-                        <div className="text-center">
-                            <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Choose Your Plan</h2>
-                            <p className="text-slate-500 mt-1 text-sm font-medium">All prices are for <span className="font-bold text-slate-700">{product === 'legal' ? 'Vega OS' : product === 'property' ? 'Atrium OS' : 'Komplet Unified'}</span>.</p>
-                        </div>
-
-                        {/* Billing Toggle — only for paid products */}
-                        {product !== 'legal' && (
+                        {/* Billing Toggle — Vega and Komplete only. Atrium is annual-only. */}
+                        {!isAtrium && !isKomplete(product) && (
                             <div className="flex items-center justify-center gap-4">
-                                <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
-                                <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-14 h-7 bg-slate-200 rounded-full transition-colors">
-                                    <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7 bg-primary-500' : ''}`} />
+                                <span className={`text-xs font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
+                                <button onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')} className="relative w-12 h-6 bg-slate-200 rounded-full transition-colors" aria-label="Toggle billing cycle">
+                                    <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-6 bg-primary-500' : ''}`} />
                                 </button>
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
-                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[10px] font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
+                                    <span className={`text-xs font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
                                 </div>
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {tierIds.map(id => (
-                                <PlanOption
-                                    key={id}
-                                    tier={tiers[id]}
-                                    selected={selectedTierId === id}
-                                    onSelect={() => setSelectedTierId(id)}
-                                    billingCycle={billingCycle}
-                                />
-                            ))}
-                        </div>
+                        {/* Atrium annual-only badge */}
+                        {isAtrium && (
+                            <div className="flex justify-center">
+                                <span className="px-4 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-100">
+                                    Annual Billing Only
+                                </span>
+                            </div>
+                        )}
 
-                        {isPropertyMode && (
-                            <div className="text-[10px] text-slate-400 font-bold px-4">
+                        {/* Komplete single-tier display */}
+                        {isKomplete(product) ? (
+                            <div className="max-w-md mx-auto">
+                                <PlanCard
+                                    tier={tiers.Core}
+                                    selected={selectedTierId === 'Core'}
+                                    onSelect={() => setSelectedTierId('Core')}
+                                    billingCycle={billingCycle}
+                                    isAtrium={false}
+                                />
+                            </div>
+                        ) : (
+                            /* Standard 3-tier grid — responsive and contained */
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                                {tierIds.map(id => (
+                                    <PlanCard
+                                        key={id}
+                                        tier={tiers[id]}
+                                        selected={selectedTierId === id}
+                                        onSelect={() => setSelectedTierId(id)}
+                                        billingCycle={billingCycle}
+                                        isAtrium={isAtrium}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        {isAtrium && (
+                            <div className="text-[10px] text-slate-400 font-bold text-center">
                                 * SCE: Service Charge Equivalent — estimated monthly cost per tenant unit.
                             </div>
                         )}
 
                         {/* Managed Migration opt-in */}
-                        {isPropertyMode && (
-                            <div className="max-w-md mx-auto p-6 rounded-3xl bg-amber-50 border border-amber-100">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-5 h-5 rounded border-amber-200 text-amber-600 focus:ring-amber-500" />
-                                    <label htmlFor="data-migration" className="text-sm font-black text-amber-900 uppercase tracking-tight">Request Managed Data Migration</label>
+                        {isAtrium && (
+                            <div className="max-w-md mx-auto p-5 rounded-2xl bg-amber-50 border border-amber-100">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="w-4 h-4 rounded border-amber-200 text-amber-600 focus:ring-amber-500" />
+                                    <label htmlFor="data-migration" className="text-xs font-black text-amber-900 uppercase tracking-tight">Request Managed Data Migration</label>
                                 </div>
-                                <p className="text-xs text-amber-700 font-medium leading-relaxed ml-8">
+                                <p className="text-[11px] text-amber-700 font-medium leading-relaxed ml-7">
                                     Our team digitizes your existing property records. <strong>Adds a one-time ₦150,000 setup fee.</strong>
                                 </p>
                             </div>
                         )}
 
-                        {/* Setup fee notice */}
-                        {isDataMigration && (
-                            <div className="max-w-md mx-auto p-4 rounded-2xl bg-slate-50 border border-slate-100 flex justify-between items-center">
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">One-Time Setup Fee</p>
-                                    <p className="text-[9px] text-slate-400 font-bold mt-0.5">Required for Managed Migration</p>
-                                </div>
-                                <span className="text-lg font-black text-slate-900">₦150,000</span>
-                            </div>
-                        )}
-
                         {/* DPA Agreement */}
-                        <div className="max-w-md mx-auto pt-2 flex items-start gap-4">
-                            <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-1 w-5 h-5 text-primary-600 border-slate-200 rounded-lg focus:ring-primary-500 cursor-pointer transition-all" />
+                        <div className="max-w-md mx-auto pt-2 flex items-start gap-3">
+                            <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600 border-slate-200 rounded focus:ring-primary-500 cursor-pointer transition-all" />
                             <label htmlFor="agree-dpa" className="text-[11px] text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
                                 I agree to the <button type="button" onClick={() => navigateTo('dataProcessingAgreement')} className="text-primary-600 hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => navigateTo('termsOfService')} className="text-primary-600 hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
                             </label>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto pt-2">
-                            <button onClick={() => setStep(2)} className="flex-1 py-4 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>Back</button>
+                            <button onClick={() => setStep(1)} className="flex-1 py-4 bg-slate-50 text-slate-400 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all" disabled={isSubmitting}>Back</button>
                             <button onClick={handleCreate} disabled={isSubmitting || !hasAgreed} className={`flex-[2] py-4 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}>
                                 {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                                 {isSubmitting ? 'Creating...' : 'Create Workspace'}
