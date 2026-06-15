@@ -3,6 +3,7 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
 export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }> = ({ onBack, activeProduct = 'vega' }) => {
     const isVega = activeProduct === 'vega';
+    const isProperty = !isVega;
     return (
         <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
 
@@ -70,7 +71,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Legal Technologies Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
                                 </p>
                                 <p>
-                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including our AI-powered legal assistant ARIA™. By using PracticePro, you consent to the data practices described in this Privacy Policy.
+                                    This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including {isProperty ? 'our AI-powered property assistant ARIA™' : 'our AI-powered legal assistant ARIA™'}. By using PracticePro, you consent to the data practices described in this Privacy Policy.
                                 </p>
                                 <p>
                                     <strong>Important Note:</strong> As a {isVega ? 'Litigation System' : 'Property Management System'}, PracticePro processes sensitive personal data and confidential {isVega ? 'client' : 'tenant'} information on behalf of {isVega ? 'legal practitioners' : 'property managers'}. Users ({isVega ? 'lawyers and law firms' : 'property managers and real estate firms'}) are Data Controllers for their {isVega ? 'clients\'' : 'tenants\''} data, while PracticePro acts as a Data Processor. This Privacy Policy governs our data processing practices and your rights as a data subject.
@@ -175,7 +176,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services (Consent)</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>Process documents and case information through ARIA™ for legal research, document drafting, and analysis</li>
+                                        <li>{isProperty ? 'Process documents and property information through ARIA™ for analysis, document drafting, and insights' : 'Process documents and case information through ARIA™ for legal research, document drafting, and analysis'}</li>
                                         <li>Generate automated summaries, risk assessments, and legal document drafts</li>
                                         {isVega && <li>Calculate filing deadlines based on Nigerian court rules</li>}
                                         <li>Extract metadata and key information from uploaded documents</li>
@@ -249,7 +250,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <div className="space-y-12">
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">5.1 ARIA™ AI Processing</h3>
-                                    <p>ARIA™ is our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities. When you use ARIA™ features, your data (including case facts, document content, and queries) is processed as follows:</p>
+                                    <p>ARIA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting capabilities' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities'}. When you use ARIA™ features, your data (including {isProperty ? 'property data' : 'case facts'}, document content, and queries) is processed as follows:</p>
                                     <ul className="list-disc pl-8 space-y-6">
                                         <li><strong>AI Service Provider:</strong> We use Google's Gemini API (via Google Cloud Vertex AI) to power ARIA™'s natural language processing and generation capabilities.</li>
                                         <li><strong>Data Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, that data is securely transmitted to Google's API for processing.</li>

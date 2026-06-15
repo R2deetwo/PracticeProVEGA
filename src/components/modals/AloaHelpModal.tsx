@@ -2,10 +2,12 @@ import React from 'react';
 import { AloaIcon } from '../../constants';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 
 const AloaHelpModal: React.FC = () => {
     const { togglePanel } = useAloa();
     const { closeModal } = useUI();
+    const { isProperty } = useProduct();
 
     const handleTryDemo = () => {
         closeModal();
@@ -19,15 +21,15 @@ const AloaHelpModal: React.FC = () => {
         <div className="space-y-6 text-sm text-slate-600 dark:text-zinc-300">
             <div className="text-center">
                 <AloaIcon className="w-16 h-16 mx-auto text-primary-500" />
-                <h3 className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">ARIA®: Your AI Paralegal</h3>
-                <p className="mt-1">ARIA® is designed to be your proactive legal assistant, helping you manage your practice more efficiently.</p>
+                <h3 className="text-2xl font-bold mt-2 text-slate-900 dark:text-white">{isProperty ? 'ARIA®: Your AI Assistant' : 'ARIA®: Your AI Paralegal'}</h3>
+                <p className="mt-1">{isProperty ? 'ARIA® is designed to be your proactive property assistant' : 'ARIA® is designed to be your proactive legal assistant'}, helping you manage your practice more efficiently.</p>
             </div>
 
             <div>
                 <h4 className="font-bold text-lg mb-2 text-slate-800 dark:text-white">What ARIA® Can Do</h4>
                 <ul className="space-y-2">
-                    <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>Summarize legal documents</strong> to get the key points instantly.</span></li>
-                    <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>Find deadlines</strong> based on Nigerian court rules.</span></li>
+                    <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>{isProperty ? 'Summarize property documents' : 'Summarize legal documents'}</strong> to get the key points instantly.</span></li>
+                    <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>Find deadlines</strong> {isProperty ? 'for lease expiries and rent reviews' : 'based on Nigerian court rules'}.</span></li>
                     <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>Navigate anywhere</strong> in your workspace with commands.</span></li>
                     <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span><strong>Create tasks, events, or matters</strong> directly from chat.</span></li>
                     <li className="flex gap-3"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg><span>Give you your <strong>Daily Briefing</strong> on critical items.</span></li>
@@ -46,7 +48,7 @@ const AloaHelpModal: React.FC = () => {
             
             <div>
                 <h4 className="font-bold text-lg mb-2 text-slate-800 dark:text-white">Privacy & Data</h4>
-                <p>ARIA® processes your text commands via Google Gemini's secure API. Your prompts are used to provide responses but are not stored to train the model. PracticePro never stores private client data within the AI's memory.</p>
+                <p>ARIA® processes your text commands via Google Gemini's secure API. Your prompts are used to provide responses but are not stored to train the model. PracticePro never stores private {isProperty ? 'tenant' : 'client'} data within the AI's memory.</p>
             </div>
 
             <div className="pt-4 flex justify-center">

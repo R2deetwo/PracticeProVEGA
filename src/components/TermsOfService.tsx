@@ -3,6 +3,7 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
 export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }> = ({ onBack, activeProduct = 'vega' }) => {
     const isVega = activeProduct === 'vega';
+    const isProperty = !isVega;
     return (
         <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
             {/* Standard Header */}
@@ -79,8 +80,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <h3 className="text-xl font-bold">1.1 Definitions</h3>
                                     <p>In these Terms and Conditions, the following terms shall have the meanings set forth below:</p>
                                     <div className="space-y-8 pl-4 border-l-2 border-slate-100 dark:border-zinc-800">
-                                        <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>
-                                        <p>"ARIA" or "ARIA™" means Advanced Revenue Intelligence Agent, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, tenant compliance, and portfolio revenue performance.</p>
+                                        {isVega && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>}
+                                        {isProperty && <p>"ARIA" or "ARIA™" means Advanced Revenue Intelligence Agent, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, tenant compliance, and portfolio revenue performance.</p>}
                                         <p><strong>"AI Agents"</strong> means collectively, ARIA™, ARIA™, Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
                                         <p><strong>"ALDIA"</strong> means AI-Powered Document Intelligence Agent, which provides automated document summarization, risk analysis, metadata extraction, and clause identification services.</p>
                                         <p><strong>"Agreement"</strong> means these Terms and Conditions, together with all schedules, exhibits, and documents incorporated by reference, including the Privacy Policy.</p>
@@ -262,13 +263,13 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 <div id="6-1" className="space-y-8">
                                     <h3 className="text-xl font-bold">6.1 Nature and Limitations of AI Technology</h3>
                                     <p>6.1.1 <strong>Inherent Limitations:</strong> You acknowledge that AI technology operates probabilistically and may generate "hallucinations"—fabricated information presented as fact. AI Agents may produce inaccurate, incomplete, or legally incorrect outputs.</p>
-                                    <p>6.1.2 <strong>Not Legal Advice:</strong> No output from any AI Agent on the Platform constitutes legal advice. All outputs are tools to assist qualified legal professionals and do not replace professional legal judgment.</p>
+                                    <p>6.1.2 <strong>Not Legal Advice:</strong> No output from any AI Agent on the Platform constitutes {isProperty ? 'professional' : 'legal'} advice. All outputs are tools to assist qualified {isProperty ? 'professionals' : 'legal professionals'} and do not replace professional {isProperty ? '' : 'legal '}judgment.</p>
                                     <p>6.1.3 <strong>Professional Judgment:</strong> AI lacks true comprehension and contextual understanding. All outputs must be reviewed, verified, and approved by qualified professionals before reliance or use in any professional proceeding.</p>
                                 </div>
 
                                 <div id="6-2" className="space-y-8">
                                     <h3 className="text-xl font-bold">6.2 Mandatory Oversight and Verification</h3>
-                                    <p>6.2.1 <strong>Absolute Requirement:</strong> You MUST exercise independent professional oversight over all AI-generated content. Before relying on any output, you must independently verify all case citations, legal principles, calculated deadlines, and fee computations.</p>
+                                    <p>6.2.1 <strong>Absolute Requirement:</strong> You MUST exercise independent professional oversight over all AI-generated content. Before relying on any output, you must independently verify {isProperty ? 'all information and regulatory requirements' : 'all case citations, legal principles'}, calculated deadlines, and fee computations.</p>
                                     <p>6.2.2 <strong>{isVega ? 'RPC' : 'Professional'} Compliance:</strong> The use of AI tools does not diminish your professional obligations. You remain personally responsible for all work product submitted to {isVega ? 'courts, clients, and opposing parties' : 'tenants, landlords, and regulatory bodies'}.</p>
                                     {isVega && <p>6.2.3 <strong>Court Deadlines:</strong> Never rely solely on Court Rules Agent calculations for filing deadlines without independent verification. Missing a limitation period or filing deadline due to AI error does not excuse negligence under Nigerian professional liability standards.</p>}
                                 </div>
@@ -369,7 +370,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                         <section id="section-13" className="mb-20">
                             <h2 className="text-3xl font-bold mb-8 transition-colors">13. ACCEPTABLE USE AND PROHIBITED CONDUCT</h2>
                             <div className="space-y-12">
-                                <p>13.1 <strong>Permitted Use:</strong> The Platform may only be used for lawful legal practice management purposes consistent with the Rules of Professional Conduct and applicable Nigerian law.</p>
+                                <p>13.1 <strong>Permitted Use:</strong> The Platform may only be used for lawful {isProperty ? 'property management' : 'legal practice management'} purposes consistent with the Rules of Professional Conduct and applicable Nigerian law.</p>
                                 <p>13.2 <strong>Prohibited Conduct:</strong> You may not:</p>
                                 <ul className="list-disc pl-8 space-y-4">
                                     <li>Use the Platform for any illegal, fraudulent, or unauthorized purpose;</li>
@@ -400,8 +401,8 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <h2 className="text-3xl font-bold mb-8 transition-colors">15. WARRANTIES AND DISCLAIMERS</h2>
                             <div className="space-y-12">
                                 <p>15.1 <strong>"AS IS" Provision:</strong> THE PLATFORM AND ALL SERVICES ARE PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR ACCURACY.</p>
-                                <p>15.2 <strong>AI Output Disclaimer:</strong> THE COMPANY EXPRESSLY DISCLAIMS ALL WARRANTIES IN RESPECT OF AI AGENT OUTPUTS. AI-GENERATED LEGAL DRAFTS, DEADLINE CALCULATIONS, JURISDICTION RECOMMENDATIONS, AND FEE ASSESSMENTS ARE PROVIDED FOR INFORMATIONAL ASSISTANCE ONLY AND DO NOT CONSTITUTE LEGAL ADVICE.</p>
-                                <p>15.3 <strong>Professional Reliance:</strong> The Platform is a tool to assist legal practice. It is not a substitute for professional legal training, experience, or judgment. The Company makes no representation that use of the Platform will lead to favourable legal outcomes.</p>
+                                <p>15.2 <strong>AI Output Disclaimer:</strong> THE COMPANY EXPRESSLY DISCLAIMS ALL WARRANTIES IN RESPECT OF AI AGENT OUTPUTS. {isProperty ? 'AI-GENERATED DRAFTS' : 'AI-GENERATED LEGAL DRAFTS'}, DEADLINE CALCULATIONS, JURISDICTION RECOMMENDATIONS, AND FEE ASSESSMENTS ARE PROVIDED FOR INFORMATIONAL ASSISTANCE ONLY AND DO NOT CONSTITUTE {isProperty ? 'PROFESSIONAL' : 'LEGAL'} ADVICE.</p>
+                                <p>15.3 <strong>Professional Reliance:</strong> The Platform is a tool to assist {isProperty ? 'property management' : 'legal practice'}. It is not a substitute for professional {isProperty ? '' : 'legal '}training, experience, or judgment. The Company makes no representation that use of the Platform will lead to favourable legal outcomes.</p>
                             </div>
                         </section>
 

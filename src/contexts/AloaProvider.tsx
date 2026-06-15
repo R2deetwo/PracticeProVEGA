@@ -2,7 +2,8 @@
 import * as React from 'react';
 import { AloaMessage, AriaChatContext } from '../types';
 import { useLocalFileSystem, LocalFile } from '../hooks/useLocalFileSystem';
-import { FileText } from 'lucide-react';
+import { useDataState } from './DataContext';
+import { FileText, Building2 } from 'lucide-react';
 
 export type UrgencyStatus = 'none' | 'important' | 'urgent';
 export type AloaState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking';
@@ -76,6 +77,7 @@ interface AloaContextType {
 export const AloaContext = React.createContext<AloaContextType | undefined>(undefined);
 
 export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+    const { appState } = useDataState();
     // Renamed from isAloaVisible to isPanelOpen to match component expectations
     const [isPanelOpen, setIsPanelOpen] = React.useState(false);
     const [isMinimized, setIsMinimized] = React.useState(false);
@@ -184,21 +186,28 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             
             // AUTO-FOLLOW UP FOR MATTERS
             if (result.type === 'matter') {
+                const firmProduct = appState?.firmDetails?.product;
+                const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
+
                 const followUp: AloaMessage = {
                     id: Math.random().toString(36).substr(2, 9),
                     role: 'model',
-                    content: `Success! **${result.title}** has been initialized in your workspace. <br/><br/> Shall we begin drafting the **originating process** (Writ of Summons) or any other required documents?`,
+                    content: isPropertyFirm
+                        ? `Success! **${result.title}** has been initialized in your workspace. <br/><br/> Shall we begin drafting the **tenancy agreement** or any other required property documents?`
+                        : `Success! **${result.title}** has been initialized in your workspace. <br/><br/> Shall we begin drafting the **originating process** (Writ of Summons) or any other required documents?`,
                     toolAction: {
                         type: 'drafting',
                         modalType: 'newDraft',
                         context: { 
                             matterId: result.id, 
                             title: result.title,
-                            suggestedDocs: ['Writ of Summons', 'Statement of Claim', 'List of Witnesses']
+                            suggestedDocs: isPropertyFirm
+                                ? ['Tenancy Agreement', 'Notice to Quit', 'Service Charge Notice']
+                                : ['Writ of Summons', 'Statement of Claim', 'List of Witnesses']
                         },
-                        insights: [
-                            { id: 'h1', icon: <FileText className="w-4 h-4" />, text: 'Originating process must be filed within 7 days of suit initialization as per Lagos High Court rules.', type: 'info' }
-                        ]
+                        insights: isPropertyFirm
+                            ? [{ id: 'h1', icon: <Building2 className="w-4 h-4" />, text: 'Ensure all tenancy agreements comply with the relevant State Tenancy Law and the Land Use Act.', type: 'info' }]
+                            : [{ id: 'h1', icon: <FileText className="w-4 h-4" />, text: 'Originating process must be filed within 7 days of suit initialization as per Lagos High Court rules.', type: 'info' }]
                     }
                 };
                 return [...updated, followUp];
@@ -207,7 +216,7 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         });
         // Clear live insights on success
         setLiveInsights([]);
-    }, []);
+    }, [appState]);
 
     const deleteConversation = React.useCallback(async (id: string) => {
         // This will be handled by the component using the mutation

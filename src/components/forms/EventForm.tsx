@@ -6,6 +6,7 @@ import Tooltip from '../Tooltip';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { UserAssignment } from './UserAssignment';
+import { useProduct } from '../../contexts/ProductContext';
 
 const commonInputClass = inputModern;
 
@@ -37,6 +38,7 @@ const toDatetimeLocalString = (date: Date): string => {
 export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, eventTypes, onSave, onUpdateEvent, onClose, onNavigate, currentUser, eventToEdit, initialContext, isCompact }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
+    const { isProperty } = useProduct();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [matterId, setMatterId] = useState<string>('');
@@ -256,7 +258,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                             </select>
                         </div>
                         <div className="space-y-2 group">
-                            <label htmlFor="matterId" className={labelClass}>Case Association</label>
+                            <label htmlFor="matterId" className={labelClass}>{isProperty ? 'Property Association' : 'Case Association'}</label>
                             <div className="relative">
                                 <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <select id="matterId" value={matterId} onChange={e => setMatterId(e.target.value)} className={`${commonInputClass} pl-11`}>

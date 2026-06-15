@@ -103,7 +103,7 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       client:        usePropertyTerms ? 'Tenant' : 'Client',
       clients:       usePropertyTerms ? 'Tenants' : 'Clients',
       type:          usePropertyTerms ? 'Property Category' : 'Practice Area',
-      stage:         usePropertyTerms ? 'Pipeline State' : 'Case Stage',
+      stage:         usePropertyTerms ? 'Pipeline State' : 'Stage',
       newMatter:     usePropertyTerms ? 'New Property' : 'New Matter',
       activeMatters: usePropertyTerms ? 'Active Properties' : 'Active Matters',
     };

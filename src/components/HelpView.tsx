@@ -4,12 +4,14 @@ import { SearchIcon, HelpCircleIcon, ZapIcon, UserCircleIcon, OfficeBuildingIcon
 import Accordion, { AccordionItem } from './Accordion';
 import { useAloa } from '../contexts/AloaProvider';
 import { useUI } from '../contexts/UIContext';
+import { useProduct } from '../contexts/ProductContext';
 
 const HelpView: React.FC = () => {
     const { currentHistoryEntry } = useUI();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
     const { togglePanel } = useAloa();
+    const { isProperty } = useProduct();
 
     React.useEffect(() => {
         if (currentHistoryEntry.context?.activeSection) {
@@ -120,17 +122,17 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is PracticePro?</h4>
-                                    <p>PracticePro is a Litigation System designed to help law firms manage matters, documents, tasks, billing, and team collaboration — all in one place.</p>
+                                    <p>{isProperty ? 'PracticePro is a Property Management System designed to help property agencies and real estate professionals' : 'PracticePro is a Litigation System designed to help law firms'} manage matters, documents, tasks, billing, and team collaboration — all in one place.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Modules & How They Connect</h4>
                                     <ul className="list-disc pl-5 space-y-1 marker:text-primary-500">
                                         <li><strong>Dashboard:</strong> Quick view of active matters, your tasks, upcoming deadlines, and recent firm activity.</li>
-                                        <li><strong>Matters:</strong> Central hub for case details. Here you can track progress, and view all related documents, tasks, and notes for a specific case.</li>
-                                        <li><strong>Tasks:</strong> Assign, track, and complete legal or administrative tasks on a drag-and-drop board.</li>
-                                        <li><strong>Research Studio <span className="text-[9px] px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> An AI-powered workspace for analyzing case files, generating chronologies, and preparing legal arguments.</li>
-                                        <li><strong>Calendar:</strong> Track court dates, filing deadlines, and client meetings. Includes automatic conflict detection.</li>
+                                        <li><strong>Matters:</strong> {isProperty ? 'Central hub for property details' : 'Central hub for case details'}. Here you can track progress, and view all related documents, tasks, and notes for a specific case.</li>
+                                        <li><strong>Tasks:</strong> Assign, track, and complete {isProperty ? 'property or administrative tasks' : 'legal or administrative tasks'} on a drag-and-drop board.</li>
+                                        <li><strong>Research Studio <span className="text-[9px] px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> An AI-powered workspace for {isProperty ? 'analyzing property documents, generating reports, and preparing management briefs' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
+                                        <li><strong>Calendar:</strong> {isProperty ? 'Track inspections, rent reviews, and meetings' : 'Track court dates, filing deadlines, and client meetings'}. Includes automatic conflict detection.</li>
                                         <li><strong>Billing:</strong> Record billable time, generate invoices, and manage payments (Admin only in multi-user mode).</li>
                                     </ul>
                                 </div>
@@ -149,7 +151,7 @@ const HelpView: React.FC = () => {
                                     <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
                                     <div>
                                         <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is ARIA?</h4>
-                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">ARIA (Advanced Legal Office Assistant) is your AI-powered paralegal and practice manager. She drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
+                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? 'ARIA (Advanced Revenue Intelligence Agent) is your AI-powered assistant and portfolio manager' : 'ARIA (Advanced Legal Office Assistant) is your AI-powered paralegal and practice manager'}. She drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
                                     </div>
                                 </div>
 
@@ -170,14 +172,14 @@ const HelpView: React.FC = () => {
                                         </li>
                                         <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
                                             <strong className="block mb-1 text-primary-600">Drafting</strong>
-                                            "Draft a letter to the opposing counsel for adjournment."
+                                            {isProperty ? '"Draft a notice to the tenant regarding lease renewal terms."' : '"Draft a letter to the opposing counsel for adjournment."'}
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">The Integrated Note Taker</h4>
-                                    <p className="mb-2">ARIA includes a powerful dictation engine for legal Note-Taking directly within her chat panel.</p>
+                                    <p className="mb-2">ARIA includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within her chat panel.</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
                                         <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts perfectly transcribed into text.</li>
                                         <li><strong>Quick Save:</strong> Use the "Save to Matter" feature in the generated note to instantly store your typed or dictated memo safely into a Matter's Notebook.</li>
@@ -187,12 +189,12 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">Firm-Wide Brain (RAG)</h4>
-                                    <p className="text-sm">ARIA constantly reads your firm's case files and saved notes. You can search across your knowledge base simply by chatting with her, and she will cross-reference your specific uploaded documents to generate accurate, localized legal answers.</p>
+                                    <p className="text-sm">ARIA constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and she will cross-reference your specific uploaded documents to generate accurate results.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">On-Demand Briefings</h4>
-                                    <p className="text-sm">Get an instant snapshot of your practice. Ask ARIA "Give me a daily briefing" to receive your urgent tasks, upcoming court appearances, financial highlights, and recent notes securely packaged together.</p>
+                                    <p className="text-sm">Get an instant snapshot of your practice. Ask ARIA "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -210,8 +212,8 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">User Management</h4>
                                     <p className="mb-2">Go to <strong>Settings {'>'} User Management</strong> to invite team members.</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Legal Professional:</strong> Full access to matters, billing, and documents. Can track CPD hours.</li>
-                                        <li><strong>Paralegal:</strong> Can manage tasks and documents but has restricted access to firm settings and sensitive billing actions.</li>
+                                        <li>{isProperty ? <strong>Property Manager:</strong> : <strong>Legal Professional:</strong>} Full access to matters, billing, and documents. Can track CPD hours.</li>
+                                        <li>{isProperty ? <strong>Staff:</strong> : <strong>Paralegal:</strong>} Can manage tasks and documents but has restricted access to firm settings and sensitive billing actions.</li>
                                         <li><strong>Admin:</strong> Full control over firm settings, users, and billing.</li>
                                     </ul>
                                 </div>
@@ -220,7 +222,7 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Firm Branding</h4>
                                     <p className="mb-2">Go to <strong>Settings {'>'} Firm Details</strong> to customize:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Logo:</strong> Appears on the navigation bar and client portal.</li>
+                                        <li><strong>Logo:</strong> Appears on the navigation bar and {isProperty ? 'tenant portal' : 'client portal'}.</li>
                                         <li><strong>Letterhead:</strong> Upload your official letterhead image. This will be used as the background for all generated PDFs (Invoices, Receipts).</li>
                                         <li><strong>Digital Stamp:</strong> Used for digitally signing documents within the app.</li>
                                     </ul>
@@ -228,7 +230,7 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Custom Workflows</h4>
-                                    <p>You can standardize how your firm handles cases by creating Workflows in <strong>Settings {'>'} Templates</strong>. Define custom stages (e.g., "Search", "Drafting", "Execution") for different practice areas like Real Estate or Litigation.</p>
+                                    <p>You can standardize {isProperty ? 'how your team handles property workflows' : 'how your firm handles cases'} by creating Workflows in <strong>Settings {'>'} Templates</strong>. Define custom stages (e.g., "Search", "Drafting", "Execution") for different practice areas like Real Estate or Litigation.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -250,15 +252,15 @@ const HelpView: React.FC = () => {
                                         Overview
                                         <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
                                     </h4>
-                                    <p>The Research Studio is designed to be your digital war room. It allows you to upload case files (PDFs, Word docs) and use AI to extract insights.</p>
+                                    <p>The Research Studio is designed to be your digital war room. It allows you to {isProperty ? 'upload documents' : 'upload case files'} (PDFs, Word docs) and use AI to extract insights.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Tools available in the Studio</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Chronology Builder:</strong> Automatically extracts dates and events from all uploaded documents to create a case timeline.</li>
+                                        <li><strong>Chronology Builder:</strong> Automatically extracts dates and events from all uploaded documents to {isProperty ? 'create a property timeline' : 'create a case timeline'}.</li>
                                         <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format).</li>
                                         <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies.</li>
-                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style audio summary of your case file for listening on the go.</li>
+                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go.</li>
                                     </ul>
                                 </div>
                             </div>
@@ -275,7 +277,7 @@ const HelpView: React.FC = () => {
                                     <SparklesIcon className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
                                     <div>
                                         <h4 className="font-bold text-indigo-800 dark:text-indigo-200">What is ALDIA?</h4>
-                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">ALDIA (Advanced Legal Document Intelligence Agent) is an AI agent that analyzes your legal documents for risk, compliance, and key metadata extraction.</p>
+                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{isProperty ? 'ALDIA (Advanced Document Intelligence Agent) analyzes your property documents' : 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your legal documents'} for risk, compliance, and key metadata extraction.</p>
                                     </div>
                                 </div>
 
@@ -292,7 +294,7 @@ const HelpView: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Analysis Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Risk Analysis:</strong> Legal, commercial, compliance, and operational risk scores (1-10)</li>
+                                        <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
                                         <li><strong>Metadata Extraction:</strong> Parties, dates, governing law, jurisdiction</li>
                                         <li><strong>Opposing Counsel Detection:</strong> Automatically extracts contact information for quick saving</li>
                                         <li><strong>Data Protection:</strong> Identifies PII and assesses NDPA compliance</li>

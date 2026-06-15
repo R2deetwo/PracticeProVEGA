@@ -18,7 +18,7 @@ export const useFeatures = () => {
             : SubscriptionPlan.Core);
     const product = appState.firmDetails.product
         || currentUser?.product
-        || 'legal';
+        || 'unified';
 
     // ─── Product Mode ────────────────────────────────────────────────────
     const isPropertyFirm = isPropertyCapable(product);

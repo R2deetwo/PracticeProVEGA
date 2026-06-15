@@ -3,6 +3,7 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
 
 export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProduct?: 'vega' | 'atrium' }> = ({ onBack, activeProduct = 'vega' }) => {
     const isVega = activeProduct === 'vega';
+    const isProperty = !isVega;
     return (
         <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden font-sans">
             <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
@@ -74,7 +75,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                         <section className="mb-14">
                             <h2>3. Roles of the Parties</h2>
                             <h3>3.1 Controller Role</h3>
-                            <p>The Controller is the Data Controller in respect of all {isVega ? 'client Personal Data, case information' : 'tenant Personal Data, property information'}, and legal documents entered into the Platform. The Controller determines the purposes and means of processing such data.</p>
+                            <p>The Controller is the Data Controller in respect of all {isVega ? 'client Personal Data, case information' : 'tenant Personal Data, property information'}, and {isProperty ? 'property documents' : 'legal documents'} entered into the Platform. The Controller determines the purposes and means of processing such data.</p>
                             <h3>3.2 Processor Role</h3>
                             <p>The Processor acts solely as a Data Processor in respect of {isVega ? 'client' : 'tenant'} data. The Processor may act as a Data Controller for its own operational data (e.g., billing and account management).</p>
                             <h3>3.3 Dual Role Acknowledgement</h3>

@@ -6,6 +6,7 @@ import {
     OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon, KeyIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
+import { useProduct } from '../contexts/ProductContext';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import DataProcessingAgreement from './DataProcessingAgreement';
@@ -289,6 +290,7 @@ const HubHero: React.FC<{
     onPickProduct: (p: 'vega' | 'atrium') => void;
     onLogin: () => void;
 }> = ({ onPickProduct, onLogin }) => {
+    const { isProperty } = useProduct();
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
 
@@ -340,7 +342,7 @@ const HubHero: React.FC<{
                             </div>
                             <h3 className="text-lg font-bold text-white mb-2.5">For Law Firms</h3>
                             <p className="text-sm text-slate-500 leading-[1.75]">
-                                Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.
+                                {isProperty ? 'Case management, automated billing, and AI-assisted research.' : 'Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.'}
                             </p>
                             <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-amber-500/70 group-hover:text-amber-400 group-hover:gap-2.5 transition-all duration-300">
                                 Enter Vega <span aria-hidden="true">→</span>
@@ -406,6 +408,7 @@ const ATRIUM_STATS = [
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
+    const { isProperty } = useProduct();
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
 
@@ -438,7 +441,9 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
                 {/* Sub-copy */}
                 <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
                     {isVega
-                        ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
+                        ? (isProperty
+                            ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing.'
+                            : 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.')
                         : 'Revenue monitoring, rent collection, and defaulter management — purpose-built for Nigerian property portfolios and estate operations.'}
                 </p>
 
@@ -489,7 +494,8 @@ const VEGA_FEATURE_CATEGORIES = [
             { title: 'DraftPro Editor', desc: 'Rich-text editor with A4 pagination and Nigerian legal fonts. Placeholder guardrails block printing until every blank is filled — so you never accidentally send incomplete work. Draft, tweak, then save to a matter, print, or copy to Word.' },
             { title: 'ARIA AI Copilot', desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.', badge: 'Growth+' },
             { title: 'Document Vault', desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.' },
-            { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis. Build research notebooks with source citations.', badge: 'Growth+' },
+            { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.', badge: 'Growth+', isLegalOnly: true },
+            { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations.', badge: 'Growth+', isPropertyOnly: true },
         ],
     },
     {
@@ -536,8 +542,9 @@ const ATRIUM_FEATURE_CATEGORIES = [
 ];
 
 const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const { isProperty } = useProduct();
     const isVega = activeProduct === 'vega';
-    const categories = isVega ? VEGA_FEATURE_CATEGORIES : ATRIUM_FEATURE_CATEGORIES;
+    const categories = isVega ? VEGA_FEATURE_CATEGORIES.map(cat => ({ ...cat, items: cat.items.filter(item => isProperty ? !item.isLegalOnly : !item.isPropertyOnly) })).filter(cat => cat.items.length > 0) : ATRIUM_FEATURE_CATEGORIES;
 
     return (
         <section id="features" className={`py-20 lg:py-28 transition-colors duration-500 ${isVega ? 'bg-slate-50 dark:bg-slate-900/40' : 'bg-slate-950'}`}>
@@ -640,6 +647,7 @@ const TIER_CTAS: Record<TierId, string> = {
 };
 
 const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
+    const { isAtrium } = useProduct();
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
@@ -780,7 +788,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
             {/* ── Dual CTA Banner: Real Estate Lawyer Hook + Custom Automation Pipeline ── */}
             <div className="max-w-5xl mx-auto mt-10 mb-12 space-y-5">
-                {/* A. Real Estate Lawyer Hook — Komplete Tier */}
+                {/* A. Real Estate Lawyer Hook — Komplete Tier (Vega/unified only) */}
+                {!isAtrium && (
                 <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-primary-500/10 via-emerald-500/5 to-indigo-500/10 border border-primary-500/20 dark:border-primary-500/10">
                     <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl bg-primary-400/10 pointer-events-none" />
                     <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full blur-3xl bg-emerald-400/8 pointer-events-none" />
@@ -802,6 +811,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         </button>
                     </div>
                 </div>
+                )}
 
                 {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems */}
                 <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-800 dark:to-slate-950 border border-slate-700/40 dark:border-white/[0.06]">

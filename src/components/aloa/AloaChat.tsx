@@ -429,10 +429,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             
                             feedbackMessage = repoResults.length > 0 
                                 ? `I found ${repoResults.length} relevant document(s) in your firm's knowledge base.`
-                                : "I didn't find matching documents in your firm's indexed files. I can still provide general legal guidance based on Nigerian law principles.";
+                                : isProperty
+                                    ? "I didn't find matching documents in your indexed files. I can still provide general property guidance based on Nigerian tenancy law principles."
+                                    : "I didn't find matching documents in your firm's indexed files. I can still provide general legal guidance based on Nigerian law principles.";
                         } catch (err: any) {
                             toolOutput = { error: err.message };
-                            feedbackMessage = `Legal search encountered an issue. I can still help with general legal guidance.`;
+                            feedbackMessage = isProperty
+                                    ? `Search encountered an issue. I can still help with general property guidance.`
+                                    : `Legal search encountered an issue. I can still help with general legal guidance.`;
                         }
                     }
                 }
@@ -585,7 +589,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages(prev => [...prev, {
                 id: uuidv4(),
                 role: 'model',
-                content: "**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ARIA's capabilities and automate your legal practice, please create your account.",
+                content: `**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ARIA's capabilities and ${isProperty ? 'automate your property operations' : 'automate your legal practice'}, please create your account.`,
                 toolAction: {
                     type: 'modal',
                     modalType: 'demoUpsell',

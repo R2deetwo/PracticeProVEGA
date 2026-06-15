@@ -6,6 +6,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
+import { useProduct } from '../../contexts/ProductContext';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon,
@@ -140,6 +141,7 @@ const ClientDashboard: React.FC = () => {
     const { navigateTo, openModal, addToast, theme, setTheme } = useUI();
     const { canUseClientPortal } = useFeatures();
     const { handleSendClientMessage } = useDataActions();
+    const { isProperty } = useProduct();
 
     // Repair mutation for fixing missing firmId on portal user records
     const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
@@ -345,12 +347,12 @@ const ClientDashboard: React.FC = () => {
     const getUserName = (userId: string, fallbackName?: string): string => {
         if (fallbackName) return fallbackName;
         const user = coreState.users?.find(u => u.id === userId);
-        return user?.name || coreState.firmDetails?.name || 'Your Legal Team';
+        return user?.name || coreState.firmDetails?.name || (isProperty ? 'Your Property Team' : 'Your Legal Team');
     };
 
     const getLawyerNames = (matter: any): string[] => {
         if (!matter.assignedUsers || matter.assignedUsers.length === 0) return [];
-        return matter.assignedUsers.map((uid: string) => getUserName(uid)).filter((n: string) => n !== 'Your Legal Team');
+        return matter.assignedUsers.map((uid: string) => getUserName(uid)).filter((n: string) => n !== (isProperty ? 'Your Property Team' : 'Your Legal Team'));
     };
 
     const getUpcomingDeadlines = (matterId: string): string[] => {

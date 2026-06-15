@@ -6,6 +6,7 @@ import { inputModern } from '../../utils/formStyles';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { AloaTaskCoach } from './AloaTaskCoach';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface TaskFormProps {
   matters: Matter[];
@@ -47,6 +48,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 }) => {
   const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
+  const { isProperty } = useProduct();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -195,7 +197,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
           <div className="space-y-2 group">
             <label htmlFor="taskTitle" className={labelClass}>Task Title</label>
-            <input autoComplete="off" data-lpignore="true"  type="text" id="taskTitle" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder="e.g. Finalize Case Brief for High Court" required autoFocus />
+            <input autoComplete="off" data-lpignore="true"  type="text" id="taskTitle" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder={isProperty ? 'e.g. Conduct Property Inspection' : 'e.g. Finalize Case Brief for High Court'} required autoFocus />
           </div>
 
           <div className="space-y-2 group">

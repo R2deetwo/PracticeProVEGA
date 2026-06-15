@@ -4,20 +4,22 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { MailIcon } from '../../constants';
+import { useProduct } from '../../contexts/ProductContext';
 
 const SendPostActivationEmailModal: React.FC = () => {
     const { closeModal, modalContext, addToast } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
     const convex = useConvex();
+    const { isProperty } = useProduct();
     const { email, name, content } = modalContext || {};
     const [isSending, setIsSending] = useState(false);
     const [editableContent, setEditableContent] = useState(
-        content || `Dear ${name},\n\nThank you for completing our intake process. We have activated your matter with our firm and created a secure client portal for you.\n\nYou will receive a separate email shortly with instructions on how to log in.\n\nWe look forward to working with you.\n\nSincerely,\nThe Team at ${coreState.firmDetails?.name || 'our firm'}`
+        content || `Dear ${name},\n\nThank you for completing our intake process. We have activated your matter ${isProperty ? 'with our agency' : 'with our firm'} and created a secure client portal for you.\n\nYou will receive a separate email shortly with instructions on how to log in.\n\nWe look forward to working with you.\n\nSincerely,\nThe Team at ${coreState.firmDetails?.name || 'our firm'}`
     );
 
     const handleSend = async () => {
         if (!email) {
-            addToast('No email address found for this client.', { type: 'error' });
+            addToast(`No email address found for ${isProperty ? 'this tenant' : 'this client'}.`, { type: 'error' });
             return;
         }
         setIsSending(true);
@@ -54,12 +56,12 @@ const SendPostActivationEmailModal: React.FC = () => {
     return (
         <div className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-zinc-400">
-                This is the AI-drafted email ready to send to your new client, <strong>{name}</strong>. You can edit it before sending.
+                This is the AI-drafted email ready to send to {isProperty ? 'your new tenant' : 'your new client'}, <strong>{name}</strong>. You can edit it before sending.
             </p>
 
             <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-900/50">
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-zinc-400">
-                    <p><span className="font-semibold">From:</span> {coreState.firmDetails?.name || 'Firm'}</p>
+                    <p><span className="font-semibold">From:</span> {coreState.firmDetails?.name || (isProperty ? 'Agency' : 'Firm')}</p>
                     <p><span className="font-semibold">To:</span> {email}</p>
                 </div>
                 <h3 className="font-bold text-lg mt-2">Subject: Next Steps for Your Matter</h3>

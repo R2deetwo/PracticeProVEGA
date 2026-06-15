@@ -4,6 +4,7 @@ import { inputLarge } from '../../utils/formStyles';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface RequestFinancialDocumentFormProps {
     matter: Matter;
@@ -19,6 +20,7 @@ const documentTypes = [
 const RequestFinancialDocumentForm: React.FC<RequestFinancialDocumentFormProps> = ({ matter }) => {
     const { handleRequestFinancialDocument } = useDataActions();
     const { closeModal } = useUI();
+    const { isProperty } = useProduct();
     const [docType, setDocType] = useState(documentTypes[0]);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -31,7 +33,7 @@ const RequestFinancialDocumentForm: React.FC<RequestFinancialDocumentFormProps> 
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
             <p className="text-sm text-slate-600 dark:text-zinc-400">
-                Select the financial document you would like to request for the matter "<strong>{matter.title}</strong>". A notification will be sent to your legal team.
+                Select the financial document you would like to request for the matter "<strong>{matter.title}</strong>". A notification will be sent to {isProperty ? 'your property team' : 'your legal team'}.
             </p>
             <div>
                 <label htmlFor="docType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Document Type</label>

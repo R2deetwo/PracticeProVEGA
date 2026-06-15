@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { sanitize } from '../../utils/sanitization';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface ResearchChatProps {
     messages: ResearchMessage[];
@@ -88,6 +89,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
     onSendMessage
 }) => {
     const { addToast } = useUI();
+    const { isProperty } = useProduct();
     const [input, setInput] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -150,7 +152,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             </div>
                             <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300">Argument Lab</h3>
                             <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-xs mt-1.5">
-                                Ask anything about your case files. The AI will respond with citations from your sources.
+                                Ask anything about your {isProperty ? 'documents' : 'case files'}. The AI will respond with citations from your sources.
                             </p>
 
                             {sources.length > 0 && (

@@ -19,7 +19,7 @@ export interface ReadinessGroup {
 }
 
 const DEFAULT_FIRM_NAME = 'PracticePro Demo Firm';
-const DEFAULT_FIRM_ADDRESS = '123 Legal Avenue, Victoria Island, Lagos';
+const DEFAULT_FIRM_ADDRESS = '123 Enterprise Road, Victoria Island, Lagos';
 const DEFAULT_BANK_ACCOUNT = '0123456789';
 
 export const calculateFirmReadiness = (appState: AppState, product: Product): ReadinessGroup => {

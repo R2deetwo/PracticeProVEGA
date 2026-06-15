@@ -5,6 +5,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { PlusIcon, TrashIcon, EditIcon, LinkIcon, FormIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
@@ -129,6 +130,7 @@ export const IntakeSettings: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { handleUpdateIntakeForm, handleDeleteIntakeForm } = useDataActions();
     const { addToast, openModal, closeModal } = useUI();
+    const { isProperty } = useProduct();
     const [editingForm, setEditingForm] = useState<IntakeFormTemplate | null | 'new'>(null);
     const [enforceRules, setEnforceRules] = useState(true);
 
@@ -141,7 +143,7 @@ export const IntakeSettings: React.FC = () => {
         <div className="space-y-6">
             <SettingsCard title="Enterprise Intake Configuration" id="enterprise-intake-config">
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
-                    Configure how PracticePro's procedural intelligence guides attorneys during matter creation.
+                    Configure how PracticePro's procedural intelligence {isProperty ? 'guides managers during property creation' : 'guides attorneys during matter creation'}.
                 </p>
                 <div className="flex items-center justify-between p-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg">
                     <div>
@@ -157,7 +159,7 @@ export const IntakeSettings: React.FC = () => {
 
             <SettingsCard title="Public Intake Forms" id="intake-settings">
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">
-                    Create branded intake forms to share with prospective clients. Responses automatically create a Lead in your funnel.
+                    Create branded intake forms to share with {isProperty ? 'prospective tenants' : 'prospective clients'}. Responses automatically create a Lead in your funnel.
                 </p>
 
                 {!editingForm ? (

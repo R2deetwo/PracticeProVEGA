@@ -1,7 +1,10 @@
 import React from 'react';
 import { ChevronLeftIcon as ChevronLeft } from '../constants';
+import { useProduct } from '../contexts/ProductContext';
 
-const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => (
+const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+    const { isProperty } = useProduct();
+    return (
     <div className="w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden animate-fade-in font-sans">
 
         <div className="sticky top-0 z-50 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 h-16 flex items-center justify-between">
@@ -122,7 +125,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => (
                     </ul>
                     <p>
                         Please note that blocking or scrubbing essential tokens will instantly terminate your active
-                        session context and suspend your ability to run database mutations or access secure case file
+                        session context and suspend your ability to run database mutations or {isProperty ? 'access secure documents' : 'access secure case file'}
                         paths inside the application.
                     </p>
 
@@ -164,6 +167,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => (
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export default CookiePolicy;

@@ -95,13 +95,13 @@ export const HelpSettings: React.FC = () => {
                                     <h4 className="font-bold text-lg">Business Intelligence</h4>
                                     <p>This powerful, consolidated tab gives you a multi-faceted view of your team's health. Use the toggles to switch between:</p>
                                     <ul className="list-disc pl-5 mt-2">
-                                        <li><strong>Case Analytics:</strong> An operational dashboard to monitor the status of all matters and identify stale cases needing attention.</li>
-                                        <li><strong>Client Analytics:</strong> A complete overview of your client portfolio, helping you identify top clients and manage receivables.</li>
+                                        <li><strong>{isProperty ? 'Property Analytics' : 'Case Analytics'}:</strong> An operational dashboard to monitor the status of all matters and identify {isProperty ? 'stale records' : 'stale cases'} needing attention.</li>
+                                        <li><strong>{isProperty ? 'Tenant Analytics' : 'Client Analytics'}:</strong> A complete overview of your {isProperty ? 'tenant' : 'client'} portfolio, helping you identify {isProperty ? 'top tenants' : 'top clients'} and manage receivables.</li>
                                     </ul>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Compliance Reports</h4>
-                                    <p>Stay on top of your professional obligations. This report provides a summary of your <strong>Trust Account</strong> balances, flagging any overdrawn accounts. It also helps lawyers track their <strong>Professional Standards</strong>, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings → My Profile</code>).</p>
+                                    <p>Stay on top of your professional obligations. This report provides a summary of your <strong>Trust Account</strong> balances, flagging any overdrawn accounts. It also {isProperty ? 'helps managers track compliance' : 'helps lawyers track their <strong>Professional Standards</strong>'}, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings → My Profile</code>).</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -114,7 +114,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>
-                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your firm's documents. When you ask about a case, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
+                                    <p>ARIA uses <strong>Retrieval Augmented Generation (RAG)</strong> to answer questions based directly on your firm's documents. {isProperty ? 'When you ask about a property' : 'When you ask about a case'}, ARIA scans related files to provide accurate, evidence-based answers with citations.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Actionable Insights</h4>
@@ -122,7 +122,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">On-Demand Briefings</h4>
-                                    <p>You can ask ARIA for a summary of your day at any time. Simply say "Give me a briefing" to see a snapshot of your overdue tasks, upcoming court dates, and pending invoices.</p>
+                                    <p>You can ask ARIA for a summary of your day at any time. Simply say "Give me a briefing" to see a snapshot of your overdue tasks, {isProperty ? 'upcoming inspections, and pending invoices' : 'upcoming court dates, and pending invoices'}.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -139,7 +139,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Configuring {isProperty ? 'Operational' : 'Practice Area'} Workflows</h4>
-                                    <p>Standardize your {isProperty ? 'operations' : 'firm\'s processes'} by creating custom stages for different {isProperty ? 'property' : 'matter'} types in <code>Settings &gt; Templates</code>. This ensures consistency across all cases.</p>
+                                    <p>Standardize your {isProperty ? 'operations' : 'firm\'s processes'} by creating custom stages for different {isProperty ? 'property' : 'matter'} types in <code>Settings &gt; Templates</code>. This ensures consistency across all {isProperty ? 'properties' : 'cases'}.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -168,7 +168,7 @@ export const HelpSettings: React.FC = () => {
                                         <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400">
                                             <li><strong>Milestone Progress Tracker:</strong> A visual timeline of their matter's progress through each stage (Intake → Active → Resolution → Closed), so they always know where things stand.</li>
                                             <li><strong>Secure Document Vault:</strong> Access to all shared documents related to their matter — court filings, correspondence, contracts, and opinions. Documents are read-only and cannot be modified through the portal.</li>
-                                            <li><strong>KYC Upload Portal:</strong> A secure upload area for Know-Your-Client documentation (identification, proof of address, corporate registration documents) that flows directly into your firm's matter records.</li>
+                                            <li><strong>KYC Upload Portal:</strong> A secure upload area for Know-Your-Client documentation (identification, proof of address, corporate registration documents) that flows directly into {isProperty ? 'your portfolio records' : "your firm's matter records"}.</li>
                                         </ul>
                                     )}
                                 </div>
@@ -289,9 +289,9 @@ export const HelpSettings: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white">Active Beta Tools:</h4>
                                     <ul className="list-disc pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-2">
-                                        <li><strong>DraftPro:</strong> AI-augmented legal word processor for high-speed drafting.</li>
+                                        <li><strong>DraftPro:</strong> {isProperty ? 'AI-augmented document editor' : 'AI-augmented legal word processor'} for high-speed drafting.</li>
                                         <li><strong>Research Studio:</strong> Advanced deep-dive analysis and chronology building tool.</li>
-                                        <li><strong>ARIA Voice:</strong> Real-time voice interaction with your legal assistant.</li>
+                                        <li><strong>ARIA Voice:</strong> {isProperty ? 'Real-time voice interaction with your property assistant.' : 'Real-time voice interaction with your legal assistant.'}</li>
                                     </ul>
                                 </div>
                                 <div>

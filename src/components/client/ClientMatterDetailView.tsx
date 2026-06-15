@@ -7,6 +7,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { ClientDocumentsTab } from './ClientDocumentsTab';
 import { timeAgo, getInitials, getUserColor } from '../../utils/colorUtils';
 import { sanitize } from '../../utils/sanitization';
@@ -67,6 +68,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { handleClientUploadDocument, handleClientMarkDocumentAsReviewed, handleUpdateClientActionItem, handleSendClientMessage } = useDataActions();
     const { currentUser } = useAuth();
+    const { isProperty } = useProduct();
     const [activeTab, setActiveTab] = useState<ClientTab>(() => {
         const hash = window.location.hash.replace('#', '');
         if (['overview', 'documents', 'action_items', 'messages', 'billing'].includes(hash)) return hash as ClientTab;
@@ -164,7 +166,7 @@ const ClientMatterDetailViewContent: React.FC = () => {
                             {!hasItems ? (
                                 <div className="text-center py-8">
                                     <div className="text-3xl mb-3">✅</div>
-                                    <p className="text-slate-500 dark:text-zinc-400">No action items right now. Your lawyer will add items here when needed.</p>
+                                    <p className="text-slate-500 dark:text-zinc-400">No action items right now. {isProperty ? 'Your manager will add items here when needed' : 'Your lawyer will add items here when needed'}.</p>
                                 </div>
                             ) : (
                                 <ul className="space-y-3">

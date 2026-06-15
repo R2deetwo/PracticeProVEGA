@@ -85,7 +85,7 @@ ${agent === 'ARIA' ? ARIA_OPERATIONAL_RULES : ''}
 
 ## Response Style
 - **Confident & Professional**: Use first-person ("I recommend...", "In my experience...")
-- **Nigerian Legal Context**: Reference specific Nigerian laws, Lagos State regulations where applicable
+- **${agent === 'ARIA' ? 'Nigerian Property Context' : 'Nigerian Legal Context'}**: Reference specific Nigerian ${agent === 'ARIA' ? 'property laws, tenancy regulations, and Lagos State property rules' : 'laws, Lagos State regulations'} where applicable
 - **Practical Solutions**: Provide actionable advice, not generic disclaimers
 - **Concise**: Avoid over-explaining; clients value brevity
 

@@ -6,6 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { getGeminiApiKey, setCustomApiKey } from '../../utils/aiUtils';
 import { Key } from 'lucide-react';
+import { useProduct } from '../../contexts/ProductContext';
 
 import { DocumentClassifier } from '../../services/indexer/DocumentClassifier';
 import { LegalChunker } from '../../services/indexer/LegalChunker';
@@ -533,6 +534,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
 // ── Main AloaXView ────────────────────────────────────────────────
 export const AloaXView: React.FC = () => {
   const { currentUser } = useAuth();
+  const { isProperty } = useProduct();
   const firmId = (currentUser as any)?.firmId as string | undefined;
 
   // Convex save — purely optional background sync
@@ -802,8 +804,8 @@ export const AloaXView: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white text-lg font-black shadow-lg shadow-indigo-500/20">⚖</div>
             <div>
-              <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">ALOA-X Legal Indexer</h1>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Transform legal PDFs into searchable structured intelligence · Stored on this device</p>
+              <h1 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">{isProperty ? 'ARIA-X Document Indexer' : 'ALOA-X Legal Indexer'}</h1>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">{isProperty ? 'Transform documents into searchable structured intelligence' : 'Transform legal PDFs into searchable structured intelligence'} · Stored on this device</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

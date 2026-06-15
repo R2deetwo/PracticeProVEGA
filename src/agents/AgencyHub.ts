@@ -1,5 +1,5 @@
 import { AppState, User, HistoryEntry, TaskStatus, AriaChatContext } from '../types';
-import { ALOA_PRECISION_PROTOCOL } from '../constants/aloaPrompts';
+import { ALOA_PRECISION_PROTOCOL, getAloaProtocol } from '../constants/aloaPrompts';
 import { identityLock } from '../config/identityGuardrails';
 import { getAtriumSystemInstruction } from './PropertyManagementAgent';
 
@@ -238,7 +238,7 @@ Proactively mention these if they relate to the user's current query or context.
     ${identityLockStr}
 
     ${deepContextBlock}
-    ${ALOA_PRECISION_PROTOCOL}
+    ${getAloaProtocol(appState.firmDetails?.product)}
     ${demoGuide}
     ${conversationMemoryBlock}
     ${firmRAGPrompt}

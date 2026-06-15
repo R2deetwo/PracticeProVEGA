@@ -346,7 +346,9 @@ export const sendMessage = async (
                     const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
                     const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
 
-                    const agent = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view) ? 'ARIA' : 'ALOA';
+                    const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
+                    const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
+                    const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
                     const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
                     return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName}` };
                 }
@@ -378,7 +380,9 @@ export const sendMessage = async (
             const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
             const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
 
-            const agent = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view) ? 'ARIA' : 'ALOA';
+            const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
+            const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
+            const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
             const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
             return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName} (Proxy)` };
         } catch (proxyErr: any) {
@@ -478,7 +482,9 @@ export const streamMessage = async (
     }
     if (!response.body) throw new Error('No stream body');
 
-    const agent = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view || '') ? 'ARIA' : 'ALOA';
+    const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view || '');
+    const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
+    const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
     let fullText = '';
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
@@ -527,7 +533,10 @@ export const streamDraft = async (
     // VEGA mode: always "legal practitioner / Solicitor".
     // ATRIUM mode: always "property manager / real estate professional".
     const isUnified = !!context.signerContext;
-    const aloaProtocol = getAloaProtocol(isUnified, context.signerContext);
+    const firmProduct = context.appState.firmDetails?.product;
+    const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
+
+    const aloaProtocol = getAloaProtocol(isUnified, context.signerContext, firmProduct);
 
     let roleContextBlock: string;
     const sc = context.signerContext;
@@ -538,8 +547,13 @@ Unless explicitly instructed otherwise, ALL drafts must be signed and authored a
 Do NOT assume the user is a "Lawyer" or "Property Manager" — use their actual profile title: "${sc.signerTitle}".
 If you need more context about the user's practice area, include [BRACKETED PLACEHOLDERS] rather than guessing.
 Jurisdiction: Tailor to Nigerian law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).`;
+    } else if (isPropertyFirm) {
+        // ATRIUM — property management professional
+        roleContextBlock = `CONTEXT: The user is a property management professional based in Asaba, Delta State, Nigeria. They manage real estate portfolios, handle tenant relations, oversee service charge administration, and ensure regulatory compliance.
+The user is ALWAYS the Property Manager. Sign documents accordingly.
+Unless explicitly instructed otherwise, ALL drafts must be tailored to relevant Nigerian property and tenancy law.`;
     } else {
-        // VEGA or ATRIUM — existing behavior preserved
+        // VEGA — legal practitioner
         roleContextBlock = `CONTEXT: The user is a legal practitioner based in Asaba, Delta State, Nigeria. 
 Unless explicitly instructed otherwise (e.g., "Lagos High Court"), ALL drafts must be tailored to the jurisdiction of the High Court of Delta State or relevant Delta State laws.
 The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
@@ -552,9 +566,9 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
 
     ${roleContextBlock}
     
-    TASK: Write a perfectly formatted, authoritative legal document.
+    TASK: Write a perfectly formatted, authoritative ${isPropertyFirm ? 'professional property document' : 'legal document'}.
     
-    Adhere strictly to Nigerian Law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).
+    ${isPropertyFirm ? 'Adhere strictly to Nigerian Law, specifically relevant property and tenancy legislation (Land Use Act, Tenancy Law, Service Charge Regulations) where applicable.' : 'Adhere strictly to Nigerian Law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).'}
     `;
 
     const modelsToTry = AI_CONFIG.gemini.fallbackPlan;
@@ -734,7 +748,7 @@ export const analyzeAttorneyDictation = async (
     };
 
     const textPart = {
-        text: `Analyze the provided legal dictation for the matter: "${matter.title}". 
+        text: `Analyze the provided ${(firmDetails?.product === 'property' || firmDetails?.product === 'atrium') ? 'property' : 'legal'} dictation for the matter: "${matter.title}". 
         Extract the full transcription and provide a strategy analysis in the specified JSON format.`
     };
 
