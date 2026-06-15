@@ -1277,7 +1277,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
     return (
         <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4 sm:p-6">
             {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/50 dark:bg-black/70 sm:backdrop-blur-sm" onClick={onClose} />
 
             {/* Panel — theme-aware */}
             <div className="relative w-full max-w-2xl max-h-[95vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-700/60">
@@ -1338,7 +1338,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 </div>
 
                 {/* Screen content */}
-                <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-5">
+                <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 sm:py-5 overscroll-contain custom-scrollbar">
                     {screen === 0 && <Screen0 data={formData} onChange={update} />}
                     {screen === 1 && <Screen1 data={formData} contacts={contacts} onChange={update} />}
                     {screen === 2 && <Screen2 data={formData} users={users} onChange={update} />}

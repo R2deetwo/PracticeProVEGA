@@ -1033,27 +1033,33 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
-                                    <label className={labelClass}>Service Charge (Monthly <NairaSymbol />)</label>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="text"
-                                        value={formatNumberWithCommas(unitsData[activeUnitIndex].serviceCharge || 0)}
-                                        onChange={e => updateUnit(activeUnitIndex, 'serviceCharge', parseFormattedNumber(e.target.value))}
-                                        className={commonInputClass}
-                                        placeholder="0.00"
-                                    />
+                                    <label className={labelClass}>Monthly Service Charge</label>
+                                    <div className="relative rounded-xl shadow-xs">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                        <input autoComplete="off" data-lpignore="true" 
+                                            type="text"
+                                            value={formatNumberWithCommas(unitsData[activeUnitIndex].serviceCharge || 0)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'serviceCharge', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} pl-8`}
+                                            placeholder="0.00"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-2 group">
-                                    <label className={labelClass}>Service Charge Amount (<NairaSymbol />)</label>
-                                    <input
-                                        autoComplete="off"
-                                        data-lpignore="true"
-                                        type="text"
-                                        value={formatNumberWithCommas(activeUnit.serviceChargeAmount || 0)}
-                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeAmount', parseFormattedNumber(e.target.value))}
-                                        className={commonInputClass}
-                                        placeholder="0.00"
-                                    />
-                                    <p className="text-[9px] text-slate-400 pl-1">Total service charge due for this billing period</p>
+                                    <label className={labelClass}>Total Service Charge Due</label>
+                                    <div className="relative rounded-xl shadow-xs">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                        <input
+                                            autoComplete="off"
+                                            data-lpignore="true"
+                                            type="text"
+                                            value={formatNumberWithCommas(activeUnit.serviceChargeAmount || 0)}
+                                            onChange={e => updateUnit(activeUnitIndex, 'serviceChargeAmount', parseFormattedNumber(e.target.value))}
+                                            className={`${commonInputClass} pl-8`}
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-slate-400 pl-1">For the current billing period</p>
                                 </div>
                             </div>
 

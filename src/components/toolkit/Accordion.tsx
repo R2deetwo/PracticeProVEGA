@@ -125,7 +125,7 @@ export const AccordionContent = React.forwardRef<HTMLDivElement, React.HTMLAttri
         role="region"
         aria-labelledby={triggerId}
         aria-hidden={!isOpen}
-        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out will-change-[grid-template-rows] ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
       >
         <div className={`overflow-hidden ${isOpen ? '' : ''}`}>
           <div className={className || 'p-2 space-y-2'}>

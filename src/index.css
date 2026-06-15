@@ -774,6 +774,15 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Mobile modal scroll fix: force GPU compositing on modal scroll containers
+   to prevent visual glitching/artifacts during scroll on mobile devices */
+@media (max-width: 639px) {
+  .overscroll-contain {
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+  }
+}
+
 /* Landscape phone compact: tighten stats grids when height is limited */
 @media (orientation: landscape) and (max-height: 520px) {
   .landscape-compact-stats {

@@ -206,13 +206,13 @@ export const DockedModal: React.FC = () => {
         return (
             <>
                 <div 
-                    className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-[110] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+                    className={`fixed inset-0 bg-black/20 sm:backdrop-blur-sm z-[110] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
                     onClick={() => closeModal()}
                 />
                 <div
                     className={`
                         fixed top-0 right-0 h-full w-[480px] max-w-[90vw] z-[120] flex flex-col 
-                        bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl shadow-2xl 
+                        bg-white/95 dark:bg-zinc-900/95 sm:backdrop-blur-xl shadow-2xl 
                         border-l border-slate-200 dark:border-zinc-700 
                         transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
                         ${isVisible ? 'translate-x-0' : 'translate-x-full'}
@@ -224,7 +224,7 @@ export const DockedModal: React.FC = () => {
                             <DismissIcon className="w-5 h-5" />
                         </button>
                     </header>
-                    <main className="flex-grow overflow-y-auto custom-scrollbar relative">
+                    <main className="flex-grow overflow-y-auto custom-scrollbar overscroll-contain relative">
                         {content}
                     </main>
                 </div>
