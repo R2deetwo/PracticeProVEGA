@@ -109,10 +109,12 @@ export const MiniAloa: React.FC = () => {
         if (normalizedName === 'open_modal') {
             if (rawModalType === 'create_matter' || rawModalType === 'newMatter') targetModal = 'newMatter';
             else if (rawModalType === 'create_contact' || rawModalType === 'newContact') targetModal = 'newContact';
+            else if (rawModalType === 'create_property' || rawModalType === 'newProperty') targetModal = 'newProperty';
             else if (rawModalType === 'create_task' || rawModalType === 'newTask') targetModal = 'newTask';
             else targetModal = rawModalType as ModalType;
         } else if (normalizedName === 'create_matter') targetModal = 'newMatter';
         else if (normalizedName === 'create_contact') targetModal = 'newContact';
+        else if (normalizedName === 'create_property') targetModal = 'newProperty';
         else if (normalizedName === 'create_task') targetModal = 'newTask';
         if (targetModal) return { modalType: targetModal, mappedArgs: args };
         return null;

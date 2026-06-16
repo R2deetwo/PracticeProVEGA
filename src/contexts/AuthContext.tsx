@@ -157,6 +157,17 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // but somehow their session token is still valid.
         if ((data as any).role === 'Pending') return null;
 
+        // SECURITY: Reject any user record with a missing/null/empty role.
+        // Previously this defaulted to Admin, which was a critical privilege-escalation
+        // bug — any user with a malformed record (e.g. legacy migration gap, manual
+        // DB edit) silently became an Admin. Now we treat a missing role the same as
+        // 'Pending' and refuse to authenticate them.
+        const rawRole = (data as any).role;
+        if (!rawRole || typeof rawRole !== 'string' || rawRole.trim() === '') {
+            console.warn('[Auth] Rejecting user with missing/null role:', data.email);
+            return null;
+        }
+
         // SECURITY: Explicit field mapping - NEVER spread raw data.
         // This ensures sensitive fields (password, mfaCode, verificationCode, etc.) 
         // are never transmitted to the frontend state.
@@ -165,7 +176,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             firmId: data.firmId,
             name: data.name,
             email: data.email,
-            role: (data.role as UserRole) || UserRole.Admin,
+            role: rawRole as UserRole,
             avatarUrl: data.avatarUrl,
             onboardingCompleted: data.onboardingCompleted,
             showProTips: data.showProTips ?? true,
@@ -523,7 +534,27 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     };
 
     // Impersonation Logic
+    // SECURITY: Impersonation is an Admin-only action and can only target
+    // portal users (Client/Tenant). Non-admin callers are silently rejected,
+    // and attempting to impersonate a non-portal user is also rejected.
     const loginAsUser = (user: User) => {
+        // Only Admins can impersonate. If we somehow get here from a non-admin
+        // session (e.g. a UI bug, an attacker calling the function), bail out.
+        if (currentUser?.role !== UserRole.Admin) {
+            console.warn('[Auth] Impersonation blocked: caller is not an Admin.', currentUser?.email);
+            return;
+        }
+        // Only allow impersonating portal users. Impersonating another Admin,
+        // Lawyer, or Paralegal would be a privilege escalation.
+        if (user.role !== UserRole.Client && user.role !== UserRole.Tenant) {
+            console.warn('[Auth] Impersonation blocked: target is not a portal user.', user.email, user.role);
+            return;
+        }
+        // Cross-firm impersonation guard: admin can only impersonate users in their own firm.
+        if (user.firmId && currentUser.firmId && user.firmId !== currentUser.firmId) {
+            console.warn('[Auth] Impersonation blocked: target is in a different firm.', user.email);
+            return;
+        }
         if (!originalSessionToken) {
             setOriginalSessionToken(sessionToken); // Save current admin session
         }
