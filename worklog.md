@@ -1102,3 +1102,65 @@ Stage Summary:
 - Diagnosis: findDuplicateEmails query lets admin verify data cleanup.
 - Message badge bug fixed: markInboundMessagesReadByTenant mutation called when Messages tab opens.
 - Ready for commit and push to main.
+
+---
+Task ID: 9
+Agent: Main Agent (GLM 5.2 session 2)
+Task: Fix portal access DELETE behavior — items should disappear forever, not stay as "revoked". REVOKE should stay soft (can be unrevoked).
+
+User feedback:
+"i have tried to delete portal accesses and it just looks as revoked. the portal access item should delete and disappear forever when the user selects delete. if they select revoke, then it can stay as revoked and the user can unrevoke it."
+
+ROOT CAUSE:
+The mutation `deletePortalInviteAndCleanup` was misleadingly named — it didn't actually delete anything. It only:
+  1. Patched the invite record's status to "revoked" (line 747)
+  2. Cascade-patched OTHER invite records for the same email to "revoked" too
+  3. Reset the user record (role → Pending, isVerified → false, password → undefined)
+
+The invite record stayed in the DB forever with status="revoked", and the list query `getPortalInvitesByFirm` returned ALL invites including revoked ones — so the admin kept seeing the deleted item with a "revoked" badge, exactly as the user described.
+
+FIX:
+Rewrote `deletePortalInviteAndCleanup` to actually delete the records:
+
+  1. HARD-DELETE the target invite record using `ctx.db.delete(args.inviteId)`.
+     Previously it was patched to status="revoked".
+
+  2. HARD-DELETE any OTHER invite records for the same email (cascade).
+     Previously these were patched to "revoked" too. The admin's intent with
+     DELETE is to remove ALL portal access for this person, not just one row.
+
+  3. The user-cleanup logic (reset role to Pending, clear password, preserve
+     firmId/product) is UNCHANGED. This ensures the same email can be re-invited
+     cleanly without "already accepted" errors.
+
+  4. The REVOKE button (revokePortalInvite mutation) is UNCHANGED — it still
+     patches status to "revoked" and can be toggled back to "accepted". This
+     matches the user's mental model: Revoke = soft state, Delete = hard removal.
+
+SAFETY ANALYSIS (verified before implementing):
+- resolveFirmFromInvite has fallbacks that search property records when no
+  invite is found, so deleting invite records does NOT break firmId resolution.
+- repairPortalUserFirmId looks for ACTIVE (non-revoked) invites — after delete
+  + re-invite, the new invite will be fresh and active, so repair still works.
+- insertInviteRecord supersedes pending/accepted invites when a new invite is
+  created — deleted records are simply not found by this loop, which is fine.
+- The existing deletePortalInvite mutation (which already used ctx.db.delete)
+  is unchanged and still available — but PortalAccessSettings was calling
+  deletePortalInviteAndCleanup, not deletePortalInvite.
+
+FILES MODIFIED:
+- convex/portals.ts: Rewrote deletePortalInviteAndCleanup to hard-delete
+  instead of soft-revoke. Updated two stale comments that said "we no longer
+  hard-delete invites" to reflect the new behavior.
+
+Build verified:
+- npx tsc --noEmit: only the pre-existing src/app/page.tsx error
+- npx vite build: succeeds in 13.31s
+
+Stage Summary:
+- 1 file modified (convex/portals.ts).
+- DELETE button now actually removes the invite record from the DB — the
+  item disappears from the list immediately, not stuck as "revoked".
+- REVOKE button unchanged — still soft-toggles between revoked and accepted.
+- User cleanup logic unchanged — same email can still be re-invited cleanly.
+- Ready for commit and push to main.

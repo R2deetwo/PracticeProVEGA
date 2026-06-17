@@ -713,18 +713,34 @@ export const deletePortalInvite = mutation({
 });
 
 /**
- * deletePortalInviteAndCleanup — Permanently deletes a portal invite AND resets
+ * deletePortalInviteAndCleanup — HARD-DELETES a portal invite AND resets
  * the associated portal user account so the same email can be re-invited cleanly.
  *
- * This prevents the "invitation already accepted" error when an admin:
- * 1. Deletes a portal access record
- * 2. Creates a new invite for the same email
+ * User-facing semantics (Task ID 9 fix):
+ *   - DELETE button = record disappears forever. The invite is removed from
+ *     the list entirely (not just marked as "revoked"). The admin can no
+ *     longer see it. The user's portal account is also reset to Pending so
+ *     they can be re-invited cleanly.
+ *   - REVOKE button (separate) = soft state. The invite stays in the list
+ *     with status="revoked". The admin can unrevoke it later.
+ *
+ * This distinction matters: previously DELETE was implemented as a soft
+ * revoke, so deleted portal access items kept showing up in the list with
+ * a "revoked" badge — confusing the admin and cluttering the UI.
  *
  * Steps:
- * 1. Delete ALL portal_invites records for the same email (not just the specified one)
- * 2. Find the user with the matching email + Client/Tenant role
- * 3. Reset their role, verification, password, and portal-specific fields so
- *    they're treated as a brand-new invitee (Bug 16 fix: thorough cleanup)
+ * 1. HARD-DELETE the specified portal_invites record (ctx.db.delete)
+ * 2. HARD-DELETE any OTHER invite records for the same email (cascade)
+ *    — the admin's intent with Delete is to remove ALL portal access for
+ *    this person, not just one invite row.
+ * 3. Find the user with the matching email + Client/Tenant role
+ * 4. Reset their role, verification, password, and portal-specific fields so
+ *    they're treated as a brand-new invitee (Bug 16 fix: thorough cleanup).
+ *    firmId and product are PRESERVED so re-invite flows don't break.
+ *
+ * SAFETY: resolveFirmFromInvite has fallbacks that search property records
+ * when no invite is found, so deleting invite records does NOT break
+ * firmId resolution for users who still need it.
  */
 export const deletePortalInviteAndCleanup = mutation({
   args: {
@@ -735,40 +751,34 @@ export const deletePortalInviteAndCleanup = mutation({
   handler: async (ctx, args) => {
     const email = (args.inviteeEmail || "").toLowerCase().trim();
 
-    // 0. Read the target invite first to check its current status
+    // 0. Read the target invite first (we need its relatedId for user lookup later)
     const targetInvite = await ctx.db.get(args.inviteId);
-    const alreadyRevoked = targetInvite?.status === "revoked";
 
-    // 1. Mark the specified invite as revoked (DO NOT delete — preserving the
-    //    firmId on invite records is critical for resolveFirmFromInvite to work
-    //    when the user is re-invited. Deleted records can't be searched.)
-    if (!alreadyRevoked) {
-      await ctx.db.patch(args.inviteId, {
-        status: "revoked",
-        updatedAt: Date.now(),
-      } as any);
+    // 1. HARD-DELETE the specified invite record. The admin clicked Delete,
+    //    not Revoke — the record must disappear from the list entirely.
+    if (targetInvite) {
+      try {
+        await ctx.db.delete(args.inviteId);
+      } catch (e) {
+        // Already deleted by a concurrent call — non-fatal
+      }
     }
 
-    // 2. Mark any OTHER invite records for the same email as revoked too.
-    //    CRITICAL FIX: Only cascade-revoke if the target invite was NOT already
-    //    revoked. If the admin clicks delete on an already-revoked invite, we
-    //    should NOT revoke newer pending/accepted invites for the same email.
-    //    Previously this would silently destroy a fresh re-invitation.
-    if (!alreadyRevoked && email) {
+    // 2. HARD-DELETE any OTHER invite records for the same email (cascade).
+    //    The admin's intent with Delete is to remove ALL portal access for
+    //    this person, not just one invite row. Pending invites, accepted
+    //    invites, AND previously-revoked invites for this email all go away.
+    if (email) {
       const otherInvites = await ctx.db
         .query("portal_invites")
         .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
         .collect();
 
       for (const inv of otherInvites) {
-        if (String(inv._id) === String(args.inviteId)) continue; // Already revoked above
-        if (inv.status === "revoked") continue; // Already revoked
+        if (String(inv._id) === String(args.inviteId)) continue; // Already deleted above
         try {
-          await ctx.db.patch(inv._id, {
-            status: "revoked",
-            updatedAt: Date.now(),
-          } as any);
-        } catch (e) { /* ignore */ }
+          await ctx.db.delete(inv._id);
+        } catch (e) { /* ignore — best-effort cascade */ }
       }
     }
 
@@ -1769,14 +1779,21 @@ export const getTenantInfo = query({
  * Looks up the most recent portal invite for this email to find the firmId.
  * Also checks revoked invites as a last-resort fallback.
  * Also searches property records for a matching tenant email.
+ *
+ * NOTE: As of Task ID 9, the DELETE button hard-deletes invite records
+ * (ctx.db.delete), so deleted invites no longer appear in this query's
+ * results. The property-record fallback below handles the case where the
+ * user was deleted and re-invited cleanly.
  */
 export const resolveFirmFromInvite = query({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const email = args.email.toLowerCase().trim();
 
-    // 1. Check portal_invites for the most recent invite with a firmId
-    //    (includes revoked/accepted — we no longer hard-delete invites)
+    // 1. Check portal_invites for the most recent invite with a firmId.
+    //    (Includes revoked/accepted — REVOKE keeps the record; DELETE removes it.
+    //    As of Task ID 9, DELETE uses ctx.db.delete so deleted records no longer
+    //    appear here. The property-record fallback below handles deleted users.)
     const invites = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", email))
