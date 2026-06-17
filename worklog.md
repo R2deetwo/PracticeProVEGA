@@ -907,3 +907,41 @@ Stage Summary:
 - Defensive guard ensures admin NEVER sees admin dashboard during failed impersonation (even before auto-revert fires)
 - Tenant role now gated in usePermissions (matches Client gating)
 - Build clean, ready for commit and push
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Fix race condition in impersonation guard + persist impersonation state across refresh
+
+Work Log:
+- User reported the previous fix (commit b8c66b1) did NOT work — admin dashboard still showing to residents
+- Root cause identified: RACE CONDITION in the defensive guard
+  - The guard in App.tsx checked `originalUser` (requires originalUserData query to load from Convex)
+  - But `currentUser` (the impersonated admin) loads from a SEPARATE query that often resolves first
+  - During the window between currentUser loading and originalUser loading, the admin dashboard would flash on screen
+  - This defeated the entire purpose of the guard — the admin saw the dashboard before the guard could trigger
+
+- Fix 1: Use synchronous isImpersonating flag
+  - AuthContext now exports `isImpersonating: boolean` (derived from originalSessionToken state, which is set SYNCHRONOUSLY by loginAsUser before any query fires)
+  - Added `isImpersonating: boolean` to AuthContextType interface (line 43)
+  - Added `isImpersonating: !!originalSessionToken` to context value (line 725)
+  - App.tsx MainContent now destructures `isImpersonating` from useAuth() (line 116)
+  - Defensive guard changed from `if (currentUser && originalUser && !isPortalUser)` to `if (currentUser && isImpersonating && !isPortalUser)` (line 411)
+  - The guard now triggers the INSTANT currentUser loads with a non-portal role — no flash of admin dashboard
+  - Added graceful fallback in the amber screen: if originalUser hasn't loaded yet, show "Restoring your admin session…" instead of the original user's email
+
+- Fix 2: Persist impersonation state across page refresh (CRITICAL)
+  - Problem: originalSessionToken was React state — lost on page refresh. If admin refreshed during a failed impersonation, they'd be permanently stuck as the impersonated admin with no way to revert
+  - loginAsUser now stores original admin token in sessionStorage key 'practicepro_original_session' (lines 624-628)
+  - AuthProvider's originalSessionToken useState initializer now reads from sessionStorage (lines 102-108) — restores on mount
+  - revertToOriginalUser has a fallback path: if originalSessionToken was lost, it restores from sessionStorage (lines 640-654)
+  - logout() now clears the sessionStorage flag (line 524)
+  - auto-revert effect clears the sessionStorage flag (line 306)
+
+- Build verified: npx tsc --noEmit clean (except pre-existing page.tsx error), npx vite build succeeds in 13.89s
+
+Stage Summary:
+- 2 files modified: AuthContext.tsx (+41 lines), App.tsx (+22 lines)
+- Race condition eliminated: guard now uses synchronous isImpersonating flag
+- Impersonation state survives page refresh — admin can always revert
+- Pushed to main as commit 2afdac4
