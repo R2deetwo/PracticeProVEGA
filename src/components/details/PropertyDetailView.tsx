@@ -1646,7 +1646,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 })()}
 
                 {/* ═══ NOTICE BOARD TAB ═══ */}
-                {activeTab === 'notices' && <PropertyNoticeBoard propertyId={property.id} firmId={firmId} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />}
+                {activeTab === 'notices' && <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />}
 
                 {activeTab === 'revenue' && (() => {
                     const units = [...(allUnits || [])]

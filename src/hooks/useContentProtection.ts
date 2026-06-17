@@ -103,34 +103,35 @@ export function useContentProtection(enabled: boolean = true) {
       }
     };
 
-    // ── 4. Window blur / visibility change → show overlay ──
-    // TASK 16: Show overlay INSTANTLY on blur (no transition delay).
-    // The overlay CSS has transition: opacity 0.15s — we add 'visible'
-    // class immediately so it appears as fast as possible.
-    const handleBlur = () => {
-      setShowOverlay(true);
-    };
-
-    const handleFocus = () => {
-      setShowOverlay(false);
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setShowOverlay(true);
-      } else {
-        setShowOverlay(false);
-      }
-    };
+    // ── 4. Window blur / visibility change ──
+    // TASK 19: REMOVED the screenshot overlay. The overlay was giving a false
+    // sense of security — it didn't actually prevent OS-level screenshots
+    // (Windows Snipping Tool, macOS Cmd+Shift+3, mobile screenshot combos
+    // all capture the frame buffer BEFORE the browser can react).
+    //
+    // The overlay only appeared on Alt-Tab / window blur, which is annoying
+    // and doesn't prevent the actual screenshot. It's been removed entirely.
+    //
+    // What DOES work (kept active):
+    //   - Copy/paste prevention (Ctrl+C, Ctrl+V, right-click)
+    //   - PrintScreen key → clears clipboard (reduces easy pasting)
+    //
+    // What CANNOT work in a web app (honest limitation):
+    //   - OS-level screenshots — impossible to block
+    //   - Screen recording software — impossible to block
+    //   - External cameras — impossible to block
+    //
+    // The toggle in Settings lets the user turn protection OFF when they
+    // need to take screenshots (e.g. for support). This is the practical
+    // solution for a web app.
 
     document.addEventListener('copy', handleCopy);
     document.addEventListener('cut', handleCut);
     document.addEventListener('paste', handlePaste);
     document.addEventListener('contextmenu', handleContextMenu);
     document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    // NOTE: blur/focus/visibilitychange listeners removed — the overlay
+    // they triggered didn't actually prevent screenshots (see comment above).
 
     return () => {
       document.removeEventListener('copy', handleCopy);
@@ -138,14 +139,13 @@ export function useContentProtection(enabled: boolean = true) {
       document.removeEventListener('paste', handlePaste);
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
     };
   }, [shouldProtect]);
 
-  return { showOverlay, protectionEnabled, setProtectionEnabled };
+  // showOverlay is always false now (overlay removed) but kept in the
+  // return for backward compatibility with existing callers.
+  return { showOverlay: false, protectionEnabled, setProtectionEnabled };
 }
 
 // Helper to set the content protection preference (used by Settings)
