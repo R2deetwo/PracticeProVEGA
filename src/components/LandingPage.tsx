@@ -290,48 +290,58 @@ const HubHero: React.FC<{
     onPickProduct: (p: 'vega' | 'atrium') => void;
     onLogin: () => void;
     onSignup: () => void;
-}> = ({ onPickProduct, onLogin, onSignup }) => {
+    highlightKey?: number;
+}> = ({ onPickProduct, onLogin, onSignup, highlightKey }) => {
     const { isProperty } = useProduct();
+    // TASK 17: Respect light/dark mode. The hub hero was hardcoded to
+    // bg-slate-950 (always dark). Now it uses dark: variants so that in
+    // light mode it's a clean light background, and in dark mode it uses
+    // the "midnight royal" aesthetic the user requested.
+    const { theme } = useUI();
+    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
 
     return (
-        <section className="relative overflow-hidden bg-slate-950 min-h-screen flex flex-col">
+        <section className={`relative overflow-hidden min-h-screen flex flex-col transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-gradient-to-b from-slate-50 to-white'}`}>
             {/* Ambient mesh */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] bg-indigo-600/10" />
-                <div className="absolute bottom-0 left-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-amber-500/5" />
-                <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-emerald-500/5" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.08]" />
+                <div className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-400/8'}`} />
+                <div className={`absolute bottom-0 left-0 w-[500px] h-[400px] rounded-full blur-[120px] ${isDark ? 'bg-amber-500/5' : 'bg-amber-300/8'}`} />
+                <div className={`absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full blur-[120px] ${isDark ? 'bg-emerald-500/5' : 'bg-emerald-300/8'}`} />
+                <div className={`absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] ${isDark ? 'opacity-[0.08]' : 'opacity-[0.04]'}`} />
             </div>
 
             <div className={`relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
 
                 {/* Corporate badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-10">
+                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-10 ${isDark ? 'bg-white/[0.04] border border-white/[0.08]' : 'bg-slate-900/[0.03] border border-slate-900/[0.08]'}`}>
                     <Logo className="w-4 h-4 text-primary-500" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">PracticePro · Nigeria</span>
+                    <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>PracticePro · Nigeria</span>
                 </div>
 
-                <h1 className="text-5xl md:text-6xl lg:text-[5.5rem] font-bold text-white tracking-tight leading-[1.06] mb-6 max-w-5xl">
+                <h1 className={`text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Professional Practice,
                     <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-violet-400 to-emerald-400">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500">
                         Precisely Managed.
                     </span>
                 </h1>
 
-                <p className="text-lg md:text-xl text-slate-500 max-w-xl mx-auto mb-14 leading-[1.75]">
+                <p className={`text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
                     Select your professional discipline to enter your dedicated workspace.
                 </p>
 
                 {/* Audience routing cards */}
                 <div className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
-                    {/* Vega — with one-pulse glow on mount (Task 13) */}
+                    {/* Vega — with one-pulse glow on mount + re-triggered when highlightKey changes (Task 17) */}
                     <button
+                        key={`vega-${highlightKey || 0}`}
                         onClick={() => onPickProduct('vega')}
                         style={{ '--glow-color': 'rgba(245, 158, 11, 0.10)', '--glow-border': 'rgba(245, 158, 11, 0.20)' } as React.CSSProperties}
-                        className="product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-amber-500/[0.06] hover:border-amber-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                        className={`product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 ${isDark ? 'border-white/[0.08] bg-white/[0.03] hover:bg-amber-500/[0.06] hover:border-amber-500/25' : 'border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 shadow-sm hover:shadow-md'}`}
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -352,11 +362,12 @@ const HubHero: React.FC<{
                         </div>
                     </button>
 
-                    {/* Atrium — with one-pulse glow on mount (Task 13) */}
+                    {/* Atrium — with one-pulse glow on mount + re-triggered when highlightKey changes (Task 17) */}
                     <button
+                        key={`atrium-${highlightKey || 0}`}
                         onClick={() => onPickProduct('atrium')}
                         style={{ '--glow-color': 'rgba(16, 185, 129, 0.10)', '--glow-border': 'rgba(16, 185, 129, 0.20)' } as React.CSSProperties}
-                        className="product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-emerald-500/[0.06] hover:border-emerald-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        className={`product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${isDark ? 'border-white/[0.08] bg-white/[0.03] hover:bg-emerald-500/[0.06] hover:border-emerald-500/25' : 'border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 shadow-sm hover:shadow-md'}`}
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -381,18 +392,16 @@ const HubHero: React.FC<{
                 {/* Auth link */}
                 <button
                     onClick={onLogin}
-                    className="text-sm text-slate-600 hover:text-slate-400 transition-colors"
+                    className={`text-sm transition-colors ${isDark ? 'text-slate-600 hover:text-slate-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Already have an account?{' '}
-                    <span className="text-primary-400 font-semibold hover:text-primary-300">Sign in →</span>
+                    <span className="text-primary-500 font-semibold hover:text-primary-600">Sign in →</span>
                 </button>
 
-                {/* TASK 14: "Get Started Free" CTA in the middle of the hub.
-                    Opens the signup modal with NO product pre-selected, so the
-                    user sees the product selection step (Vega / Atrium / Komplet
-                    cards with glow animation). This matches the user's expectation:
-                    "when i click on get started for free at the middle ... it
-                    should see product selection step (3 cards with glow)". */}
+                {/* TASK 17: "Get Started Free" CTA in the middle of the hub.
+                    When no product is chosen, this scrolls to the product cards
+                    and highlights them (instead of opening the signup modal).
+                    The user explicitly requested this flow. */}
                 <div className="mt-2">
                     <button
                         onClick={onSignup}
@@ -401,11 +410,11 @@ const HubHero: React.FC<{
                         Get Started Free
                         <span className="text-sm opacity-80 group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
                     </button>
-                    <p className="text-xs text-slate-600 mt-3">Not sure which product fits? Browse all options.</p>
+                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-600' : 'text-slate-500'}`}>Not sure which product fits? Browse all options.</p>
                 </div>
 
                 {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
-                <p className="text-[10px] text-slate-600 mt-12 tracking-wide">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
+                <p className={`text-[10px] mt-12 tracking-wide ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
@@ -972,11 +981,37 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     // already had a perfectly good product-selection step that was being
     // bypassed.
     //
-    // productOverride is still respected when explicitly passed (e.g. from
-    // the pricing section's "Get Started" buttons which are product-specific).
-    const openSignup = (productOverride?: ProductMode) => openModal('signup', null, {
-        selectedProduct: productOverride || (productChosen ? activeProduct : undefined),
-    });
+    // TASK 17: When no product is chosen, "Get Started Free" scrolls to the
+    // product cards and highlights them (one-pulse glow) instead of opening
+    // the signup modal. The user explicitly requested this flow:
+    // "when the user selects get started for free from the main landing page
+    //  that it should scroll and direct them to the cards on the main landing
+    //  page, highlight them and then ensure that once they select a product,
+    //  they only see things related to that product."
+    //
+    // When a product IS chosen (e.g. on /vega or /atrium), "Get Started"
+    // opens the signup modal directly for that product.
+    const [highlightCards, setHighlightCards] = useState(false);
+
+    const openSignup = (productOverride?: ProductMode) => {
+        // If a product is explicitly chosen (via URL or product card click),
+        // open the signup modal directly for that product.
+        if (productOverride || productChosen) {
+            openModal('signup', null, {
+                selectedProduct: productOverride || activeProduct,
+            });
+        } else {
+            // No product chosen — scroll to the product cards and highlight them.
+            // The cards are in the HubHero section.
+            const hubEl = document.getElementById('home');
+            if (hubEl && scrollRef.current) {
+                scrollRef.current.scrollTo({ top: hubEl.offsetTop - 20, behavior: 'smooth' });
+            }
+            // Trigger the highlight animation by toggling the state.
+            setHighlightCards(false);
+            setTimeout(() => setHighlightCards(true), 50);
+        }
+    };
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
     const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
     const openContactSales = (source: string) => { setContactDrawerSource(source); setIsContactDrawerOpen(true); };
@@ -1013,6 +1048,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                     onPickProduct={handlePickProduct}
                     onLogin={() => openModal('login')}
                     onSignup={openSignup}
+                    highlightKey={highlightCards ? 1 : 0}
                 />
             ) : (
                 <main key={activeProduct} className="animate-swap-in">

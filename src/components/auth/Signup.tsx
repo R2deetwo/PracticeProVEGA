@@ -106,6 +106,23 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         setIsLoading(true);
 
         try {
+            // BUG FIX (Task 17): Derive the product from BOTH the state AND
+            // modalContext, preferring modalContext. This is bulletproof — even
+            // if the useEffect didn't fire (e.g. modalContext reference didn't
+            // change between opens), we still send the correct product.
+            //
+            // This was the root cause of "vega email from atrium signup":
+            // The user went to /atrium, clicked Get Started, but the Signup
+            // component's selectedProduct state was still 'legal' (the default)
+            // because the useEffect didn't fire when the modal reopened.
+            // Now we derive it directly from modalContext at submit time.
+            const productFromContext = modalContext?.selectedProduct;
+            const productToSend: 'legal' | 'property' | 'unified' =
+                productFromContext === 'atrium' ? 'property' :
+                productFromContext === 'vega' ? 'legal' :
+                productFromContext === 'unified' ? 'unified' :
+                selectedProduct; // Fall back to state (set by product_selection step)
+
             const result = await signup(
                 '',
                 fullName,
@@ -114,7 +131,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                 AppMode.Multi,
                 undefined,
                 SubscriptionPlan.Growth, // Default plan, overridden in OnboardingWizard
-                selectedProduct
+                productToSend
             );
 
             if (result.success) {
