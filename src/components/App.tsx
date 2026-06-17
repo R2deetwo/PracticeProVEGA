@@ -126,7 +126,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     // shows a black overlay when the window loses focus (screenshot deterrent).
     // Only active when the user is authenticated (not on the landing page).
     // See hooks/useContentProtection.ts for limitations.
-    const { showOverlay: showScreenshotOverlay } = useContentProtection(!!currentUser);
+    // TASK 19: Also get protectionEnabled so we can conditionally apply the
+    // app-protected CSS class. Previously the class was always on the div,
+    // which meant user-select:none was always active even when the user
+    // toggled protection OFF in Settings.
+    const { showOverlay: showScreenshotOverlay, protectionEnabled } = useContentProtection(!!currentUser);
 
     const hasData = matterState.matters.length > 0 || matterState.contacts.length > 0 || executionState.tasks.length > 0;
     const showSkeleton = !isDataLoaded && !hasData;
@@ -371,7 +375,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     if (isEditorMode) {
         return (
-            <main className="app-protected w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900">
+            <main className={`${protectionEnabled ? 'app-protected' : ''} w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900`}>
                 {showScreenshotOverlay && (
                     <div className="screenshot-overlay visible">
                         <span>Content protected</span>
@@ -444,7 +448,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }
 
     return (
-        <div className="app-protected flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
+        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500`}>
             {/* Screenshot deterrent overlay — shows a black screen when the
                 window loses focus or PrintScreen is pressed. Best-effort only. */}
             {showScreenshotOverlay && (

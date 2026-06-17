@@ -641,22 +641,45 @@ const MessagesView: React.FC = () => {
         addToast(`Marked ${unreadInbound.length} message${unreadInbound.length > 1 ? 's' : ''} as read.`, { type: 'success', duration: 2000 });
     };
 
-    // TASK 15: Auto-mark inbound messages as read when the MessagesView is
-    // first opened. This clears the sidebar badge intuitively — the admin
+    // TASK 15+19: Auto-mark ALL unread messages as read when the MessagesView
+    // is first opened. This clears the sidebar badge intuitively — the admin
     // is "viewing" the messages, so they should be marked as read.
-    // Uses a ref to ensure it only fires ONCE per mount (not on every re-render).
+    //
+    // The sidebar badge counts THREE things:
+    //   1. chatNotificationCount (from coreState.notifications)
+    //   2. inboundUnread (atrium_inbound_messages where !isRead)
+    //   3. portalUnread (portal_messages where status === 'unread')
+    //
+    // Previously we only marked #2 as read. The badge stayed at 1 because
+    // #3 (portal_messages) was never marked as read. Now we mark BOTH #2
+    // and #3 as read when the MessagesView mounts.
     const hasAutoMarkedRead = useRef(false);
     useEffect(() => {
         if (hasAutoMarkedRead.current) return;
-        if (!atriumInbound || atriumInbound.length === 0) return;
-        const unreadInbound = (atriumInbound as any[]).filter((m: any) => !m.isRead);
-        if (unreadInbound.length === 0) return;
+        // Wait until both queries have loaded
+        if (!atriumInbound && !portalMessages) return;
         hasAutoMarkedRead.current = true;
-        // Fire-and-forget — non-blocking
+
+        // Mark all unread atrium_inbound_messages as read
+        const unreadInbound = (atriumInbound as any[] || []).filter((m: any) => !m.isRead);
         for (const msg of unreadInbound) {
             markInboundRead({ messageId: msg._id }).catch(() => {});
         }
-    }, [atriumInbound]);
+
+        // TASK 19: Also mark all unread portal_messages as read.
+        // The sidebar badge counts portal_messages where status === 'unread'.
+        // Use the existing markPortalMessageRead mutation for each one.
+        const unreadPortal = (portalMessages as any[] || []).filter((m: any) => m.status === 'unread' || !m.isRead);
+        for (const msg of unreadPortal) {
+            markPortalRead({ messageId: msg._id }).catch(() => {});
+        }
+
+        // Also mark all conversations as read (unreadByAdmin → 0)
+        const unreadConversations = (portalConversations as any[] || []).filter((c: any) => (c.unreadByAdmin || 0) > 0);
+        for (const conv of unreadConversations) {
+            markConvReadByAdmin({ conversationId: String(conv._id) }).catch(() => {});
+        }
+    }, [atriumInbound, portalMessages, portalConversations]);
 
     // ── Inbox reply handler ──
     const handleInboxReply = async () => {
