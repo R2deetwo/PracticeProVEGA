@@ -592,6 +592,18 @@ export const App: React.FC = () => {
     // sessionStorage for a stored portal type.
     useEffect(() => {
         const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password'];
+
+        // TASK 15: Redirect authenticated users away from landing-page routes
+        // (/vega, /atrium, /komplet) to the dashboard. These routes are for
+        // MARKETING/landing pages only — an authenticated user navigating to
+        // /vega should see their dashboard, NOT a 404 "Page Not Found" error.
+        // This was the root cause of the user's "no page found" bug.
+        const landingRoutes = ['/vega', '/atrium', '/komplet'];
+        if (!isLoadingSession && currentUser && landingRoutes.includes(location.pathname)) {
+            navigate('/', { replace: true });
+            return;
+        }
+
         // Check both sessionStorage and localStorage for portal type (Bug 11 fix)
         const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {

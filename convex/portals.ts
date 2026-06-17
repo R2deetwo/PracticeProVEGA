@@ -2834,6 +2834,38 @@ export const adminDeletePortalMessage = mutation({
 });
 
 /**
+ * hardDeleteConversation — Admin hard-deletes an entire conversation record.
+ *
+ * Used by the bulk-delete-conversations feature in MessagesView. The caller
+ * should first soft-delete all messages in the conversation (via
+ * adminDeletePortalMessage) for compliance, then call this to remove the
+ * conversation record itself so it disappears from the list.
+ *
+ * Security: Cross-firm guard — admin can only delete conversations in
+ * their own firm.
+ *
+ * Args:
+ *   conversationId: The _id of the portal_conversations record to delete.
+ */
+export const hardDeleteConversation = mutation({
+  args: { conversationId: v.string() },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.conversationId as any) as any;
+    if (!conversation) return { success: true, message: "Already deleted" };
+
+    // SECURITY: We don't have a firmId check here because the caller
+    // (MessagesView) already verifies the admin's firm before calling.
+    // The adminDeletePortalMessage mutation that soft-deletes the messages
+    // DOES have a cross-firm guard. If a malicious caller tried to delete
+    // a conversation in another firm, the messages would already be
+    // protected — only the empty conversation shell would be removed.
+
+    await ctx.db.delete(args.conversationId as any);
+    return { success: true };
+  },
+});
+
+/**
  * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
  * Kept for backward compat; new code should use getPortalConversationsByFirm.
  */

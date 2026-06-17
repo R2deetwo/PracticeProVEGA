@@ -8,7 +8,7 @@ import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { PaperClipIcon, SendIcon, TrashIcon, DocumentIcon, ChevronRightIcon, ClockIcon, CheckIcon, DownloadIcon, PlusIcon, BellIcon, SparklesIcon } from '../constants';
 import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
-import { useQuery, useMutation } from 'convex/react';
+import { useQuery, useMutation, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
 import { useProduct } from '../contexts/ProductContext';
@@ -375,12 +375,25 @@ const MessagesView: React.FC = () => {
     // delete ANY message in a conversation (their own or the portal user's).
     // Uses the new adminDeletePortalMessage mutation which has a cross-firm guard.
     const adminDeletePortalMsg = useMutation(api.portals.adminDeletePortalMessage);
+    // TASK 15: Hard-delete an entire conversation record (used by bulk delete).
+    // We soft-delete the messages first (adminDeletePortalMessage) for compliance,
+    // then hard-delete the conversation record itself so it disappears from the list.
+    const hardDeleteConv = useMutation(api.portals.hardDeleteConversation);
+    // TASK 15: useConvex for ad-hoc queries during bulk delete (fetch messages per conversation)
+    const convex = useConvex();
 
     // ── Inbox: selected conversation ──
     const [selectedInboxId, setSelectedInboxId] = useState<string | null>(null);
     const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | null>(null);
     const [inboxReply, setInboxReply] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
+
+    // ── TASK 15: Multi-select for bulk conversation deletion ──
+    // Tracks which conversation IDs the user has checked. When non-empty,
+    // a "Delete selected" button appears in the inbox header.
+    // Uses the existing `confirm`/`ConfirmDialog` from useConfirm() at line 310.
+    const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
@@ -539,6 +552,111 @@ const MessagesView: React.FC = () => {
         }
         return <span className={(msg as any).status === 'failed' ? 'text-red-500 italic' : ''}>{msg.authorId === currentUser.id ? 'You: ' : ''}{msg.content}</span>;
     }
+
+    // ── TASK 15: Bulk conversation deletion + Mark all as read ──
+
+    // Toggle a conversation's selection checkbox
+    const toggleConvSelection = (convId: string, e: React.MouseEvent) => {
+        e.stopPropagation(); // Don't trigger the conversation open onClick
+        setSelectedConvIds(prev => {
+            const next = new Set(prev);
+            if (next.has(convId)) next.delete(convId);
+            else next.add(convId);
+            return next;
+        });
+    };
+
+    // Select all conversations
+    const selectAllConversations = () => {
+        const allConvIds = new Set<string>(
+            (portalConversations as any[])
+                .filter((c: any) => c.participantRole !== 'Client')
+                .map((c: any) => String(c._id))
+        );
+        setSelectedConvIds(allConvIds);
+    };
+
+    // Clear selection
+    const clearSelection = () => setSelectedConvIds(new Set());
+
+    // Bulk delete selected conversations + their messages
+    const handleBulkDeleteConversations = async () => {
+        if (selectedConvIds.size === 0 || isBulkDeleting) return;
+        const ok = await confirm({
+            title: `Delete ${selectedConvIds.size} conversation${selectedConvIds.size > 1 ? 's' : ''}?`,
+            message: 'All messages in these conversations will be permanently removed. This action cannot be undone.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        setIsBulkDeleting(true);
+        try {
+            // Delete each conversation's messages, then the conversation itself.
+            // We use adminDeletePortalMessage for each message (cross-firm guarded).
+            for (const convId of selectedConvIds) {
+                try {
+                    // Fetch messages for this conversation and delete them
+                    const msgs: any = await convex.query(api.portals.getConversationMessages, { conversationId: convId });
+                    if (Array.isArray(msgs)) {
+                        for (const msg of msgs) {
+                            try {
+                                await adminDeletePortalMsg({
+                                    messageId: String(msg._id),
+                                    adminId: currentUser.id,
+                                    firmId: currentUser.firmId || '',
+                                });
+                            } catch { /* message may already be deleted */ }
+                        }
+                    }
+                    // Delete the conversation record itself
+                    try {
+                        await hardDeleteConv({ conversationId: convId });
+                    } catch { /* may not exist */ }
+                } catch (e) {
+                    console.warn('[MessagesView] Bulk delete failed for conversation:', convId, e);
+                }
+            }
+            addToast(`Deleted ${selectedConvIds.size} conversation${selectedConvIds.size > 1 ? 's' : ''}.`, { type: 'success' });
+            setSelectedConvIds(new Set());
+            setSelectedInboxId(null);
+            setSelectedInboxType(null);
+        } catch (err: any) {
+            addToast(err.message || 'Failed to delete conversations.', { type: 'error' });
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
+    // Mark ALL inbound messages as read (clears the sidebar badge)
+    const handleMarkAllInboundRead = async () => {
+        const unreadInbound = (atriumInbound as any[]).filter((m: any) => !m.isRead);
+        if (unreadInbound.length === 0) {
+            addToast('No unread inbound messages.', { type: 'info', duration: 2000 });
+            return;
+        }
+        for (const msg of unreadInbound) {
+            markInboundRead({ messageId: msg._id }).catch(() => {});
+        }
+        addToast(`Marked ${unreadInbound.length} message${unreadInbound.length > 1 ? 's' : ''} as read.`, { type: 'success', duration: 2000 });
+    };
+
+    // TASK 15: Auto-mark inbound messages as read when the MessagesView is
+    // first opened. This clears the sidebar badge intuitively — the admin
+    // is "viewing" the messages, so they should be marked as read.
+    // Uses a ref to ensure it only fires ONCE per mount (not on every re-render).
+    const hasAutoMarkedRead = useRef(false);
+    useEffect(() => {
+        if (hasAutoMarkedRead.current) return;
+        if (!atriumInbound || atriumInbound.length === 0) return;
+        const unreadInbound = (atriumInbound as any[]).filter((m: any) => !m.isRead);
+        if (unreadInbound.length === 0) return;
+        hasAutoMarkedRead.current = true;
+        // Fire-and-forget — non-blocking
+        for (const msg of unreadInbound) {
+            markInboundRead({ messageId: msg._id }).catch(() => {});
+        }
+    }, [atriumInbound]);
 
     // ── Inbox reply handler ──
     const handleInboxReply = async () => {
@@ -708,13 +826,54 @@ const MessagesView: React.FC = () => {
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                                     {isProperty ? 'Residents Chat' : 'Client Messages'}
                                 </h3>
-                                <button
-                                    onClick={() => setShowCompose(true)}
-                                    className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1 text-xs font-bold"
-                                >
-                                    <PlusIcon className="w-3.5 h-3.5" /> Compose
-                                </button>
+                                <div className="flex items-center gap-1.5">
+                                    {/* TASK 15: Mark all inbound messages as read (clears badge) */}
+                                    <button
+                                        onClick={handleMarkAllInboundRead}
+                                        title="Mark all inbound messages as read"
+                                        className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h1m18 0h1M12 2v1m0 18v1" />
+                                        </svg>
+                                    </button>
+                                    <button
+                                        onClick={() => setShowCompose(true)}
+                                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1 text-xs font-bold"
+                                    >
+                                        <PlusIcon className="w-3.5 h-3.5" /> Compose
+                                    </button>
+                                </div>
                             </div>
+                            {/* TASK 15: Bulk action bar — shown when conversations are selected */}
+                            {selectedConvIds.size > 0 && (
+                                <div className="flex-shrink-0 py-2 px-4 border-b border-slate-200 dark:border-zinc-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-between gap-2">
+                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
+                                        {selectedConvIds.size} selected
+                                    </span>
+                                    <div className="flex items-center gap-1.5">
+                                        <button
+                                            onClick={clearSelection}
+                                            className="px-2 py-1 text-xs font-semibold text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleBulkDeleteConversations}
+                                            disabled={isBulkDeleting}
+                                            className="px-3 py-1.5 text-xs font-bold bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                                        >
+                                            {isBulkDeleting ? (
+                                                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <TrashIcon className="w-3 h-3" />
+                                            )}
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {isInboxLoading ? (
                                     <div className="p-3">
@@ -760,21 +919,40 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                             ))}
                                             {/* Portal conversations (Residents only — clients shown in Vega mode) */}
-                                            {(portalConversations as any[]).filter((c: any) => c.participantRole !== 'Client').map((conv: any) => (
+                                            {(portalConversations as any[]).filter((c: any) => c.participantRole !== 'Client').map((conv: any) => {
+                                                const convId = String(conv._id);
+                                                const isSelected = selectedConvIds.has(convId);
+                                                return (
                                                 <div
                                                     key={conv._id}
                                                     onClick={() => {
-                                                        setSelectedInboxId(String(conv._id));
+                                                        setSelectedInboxId(convId);
                                                         setSelectedInboxType('conversation');
-                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: String(conv._id) });
+                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
                                                     }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === String(conv._id) && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''}`}
+                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === convId && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
                                                 >
                                                     <div className="flex justify-between items-start mb-1">
                                                         <div className="flex items-center gap-2">
+                                                            {/* TASK 15: Multi-select checkbox */}
+                                                            <button
+                                                                onClick={(e) => toggleConvSelection(convId, e)}
+                                                                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                                                    isSelected
+                                                                        ? 'bg-rose-600 border-rose-600'
+                                                                        : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'
+                                                                }`}
+                                                                title={isSelected ? 'Deselect' : 'Select for bulk delete'}
+                                                            >
+                                                                {isSelected && (
+                                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                    </svg>
+                                                                )}
+                                                            </button>
                                                             {(conv.unreadByAdmin || 0) > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
                                                             {(conv.unreadByAdmin || 0) === 0 && conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-                                                            <span className={`text-sm truncate max-w-[160px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                            <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                 {conv.participantName || 'Portal User'}
                                                             </span>
                                                         </div>
@@ -799,7 +977,8 @@ const MessagesView: React.FC = () => {
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
                                                 </div>
-                                            ))}
+                                                );
+                                            })}
                                         </>
                                     )
                                 ) : (
@@ -991,7 +1170,7 @@ const MessagesView: React.FC = () => {
                                                                                 addToast(err.message || 'Failed to delete message.', { type: 'error' });
                                                                             }
                                                                         }}
-                                                                        className={`absolute -top-1 ${isAdmin ? '-left-1' : '-right-1'} opacity-0 group-hover:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all`}
+                                                                        className={`absolute -top-1 ${isAdmin ? '-left-1' : '-right-1'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm`}
                                                                         title="Delete message"
                                                                     >
                                                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
