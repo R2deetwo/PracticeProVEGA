@@ -653,6 +653,29 @@ export const App: React.FC = () => {
         }
     }, [isLoadingSession, hasSavedSession]);
 
+    // TASK 16: Update document title + URL query param to show which product
+    // the user is in. This gives clear architecture — looking at the browser
+    // tab or URL, you can tell whether you're in Vega or Atrium.
+    // - Document title: "Atrium — Messages | PracticePro" (shows in browser tab)
+    // - URL query param: /messaging?app=atrium (shows in address bar)
+    useEffect(() => {
+        if (!currentUser) return;
+        const productName = currentUser.product === 'atrium' ? 'Atrium'
+            : currentUser.product === 'property' ? 'Atrium'
+            : currentUser.product === 'legal' ? 'Vega'
+            : 'PracticePro';
+        const viewLabel = view ? view.charAt(0).toUpperCase() + view.slice(1) : 'Dashboard';
+        document.title = `${productName} — ${viewLabel} | PracticePro`;
+
+        // Update URL with ?app= query param (doesn't trigger navigation)
+        const url = new URL(window.location.href);
+        const expectedApp = currentUser.product === 'atrium' || currentUser.product === 'property' ? 'atrium' : 'vega';
+        if (url.searchParams.get('app') !== expectedApp) {
+            url.searchParams.set('app', expectedApp);
+            window.history.replaceState({}, '', url.toString());
+        }
+    }, [currentUser, view]);
+
     const handleReset = async () => {
         const ok = await confirmAction({
             title: 'Reset local data?',

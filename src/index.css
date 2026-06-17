@@ -713,7 +713,10 @@ html.font-size-lg {
   letter-spacing: 0.05em;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.15s ease-out;
+  /* TASK 16: Removed transition delay — overlay must appear INSTANTLY to
+   * minimize the window where content is visible. The previous 0.15s
+   * transition was too slow; content could be captured before the overlay
+   * was fully opaque. */
 }
 
 .screenshot-overlay.visible {

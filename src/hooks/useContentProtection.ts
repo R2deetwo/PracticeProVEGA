@@ -1,79 +1,61 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useEffect as ReactUseEffect } from 'react';
 
 /**
  * useContentProtection — best-effort copy/paste + screenshot deterrence.
  *
- * USER REQUEST:
- *   "when the user in the app, i dont want them to be able to copy and paste
- *    except where allowed but we can relax this for the landing pages."
- *   "there can be no screengrabbing or screenshot taking on the app but you
- *    can in the landing pages."
+ * TASK 16 UPDATE: Now respects a user-toggleable setting stored in
+ * localStorage key 'practicepro_content_protection'. When 'false',
+ * ALL protection is disabled — the user can copy/paste and take
+ * screenshots freely. This is needed because the user provides
+ * screenshots to their LLM assistant and doesn't want to be
+ * handicapped when the protection is on.
  *
- * WHAT THIS HOOK DOES:
- *   1. Copy/Paste prevention:
- *      - Disables text selection via the .app-protected CSS class
- *      - Intercepts copy, cut, and paste events and prevents them
- *      - Disables the right-click context menu
- *      - Inputs/textareas/contentEditable are exempted (users still need to type)
- *
- *   2. Screenshot deterrence (BEST-EFFORT — see limitations below):
- *      - Detects the PrintScreen key and attempts to clear the clipboard
- *      - When the window loses focus (some capture tools trigger this),
- *        shows a black overlay to hide the content
- *      - When the document visibility changes (tab switch, some capture tools),
- *        shows the overlay
- *
- * LIMITATIONS — IMPORTANT TO UNDERSTAND:
- *   Web browsers CANNOT truly prevent OS-level screenshots. The OS captures
- *   the rendered frame buffer at the graphics level, before the browser can
- *   react. This is fundamentally different from native apps (like Netflix's
- *   desktop app) which use OS-level DRM APIs.
- *
- *   The Netflix black-screen approach works for VIDEO content because it uses
- *   Encrypted Media Extensions (EME) with hardware-level DRM. For general
- *   HTML/CSS/JS content, there is no equivalent.
- *
- *   What this hook catches:
- *     - Casual copy/paste via keyboard shortcuts (Ctrl+C, Ctrl+V)
- *     - Right-click → "Copy" context menu
- *     - PrintScreen key (clears clipboard AFTER the screenshot is taken —
- *       the screenshot itself is not prevented)
- *     - Some screen capture browser extensions that trigger visibilitychange
- *
- *   What this hook CANNOT catch:
- *     - OS-level screenshots (Windows Snipping Tool, macOS Cmd+Shift+3/4,
- *       Linux gnome-screenshot, mobile screenshot combos)
- *     - Third-party screen recording software (OBS, Camtasia, etc.)
- *     - External cameras pointed at the screen
- *     - Browser DevTools (can disable all JS protection)
- *
- *   For TRUE screenshot prevention, you would need:
- *     - A native desktop app (Electron/Tauri) with OS-level window protection
- *     - DRM-protected content (only works for video, not general UI)
- *     - Enterprise device management (MDM) policies
- *
- * USAGE:
- *   const { showOverlay } = useContentProtection();
- *   // Render {showOverlay && <div className="screenshot-overlay visible" />} in your component
- *
- *   The hook returns showOverlay so the component can render the overlay div.
- *   The .app-protected CSS class should be added to the same component's
- *   outermost div.
+ * The toggle is exposed in Settings → Data & Privacy.
  */
 
+const STORAGE_KEY = 'practicepro_content_protection';
+const DEFAULT_ENABLED = true; // ON by default for security
+
+function readEnabledFromStorage(): boolean {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === 'false') return false;
+    return true; // default ON
+  } catch {
+    return DEFAULT_ENABLED;
+  }
+}
+
 export function useContentProtection(enabled: boolean = true) {
+  const [protectionEnabled, setProtectionEnabled] = useState(readEnabledFromStorage);
   const [showOverlay, setShowOverlay] = useState(false);
   const overlayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Listen for changes to the localStorage setting (e.g. when the user
+  // toggles it in Settings, this hook picks up the change immediately).
   useEffect(() => {
-    if (!enabled) return;
+    const handler = () => setProtectionEnabled(readEnabledFromStorage());
+    window.addEventListener('storage', handler);
+    // Also poll every 500ms — storage event only fires across tabs, not
+    // within the same tab. This ensures the hook picks up same-tab changes.
+    const interval = setInterval(handler, 500);
+    return () => {
+      window.removeEventListener('storage', handler);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Only activate protection if BOTH `enabled` (user is authenticated)
+  // AND `protectionEnabled` (user hasn't toggled it off in Settings).
+  const shouldProtect = enabled && protectionEnabled;
+
+  useEffect(() => {
+    if (!shouldProtect) return;
 
     // ── 1. Copy / Cut / Paste prevention ──
     const handleCopy = (e: ClipboardEvent) => {
-      // Allow if the target is an input, textarea, or contentEditable
       const target = e.target as HTMLElement;
       if (isEditable(target)) return;
-      // Allow if the target is explicitly marked as selectable
       if (target.closest('.selectable')) return;
       e.preventDefault();
     };
@@ -86,45 +68,33 @@ export function useContentProtection(enabled: boolean = true) {
     };
 
     const handlePaste = (e: ClipboardEvent) => {
-      // Allow paste in editable elements (users need to paste into forms)
       const target = e.target as HTMLElement;
       if (isEditable(target)) return;
-      // Block paste everywhere else
       e.preventDefault();
     };
 
     // ── 2. Right-click context menu prevention ──
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Allow context menu on inputs, textareas, and explicitly marked elements
       if (isEditable(target)) return;
       if (target.closest('.allow-context-menu')) return;
       e.preventDefault();
     };
 
     // ── 3. PrintScreen key detection ──
-    // NOTE: This does NOT prevent the screenshot — the OS has already captured
-    // the screen by the time the keydown event fires. What we CAN do is clear
-    // the clipboard immediately after, so the screenshot isn't left in the
-    // clipboard for easy pasting.
     const handleKeyDown = (e: KeyboardEvent) => {
-      // PrintScreen key
       if (e.key === 'PrintScreen' || e.keyCode === 44) {
-        // Attempt to clear the clipboard
         try {
           navigator.clipboard?.writeText('').catch(() => {});
-        } catch {
-          // Clipboard API might not be available
-        }
-        // Show the overlay briefly to hide content
+        } catch {}
+        // TASK 16: Show overlay INSTANTLY (no transition delay) to minimize
+        // the window where content is visible. The overlay CSS transition
+        // is 0.15s — we bypass it by adding 'visible' class immediately.
         setShowOverlay(true);
         if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
-        overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 2000);
+        overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 3000);
       }
 
-      // Block Ctrl+S (save page), Ctrl+U (view source), Ctrl+Shift+I (devtools)
-      // on non-landing pages — these are common ways to extract content.
-      // NOTE: This is easily bypassed by savvy users but stops casual attempts.
       if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'u')) {
         const target = e.target as HTMLElement;
         if (!isEditable(target)) {
@@ -134,8 +104,9 @@ export function useContentProtection(enabled: boolean = true) {
     };
 
     // ── 4. Window blur / visibility change → show overlay ──
-    // When the window loses focus (some screen capture tools trigger this),
-    // or when the tab becomes hidden, show the black overlay.
+    // TASK 16: Show overlay INSTANTLY on blur (no transition delay).
+    // The overlay CSS has transition: opacity 0.15s — we add 'visible'
+    // class immediately so it appears as fast as possible.
     const handleBlur = () => {
       setShowOverlay(true);
     };
@@ -152,7 +123,6 @@ export function useContentProtection(enabled: boolean = true) {
       }
     };
 
-    // ── Register all listeners ──
     document.addEventListener('copy', handleCopy);
     document.addEventListener('cut', handleCut);
     document.addEventListener('paste', handlePaste);
@@ -162,7 +132,6 @@ export function useContentProtection(enabled: boolean = true) {
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // ── Cleanup ──
     return () => {
       document.removeEventListener('copy', handleCopy);
       document.removeEventListener('cut', handleCut);
@@ -174,12 +143,20 @@ export function useContentProtection(enabled: boolean = true) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
     };
-  }, [enabled]);
+  }, [shouldProtect]);
 
-  return { showOverlay };
+  return { showOverlay, protectionEnabled, setProtectionEnabled };
 }
 
-// Helper: check if an element is an input, textarea, or contentEditable
+// Helper to set the content protection preference (used by Settings)
+export function setContentProtectionEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(STORAGE_KEY, enabled ? 'true' : 'false');
+    // Dispatch a storage event so other tabs pick up the change
+    window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: enabled ? 'true' : 'false' }));
+  } catch {}
+}
+
 function isEditable(element: HTMLElement | null): boolean {
   if (!element) return false;
   const tag = element.tagName?.toLowerCase();

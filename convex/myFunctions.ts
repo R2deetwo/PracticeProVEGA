@@ -1212,6 +1212,18 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
     if (args.product === 'property') selectedProduct = 'property';
     if (args.product === 'unified') selectedProduct = 'unified';
 
+    // BUG FIX (Task 16): When no product is passed (e.g. resendConfirmation),
+    // use the EXISTING user's product instead of defaulting to 'legal' (Vega).
+    // This was the root cause of "vega email heading from an atrium signup" —
+    // the user signed up from Atrium (product='property'), but when resending
+    // the verification code, the backend defaulted to Vega branding.
+    if (!args.product) {
+      const existingUserForProduct: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: args.email.toLowerCase().trim() });
+      if (existingUserForProduct?.product) {
+        selectedProduct = existingUserForProduct.product as 'legal' | 'property' | 'unified';
+      }
+    }
+
     // Hash password server-side if provided
     let hashedPassword: string | undefined;
     if (args.password) {
