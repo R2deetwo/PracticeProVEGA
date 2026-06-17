@@ -1646,7 +1646,22 @@ const PropertyDetailViewContent: React.FC = () => {
                 })()}
 
                 {/* ═══ NOTICE BOARD TAB ═══ */}
-                {activeTab === 'notices' && <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />}
+                {activeTab === 'notices' && (
+                    <ErrorBoundary fallback={
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
+                                <Megaphone className="w-7 h-7 text-amber-500" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-1">Notice Board temporarily unavailable</p>
+                            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4">Try refreshing the page or switching tabs and coming back.</p>
+                            <button onClick={() => setActiveTab('summary')} className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                                Back to Summary
+                            </button>
+                        </div>
+                    }>
+                        <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
+                    </ErrorBoundary>
+                )}
 
                 {activeTab === 'revenue' && (() => {
                     const units = [...(allUnits || [])]
@@ -2014,16 +2029,25 @@ const PropertyNoticeBoard: React.FC<{
         }
         setIsCreating(true);
         try {
-            await createNotice({
-                firmId,
-                authorId,
-                authorName,
-                title: newTitle.trim(),
-                body: newBody.trim(),
-                priority: newPriority,
-                isPinned: newPinned,
-                propertyId,
-            });
+            // TASK 20: Add a 15-second timeout so the form doesn't spin forever
+            // if the mutation hangs. The notice IS created server-side even if
+            // the client times out — the user will see it on refresh.
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Request timed out. Your notice may still have been posted — refresh to check.')), 15000)
+            );
+            await Promise.race([
+                createNotice({
+                    firmId,
+                    authorId,
+                    authorName,
+                    title: newTitle.trim(),
+                    body: newBody.trim(),
+                    priority: newPriority,
+                    isPinned: newPinned,
+                    propertyId,
+                }),
+                timeoutPromise,
+            ]);
             setNewTitle('');
             setNewBody('');
             setNewPriority('normal');
@@ -2032,6 +2056,10 @@ const PropertyNoticeBoard: React.FC<{
             addToast('Notice posted! It will appear on your residents\' portal immediately.', { type: 'success' });
         } catch (err: any) {
             addToast(err.message || 'Failed to create notice.', { type: 'error' });
+            // TASK 20: Close the form even on error so the user isn't stuck.
+            // The notice may have been created server-side — the query will
+            // refetch and show it if so.
+            setShowForm(false);
         } finally {
             setIsCreating(false);
         }

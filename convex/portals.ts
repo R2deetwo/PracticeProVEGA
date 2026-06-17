@@ -3398,26 +3398,38 @@ export const createNotice = mutation({
       updatedAt: now,
     });
 
-    // Schedule email notification server-side — guarantees delivery even if
-    // the client disconnects after the mutation completes.
-    await ctx.scheduler.runAfter(0, internal.portals.sendNoticeEmailsForFirm, {
-      firmId: args.firmId,
-      noticeTitle: args.title,
-      noticeBody: args.body,
-      noticePriority: args.priority,
-      noticePropertyId: args.propertyId,
-    });
+    // TASK 20: Schedule email notification NON-BLOCKING. The scheduler
+    // returns immediately — the actual email sending happens asynchronously.
+    // Don't await it (the await just confirms scheduling, but removing it
+    // makes the intent clearer).
+    try {
+      ctx.scheduler.runAfter(0, internal.portals.sendNoticeEmailsForFirm, {
+        firmId: args.firmId,
+        noticeTitle: args.title,
+        noticeBody: args.body,
+        noticePriority: args.priority,
+        noticePropertyId: args.propertyId,
+      });
+    } catch (e) {
+      console.warn("[createNotice] Failed to schedule notice emails:", (e as any)?.message);
+    }
 
-    // Log activity for audit trail
-    await ctx.runMutation(api.myFunctions.logActivity, {
-      firmId: args.firmId,
-      userId: args.authorId,
-      userName: args.authorName,
-      action: "Posted notice",
-      targetType: "notice",
-      targetId: noticeId,
-      targetName: args.title,
-    });
+    // TASK 20: Log activity NON-BLOCKING. Wrap in try-catch so that if
+    // logActivity fails (e.g., schema mismatch, timeout), the notice
+    // creation still succeeds. The notice IS already in the DB at this point.
+    try {
+      await ctx.runMutation(api.myFunctions.logActivity, {
+        firmId: args.firmId,
+        userId: args.authorId,
+        userName: args.authorName,
+        action: "Posted notice",
+        targetType: "notice",
+        targetId: String(noticeId),
+        targetName: args.title,
+      });
+    } catch (e) {
+      console.warn("[createNotice] Failed to log activity:", (e as any)?.message);
+    }
 
     return noticeId;
   },
