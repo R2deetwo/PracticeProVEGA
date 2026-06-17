@@ -1164,3 +1164,196 @@ Stage Summary:
 - REVOKE button unchanged — still soft-toggles between revoked and accepted.
 - User cleanup logic unchanged — same email can still be re-invited cleanly.
 - Ready for commit and push to main.
+
+---
+Task ID: 10-subagent-confirms
+Agent: subagent
+Task: Replace 7 browser confirm() calls with useConfirm hook
+
+Work Log:
+- src/components/settings/AccountRecoverySettings.tsx
+    * Added `import { useConfirm } from '../ui/ConfirmDialog';`
+    * Added `const { confirm, ConfirmDialog } = useConfirm();` after useUI()
+    * Replaced `confirm('Are you sure you want to delete this user record?...')`
+      → async `confirm({ title: 'Delete user record?', message: '...', confirmLabel: 'Delete', cancelLabel: 'Cancel', danger: true })`
+    * Replaced `confirm('Are you sure you want to force verify this account?')`
+      → async `confirm({ title: 'Force verify account?', message: '...', confirmLabel: 'Force Verify', cancelLabel: 'Cancel' })`
+      (no `danger` flag — this is not a destructive action)
+    * Both handlers were already async — kept them async.
+    * Rendered `{ConfirmDialog}` before the outer `<div>` closing tag.
+- src/components/client/ClientIntakePortal.tsx
+    * Added import + hook (placed AFTER useState, BEFORE the two early returns
+      so React's rules-of-hooks are satisfied).
+    * Replaced the inline `if (!window.confirm('...cancel this intake request?...')) return;`
+      inside the cancel button's onClick with an async `await confirm({...})`
+      + `if (!ok) return;`. Handler was already async.
+    * Rendered `{ConfirmDialog}` before the outer `<div>` closing tag.
+- src/components/atrium/AtriumInbox.tsx
+    * Added import + hook after useUI().
+    * Replaced `if (window.confirm("Delete this message?"))` in handleDelete
+      with async `await confirm({...})` + `if (!ok) return;`.
+      Flattened the previously-nested if-block (delete logic now runs at top
+      level after the early return).
+    * Rendered `{ConfirmDialog}` after the `<CommunicationPrintView />` block.
+- src/components/LocalDocumentManager.tsx
+    * Added import + hook after useUI().
+    * Replaced `confirm("Are you sure you want to disconnect the firm folder?...")`
+      (was using the global `confirm()`, not `window.confirm()`) with async
+      `await confirm({...})` + `if (!ok) return;`. Flattened nested if-block.
+    * Rendered `{ConfirmDialog}` before the outer `</div >` closing tag.
+- src/components/MessagesView.tsx
+    * Added import + hook after useProduct() (BEFORE the `if (!currentUser)
+      return null;` early return, consistent with the existing hook order).
+    * Replaced the inline `if (window.confirm('Delete this message?'))` inside
+      the delete button's onClick with async `await confirm({...})` +
+      `if (!ok) return;`. Handler was already async.
+    * Rendered `{ConfirmDialog}` before the outer `<div>` closing tag (right
+      after the SCHEDULED TAB block).
+- src/components/forms/PropertyForm.tsx
+    * Added import + hook after `addLedgerEntry = useMutation(...)`.
+    * Replaced `if (formTouched.current && !window.confirm('You have unsaved
+      changes. Discard them?')) return;` with the conditional pattern:
+        if (formTouched.current) {
+            const ok = await confirm({ title: 'Discard changes?', ...,
+                                       confirmLabel: 'Discard',
+                                       cancelLabel: 'Keep Editing',
+                                       danger: true });
+            if (!ok) return;
+        }
+    * Made the previously-sync onClick handler `async`.
+    * Rendered `{ConfirmDialog}` before the outer `</form>` closing tag
+      (after the sticky footer button row).
+- src/components/aloa/AloaChat.tsx
+    * Added import + hook after `convex = useConvex()`.
+    * Replaced `if (window.confirm(\`Delete note "${note.title}"?\`))` with
+      async `await confirm({...})` + `if (!ok) return;`. Used the `context`
+      option to surface the note title in a muted box:
+        confirm({ title: 'Delete note?',
+                  message: 'This note will be permanently removed.',
+                  confirmLabel: 'Delete', cancelLabel: 'Cancel',
+                  danger: true, context: note.title })
+    * Made the previously-sync onClick handler `async`.
+    * Rendered `{ConfirmDialog}` before the outer `<div>` closing tag (right
+      after the `</>` fragment close inside the conditional footer).
+
+Verification:
+- Ran `cd /home/z/my-project && ./node_modules/.bin/tsc --noEmit`
+- Filtered out the pre-existing `src/app/page.tsx` error (line 364) per task
+  instructions. Result: NO TypeScript errors from any of the 7 edited files.
+- Sanity grep for any remaining `window.confirm` or unguarded global `confirm(`
+  in src/components: only matches are in comments (App.tsx, TenantPortal.tsx,
+  ConfirmDialog.tsx) — no live browser-confirm calls remain in the 7 target
+  files.
+
+Stage Summary:
+- 7 files modified, 8 browser-confirm calls replaced (AccountRecoverySettings
+  had two; the other six files had one each).
+- All replacements follow the same async pattern: `const ok = await confirm({
+  ... }); if (!ok) return;` with the dialog rendered once per component via
+  `{ConfirmDialog}` near the end of the outermost JSX element.
+- Destructive actions (delete/disconnect/discard/cancel) get `danger: true`;
+  the non-destructive Force Verify action does not.
+- AloaChat uses the `context` option to display the note title being deleted,
+  preserving the UX intent of the original template-literal confirm.
+- ClientIntakePortal and MessagesView both have early returns elsewhere in the
+  component — useConfirm was placed BEFORE those early returns so the hook
+  order is stable across renders.
+- TypeScript: clean (excluding the known pre-existing page.tsx error).
+- Ready for commit and push to main.
+
+---
+Task ID: 10
+Agent: Main Agent (GLM 5.2 session 3) + subagent
+Task: Fix 4 issues: (1) conversation delete not working, (2) replace browser alerts with in-app modals, (3) message badge won't disappear, (4) WhatsApp link metadata only shows Vega.
+
+USER FEEDBACK:
+"i just noted that when i go to delete a conversation in messages it doe not delete. also i think i have said that i reallly want to have in app messages for all thing including the warning you get when trying to delete a message. no more browser messages please. we should have in-app messages for all scenarios. the YOU CAN SEE THAT THE NOTIFICATION BADGE STLL HAS NOT LEFT. THERE SHOULD BE AN INTUITIVE METHOD OF IT DISAPPEARING. FINALLY, I HAVE ONE OF MY COLLEAGUES TESTING THE ONBOARDING AND, LOOKING AT THE MESSGAE I SENT HIM ON WHATSAPP, HE POINRTED OUT TO ME THAT THE LINK MAKES REFERNCE ONLY TO VEGA; LIKE THE META DATA THAT SHOWS. HOWEVER IT SHOULD SHOW THAT THIS IS PRACTICEPRO THE COMPANY THAT BUILDS THESE APPS FOR ORGANIZATIONS."
+
+ROOT CAUSES:
+
+1. CONVERSATION/MESSAGE DELETE NOT WORKING:
+   - softDeletePortalMessage mutation marks message as isDeleted:true
+   - BUT getConversationMessages query returns ALL messages including isDeleted ones
+   - So deleted messages stayed visible forever (looked like delete did nothing)
+   - Also: no confirmation dialog — user might have been clicking delete by accident
+
+2. BROWSER ALERTS/CONFIRMS:
+   - 8 places in the codebase used window.confirm() or confirm() — browser-native
+   - User explicitly requested in-app messages for ALL scenarios
+   - Browser dialogs: ugly, can't be themed, block main thread, can't be dismissed by clicking outside
+
+3. MESSAGE BADGE WON'T DISAPPEAR:
+   - Badge counted unread atrium_inbound_messages
+   - When tenant opened Messages tab, NO mutation was called to mark them as read
+   - The unread count stayed forever
+   - Previously tried to use api.portals.markInboundMessagesReadByTenant (Task 8) — but that's a NEW mutation not yet deployed to Convex. Caused the "System Connection Interrupted" crash.
+
+4. WHATSAPP LINK METADATA ONLY SHOWS VEGA:
+   - index.html had hardcoded "PracticePro VEGA | Legal Practice Management for Nigerian Law Firms" as the title/OG tags
+   - All shared links showed Vega-specific metadata regardless of the route
+   - User wants: main link → PracticePro (parent company); /portal/tenant → Atrium; /portal/client → Vega
+
+FIXES (across 11 files):
+
+A. NEW REUSABLE COMPONENT — src/components/ui/ConfirmDialog.tsx
+   - useConfirm() hook returns { confirm, ConfirmDialog }
+   - confirm(opts): Promise<boolean> — resolves true if confirmed, false otherwise
+   - ConfirmDialog is a themed modal (light/dark), animated, Escape-to-close, click-outside-to-dismiss
+   - danger option makes the confirm button red (for destructive actions)
+   - context option shows extra context in a muted box (e.g. note title)
+   - Replaces window.confirm() throughout the app
+
+B. TENANT PORTAL — src/components/tenant/TenantPortal.tsx
+   1. Imported useConfirm hook
+   2. Added const { confirm, ConfirmDialog } = useConfirm() in MessagesTab
+   3. Added in-app confirmation before deleteMessage call (was no confirm before)
+   4. Filtered out isDeleted messages in conversationMessages.map — deleted messages now actually disappear from the UI
+   5. Added useEffect that calls api.sentry.markMessageAsRead (EXISTING mutation, already deployed) for each unread inbound message when the Messages tab opens — clears the badge
+   6. Rendered {ConfirmDialog} at the end of MessagesTab
+
+C. APP.TSX — src/components/App.tsx
+   - Replaced window.confirm("Reset local data?") in handleReset with useConfirm hook
+   - Rendered {confirmDialogNode} in the App's return
+
+D. 7 OTHER FILES (handled by subagent — Task ID 10-subagent-confirms):
+   - MessagesView.tsx — "Delete this message?"
+   - AtriumInbox.tsx — "Delete this message?"
+   - LocalDocumentManager.tsx — "disconnect the firm folder?"
+   - ClientIntakePortal.tsx — "cancel this intake request?"
+   - AccountRecoverySettings.tsx — TWO confirms (delete user + force verify)
+   - PropertyForm.tsx — "Discard unsaved changes?"
+   - AloaChat.tsx — Delete note "${note.title}"?
+   All 8 browser confirm calls now use the in-app useConfirm hook.
+
+E. INDEX.HTML METADATA — index.html
+   - OLD title: "PracticePro VEGA | Legal Practice Management for Nigerian Law Firms"
+   - NEW title: "PracticePro — Operating Systems for Modern Organizations"
+   - NEW description: "PracticePro builds dedicated operating systems for the organizations that run modern Africa. Atrium for property managers. Vega for Nigerian law firms. One platform, two specialized products."
+   - Updated OG tags, Twitter Card tags, site_name, keywords, author
+   - This is the FALLBACK metadata for all routes — the Edge Middleware below overrides it per-route for crawlers.
+
+F. VERCEL EDGE MIDDLEWARE — middleware.ts (NEW, at project root)
+   - Intercepts every request, checks User-Agent
+   - For social media crawlers (WhatsApp, Telegram, Facebook, Twitter, Slack, Discord, LinkedIn, iMessage, Skype, Snapchat, Pinterest, Reddit, Tumblr, etc.): returns custom HTML with dynamic OG meta tags based on the URL path:
+     * /portal/tenant/* → "Atrium Residents Portal — PracticePro" (green theme)
+     * /portal/client/* → "Vega Client Portal — PracticePro" (blue theme)
+     * / (root) and everything else → "PracticePro — Operating Systems for Modern Organizations"
+   - For regular browser requests: passes through to the SPA (NextResponse.next()) with zero added latency
+   - Configured matcher to skip static assets and API routes
+   - Custom HTML includes a redirect to the actual SPA URL (in case a real user lands on the crawler response)
+   - @vercel/edge package added to dependencies
+
+Build verified:
+- npx tsc --noEmit: only the pre-existing src/app/page.tsx error
+- npx vite build: succeeds in 13.76s
+
+CRITICAL — NO CONVEX DEPLOY NEEDED:
+All fixes are frontend-only. The message badge fix uses api.sentry.markMessageAsRead which is ALREADY on the live Convex server (has been for a long time). Vercel auto-deploys everything else.
+
+Stage Summary:
+- 11 files modified/created (1 new ConfirmDialog component, 1 new middleware.ts, 9 modified files)
+- 8 browser confirm() calls replaced with in-app useConfirm hook
+- Message delete now actually removes the message from the UI (filter isDeleted)
+- Message badge clears when tenant opens Messages tab (uses existing markMessageAsRead)
+- WhatsApp link previews now show product-specific metadata (Atrium/Vega) or PracticePro parent-company metadata
+- Ready for commit and push to main — Vercel auto-deploys

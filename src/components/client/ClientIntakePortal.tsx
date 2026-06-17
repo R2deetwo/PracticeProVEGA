@@ -4,12 +4,14 @@ import { ClientIntakeRecorder } from './ClientIntakeRecorder';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 export const ClientIntakePortal: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { handleCancelIntakeRequest } = useDataActions();
     const { selectedId: leadId, navigateTo, addToast } = useUI();
     const [isCancelling, setIsCancelling] = useState(false);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     const lead = coreState.leads.find(l => l.id === leadId);
 
@@ -59,7 +61,14 @@ export const ClientIntakePortal: React.FC = () => {
             <div className="mt-6 text-center">
                 <button
                     onClick={async () => {
-                        if (!window.confirm('Are you sure you want to cancel this intake request? Any information entered will be lost.')) return;
+                        const ok = await confirm({
+                            title: 'Cancel intake request?',
+                            message: 'Are you sure you want to cancel this intake request? Any information entered will be lost.',
+                            confirmLabel: 'Cancel Request',
+                            cancelLabel: 'Keep Editing',
+                            danger: true,
+                        });
+                        if (!ok) return;
                         setIsCancelling(true);
                         try {
                             await handleCancelIntakeRequest(lead.id);
@@ -77,6 +86,7 @@ export const ClientIntakePortal: React.FC = () => {
                     {isCancelling ? 'Cancelling...' : 'Cancel and Return to Dashboard'}
                 </button>
             </div>
+            {ConfirmDialog}
         </div>
     );
 };

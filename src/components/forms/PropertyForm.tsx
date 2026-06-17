@@ -18,6 +18,7 @@ import {
     propertyExistsInDb,
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface PropertyFormProps {
     contact: Contact;
@@ -34,6 +35,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const { addToast, openModal, navigateTo } = useUI();
     const { currentUser } = useAuth();
     const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+    const { confirm, ConfirmDialog } = useConfirm();
 
     // Core Fields
     const [address, setAddress] = useState(propertyToEdit?.address || '');
@@ -1391,8 +1393,17 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             </div>
 
             <div className="sticky -bottom-4 sm:-bottom-5 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-4 pb-4 sm:pb-5 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50 mt-4 rounded-b-2xl">
-                <button type="button" onClick={() => {
-                    if (formTouched.current && !window.confirm('You have unsaved changes. Discard them?')) return;
+                <button type="button" onClick={async () => {
+                    if (formTouched.current) {
+                        const ok = await confirm({
+                            title: 'Discard changes?',
+                            message: 'You have unsaved changes. Discard them?',
+                            confirmLabel: 'Discard',
+                            cancelLabel: 'Keep Editing',
+                            danger: true,
+                        });
+                        if (!ok) return;
+                    }
                     onClose();
                 }} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
@@ -1401,6 +1412,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     <SaveIcon className="w-4 h-4" /> Save Property
                 </button>
             </div>
+            {ConfirmDialog}
         </form>
     );
 };

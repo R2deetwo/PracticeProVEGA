@@ -91,6 +91,7 @@ import SetupPassword from './portal/SetupPassword';
 import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
+import { useConfirm } from './ui/ConfirmDialog';
 
 
 const IDLE_TIMEOUT = 15 * 60 * 1000;
@@ -494,6 +495,7 @@ export const App: React.FC = () => {
     }, []);
 
     const [flowState, setFlowState] = useState<FlowState>(hasSavedSession ? 'splash' : 'app');
+    const { confirm: confirmAction, ConfirmDialog: confirmDialogNode } = useConfirm();
     const { product } = useProduct();
     const [forceEntry, setForceEntry] = useState(false);
     const [hasInitialized, setHasInitialized] = useState(false);
@@ -620,11 +622,17 @@ export const App: React.FC = () => {
         }
     }, [isLoadingSession, hasSavedSession]);
 
-    const handleReset = () => {
-        if (window.confirm("Reset local data? This will clear all local data and reload. This cannot be undone.")) {
-            localStorage.clear();
-            window.location.reload();
-        }
+    const handleReset = async () => {
+        const ok = await confirmAction({
+            title: 'Reset local data?',
+            message: 'This will clear all local data and reload. This cannot be undone.',
+            confirmLabel: 'Reset data',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        localStorage.clear();
+        window.location.reload();
     };
 
     const handleForceEnter = () => {
@@ -981,6 +989,8 @@ export const App: React.FC = () => {
             {/* What's New only for admin/firm users, not portal users */}
             {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
             <CookieConsent />
+            {/* In-app confirmation dialog — replaces browser window.confirm() */}
+            {confirmDialogNode}
         </div>
     );
 };

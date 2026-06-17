@@ -15,6 +15,7 @@ import { Modal } from './modals/Modal';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { useConfirm } from './ui/ConfirmDialog';
 
 interface LocalDocumentManagerProps {
     onPreviewLocalFile?: (doc: Document) => void;
@@ -45,6 +46,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
+    const { confirm, ConfirmDialog } = useConfirm();
 
     // Firm Settings
     const firmFolderPath = coreState.firmDetails?.localFolderPath || null;
@@ -137,13 +139,19 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
     const handleDisconnectFirmFolder = async () => {
         if (!isAdmin || !coreState.firmDetails?.id) return;
 
-        if (confirm("Are you sure you want to disconnect the firm folder? This will require re-selecting a folder for all users.")) {
-            await updateFirmSettings({
-                firmId: coreState.firmDetails.id,
-                settings: { localFolderPath: "" } // Clear it
-            });
-            addToast("Firm folder disconnected.", { type: 'success' });
-        }
+        const ok = await confirm({
+            title: 'Disconnect firm folder?',
+            message: 'Are you sure you want to disconnect the firm folder? This will require re-selecting a folder for all users.',
+            confirmLabel: 'Disconnect',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        await updateFirmSettings({
+            firmId: coreState.firmDetails.id,
+            settings: { localFolderPath: "" } // Clear it
+        });
+        addToast("Firm folder disconnected.", { type: 'success' });
     };
 
     const handleCacheFile = async (file: LocalFile, e: React.MouseEvent) => {
@@ -531,6 +539,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
                     </div>
                 )}
             </div>
+            {ConfirmDialog}
         </div >
     );
 };

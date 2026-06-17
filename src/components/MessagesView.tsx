@@ -15,6 +15,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
+import { useConfirm } from './ui/ConfirmDialog';
 
 // --- Icons (If not in constants) ---
 const DotsVerticalIcon = () => (
@@ -306,6 +307,7 @@ const MessagesView: React.FC = () => {
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast } = useUI();
     const { isProperty, isLegal } = useProduct();
+    const { confirm, ConfirmDialog } = useConfirm();
 
     if (!currentUser) return null;
 
@@ -895,14 +897,20 @@ const MessagesView: React.FC = () => {
                                             )}
                                             <button
                                                 onClick={async () => {
-                                                    if (window.confirm('Delete this message?')) {
-                                                        if (selectedInboundMsg._inboxType === 'portal') {
-                                                            await deleteInboundMessage({ messageId: selectedInboundMsg._id as any }).catch(() => {});
-                                                        } else {
-                                                            await deleteInboundMessage({ messageId: selectedInboundMsg._id as any });
-                                                        }
-                                                        setSelectedInboxId(null);
+                                                    const ok = await confirm({
+                                                        title: 'Delete this message?',
+                                                        message: 'This message will be permanently removed from the inbox.',
+                                                        confirmLabel: 'Delete',
+                                                        cancelLabel: 'Cancel',
+                                                        danger: true,
+                                                    });
+                                                    if (!ok) return;
+                                                    if (selectedInboundMsg._inboxType === 'portal') {
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any }).catch(() => {});
+                                                    } else {
+                                                        await deleteInboundMessage({ messageId: selectedInboundMsg._id as any });
                                                     }
+                                                    setSelectedInboxId(null);
                                                 }}
                                                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                 title="Delete message"
@@ -1357,6 +1365,7 @@ const MessagesView: React.FC = () => {
                     <ScheduledTab firmId={firmId} />
                 )}
             </div>
+            {ConfirmDialog}
         </div>
     );
 };

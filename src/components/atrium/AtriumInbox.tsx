@@ -23,6 +23,7 @@ import {
     ChevronDown as ChevronDownIcon,
     FileText as FileTextIcon,
 } from 'lucide-react';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', 
@@ -59,6 +60,7 @@ export const AtriumInbox: React.FC = () => {
     const { currentUser } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
+    const { confirm, ConfirmDialog } = useConfirm();
     const firmId = coreState.firmDetails?.id || currentUser?.firmId;
 
     // Use query for inbound messages
@@ -128,11 +130,17 @@ export const AtriumInbox: React.FC = () => {
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (window.confirm("Delete this message?")) {
-            await deleteMessage({ messageId: id as any });
-            if (selectedThreadId === id) setSelectedThreadId(null);
-            addToast("Message deleted", { type: "info" });
-        }
+        const ok = await confirm({
+            title: 'Delete this message?',
+            message: 'This message will be permanently removed from the inbox.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
+        await deleteMessage({ messageId: id as any });
+        if (selectedThreadId === id) setSelectedThreadId(null);
+        addToast("Message deleted", { type: "info" });
     };
 
     const handleSendReply = async () => {
@@ -718,6 +726,7 @@ export const AtriumInbox: React.FC = () => {
                     onClose={() => setShowPrintView(false)}
                 />
             )}
+            {ConfirmDialog}
         </div>
     );
 };

@@ -27,6 +27,7 @@ import {
   BellIcon,
 } from '../../constants';
 import { Receipt as ReceiptIcon } from 'lucide-react';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
@@ -1412,6 +1413,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   const firmId = effectiveFirmId || currentUser?.firmId || '';
   const email = currentUser?.email || '';
   const resolvedTenantId = tenantInfo?.tenantId || userId;
+  const { confirm, ConfirmDialog } = useConfirm();
 
   // Conversation-based queries
   const conversations = useQuery(
@@ -1435,6 +1437,12 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   // Mutations
   const sendMessage = useMutation(api.portals.sendPortalMessage);
   const markRead = useMutation(api.portals.markConversationReadByParticipant);
+  // BUG FIX (Task 10): Use the EXISTING api.sentry.markMessageAsRead mutation
+  // (already deployed on the live Convex server) to mark atrium_inbound_messages
+  // as read. This clears the unread badge when the tenant opens the Messages tab.
+  // Previously we tried to use api.portals.markInboundMessagesReadByTenant which
+  // is a NEW mutation not yet deployed — that caused "function not found" errors.
+  const markInboundRead = useMutation(api.sentry.markMessageAsRead);
   const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
@@ -1460,6 +1468,30 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
       markRead({ conversationId: activeConversationId }).catch(() => {});
     }
   }, [activeConversationId]);
+
+  // ── BUG FIX (Task 10): Clear the unread inbound-messages badge ──
+  // When the tenant opens the Messages tab, mark all their unread
+  // atrium_inbound_messages as read. This clears the red notification badge
+  // on the Messages tab.
+  //
+  // The badge count (in the parent TenantPortal component) is computed from
+  // (portalConversations.unreadByParticipant) + (unresolvedInboundMsgs
+  // filtered by !isRead). Marking them as read here makes the query
+  // re-fetch, the count drops to 0, and the badge disappears.
+  //
+  // Uses the EXISTING api.sentry.markMessageAsRead mutation (already on the
+  // live Convex server) — one call per unread message. For typical use this
+  // is 1-3 calls; not a performance concern.
+  useEffect(() => {
+    if (!inboundMessages || inboundMessages.length === 0) return;
+    const unreadMessages = (inboundMessages as any[]).filter((m: any) => !m.isRead);
+    if (unreadMessages.length === 0) return;
+    // Fire-and-forget — non-blocking
+    for (const msg of unreadMessages) {
+      markInboundRead({ messageId: msg._id }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inboundMessages]);
 
   // Resolve file URLs for attachments using Convex query
   const [urlStorageIds, setUrlStorageIds] = useState<string[]>([]);
@@ -1632,7 +1664,14 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
               <p className="text-sm text-slate-400">No messages yet. Start the conversation!</p>
             </div>
           ) : (
-            conversationMessages.map((msg: any) => {
+            // BUG FIX (Task 10): Filter out isDeleted messages — the backend
+            // softDeletePortalMessage mutation marks them as isDeleted:true
+            // but getConversationMessages still returns them. Without this
+            // filter, deleted messages would stay visible forever (the user's
+            // "delete doesn't work" complaint).
+            conversationMessages
+              .filter((msg: any) => !msg.isDeleted)
+              .map((msg: any) => {
               const isMe = msg.senderId === userId;
               const isDeleted = msg.isDeleted;
 
@@ -1676,9 +1715,22 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                         <button
                           onClick={async () => {
                             if (deletingMessageId === String(msg._id)) return;
+                            // IN-APP confirmation (replaces browser confirm)
+                            // — the user explicitly requested no more browser
+                            // messages. The ConfirmDialog is rendered at the
+                            // bottom of the MessagesTab return statement.
+                            const ok = await confirm({
+                              title: 'Delete this message?',
+                              message: 'The message will be removed from this conversation for you. The property manager will still have a record for their files.',
+                              confirmLabel: 'Delete',
+                              cancelLabel: 'Cancel',
+                              danger: true,
+                            });
+                            if (!ok) return;
                             setDeletingMessageId(String(msg._id));
                             try {
                               await deleteMessage({ messageId: String(msg._id), requesterId: userId });
+                              addToast('Message deleted.', { type: 'success', duration: 2500 });
                             } catch (err: any) {
                               addToast(err.message || 'Failed to delete message.', { type: 'error' });
                             } finally {
@@ -1949,6 +2001,8 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
           </p>
         </div>
       )}
+      {/* In-app confirmation dialog — replaces browser window.confirm() */}
+      {ConfirmDialog}
     </div>
   );
 };

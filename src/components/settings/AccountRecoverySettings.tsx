@@ -3,10 +3,12 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
 import { SearchIcon, TrashIcon, CheckCircleIcon, ShieldCheckIcon } from '../../constants';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 
 const AccountRecoverySettings: React.FC = () => {
     const { addToast } = useUI();
+    const { confirm, ConfirmDialog } = useConfirm();
     const [searchEmail, setSearchEmail] = useState('');
     const [debouncedEmail, setDebouncedEmail] = useState('');
     
@@ -24,7 +26,14 @@ const AccountRecoverySettings: React.FC = () => {
     }, [searchEmail]);
 
     const handleDelete = async (userId: string) => {
-        if (!confirm('Are you sure you want to delete this user record? This action cannot be undone.')) return;
+        const ok = await confirm({
+            title: 'Delete user record?',
+            message: 'Are you sure you want to delete this user record? This action cannot be undone.',
+            confirmLabel: 'Delete',
+            cancelLabel: 'Cancel',
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await adminDeleteUser({ userId: userId as any });
             addToast('User deleted successfully.', { type: 'success' });
@@ -34,7 +43,13 @@ const AccountRecoverySettings: React.FC = () => {
     };
 
     const handleForceVerify = async (userId: string) => {
-        if (!confirm('Are you sure you want to force verify this account?')) return;
+        const ok = await confirm({
+            title: 'Force verify account?',
+            message: 'Are you sure you want to force verify this account?',
+            confirmLabel: 'Force Verify',
+            cancelLabel: 'Cancel',
+        });
+        if (!ok) return;
         try {
             await adminForceVerify({ userId: userId as any });
             addToast('User verified successfully.', { type: 'success' });
@@ -124,6 +139,7 @@ const AccountRecoverySettings: React.FC = () => {
                     </div>
                 )}
             </div>
+            {ConfirmDialog}
         </div>
     );
 };

@@ -37,6 +37,7 @@ import { NoteDetails } from './NoteDetails';
 import { ConversationList } from './ConversationList';
 import { validateAIResponse } from '../../constants/identityGuardrails';
 import { DynamicChatForm } from './DynamicChatForm';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 const SendIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -78,6 +79,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const { navigateTo, openModal, openEditor, currentHistoryEntry, isOnline } = useUI();
     const { isProperty, isAtrium } = useProduct();
     const convex = useConvex();
+    const { confirm, ConfirmDialog } = useConfirm();
 
     // Convex Hooks
     const saveMessageMutation = useMutation(api.myFunctions.saveAloaMessage);
@@ -1071,11 +1073,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1 opacity-60">{note.content}</div>
                                             </button>
                                             <button
-                                                onClick={(e) => {
+                                                onClick={async (e) => {
                                                     e.stopPropagation();
-                                                    if (window.confirm(`Delete note "${note.title}"?`)) {
-                                                        deleteItem('notePages', note.id, note.title);
-                                                    }
+                                                    const ok = await confirm({
+                                                        title: 'Delete note?',
+                                                        message: 'This note will be permanently removed.',
+                                                        confirmLabel: 'Delete',
+                                                        cancelLabel: 'Cancel',
+                                                        danger: true,
+                                                        context: note.title,
+                                                    });
+                                                    if (!ok) return;
+                                                    deleteItem('notePages', note.id, note.title);
                                                 }}
                                                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all z-20"
                                                 title="Delete Note"
@@ -1301,6 +1310,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             </footer>
                 </>
             )}
+            {ConfirmDialog}
         </div>
     );
 };
