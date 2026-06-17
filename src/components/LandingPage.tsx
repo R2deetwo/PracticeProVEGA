@@ -1004,22 +1004,26 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
             });
         } else {
             // TASK 18: No product chosen — scroll to the product cards and
-            // highlight them. The user explicitly requested this behavior.
-            // We scroll to the HubHero section (which contains the cards) and
-            // trigger the glow animation by changing the highlightKey prop.
+            // highlight them. The user explicitly requested this behavior:
+            // "when the user clicks on get started for free on the main landing
+            //  page, it should scroll and direct them to the cards on the main
+            //  landing page, highlight them."
             //
-            // Use requestAnimationFrame to ensure the scroll happens after
-            // any pending re-renders. Use 'center' block to ensure the cards
-            // are in the middle of the viewport.
+            // We use the scrollRef (the main scrollable container) and compute
+            // the exact scroll position to center the cards in the viewport.
+            // scrollIntoView can be unreliable inside nested scroll containers,
+            // so we do the math manually.
             const cardsContainer = document.querySelector('[data-product-cards]') as HTMLElement;
-            if (cardsContainer) {
+            if (cardsContainer && scrollRef.current) {
+                const container = scrollRef.current;
+                const cardsRect = cardsContainer.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                // Compute the scroll position that centers the cards in the container
+                const targetScroll = container.scrollTop + (cardsRect.top - containerRect.top) - (containerRect.height / 2) + (cardsRect.height / 2);
+                container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
+            } else if (cardsContainer) {
+                // Fallback: use scrollIntoView if scrollRef isn't available
                 cardsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-                // Fallback: scroll to the hub section
-                const hubEl = document.getElementById('home');
-                if (hubEl) {
-                    hubEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
             }
             // Trigger the highlight animation. We toggle false → true with a
             // small delay to force React to re-render the cards with the new
