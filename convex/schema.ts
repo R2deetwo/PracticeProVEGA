@@ -1352,4 +1352,26 @@ export default defineSchema({
     .index("by_conversation", ["conversationId"])
     .index("by_firm", ["firmId"]),
 
+  // ─── Audit Logs ──────────────────────────────────────────────────────
+  // Server-side audit trail for all significant mutations. Append-only.
+  // The auditLog.ts module writes to this table; it was missing from the
+  // schema which caused TypeScript errors during Convex deploy.
+  audit_logs: defineTable({
+    firmId: v.string(),
+    actorId: v.optional(v.string()),
+    actorName: v.optional(v.string()),
+    actorRole: v.optional(v.string()),
+    action: v.string(),                 // e.g. "create", "update", "delete", "archive"
+    resource: v.string(),               // e.g. "matter", "contact", "property"
+    resourceId: v.optional(v.string()),
+    resourceName: v.optional(v.string()),
+    previousState: v.optional(v.any()),
+    metadata: v.optional(v.any()),
+    timestamp: v.number(),
+  })
+    .index("by_firm_timestamp", ["firmId", "timestamp"])
+    .index("by_firm", ["firmId"])
+    .index("by_actor", ["actorId"])
+    .index("by_resource", ["resource"]),
+
 }, { schemaValidation: false });

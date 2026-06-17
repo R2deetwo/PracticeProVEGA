@@ -1437,12 +1437,11 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   // Mutations
   const sendMessage = useMutation(api.portals.sendPortalMessage);
   const markRead = useMutation(api.portals.markConversationReadByParticipant);
-  // BUG FIX (Task 10): Use the EXISTING api.sentry.markMessageAsRead mutation
-  // (already deployed on the live Convex server) to mark atrium_inbound_messages
-  // as read. This clears the unread badge when the tenant opens the Messages tab.
-  // Previously we tried to use api.portals.markInboundMessagesReadByTenant which
-  // is a NEW mutation not yet deployed — that caused "function not found" errors.
-  const markInboundRead = useMutation(api.sentry.markMessageAsRead);
+  // Uses the proper batch mutation api.portals.markInboundMessagesReadByTenant
+  // (deployed via Task 8 npx convex deploy) to mark ALL unread inbound
+  // messages as read in a single call. More efficient than the per-message
+  // api.sentry.markMessageAsRead workaround used before Convex was deployed.
+  const markInboundRead = useMutation(api.portals.markInboundMessagesReadByTenant);
   const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
@@ -1469,26 +1468,28 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
     }
   }, [activeConversationId]);
 
-  // ── BUG FIX (Task 10): Clear the unread inbound-messages badge ──
+  // ── BUG FIX (Task 10 + Task 11): Clear the unread inbound-messages badge ──
   // When the tenant opens the Messages tab, mark all their unread
   // atrium_inbound_messages as read. This clears the red notification badge
   // on the Messages tab.
   //
-  // The badge count (in the parent TenantPortal component) is computed from
-  // (portalConversations.unreadByParticipant) + (unresolvedInboundMsgs
-  // filtered by !isRead). Marking them as read here makes the query
-  // re-fetch, the count drops to 0, and the badge disappears.
+  // Uses api.portals.markInboundMessagesReadByTenant (deployed via Task 8
+  // npx convex deploy) — a single batch call that marks ALL unread messages
+  // for this tenant as read. More efficient than the per-message workaround.
   //
-  // Uses the EXISTING api.sentry.markMessageAsRead mutation (already on the
-  // live Convex server) — one call per unread message. For typical use this
-  // is 1-3 calls; not a performance concern.
+  // Falls back gracefully: if the mutation fails (e.g. Convex not yet
+  // deployed), the badge won't clear but no crash occurs.
   useEffect(() => {
     if (!inboundMessages || inboundMessages.length === 0) return;
     const unreadMessages = (inboundMessages as any[]).filter((m: any) => !m.isRead);
     if (unreadMessages.length === 0) return;
-    // Fire-and-forget — non-blocking
-    for (const msg of unreadMessages) {
-      markInboundRead({ messageId: msg._id }).catch(() => {});
+    // Fire-and-forget — non-blocking. markInboundMessagesReadByTenant takes
+    // tenantId (Convex _id or email — mirrors getInboundMessagesByTenant's
+    // lookup logic).
+    markInboundRead({ tenantId: resolvedTenantId }).catch(() => {});
+    // Also try by email — legacy data may be indexed by both tenantId and email.
+    if (email && email !== resolvedTenantId) {
+      markInboundRead({ tenantId: email }).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inboundMessages]);

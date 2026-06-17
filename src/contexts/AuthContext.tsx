@@ -24,7 +24,7 @@ export interface AuthContextType {
     currentUser: User | null;
     appMode: AppMode;
     isAccountRevoked: boolean;
-    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean) => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
+    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean, portalType?: 'tenant' | 'client') => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
     verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
     resendConfirmation: (email: string) => Promise<{ success: boolean, message?: string }>;
@@ -149,7 +149,22 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
     const repairAccountConnectionMutation = useMutation(api.myFunctions.repairAccountConnection);
 
-    const userData = useQuery(api.myFunctions.getUser, sessionToken ? { tokenIdentifier: sessionToken } : "skip");
+    // Fetch user data based on the active session token (email).
+    // CRITICAL: When on a portal route (/portal/*), pass preferPortalRole=true
+    // so getUser returns the portal-role record (Tenant/Client) when the same
+    // email exists as BOTH an admin record AND a portal record. This is the
+    // fix for the "residents see admin dashboard" bug — without this flag,
+    // getUser returned the first matching record (usually the older Admin
+    // record) and the user ended up in the admin dashboard after logging in
+    // via /portal/tenant/login.
+    //
+    // REQUIRES: npx convex deploy (Task 8 backend changes must be live).
+    const userData = useQuery(
+        api.myFunctions.getUser,
+        sessionToken
+            ? { tokenIdentifier: sessionToken, preferPortalRole: isPortalRoute() }
+            : "skip"
+    );
 
     // Fetch original user data if impersonating.
     // The original admin session is NEVER a portal session.
@@ -369,7 +384,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [isImpersonating, userData, originalSessionToken]);
 
-    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true) => {
+    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true, portalType?: 'tenant' | 'client') => {
         const token = email.toLowerCase().trim();
 
         // Bypass check for demo user — DEV builds only
@@ -390,6 +405,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 passwordHash: "",        // No longer used client-side
                 rawPassword: String(password || ''),   // Sent over TLS; hashed PBKDF2 server-side
                 mfaCode: mfaCode ? String(mfaCode) : undefined,
+                // Pass portalType when logging in from a portal route so the
+                // backend can resolve the correct user record when the same
+                // email exists as BOTH an admin record AND a portal record.
+                // REQUIRES: npx convex deploy (Task 8 backend changes must be live).
+                portalType,
             });
 
             if (!verifyResult.success) {

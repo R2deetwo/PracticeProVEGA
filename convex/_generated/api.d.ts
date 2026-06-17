@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as analytics from "../analytics.js";
+import type * as auditLog from "../auditLog.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
 import type * as brainIngestion from "../brainIngestion.js";
@@ -38,6 +39,7 @@ import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as test from "../test.js";
 import type * as tierLimits from "../tierLimits.js";
+import type * as validation from "../validation.js";
 
 import type {
   ApiFromModules,
@@ -48,6 +50,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   analytics: typeof analytics;
+  auditLog: typeof auditLog;
   authHelpers: typeof authHelpers;
   authUtils: typeof authUtils;
   brainIngestion: typeof brainIngestion;
@@ -76,6 +79,7 @@ declare const fullApi: ApiFromModules<{
   sentryWebhook: typeof sentryWebhook;
   test: typeof test;
   tierLimits: typeof tierLimits;
+  validation: typeof validation;
 }>;
 
 /**

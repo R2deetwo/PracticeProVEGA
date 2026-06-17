@@ -1038,6 +1038,39 @@ export const PortalAccessSettings: React.FC = () => {
     navigateTo('dashboard');
   };
 
+  // ── SAFETY CHECK BEFORE PREVIEW (re-applied after Convex deploy) ──
+  // With the impersonationRoleOverride fix (Task 7), impersonation works
+  // correctly even when the target's DB role has drifted. But there's still
+  // one case we want to flag proactively: if the SAME EMAIL exists as BOTH
+  // an admin account AND a portal account (the duplicate-email data
+  // corruption that caused the original "residents see admin dashboard"
+  // bug), the admin should be warned before previewing.
+  //
+  // REQUIRES: npx convex deploy (getUser with preferPortalRole must be live).
+  const handlePreviewWithDuplicateCheck = async (invite: any) => {
+    const portalEmail = invite.inviteeEmail;
+    if (portalEmail) {
+      try {
+        const resolved: any = await convex.query(api.myFunctions.getUser, {
+          tokenIdentifier: portalEmail.toLowerCase(),
+          preferPortalRole: true,
+        });
+        const inviteRole = invite.portalType === 'client' ? 'Client' : 'Tenant';
+        if (resolved && resolved.role && resolved.role !== inviteRole && resolved.role !== 'Pending') {
+          addToast(
+            `Heads up: ${portalEmail} is registered as ${resolved.role} in the database, not ${inviteRole}. ` +
+            `You can still preview the portal (the role override will take effect), but you should clean up this duplicate after you're done. ` +
+            `Use the "Find Duplicate Emails" tool in Settings → Diagnostics to see all conflicts.`,
+            { type: 'warning', duration: 10000 }
+          );
+        }
+      } catch {
+        // Non-blocking — proceed with normal preview
+      }
+    }
+    handlePreview(invite);
+  };
+
   const isLoading = invites === undefined;
 
   // ── Loading state ──
@@ -1144,7 +1177,7 @@ export const PortalAccessSettings: React.FC = () => {
             onRevoke={handleRevoke}
             onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
-            onPreview={handlePreview}
+            onPreview={handlePreviewWithDuplicateCheck}
           />
         </div>
 
@@ -1164,7 +1197,7 @@ export const PortalAccessSettings: React.FC = () => {
             onRevoke={handleRevoke}
             onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
-            onPreview={handlePreview}
+            onPreview={handlePreviewWithDuplicateCheck}
           />
         </div>
 
@@ -1262,7 +1295,7 @@ export const PortalAccessSettings: React.FC = () => {
         onRevoke={handleRevoke}
         onDelete={handleDeleteRequest}
         onCopyLink={handleCopyInviteLink}
-        onPreview={handlePreview}
+        onPreview={handlePreviewWithDuplicateCheck}
       />
 
       <SecurityNotice isProperty={isProperty} isUnified={false} />

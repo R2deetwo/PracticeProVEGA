@@ -119,7 +119,7 @@ const TenantPortalLogin: React.FC = () => {
         setIsRevoked(false);
 
         try {
-            const result = await login(email.trim(), password);
+            const result = await login(email.trim(), password, undefined, true, 'tenant');
             if (result.success) {
                 if (inviteToken) {
                     try {

@@ -118,7 +118,7 @@ const ClientPortalLogin: React.FC = () => {
         setIsRevoked(false);
 
         try {
-            const result = await login(email.trim(), password);
+            const result = await login(email.trim(), password, undefined, true, 'client');
             if (result.success) {
                 if (inviteToken) {
                     try {
