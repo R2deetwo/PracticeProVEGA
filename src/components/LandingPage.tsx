@@ -913,7 +913,24 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
         }
     };
 
-    const openSignup = (productOverride?: ProductMode) => openModal('signup', null, { selectedProduct: productOverride || activeProduct });
+    // BUG FIX (Task 11): Only pass selectedProduct when the user has EXPLICITLY
+    // chosen a product on the landing page. If they haven't (e.g. they clicked
+    // "Get Started for Free" directly from the hero section without picking
+    // Vega/Atrium/Komplete first), we pass NO selectedProduct — the Signup
+    // modal will then start at the 'product_selection' step and ask them
+    // which product they want.
+    //
+    // Previously, activeProduct defaulted to 'vega' and was ALWAYS passed to
+    // the signup modal, so users who hadn't chosen a product were silently
+    // funneled into the Vega signup flow — even though the Signup modal
+    // already had a perfectly good product-selection step that was being
+    // bypassed.
+    //
+    // productOverride is still respected when explicitly passed (e.g. from
+    // the pricing section's "Get Started" buttons which are product-specific).
+    const openSignup = (productOverride?: ProductMode) => openModal('signup', null, {
+        selectedProduct: productOverride || (productChosen ? activeProduct : undefined),
+    });
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
     const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
     const openContactSales = (source: string) => { setContactDrawerSource(source); setIsContactDrawerOpen(true); };

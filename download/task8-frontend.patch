@@ -1,0 +1,217 @@
+diff --git a/src/components/portal/ClientPortalLogin.tsx b/src/components/portal/ClientPortalLogin.tsx
+index 8b10005..75c4961 100755
+--- a/src/components/portal/ClientPortalLogin.tsx
++++ b/src/components/portal/ClientPortalLogin.tsx
+@@ -118,7 +118,7 @@ const ClientPortalLogin: React.FC = () => {
+         setIsRevoked(false);
+ 
+         try {
+-            const result = await login(email.trim(), password);
++            const result = await login(email.trim(), password, undefined, true, 'client');
+             if (result.success) {
+                 if (inviteToken) {
+                     try {
+diff --git a/src/components/portal/TenantPortalLogin.tsx b/src/components/portal/TenantPortalLogin.tsx
+index a7a6bfc..f6e1728 100755
+--- a/src/components/portal/TenantPortalLogin.tsx
++++ b/src/components/portal/TenantPortalLogin.tsx
+@@ -119,7 +119,7 @@ const TenantPortalLogin: React.FC = () => {
+         setIsRevoked(false);
+ 
+         try {
+-            const result = await login(email.trim(), password);
++            const result = await login(email.trim(), password, undefined, true, 'tenant');
+             if (result.success) {
+                 if (inviteToken) {
+                     try {
+diff --git a/src/components/settings/PortalAccessSettings.tsx b/src/components/settings/PortalAccessSettings.tsx
+index 01730b6..4f0aa99 100755
+--- a/src/components/settings/PortalAccessSettings.tsx
++++ b/src/components/settings/PortalAccessSettings.tsx
+@@ -1038,6 +1038,39 @@ export const PortalAccessSettings: React.FC = () => {
+     navigateTo('dashboard');
+   };
+ 
++  // ── SAFETY CHECK BEFORE PREVIEW (re-applied after Convex deploy) ──
++  // With the impersonationRoleOverride fix (Task 7), impersonation works
++  // correctly even when the target's DB role has drifted. But there's still
++  // one case we want to flag proactively: if the SAME EMAIL exists as BOTH
++  // an admin account AND a portal account (the duplicate-email data
++  // corruption that caused the original "residents see admin dashboard"
++  // bug), the admin should be warned before previewing.
++  //
++  // REQUIRES: npx convex deploy (getUser with preferPortalRole must be live).
++  const handlePreviewWithDuplicateCheck = async (invite: any) => {
++    const portalEmail = invite.inviteeEmail;
++    if (portalEmail) {
++      try {
++        const resolved: any = await convex.query(api.myFunctions.getUser, {
++          tokenIdentifier: portalEmail.toLowerCase(),
++          preferPortalRole: true,
++        });
++        const inviteRole = invite.portalType === 'client' ? 'Client' : 'Tenant';
++        if (resolved && resolved.role && resolved.role !== inviteRole && resolved.role !== 'Pending') {
++          addToast(
++            `Heads up: ${portalEmail} is registered as ${resolved.role} in the database, not ${inviteRole}. ` +
++            `You can still preview the portal (the role override will take effect), but you should clean up this duplicate after you're done. ` +
++            `Use the "Find Duplicate Emails" tool in Settings → Diagnostics to see all conflicts.`,
++            { type: 'warning', duration: 10000 }
++          );
++        }
++      } catch {
++        // Non-blocking — proceed with normal preview
++      }
++    }
++    handlePreview(invite);
++  };
++
+   const isLoading = invites === undefined;
+ 
+   // ── Loading state ──
+@@ -1144,7 +1177,7 @@ export const PortalAccessSettings: React.FC = () => {
+             onRevoke={handleRevoke}
+             onDelete={handleDeleteRequest}
+             onCopyLink={handleCopyInviteLink}
+-            onPreview={handlePreview}
++            onPreview={handlePreviewWithDuplicateCheck}
+           />
+         </div>
+ 
+@@ -1164,7 +1197,7 @@ export const PortalAccessSettings: React.FC = () => {
+             onRevoke={handleRevoke}
+             onDelete={handleDeleteRequest}
+             onCopyLink={handleCopyInviteLink}
+-            onPreview={handlePreview}
++            onPreview={handlePreviewWithDuplicateCheck}
+           />
+         </div>
+ 
+@@ -1262,7 +1295,7 @@ export const PortalAccessSettings: React.FC = () => {
+         onRevoke={handleRevoke}
+         onDelete={handleDeleteRequest}
+         onCopyLink={handleCopyInviteLink}
+-        onPreview={handlePreview}
++        onPreview={handlePreviewWithDuplicateCheck}
+       />
+ 
+       <SecurityNotice isProperty={isProperty} isUnified={false} />
+diff --git a/src/components/tenant/TenantPortal.tsx b/src/components/tenant/TenantPortal.tsx
+index 4464df7..7a97c5e 100755
+--- a/src/components/tenant/TenantPortal.tsx
++++ b/src/components/tenant/TenantPortal.tsx
+@@ -1437,12 +1437,11 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
+   // Mutations
+   const sendMessage = useMutation(api.portals.sendPortalMessage);
+   const markRead = useMutation(api.portals.markConversationReadByParticipant);
+-  // BUG FIX (Task 10): Use the EXISTING api.sentry.markMessageAsRead mutation
+-  // (already deployed on the live Convex server) to mark atrium_inbound_messages
+-  // as read. This clears the unread badge when the tenant opens the Messages tab.
+-  // Previously we tried to use api.portals.markInboundMessagesReadByTenant which
+-  // is a NEW mutation not yet deployed — that caused "function not found" errors.
+-  const markInboundRead = useMutation(api.sentry.markMessageAsRead);
++  // Uses the proper batch mutation api.portals.markInboundMessagesReadByTenant
++  // (deployed via Task 8 npx convex deploy) to mark ALL unread inbound
++  // messages as read in a single call. More efficient than the per-message
++  // api.sentry.markMessageAsRead workaround used before Convex was deployed.
++  const markInboundRead = useMutation(api.portals.markInboundMessagesReadByTenant);
+   const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
+   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+ 
+@@ -1469,26 +1468,28 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
+     }
+   }, [activeConversationId]);
+ 
+-  // ── BUG FIX (Task 10): Clear the unread inbound-messages badge ──
++  // ── BUG FIX (Task 10 + Task 11): Clear the unread inbound-messages badge ──
+   // When the tenant opens the Messages tab, mark all their unread
+   // atrium_inbound_messages as read. This clears the red notification badge
+   // on the Messages tab.
+   //
+-  // The badge count (in the parent TenantPortal component) is computed from
+-  // (portalConversations.unreadByParticipant) + (unresolvedInboundMsgs
+-  // filtered by !isRead). Marking them as read here makes the query
+-  // re-fetch, the count drops to 0, and the badge disappears.
++  // Uses api.portals.markInboundMessagesReadByTenant (deployed via Task 8
++  // npx convex deploy) — a single batch call that marks ALL unread messages
++  // for this tenant as read. More efficient than the per-message workaround.
+   //
+-  // Uses the EXISTING api.sentry.markMessageAsRead mutation (already on the
+-  // live Convex server) — one call per unread message. For typical use this
+-  // is 1-3 calls; not a performance concern.
++  // Falls back gracefully: if the mutation fails (e.g. Convex not yet
++  // deployed), the badge won't clear but no crash occurs.
+   useEffect(() => {
+     if (!inboundMessages || inboundMessages.length === 0) return;
+     const unreadMessages = (inboundMessages as any[]).filter((m: any) => !m.isRead);
+     if (unreadMessages.length === 0) return;
+-    // Fire-and-forget — non-blocking
+-    for (const msg of unreadMessages) {
+-      markInboundRead({ messageId: msg._id }).catch(() => {});
++    // Fire-and-forget — non-blocking. markInboundMessagesReadByTenant takes
++    // tenantId (Convex _id or email — mirrors getInboundMessagesByTenant's
++    // lookup logic).
++    markInboundRead({ tenantId: resolvedTenantId }).catch(() => {});
++    // Also try by email — legacy data may be indexed by both tenantId and email.
++    if (email && email !== resolvedTenantId) {
++      markInboundRead({ tenantId: email }).catch(() => {});
+     }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [inboundMessages]);
+diff --git a/src/contexts/AuthContext.tsx b/src/contexts/AuthContext.tsx
+index bfeb6d6..8e15060 100755
+--- a/src/contexts/AuthContext.tsx
++++ b/src/contexts/AuthContext.tsx
+@@ -24,7 +24,7 @@ export interface AuthContextType {
+     currentUser: User | null;
+     appMode: AppMode;
+     isAccountRevoked: boolean;
+-    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean) => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
++    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean, portalType?: 'tenant' | 'client') => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
+     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
+     verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
+     resendConfirmation: (email: string) => Promise<{ success: boolean, message?: string }>;
+@@ -149,7 +149,22 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
+     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
+     const repairAccountConnectionMutation = useMutation(api.myFunctions.repairAccountConnection);
+ 
+-    const userData = useQuery(api.myFunctions.getUser, sessionToken ? { tokenIdentifier: sessionToken } : "skip");
++    // Fetch user data based on the active session token (email).
++    // CRITICAL: When on a portal route (/portal/*), pass preferPortalRole=true
++    // so getUser returns the portal-role record (Tenant/Client) when the same
++    // email exists as BOTH an admin record AND a portal record. This is the
++    // fix for the "residents see admin dashboard" bug — without this flag,
++    // getUser returned the first matching record (usually the older Admin
++    // record) and the user ended up in the admin dashboard after logging in
++    // via /portal/tenant/login.
++    //
++    // REQUIRES: npx convex deploy (Task 8 backend changes must be live).
++    const userData = useQuery(
++        api.myFunctions.getUser,
++        sessionToken
++            ? { tokenIdentifier: sessionToken, preferPortalRole: isPortalRoute() }
++            : "skip"
++    );
+ 
+     // Fetch original user data if impersonating.
+     // The original admin session is NEVER a portal session.
+@@ -369,7 +384,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
+         }
+     }, [isImpersonating, userData, originalSessionToken]);
+ 
+-    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true) => {
++    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true, portalType?: 'tenant' | 'client') => {
+         const token = email.toLowerCase().trim();
+ 
+         // Bypass check for demo user — DEV builds only
+@@ -390,6 +405,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
+                 passwordHash: "",        // No longer used client-side
+                 rawPassword: String(password || ''),   // Sent over TLS; hashed PBKDF2 server-side
+                 mfaCode: mfaCode ? String(mfaCode) : undefined,
++                // Pass portalType when logging in from a portal route so the
++                // backend can resolve the correct user record when the same
++                // email exists as BOTH an admin record AND a portal record.
++                // REQUIRES: npx convex deploy (Task 8 backend changes must be live).
++                portalType,
+             });
+ 
+             if (!verifyResult.success) {
