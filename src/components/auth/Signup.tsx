@@ -17,6 +17,11 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
     const [step, setStep] = React.useState<'product_selection' | 'form' | 'verify' | 'restore'>('product_selection');
     const [selectedProduct, setSelectedProduct] = React.useState<'legal' | 'property' | 'unified'>('legal');
+    // TASK 18: Use a REF to store the product. Unlike state, a ref persists
+    // across ALL re-renders and is NEVER lost. This is the bulletproof fix
+    // for the email branding bug — even if modalContext becomes null, the
+    // ref preserves the product that was set when the modal opened.
+    const productRef = React.useRef<'legal' | 'property' | 'unified'>('legal');
     const [isLoading, setIsLoading] = React.useState(false);
 
     const [fullName, setFullName] = React.useState('');
@@ -54,16 +59,17 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                 modalContext.selectedProduct === 'atrium' ? 'property' : 
                 modalContext.selectedProduct;
             setSelectedProduct(mappedProduct as any);
+            // TASK 18: Also store in the ref — this is the bulletproof path.
+            // Even if modalContext becomes null later (React re-renders,
+            // context cleared, etc.), the ref preserves the product.
+            productRef.current = mappedProduct as 'legal' | 'property' | 'unified';
             setStep('form');
         } else {
             // BUG FIX (Task 14): When NO product is selected, ALWAYS reset to
-            // the product_selection step. Previously, if the user had opened
-            // the signup modal before (e.g. from /vega which set step='form'),
-            // the step would persist as 'form' even when reopening from /
-            // (no product). This meant the user saw the signup form directly
-            // instead of the product selection step — exactly the bug the user
-            // reported: "it did not do what i expect".
+            // the product_selection step.
             setStep('product_selection');
+            // Don't reset productRef here — if the user picks a product from
+            // the selection step, the onClick handler will set both state and ref.
         }
     }, [modalContext]);
 
@@ -106,22 +112,16 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         setIsLoading(true);
 
         try {
-            // BUG FIX (Task 17): Derive the product from BOTH the state AND
-            // modalContext, preferring modalContext. This is bulletproof — even
-            // if the useEffect didn't fire (e.g. modalContext reference didn't
-            // change between opens), we still send the correct product.
-            //
-            // This was the root cause of "vega email from atrium signup":
-            // The user went to /atrium, clicked Get Started, but the Signup
-            // component's selectedProduct state was still 'legal' (the default)
-            // because the useEffect didn't fire when the modal reopened.
-            // Now we derive it directly from modalContext at submit time.
-            const productFromContext = modalContext?.selectedProduct;
-            const productToSend: 'legal' | 'property' | 'unified' =
-                productFromContext === 'atrium' ? 'property' :
-                productFromContext === 'vega' ? 'legal' :
-                productFromContext === 'unified' ? 'unified' :
-                selectedProduct; // Fall back to state (set by product_selection step)
+            // TASK 18: Use productRef.current as the PRIMARY source of truth.
+            // The ref is set when:
+            //   1. The modal opens with modalContext.selectedProduct (from /vega or /atrium)
+            //   2. The user clicks a product card in the product_selection step
+            // The ref persists across ALL re-renders — even if modalContext
+            // becomes null or selectedProduct state gets reset, the ref
+            // preserves the correct product. This is the BULLETPROOF fix for
+            // the "vega email from atrium signup" bug.
+            const productToSend = productRef.current;
+            console.log('[Signup] Submitting with product:', productToSend, '(ref:', productRef.current, ', state:', selectedProduct, ', modalContext:', modalContext?.selectedProduct, ')');
 
             const result = await signup(
                 '',
@@ -378,7 +378,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                 <div className="space-y-4">
                     {/* Vega — Legal — amber glow */}
                     <button
-                        onClick={() => { setSelectedProduct('legal'); setStep('form'); }}
+                        onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setStep('form'); }}
                         style={{ '--glow-color': 'rgba(245, 158, 11, 0.12)', '--glow-border': 'rgba(245, 158, 11, 0.25)' } as React.CSSProperties}
                         className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-amber-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
                     >
@@ -393,7 +393,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
                     {/* Atrium — Property — blue glow */}
                     <button
-                        onClick={() => { setSelectedProduct('property'); setStep('form'); }}
+                        onClick={() => { setSelectedProduct('property'); productRef.current = 'property'; setStep('form'); }}
                         style={{ '--glow-color': 'rgba(59, 130, 246, 0.12)', '--glow-border': 'rgba(59, 130, 246, 0.25)' } as React.CSSProperties}
                         className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-blue-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
                     >
@@ -408,7 +408,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
                     {/* Komplet — Unified — indigo glow */}
                     <button
-                        onClick={() => { setSelectedProduct('unified'); setStep('form'); }}
+                        onClick={() => { setSelectedProduct('unified'); productRef.current = 'unified'; setStep('form'); }}
                         style={{ '--glow-color': 'rgba(99, 102, 241, 0.12)', '--glow-border': 'rgba(99, 102, 241, 0.25)' } as React.CSSProperties}
                         className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-indigo-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
                     >

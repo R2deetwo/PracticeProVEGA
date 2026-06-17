@@ -334,8 +334,9 @@ const HubHero: React.FC<{
                     Select your professional discipline to enter your dedicated workspace.
                 </p>
 
-                {/* Audience routing cards */}
-                <div className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
+                {/* Audience routing cards — data-product-cards is used by the
+                    "Get Started Free" scroll handler to find this element. */}
+                <div data-product-cards className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
                     {/* Vega — with one-pulse glow on mount + re-triggered when highlightKey changes (Task 17) */}
                     <button
                         key={`vega-${highlightKey || 0}`}
@@ -438,37 +439,45 @@ const ATRIUM_STATS = [
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
     const { isProperty } = useProduct();
+    // TASK 18: Respect light/dark mode for BOTH Vega and Atrium landing pages.
+    // Previously, Atrium was hardcoded to bg-slate-950 (always dark) even in
+    // light mode. Now both products use light backgrounds in light mode and
+    // dark backgrounds in dark mode.
+    const { theme } = useUI();
+    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
 
     const isVega = activeProduct === 'vega';
 
     return (
-        <section id="home" className={`relative overflow-hidden transition-colors duration-500 ${isVega ? 'bg-white dark:bg-slate-950' : 'bg-slate-950'}`}>
+        <section id="home" className={`relative overflow-hidden transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-white'}`}>
             {/* ── Mesh / Noise background ── */}
             <div className="absolute inset-0 pointer-events-none">
                 {/* Radial glow centred top */}
-                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-[120px] ${isVega ? 'bg-primary-400/10 dark:bg-primary-500/8' : 'bg-blue-500/15'}`} />
+                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-[120px] ${isVega ? (isDark ? 'bg-primary-500/8' : 'bg-primary-400/10') : (isDark ? 'bg-blue-500/15' : 'bg-blue-400/8')}`} />
                 {/* Dot grid */}
-                <div className={`absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] ${isVega ? 'opacity-[0.04] dark:opacity-[0.07]' : 'opacity-10'}`} />
+                <div className={`absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] ${isDark ? 'opacity-[0.07]' : 'opacity-[0.04]'}`} />
             </div>
 
             {/* ── Hero Content ── */}
             <div className={`relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 text-center px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
                 {/* Headline */}
-                <h1 className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 max-w-4xl mx-auto ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
+                <h1 className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 max-w-4xl mx-auto ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
                     <br className="hidden md:block" />
                     for{' '}
                     <span className="relative">
-                        <span className={`text-transparent bg-clip-text bg-gradient-to-r ${isVega ? 'from-primary-500 via-emerald-500 to-teal-500' : 'from-blue-400 via-indigo-400 to-cyan-400'}`}>
+                        <span className={`text-transparent bg-clip-text bg-gradient-to-r ${isVega ? 'from-primary-500 via-emerald-500 to-teal-500' : 'from-blue-500 via-indigo-500 to-cyan-500'}`}>
                             {isVega ? 'Nigerian Law Firms' : 'Modern Portfolios'}
                         </span>
                     </span>
                 </h1>
 
                 {/* Sub-copy */}
-                <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
+                <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                     {isVega
                         ? (isProperty
                             ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing.'
@@ -487,18 +496,18 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
                 </div>
 
                 {/* Stats strip */}
-                <div className={`grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto border shadow-sm ${isVega ? 'bg-slate-200 dark:bg-white/5 border-slate-200 dark:border-white/5' : 'bg-white/10 border-white/10'}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto border shadow-sm ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-200 border-slate-200'}`}>
                     {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
-                        <div key={i} className={`px-6 py-5 ${isVega ? 'bg-white dark:bg-slate-900' : 'bg-slate-900/80 backdrop-blur-md'}`}>
-                            <p className={`text-2xl font-bold mb-0.5 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>{s.value}</p>
-                            <p className={`text-xs leading-tight ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>{s.label}</p>
+                        <div key={i} className={`px-6 py-5 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
+                            <p className={`text-2xl font-bold mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{s.value}</p>
+                            <p className={`text-xs leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</p>
                         </div>
                     ))}
                 </div>
             </div>
 
             {/* Bottom fade into next section */}
-            <div className={`absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none ${isVega ? 'from-slate-50 dark:from-slate-950' : 'from-slate-950'}`} />
+            <div className={`absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none ${isDark ? 'from-slate-950' : 'from-white'}`} />
         </section>
     );
 };
@@ -983,14 +992,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     //
     // TASK 17: When no product is chosen, "Get Started Free" scrolls to the
     // product cards and highlights them (one-pulse glow) instead of opening
-    // the signup modal. The user explicitly requested this flow:
-    // "when the user selects get started for free from the main landing page
-    //  that it should scroll and direct them to the cards on the main landing
-    //  page, highlight them and then ensure that once they select a product,
-    //  they only see things related to that product."
-    //
-    // When a product IS chosen (e.g. on /vega or /atrium), "Get Started"
-    // opens the signup modal directly for that product.
+    // the signup modal. The user explicitly requested this flow.
     const [highlightCards, setHighlightCards] = useState(false);
 
     const openSignup = (productOverride?: ProductMode) => {
@@ -1001,15 +1003,29 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 selectedProduct: productOverride || activeProduct,
             });
         } else {
-            // No product chosen — scroll to the product cards and highlight them.
-            // The cards are in the HubHero section.
-            const hubEl = document.getElementById('home');
-            if (hubEl && scrollRef.current) {
-                scrollRef.current.scrollTo({ top: hubEl.offsetTop - 20, behavior: 'smooth' });
+            // TASK 18: No product chosen — scroll to the product cards and
+            // highlight them. The user explicitly requested this behavior.
+            // We scroll to the HubHero section (which contains the cards) and
+            // trigger the glow animation by changing the highlightKey prop.
+            //
+            // Use requestAnimationFrame to ensure the scroll happens after
+            // any pending re-renders. Use 'center' block to ensure the cards
+            // are in the middle of the viewport.
+            const cardsContainer = document.querySelector('[data-product-cards]') as HTMLElement;
+            if (cardsContainer) {
+                cardsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                // Fallback: scroll to the hub section
+                const hubEl = document.getElementById('home');
+                if (hubEl) {
+                    hubEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             }
-            // Trigger the highlight animation by toggling the state.
+            // Trigger the highlight animation. We toggle false → true with a
+            // small delay to force React to re-render the cards with the new
+            // highlightKey, which re-mounts them and replays the glow animation.
             setHighlightCards(false);
-            setTimeout(() => setHighlightCards(true), 50);
+            setTimeout(() => setHighlightCards(true), 100);
         }
     };
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
@@ -1048,7 +1064,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                     onPickProduct={handlePickProduct}
                     onLogin={() => openModal('login')}
                     onSignup={openSignup}
-                    highlightKey={highlightCards ? 1 : 0}
+                    highlightKey={highlightCards ? Date.now() : 0}
                 />
             ) : (
                 <main key={activeProduct} className="animate-swap-in">
