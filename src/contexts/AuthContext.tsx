@@ -24,7 +24,7 @@ export interface AuthContextType {
     currentUser: User | null;
     appMode: AppMode;
     isAccountRevoked: boolean;
-    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean, portalType?: 'tenant' | 'client') => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
+    login: (email: string, password?: string, mfaCode?: string, rememberMe?: boolean) => Promise<{ success: boolean, message?: string, isLocked?: boolean, isRevoked?: boolean, requiresMfa?: boolean, mfaType?: string }>;
     signup: (firmName: string, fullName: string, email: string, password?: string, mode?: AppMode, inviteCode?: string, plan?: SubscriptionPlan, product?: 'legal' | 'property' | 'unified') => Promise<{ success: boolean, message?: string, requiresConfirmation?: boolean, debugCode?: string, code?: string }>;
     verifyEmail: (email: string, code: string) => Promise<{ success: boolean, message?: string }>;
     resendConfirmation: (email: string) => Promise<{ success: boolean, message?: string }>;
@@ -149,30 +149,10 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
     const repairAccountConnectionMutation = useMutation(api.myFunctions.repairAccountConnection);
 
-    // Fetch user data based on the active session token (email).
-    // CRITICAL: When on a portal route (/portal/*), pass preferPortalRole=true
-    // so getUser returns the portal-role record (Tenant/Client) when the same
-    // email exists as BOTH an admin record AND a portal record. This is the
-    // fix for the "residents see admin dashboard" bug — without this flag,
-    // getUser returned the first matching record (usually the older Admin
-    // record) and the user ended up in the admin dashboard after logging in
-    // via /portal/tenant/login.
-    //
-    // isPortalRoute() is a synchronous helper that checks both the current
-    // URL pathname AND the sessionStorage/localStorage portal-type flag (set
-    // by login()). The flag check is necessary because the URL might briefly
-    // be '/' during a redirect, but the portal_type flag persists.
-    const userData = useQuery(
-        api.myFunctions.getUser,
-        sessionToken
-            ? { tokenIdentifier: sessionToken, preferPortalRole: isPortalRoute() }
-            : "skip"
-    );
+    const userData = useQuery(api.myFunctions.getUser, sessionToken ? { tokenIdentifier: sessionToken } : "skip");
 
     // Fetch original user data if impersonating.
-    // The original admin session is NEVER a portal session, so we don't pass
-    // preferPortalRole here — we want the admin record, not a portal record
-    // that might share the admin's email.
+    // The original admin session is NEVER a portal session.
     const originalUserData = useQuery(api.myFunctions.getUser, originalSessionToken ? { tokenIdentifier: originalSessionToken } : "skip");
 
     // 2. Storage is already loaded synchronously, but keep effect for any future side-effects
@@ -389,7 +369,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [isImpersonating, userData, originalSessionToken]);
 
-    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true, portalType?: 'tenant' | 'client') => {
+    const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true) => {
         const token = email.toLowerCase().trim();
 
         // Bypass check for demo user — DEV builds only
@@ -410,10 +390,6 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 passwordHash: "",        // No longer used client-side
                 rawPassword: String(password || ''),   // Sent over TLS; hashed PBKDF2 server-side
                 mfaCode: mfaCode ? String(mfaCode) : undefined,
-                // Pass portalType when logging in from a portal route so the
-                // backend can resolve the correct user record when the same
-                // email exists as BOTH an admin record AND a portal record.
-                portalType,
             });
 
             if (!verifyResult.success) {

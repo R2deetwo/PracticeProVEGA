@@ -17,7 +17,7 @@
  * - Grouped property/unit dropdown (address headers + selectable units)
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useAction, useConvex } from 'convex/react';
+import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -806,7 +806,6 @@ const PortalSection: React.FC<{
 export const PortalAccessSettings: React.FC = () => {
   const { currentUser, loginAsUser } = useAuth();
   const { addToast, navigateTo } = useUI();
-  const convex = useConvex();
   const { isProperty, isLegal, isUnified } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
 
@@ -988,47 +987,6 @@ export const PortalAccessSettings: React.FC = () => {
     navigateTo('dashboard');
   };
 
-  // ── SAFETY CHECK BEFORE PREVIEW ──
-  // With the impersonationRoleOverride fix (Task ID 7), impersonation works
-  // correctly even when the target's DB role has drifted. But there's still
-  // one case we want to flag proactively: if the SAME EMAIL exists as BOTH
-  // an admin account AND a portal account (the duplicate-email data corruption
-  // that caused the original "residents see admin dashboard" bug), the admin
-  // should be warned before previewing — and ideally directed to clean up the
-  // duplicate first (delete one of the conflicting accounts, or re-invite
-  // using a different email).
-  //
-  // This is a SOFT warning — we still allow the preview to proceed because
-  // the impersonationRoleOverride ensures the admin sees the TenantPortal.
-  // But surfacing the conflict helps the admin understand the data issue.
-  const handlePreviewWithDuplicateCheck = async (invite: any) => {
-    const portalEmail = invite.inviteeEmail;
-    if (portalEmail) {
-      try {
-        // Look up ALL user records with this email to detect duplicates.
-        // We use the public getUser query — it returns one record, but if
-        // that record's role doesn't match the invite's portalType, we know
-        // there's a conflict (or the target's DB role has drifted).
-        const resolved: any = await convex.query(api.myFunctions.getUser, {
-          tokenIdentifier: portalEmail.toLowerCase(),
-          preferPortalRole: true,
-        });
-        const inviteRole = invite.portalType === 'client' ? 'Client' : 'Tenant';
-        if (resolved && resolved.role && resolved.role !== inviteRole && resolved.role !== 'Pending') {
-          addToast(
-            `Heads up: ${portalEmail} is registered as ${resolved.role} in the database, not ${inviteRole}. ` +
-            `You can still preview the portal (the role override will take effect), but you should clean up this duplicate after you're done. ` +
-            `Use the "Find Duplicate Emails" tool in Settings → Diagnostics to see all conflicts.`,
-            { type: 'warning', duration: 10000 }
-          );
-        }
-      } catch {
-        // Non-blocking — proceed with normal preview
-      }
-    }
-    handlePreview(invite);
-  };
-
   const isLoading = invites === undefined;
 
   // ── Loading state ──
@@ -1135,7 +1093,7 @@ export const PortalAccessSettings: React.FC = () => {
             onRevoke={handleRevoke}
             onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
-            onPreview={handlePreviewWithDuplicateCheck}
+            onPreview={handlePreview}
           />
         </div>
 
@@ -1155,7 +1113,7 @@ export const PortalAccessSettings: React.FC = () => {
             onRevoke={handleRevoke}
             onDelete={handleDeleteRequest}
             onCopyLink={handleCopyInviteLink}
-            onPreview={handlePreviewWithDuplicateCheck}
+            onPreview={handlePreview}
           />
         </div>
 
@@ -1253,7 +1211,7 @@ export const PortalAccessSettings: React.FC = () => {
         onRevoke={handleRevoke}
         onDelete={handleDeleteRequest}
         onCopyLink={handleCopyInviteLink}
-        onPreview={handlePreviewWithDuplicateCheck}
+        onPreview={handlePreview}
       />
 
       <SecurityNotice isProperty={isProperty} isUnified={false} />

@@ -1435,7 +1435,6 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   // Mutations
   const sendMessage = useMutation(api.portals.sendPortalMessage);
   const markRead = useMutation(api.portals.markConversationReadByParticipant);
-  const markInboundRead = useMutation(api.portals.markInboundMessagesReadByTenant);
   const deleteMessage = useMutation(api.portals.softDeletePortalMessage);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
@@ -1461,31 +1460,6 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
       markRead({ conversationId: activeConversationId }).catch(() => {});
     }
   }, [activeConversationId]);
-
-  // ── BUG FIX: Clear the "unread inbound messages" badge when the tenant
-  // opens the Messages tab. Previously the badge counted unread
-  // atrium_inbound_messages but no mutation existed to mark them as read —
-  // so the badge stayed forever even after the tenant read every message.
-  // This effect fires on mount (tab open) and marks all inbound messages
-  // for this tenant as read. The query auto-refetches, the count drops to
-  // zero, and the badge disappears.
-  useEffect(() => {
-    if (!resolvedTenantId) return;
-    // Only fire if there's at least one unread inbound message — avoid
-    // unnecessary writes when the tab is reopened.
-    const hasUnread = (inboundMessages || []).some((m: any) => !m.isRead);
-    if (!hasUnread) return;
-    markInboundRead({ tenantId: resolvedTenantId }).catch(() => {});
-    // Also try by email — getInboundMessagesByTenant has a fallback path that
-    // resolves the tenant's Convex _id from their email. markInboundRead has
-    // the same fallback, but only when no messages were found by tenantId.
-    // If the tenant has messages indexed by BOTH tenantId and email
-    // (legacy data), this second call ensures both sets get cleared.
-    if (email && email !== resolvedTenantId) {
-      markInboundRead({ tenantId: email }).catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedTenantId, email]);
 
   // Resolve file URLs for attachments using Convex query
   const [urlStorageIds, setUrlStorageIds] = useState<string[]>([]);
