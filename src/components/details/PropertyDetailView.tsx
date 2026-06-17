@@ -1647,20 +1647,7 @@ const PropertyDetailViewContent: React.FC = () => {
 
                 {/* ═══ NOTICE BOARD TAB ═══ */}
                 {activeTab === 'notices' && (
-                    <ErrorBoundary fallback={
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center mb-4">
-                                <Megaphone className="w-7 h-7 text-amber-500" />
-                            </div>
-                            <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400 mb-1">Notice Board temporarily unavailable</p>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-4">Try refreshing the page or switching tabs and coming back.</p>
-                            <button onClick={() => setActiveTab('summary')} className="px-4 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
-                                Back to Summary
-                            </button>
-                        </div>
-                    }>
-                        <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
-                    </ErrorBoundary>
+                    <PropertyNoticeBoard propertyId={property.id} firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} authorId={currentUser?.id || ''} authorName={currentUser?.name || ''} />
                 )}
 
                 {activeTab === 'revenue' && (() => {

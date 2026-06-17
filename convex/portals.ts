@@ -3554,23 +3554,28 @@ export const getAllNotices = query({
     propertyId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let results;
+    // TASK 20: Use a simple table scan instead of index-based query.
+    // This is less efficient but more resilient — if an index is missing
+    // or not yet deployed, the query still works. For a typical firm with
+    // a few dozen notices, the performance difference is negligible.
+    const allNotices = await ctx.db.query("portal_notices").collect();
+
+    // Filter by firmId
+    let results = allNotices.filter((n: any) => n.firmId === args.firmId);
+
+    // Filter by status if specified
     if (args.status) {
-      results = await ctx.db
-        .query("portal_notices")
-        .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", args.status!))
-        .collect();
-    } else {
-      // No status filter — return all
-      results = await ctx.db
-        .query("portal_notices")
-        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-        .collect();
+      results = results.filter((n: any) => n.status === args.status);
     }
+
     // Filter by propertyId if specified
     if (args.propertyId) {
       results = results.filter((n: any) => !n.propertyId || n.propertyId === args.propertyId);
     }
+
+    // Sort by createdAt descending (newest first)
+    results.sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
+
     return results;
   },
 });
