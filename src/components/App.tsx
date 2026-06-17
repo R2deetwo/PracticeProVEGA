@@ -92,6 +92,7 @@ import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
+import { useContentProtection } from '../hooks/useContentProtection';
 
 
 const IDLE_TIMEOUT = 15 * 60 * 1000;
@@ -120,6 +121,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const { product } = useProduct();
 
     useBrainAutoIndex();
+
+    // TASK 13: Content protection — disables copy/paste, right-click, and
+    // shows a black overlay when the window loses focus (screenshot deterrent).
+    // Only active when the user is authenticated (not on the landing page).
+    // See hooks/useContentProtection.ts for limitations.
+    const { showOverlay: showScreenshotOverlay } = useContentProtection(!!currentUser);
 
     const hasData = matterState.matters.length > 0 || matterState.contacts.length > 0 || executionState.tasks.length > 0;
     const showSkeleton = !isDataLoaded && !hasData;
@@ -364,7 +371,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     if (isEditorMode) {
         return (
-            <main className="w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900">
+            <main className="app-protected w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900">
+                {showScreenshotOverlay && (
+                    <div className="screenshot-overlay visible">
+                        <span>Content protected</span>
+                    </div>
+                )}
                 {currentUser ? renderView() : <div>Loading...</div>}
             </main>
         );
@@ -432,7 +444,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }
 
     return (
-        <div className="flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
+        <div className="app-protected flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
+            {/* Screenshot deterrent overlay — shows a black screen when the
+                window loses focus or PrintScreen is pressed. Best-effort only. */}
+            {showScreenshotOverlay && (
+                <div className="screenshot-overlay visible">
+                    <span>Content protected</span>
+                </div>
+            )}
             {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
             <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
                 {currentUser && !isPortalUser && <Header />}
@@ -572,7 +591,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password'];
         // Check both sessionStorage and localStorage for portal type (Bug 11 fix)
         const hasRememberedPortal = sessionStorage.getItem('practicepro_portal_type') || localStorage.getItem('practicepro_portal_type');
         if (!isLoadingSession && !currentUser && !publicPaths.includes(location.pathname)) {
@@ -878,7 +897,17 @@ export const App: React.FC = () => {
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
-            return <LandingPage onDemo={(product) => openModal('leadCapture', null, { demoProduct: product })} />;
+            // TASK 13: Pass the URL-derived product to LandingPage so /vega and
+            // /atrium routes show the correct product. The LandingPage uses this
+            // to set its initial activeProduct state. When the user is on / (root),
+            // no product is passed — the landing page shows its default state and
+            // the "Get Started Free" button opens the signup with the product
+            // selection step (no product pre-selected).
+            const urlProduct: 'vega' | 'atrium' | undefined =
+                location.pathname === '/vega' ? 'vega' :
+                location.pathname === '/atrium' ? 'atrium' :
+                location.pathname === '/komplet' ? 'vega' : undefined; // komplet maps to vega for landing purposes
+            return <LandingPage onDemo={(product) => openModal('leadCapture', null, { demoProduct: product })} initialProduct={urlProduct} />;
         }
 
         // New User Flow: Go straight to setup if no firm exists

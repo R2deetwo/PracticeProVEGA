@@ -350,7 +350,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                 </div>
 
                 <div className="space-y-4">
-                    <button onClick={() => { setSelectedProduct('legal'); setStep('form'); }} className="w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-amber-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group">
+                    {/* Vega — Legal — amber glow */}
+                    <button
+                        onClick={() => { setSelectedProduct('legal'); setStep('form'); }}
+                        style={{ '--glow-color': 'rgba(245, 158, 11, 0.12)', '--glow-border': 'rgba(245, 158, 11, 0.25)' } as React.CSSProperties}
+                        className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-amber-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
+                    >
                         <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 group-hover:bg-amber-100 transition-colors">
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>
@@ -360,7 +365,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                         </div>
                     </button>
 
-                    <button onClick={() => { setSelectedProduct('property'); setStep('form'); }} className="w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-blue-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group">
+                    {/* Atrium — Property — blue glow */}
+                    <button
+                        onClick={() => { setSelectedProduct('property'); setStep('form'); }}
+                        style={{ '--glow-color': 'rgba(59, 130, 246, 0.12)', '--glow-border': 'rgba(59, 130, 246, 0.25)' } as React.CSSProperties}
+                        className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-blue-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
+                    >
                         <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 group-hover:bg-blue-100 transition-colors">
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>
@@ -370,7 +380,12 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                         </div>
                     </button>
 
-                    <button onClick={() => { setSelectedProduct('unified'); setStep('form'); }} className="w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-indigo-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group">
+                    {/* Komplet — Unified — indigo glow */}
+                    <button
+                        onClick={() => { setSelectedProduct('unified'); setStep('form'); }}
+                        style={{ '--glow-color': 'rgba(99, 102, 241, 0.12)', '--glow-border': 'rgba(99, 102, 241, 0.25)' } as React.CSSProperties}
+                        className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-indigo-500 bg-white dark:bg-zinc-800 border-slate-100 dark:border-zinc-700 shadow-sm hover:shadow-md group"
+                    >
                         <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 group-hover:bg-indigo-100 transition-colors relative">
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>

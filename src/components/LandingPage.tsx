@@ -326,10 +326,11 @@ const HubHero: React.FC<{
 
                 {/* Audience routing cards */}
                 <div className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
-                    {/* Vega */}
+                    {/* Vega — with one-pulse glow on mount (Task 13) */}
                     <button
                         onClick={() => onPickProduct('vega')}
-                        className="group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-amber-500/[0.06] hover:border-amber-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                        style={{ '--glow-color': 'rgba(245, 158, 11, 0.10)', '--glow-border': 'rgba(245, 158, 11, 0.20)' } as React.CSSProperties}
+                        className="product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-amber-500/[0.06] hover:border-amber-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -350,10 +351,11 @@ const HubHero: React.FC<{
                         </div>
                     </button>
 
-                    {/* Atrium */}
+                    {/* Atrium — with one-pulse glow on mount (Task 13) */}
                     <button
                         onClick={() => onPickProduct('atrium')}
-                        className="group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-emerald-500/[0.06] hover:border-emerald-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        style={{ '--glow-color': 'rgba(16, 185, 129, 0.10)', '--glow-border': 'rgba(16, 185, 129, 0.20)' } as React.CSSProperties}
+                        className="product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border border-white/[0.08] bg-white/[0.03] hover:bg-emerald-500/[0.06] hover:border-emerald-500/25 transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -849,11 +851,16 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
 // ─── ROOT COMPONENT ──────────────────────────────────────────────────────
 
-export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => void }> = ({ onDemo }) => {
+export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => void; initialProduct?: 'vega' | 'atrium' }> = ({ onDemo, initialProduct }) => {
     const { openModal, theme, setTheme } = useUI();
     const [activeSection, setActiveSection] = useState('home');
-    const [activeProduct, setActiveProduct] = useState<'vega' | 'atrium'>('vega');
-    const [productChosen, setProductChosen] = useState(false);
+    // TASK 13: If the URL is /vega or /atrium, start with that product
+    // pre-selected AND mark it as chosen (so "Get Started" goes straight
+    // to the signup form for that product, not the product selection step).
+    // On / (root), activeProduct defaults to 'vega' but productChosen is false
+    // — so "Get Started Free" opens the signup with the product selection step.
+    const [activeProduct, setActiveProduct] = useState<'vega' | 'atrium'>(initialProduct || 'vega');
+    const [productChosen, setProductChosen] = useState(!!initialProduct);
     const [showPrivacy, setShowPrivacy] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
     const [showCookiePolicy, setShowCookiePolicy] = useState(false);
@@ -889,9 +896,14 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     };
 
     const handlePickProduct = (p: 'vega' | 'atrium') => {
-        setActiveProduct(p);
-        setProductChosen(true);
-        scrollRef.current?.scrollTo({ top: 0 });
+        // TASK 13: Open the product-specific landing page in a NEW TAB.
+        // The user wants the hub to stay open while the product page opens
+        // separately. The URL reflects the product (/vega or /atrium) so
+        // it's clear which product the user is viewing.
+        //
+        // We DON'T set activeProduct/productChosen here — the new tab will
+        // initialize its own state from the URL via the initialProduct prop.
+        window.open(`/${p}`, '_blank', 'noopener,noreferrer');
     };
 
     const handleBackToHub = () => {

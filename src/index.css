@@ -616,6 +616,111 @@ html.font-size-lg {
   animation: pulse-slow 8s ease-in-out infinite;
 }
 
+/* ── Product Selection Glow (Task 13) ──────────────────────────────────────
+ * One-pulse glow animation for product selection cards.
+ * User requested: "one pulse not multiple, not too bright and not too subtle"
+ *
+ * The animation fires ONCE on mount (animation-iteration-count: 1) and leaves
+ * the card in its final state with a soft, ambient glow. The glow uses the
+ * product's brand color at low opacity so it's noticeable but not aggressive.
+ */
+@keyframes product-glow-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+    border-color: transparent;
+  }
+  50% {
+    box-shadow: 0 0 24px 4px var(--glow-color, rgba(99, 102, 241, 0.15));
+    border-color: var(--glow-border, rgba(99, 102, 241, 0.3));
+  }
+  100% {
+    box-shadow: 0 0 12px 0 var(--glow-color, rgba(99, 102, 241, 0.08));
+    border-color: var(--glow-border, rgba(99, 102, 241, 0.15));
+  }
+}
+
+.product-glow-pulse {
+  animation: product-glow-pulse 1.2s ease-out 1 forwards;
+}
+
+/* Stagger the pulse so cards animate simultaneously but with a tiny delay
+ * between them for a cascading reveal effect. */
+.product-glow-pulse-delay-1 { animation-delay: 0.1s; }
+.product-glow-pulse-delay-2 { animation-delay: 0.2s; }
+.product-glow-pulse-delay-3 { animation-delay: 0.3s; }
+
+/* ── App Content Protection (Task 13) ──────────────────────────────────────
+ * Disables text selection in the app shell to prevent casual copy/paste.
+ * Landing pages are excluded (they don't have the .app-protected class).
+ *
+ * Inputs and textareas are exempted — users still need to type and edit.
+ * ContentEditable elements are also exempted (rich text editor).
+ */
+.app-protected {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* iOS long-press menu */
+}
+
+/* Allow selection in inputs, textareas, and contentEditable elements */
+.app-protected input,
+.app-protected textarea,
+.app-protected [contenteditable="true"],
+.app-protected [contenteditable=""] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Allow selection in elements explicitly marked as selectable
+ * (e.g. code blocks, shareable links, document previews) */
+.app-protected .selectable {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* ── Screenshot Deterrent Overlay (Task 13) ────────────────────────────────
+ * When the app window loses focus (which happens when some screen capture
+ * tools activate), we overlay a black div to hide the content.
+ *
+ * NOTE: This is BEST-EFFORT only. Web browsers cannot truly prevent OS-level
+ * screenshots (the OS captures the rendered frame buffer before the browser
+ * can react). This overlay catches:
+ *   - Window blur (some capture tools blur the source window)
+ *   - PrintScreen key (we clear the clipboard, but the screenshot is already taken)
+ *   - Screen capture browser extensions that trigger visibilitychange
+ *
+ * For true screenshot prevention, you'd need a native app (Electron/Tauri)
+ * with OS-level window protection APIs — not possible in a web app.
+ */
+.screenshot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+.screenshot-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Mobile GPU rendering fix: prevent compositing artifacts from overflow/stacking contexts */
 @media (max-width: 768px) {
   .isolate {
