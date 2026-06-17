@@ -945,3 +945,66 @@ Stage Summary:
 - Race condition eliminated: guard now uses synchronous isImpersonating flag
 - Impersonation state survives page refresh — admin can always revert
 - Pushed to main as commit 2afdac4
+
+---
+Task ID: 7
+Agent: Main Agent (GLM 5.2 fresh session)
+Task: Fix the still-open "residents see admin dashboard" bug — three previous attempts (072e6f0, b8c66b1, 2afdac4) failed to resolve it. User is extremely frustrated.
+
+Work Log:
+- Read handoff document (GLM5.2_Handoff_PracticePro.md) in full.
+- Read worklog Task IDs 2, 5, 6 to understand what was already tried.
+- Read src/components/App.tsx in full (1002 lines) — both <App /> (top-level routing) and <MainContent /> (admin shell).
+- Read src/contexts/AuthContext.tsx in full (768 lines) — loginAsUser, isImpersonating, originalSessionToken, auto-revert effect, currentUser memo.
+- Read src/components/settings/PortalAccessSettings.tsx handlePreview() (lines 940-988) — confirmed it calls loginAsUser with a hardcoded role object {role: 'Tenant'/'Client'}.
+- Read src/components/tenant/TenantPortal.tsx (lines 100-400) — confirmed the expected portal layout (Notices/Ledger/Receipts/Maintenance/Messages/Payments/Documents tabs) and impersonation banner.
+- Read src/components/Header.tsx and src/components/client/ClientDashboard.tsx impersonation banners.
+
+ROOT CAUSE DIAGNOSIS (different from previous attempts):
+
+Two compounding bugs, neither of which were addressed by the previous three fix attempts:
+
+1. The defensive guard added in commit 072e6f0 at App.tsx:379 was TOO AGGRESSIVE. It fired for EVERY portal user (Client/Tenant) who reached MainContent — including:
+   - A real tenant who logged in normally on /portal/tenant/<token>
+   - An admin successfully impersonating a tenant (target's DB role IS 'Tenant')
+   In both cases the user saw "Access restricted" instead of the TenantPortal. The renderView() check at line 169 (if (isTenant) return <TenantPortal />) was dead code because the guard at 379 fired first.
+
+2. The auto-revert effect (added in b8c66b1, narrowed in 2afdac4) reverted impersonation whenever the target's actual DB role was not Client/Tenant — including the common data-corruption case where the target's DB role had drifted to 'Admin'. When this fired, the admin was silently reverted to their OWN admin session and saw their OWN admin dashboard. They perceived this as "the tenant sees the admin dashboard" because they were trying to preview the tenant portal.
+
+The role passed to loginAsUser (portalUser.role = 'Tenant') was NEVER actually used — the currentUser memo always used userData.role (the actual DB role). So the admin's intent ("preview as Tenant") was ignored whenever the DB role disagreed.
+
+FIX (4 changes across 4 files):
+
+1. AuthContext.tsx — Added impersonationRoleOverride state (with sessionStorage persistence under 'practicepro_impersonation_role'):
+   - loginAsUser() sets impersonationRoleOverride = user.role (the expected portal role)
+   - currentUser memo uses (originalSessionToken && impersonationRoleOverride) || rawRole
+     - This means the override only applies DURING impersonation, preventing stale values from leaking into regular sessions
+   - The override survives the route-change page reload (App.tsx redirects impersonating admins from /settings to /portal/tenant/<token>, which causes a full reload)
+   - revertToOriginalUser() and logout() clear the override
+   - The state initializer only restores the override if originalSessionToken is also being restored (defensive against stale values)
+
+2. AuthContext.tsx — Narrowed the auto-revert effect to ONLY fire when the target account is genuinely revoked:
+   - OLD: if (actualRole !== 'Client' && actualRole !== 'Tenant') → revert
+   - NEW: if (!userData.isVerified || role === 'Pending') → revert
+   - For other role mismatches (Admin, null, undefined), the impersonationRoleOverride takes precedence — the admin sees the TenantPortal with the expected role
+   - loginAsUser's existing security checks (admin-only caller, portal-user-only target, cross-firm guard) still prevent privilege escalation at the initiation point
+
+3. App.tsx — Removed the broken "Access restricted" guard at line 379 entirely:
+   - It was redundant with the route guard at App.tsx:769 (which redirects portal users to /portal/* routes) and renderView()'s own portal-user checks at lines 158/169
+   - It blocked legitimate portal users (real tenants AND successfully-impersonating admins) from seeing their portal
+   - Kept the "Impersonation failed" guard at line 411 as a defensive safety net (now rarely fires thanks to the override)
+
+4. TenantPortal.tsx, ClientDashboard.tsx, Header.tsx — Changed the impersonation banner condition from `originalUser` (async query, can be null if admin's DB record has a missing role) to `isImpersonating` (synchronous, derived from originalSessionToken):
+   - Guarantees the "Return to Admin" button is ALWAYS visible during impersonation
+   - Prevents the admin from being stuck impersonating with no way to revert
+
+Build verified:
+- npx tsc --noEmit: only the pre-existing src/app/page.tsx error (intentionally ignored per handoff Section 3.5)
+- npx vite build: succeeds in 14.60s
+
+Stage Summary:
+- 4 files modified: src/contexts/AuthContext.tsx, src/components/App.tsx, src/components/tenant/TenantPortal.tsx, src/components/client/ClientDashboard.tsx, src/components/Header.tsx (5 files actually)
+- Root cause was NOT a race condition or guard ordering — it was that the role passed to loginAsUser was never actually used, AND a redundant guard blocked all portal users from MainContent
+- With the impersonationRoleOverride, the admin sees the TenantPortal regardless of the target's actual DB role (unless the account is genuinely revoked, in which case auto-revert still fires)
+- The fix is defensive: the override only applies when originalSessionToken is set, so it can't leak into regular sessions
+- Ready for commit and push to main

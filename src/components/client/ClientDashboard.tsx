@@ -136,7 +136,7 @@ const FilterSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
 // ─── Main Component ─────────────────────────────────────────────────────
 const ClientDashboard: React.FC = () => {
     // ── ALL HOOKS CALLED FIRST (before any conditional returns) ──────────
-    const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
+    const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
     const { coreState } = useCoreState();
     const { navigateTo, openModal, addToast, theme, setTheme } = useUI();
     const { canUseClientPortal } = useFeatures();
@@ -1108,8 +1108,12 @@ const ClientDashboard: React.FC = () => {
 
     return (
         <div className="min-h-full">
-            {/* Impersonation Banner — shown when admin is viewing as this client */}
-            {originalUser && (
+            {/* Impersonation Banner — shown when admin is viewing as this client.
+                Uses isImpersonating (synchronous) rather than originalUser (async query)
+                so the banner — and the "Return to Admin" button — is always visible
+                during impersonation, even if the admin's DB record is still loading
+                or has a missing role. */}
+            {isImpersonating && (
                 <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />

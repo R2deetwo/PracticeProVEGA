@@ -101,7 +101,7 @@ type TabId = 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'p
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
-  const { currentUser, originalUser, revertToOriginalUser, logout } = useAuth();
+  const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
   const [activeTab, setActiveTab] = useState<TabId>(() => {
@@ -349,8 +349,12 @@ const TenantPortal: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Impersonation Banner — shown when admin is viewing as this tenant */}
-      {originalUser && (
+      {/* Impersonation Banner — shown when admin is viewing as this tenant.
+          Uses isImpersonating (synchronous) rather than originalUser (async query)
+          so the banner — and the "Return to Admin" button — is always visible
+          during impersonation, even if the admin's DB record is still loading
+          or has a missing role. */}
+      {isImpersonating && (
         <div className="px-4 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800/50 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <EyeIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />

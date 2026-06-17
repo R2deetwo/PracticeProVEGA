@@ -30,7 +30,7 @@ const getNotificationStyle = (type: string = 'info') => {
 
 const Header: React.FC = React.memo(() => {
     const { theme, setTheme, navigateTo, goBack, goForward, canGoBack, canGoForward, setMobileSearchOpen, openModal, toggleCommandPalette, toggleSidebarRetraction, activePeers, addToast, setIsSessionLocked } = useUI();
-    const { currentUser, logout, originalUser, revertToOriginalUser } = useAuth();
+    const { currentUser, logout, isImpersonating, revertToOriginalUser } = useAuth();
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
     const actions = useDataActions();
@@ -162,7 +162,11 @@ const Header: React.FC = React.memo(() => {
 
     return (
         <header className="z-40 flex-shrink-0 glass border-b border-slate-200/50 dark:border-zinc-700/50 h-14 flex items-center justify-between px-4 sticky top-0">
-            {originalUser && (
+            {/* Impersonation Banner — uses isImpersonating (synchronous) rather than
+                originalUser (async query) so the banner is always visible during
+                impersonation, even if the admin's DB record is still loading or
+                has a missing role. */}
+            {isImpersonating && (
                 <div className="absolute top-full left-0 right-0 bg-yellow-400 text-black text-center py-1 text-xs font-semibold z-50 flex items-center justify-center gap-4 shadow-sm">
                     <span>Viewing as <strong>{displayUserName}</strong> ({currentUser.role}).</span>
                     <button onClick={revertToOriginalUser} className="flex items-center gap-1 underline font-bold hover:text-white">

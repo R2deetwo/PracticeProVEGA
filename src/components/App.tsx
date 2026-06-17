@@ -369,35 +369,19 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         );
     }
 
-    // ── SECURITY: Defensive guard against role leakage ──
-    // If a portal user (Client/Tenant) somehow reaches the admin app shell,
-    // refuse to render any admin UI (Sidebar, Header, BottomNav, admin views).
-    // This is defense-in-depth on top of the route boundary guard in <App />
-    // and the role-defaults-to-Admin fix in AuthContext. Without this, a
-    // malformed user record (e.g. legacy migration gap) could leak admin data
-    // to a portal user.
-    if (currentUser && isPortalUser) {
-        return (
-            <main className="w-full h-[100dvh] flex items-center justify-center bg-slate-50 dark:bg-zinc-900 p-8">
-                <div className="text-center max-w-md">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                    </div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Access restricted</h2>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Your account doesn't have access to this area. You'll be redirected to your portal shortly.</p>
-                </div>
-            </main>
-        );
-    }
-
-    // ── SECURITY: Defensive guard against failed impersonation ──
-    // When an admin impersonates a portal user via PortalAccessSettings, the
-    // loginAsUser function is called with a hardcoded role ('Tenant'/'Client').
-    // But the ACTUAL role is loaded from the DB via userData. If the DB record
-    // has a non-portal role (e.g. the user is actually an Admin, or the invite
-    // was for a user who hasn't been provisioned as a portal user yet), the
-    // admin would end up viewing the admin dashboard as another admin — which
-    // is the root cause of the "residents portal looks like the main app" bug.
+    // ── SECURITY: Failed-impersonation guard ──
+    // Fires when an admin is impersonating BUT the target account is not a
+    // portal user. With the impersonationRoleOverride fix in AuthContext,
+    // this guard should rarely fire — the override ensures currentUser.role
+    // is 'Tenant'/'Client' even if the target's DB role has drifted.
+    //
+    // It still fires in two cases:
+    //   1. The override was somehow not set (defensive — should never happen
+    //      because loginAsUser always sets it alongside originalSessionToken).
+    //   2. The target's DB role is 'Pending' and currentUser became null
+    //      (the AuthContext memo rejects Pending roles) — but in that case the
+    //      auto-revert effect handles it, and this guard fires for the brief
+    //      window before the revert completes.
     //
     // CRITICAL: We use `isImpersonating` (a SYNCHRONOUS flag derived from
     // originalSessionToken) rather than `originalUser` (which requires the
@@ -405,9 +389,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     // window where currentUser (the impersonated admin) loads before
     // originalUser, and the admin dashboard flashes on screen.
     //
-    // AuthContext has an auto-revert effect, but this guard ensures that even
-    // if the revert is delayed (e.g. slow network), the admin NEVER sees the
-    // admin dashboard while impersonation is active on a non-portal user.
+    // NOTE: The previous "Access restricted" guard that fired for ALL portal
+    // users (including legitimate tenants and successfully-impersonating
+    // admins) has been REMOVED. It was redundant with the route guard at
+    // App.tsx:769 and renderView()'s own portal-user checks at lines 158/169,
+    // and it blocked legitimate portal users from seeing their portal.
     if (currentUser && isImpersonating && !isPortalUser) {
         const targetEmail = currentUser.email;
         const targetRole = currentUser.role;

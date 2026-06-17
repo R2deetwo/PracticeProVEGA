@@ -107,6 +107,35 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     });
 
+    // IMPERSONATION ROLE OVERRIDE
+    // When an admin impersonates a portal user via loginAsUser(), the
+    // expected role ('Tenant'/'Client') is stored here and takes precedence
+    // over the target user's actual DB role in the `currentUser` memo.
+    //
+    // This is the critical fix for the "residents see admin dashboard" bug.
+    // Previously, the currentUser memo always used userData.role (the actual
+    // DB role). If the target's DB role had drifted to 'Admin' (data
+    // corruption, legacy migration gap, invite sent to an existing admin
+    // email), the admin would end up viewing the admin dashboard instead of
+    // the TenantPortal — exactly what the user reported.
+    //
+    // The override is persisted to sessionStorage so it survives the route
+    // change reload (App.tsx redirects impersonating admins from /settings
+    // to /portal/tenant/<token>, which causes a full page reload).
+    const [impersonationRoleOverride, setImpersonationRoleOverride] = React.useState<UserRole | null>(() => {
+        try {
+            const stored = sessionStorage.getItem('practicepro_impersonation_role');
+            // Only restore if we're also restoring originalSessionToken —
+            // otherwise the override is stale and should be ignored.
+            if (stored && sessionStorage.getItem('practicepro_original_session')) {
+                return stored as UserRole;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    });
+
     // Local overrides for UI responsiveness (e.g. defaultViewModes)
     const [localUserOverrides, setLocalUserOverrides] = React.useState<Partial<User> | null>(null);
 
@@ -166,15 +195,32 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // This catches cases where a portal user's access was revoked via
         // deletePortalInviteAndCleanup (which sets role="Pending" + isVerified=false)
         // but somehow their session token is still valid.
+        //
+        // NOTE: This check applies even when impersonating — an admin must not be
+        // able to preview a revoked portal account.
         if ((data as any).role === 'Pending') return null;
+
+        // IMPERSONATION ROLE OVERRIDE
+        // When an admin is impersonating a portal user, use the override role
+        // (set by loginAsUser) instead of the target user's actual DB role.
+        // This ensures the admin sees the TenantPortal even if the target's
+        // DB role has drifted to 'Admin' or is null/undefined (data corruption,
+        // legacy migration gap, invite sent to an existing admin email).
+        //
+        // The override is only applied when originalSessionToken is set (i.e.
+        // we are actually impersonating). This prevents stale sessionStorage
+        // values from leaking into the regular user session.
+        const rawRole = (data as any).role;
+        const effectiveRole: string | undefined = (originalSessionToken && impersonationRoleOverride)
+            ? impersonationRoleOverride
+            : rawRole;
 
         // SECURITY: Reject any user record with a missing/null/empty role.
         // Previously this defaulted to Admin, which was a critical privilege-escalation
         // bug — any user with a malformed record (e.g. legacy migration gap, manual
         // DB edit) silently became an Admin. Now we treat a missing role the same as
         // 'Pending' and refuse to authenticate them.
-        const rawRole = (data as any).role;
-        if (!rawRole || typeof rawRole !== 'string' || rawRole.trim() === '') {
+        if (!effectiveRole || typeof effectiveRole !== 'string' || effectiveRole.trim() === '') {
             console.warn('[Auth] Rejecting user with missing/null role:', data.email);
             return null;
         }
@@ -187,7 +233,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             firmId: data.firmId,
             name: data.name,
             email: data.email,
-            role: rawRole as UserRole,
+            role: effectiveRole as UserRole,
             avatarUrl: data.avatarUrl,
             onboardingCompleted: data.onboardingCompleted,
             showProTips: data.showProTips ?? true,
@@ -204,7 +250,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         };
 
         return combined;
-    }, [userData, sessionToken, localUserOverrides]);
+    }, [userData, sessionToken, localUserOverrides, impersonationRoleOverride, originalSessionToken]);
 
     // Persist portal type to BOTH sessionStorage and localStorage so we can
     // redirect correctly on refresh/logout. localStorage ensures the portal type
@@ -272,54 +318,56 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         };
     }, [originalUserData]);
 
-    // ── SECURITY: Auto-revert failed impersonation ──
-    // When an admin impersonates a portal user (Client/Tenant), loginAsUser
-    // sets sessionToken to the target user's email. The userData query then
-    // loads the ACTUAL role from the DB. If the actual DB role is NOT a portal
-    // role (Client/Tenant), the impersonation must not proceed — otherwise the
-    // admin would end up viewing the admin dashboard as another admin, which
-    // is both a security risk and the root cause of the "residents portal
-    // looks like the main app" bug.
+    // ── SECURITY: Auto-revert impersonation of revoked accounts ──
+    // Narrower than the previous version: we ONLY auto-revert when the target
+    // account is genuinely revoked (!isVerified or role === 'Pending').
     //
-    // This effect watches userData while originalSessionToken is active and
-    // auto-reverts if the loaded user is not a portal user.
+    // For other role mismatches (e.g. the target's DB role drifted to 'Admin'
+    // due to data corruption), the impersonationRoleOverride in the currentUser
+    // memo takes precedence — the admin sees the TenantPortal with the
+    // expected role, instead of being silently reverted to their own admin
+    // dashboard (which was the root cause of the "residents see admin
+    // dashboard" bug reported by the user).
+    //
+    // The loginAsUser() security checks (admin-only caller, portal-user-only
+    // target, cross-firm guard) still prevent privilege escalation at the
+    // initiation point.
     const isImpersonating = !!originalSessionToken;
     React.useEffect(() => {
         if (!isImpersonating) return;
         if (!userData) return; // Still loading or user not found
-        if (!userData.isVerified) return; // Let the existing revoked-user path handle this
+        if (userData.isVerified && (userData as any).role !== 'Pending') return; // Account is fine
 
-        const actualRole = (userData as any).role;
-        if (actualRole !== 'Client' && actualRole !== 'Tenant') {
-            console.warn(
-                '[Auth] Impersonation auto-revert: target user has non-portal role:',
-                userData.email,
-                actualRole
+        console.warn(
+            '[Auth] Impersonation auto-revert: target account is revoked or pending:',
+            userData.email,
+            { isVerified: userData.isVerified, role: (userData as any).role }
+        );
+        // Restore the original admin session
+        setSessionToken(originalSessionToken);
+        sessionStorage.setItem(
+            LOCAL_STORAGE_USER_KEY,
+            JSON.stringify({ token: originalSessionToken })
+        );
+        setOriginalSessionToken(null);
+        sessionStorage.removeItem('practicepro_original_session');
+        // Clear the role override too
+        setImpersonationRoleOverride(null);
+        sessionStorage.removeItem('practicepro_impersonation_role');
+        // Surface a clear error to the admin via a window event that App.tsx
+        // can listen for and display as a toast.
+        try {
+            window.dispatchEvent(
+                new CustomEvent('practicepro:impersonation-rejected', {
+                    detail: {
+                        targetEmail: userData.email,
+                        targetRole: (userData as any).role,
+                        reason: 'Target account is revoked or pending.',
+                    },
+                })
             );
-            // Restore the original admin session
-            setSessionToken(originalSessionToken);
-            sessionStorage.setItem(
-                LOCAL_STORAGE_USER_KEY,
-                JSON.stringify({ token: originalSessionToken })
-            );
-            setOriginalSessionToken(null);
-            sessionStorage.removeItem('practicepro_original_session');
-            // Surface a clear error to the admin via a window event that App.tsx
-            // can listen for and display as a toast. This avoids tightly coupling
-            // AuthContext to the toast system.
-            try {
-                window.dispatchEvent(
-                    new CustomEvent('practicepro:impersonation-rejected', {
-                        detail: {
-                            targetEmail: userData.email,
-                            targetRole: actualRole,
-                            reason: 'Target user is not a portal user (Client/Tenant).',
-                        },
-                    })
-                );
-            } catch {
-                // Event dispatch is best-effort
-            }
+        } catch {
+            // Event dispatch is best-effort
         }
     }, [isImpersonating, userData, originalSessionToken]);
 
@@ -523,6 +571,12 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setOriginalSessionToken(null);
             sessionStorage.removeItem('practicepro_original_session');
         }
+        // Clear any stale impersonation role override so it doesn't leak
+        // into a future session on the same tab.
+        if (impersonationRoleOverride) {
+            setImpersonationRoleOverride(null);
+            sessionStorage.removeItem('practicepro_impersonation_role');
+        }
 
         // SECURITY: When a portal user logs out, only clear the PORTAL session.
         // NEVER clear practicepro_user_session — that's the admin's session and
@@ -639,6 +693,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 // sessionStorage might be unavailable (private mode) — non-critical
             }
         }
+        // ROLE OVERRIDE: Persist the expected portal role. The currentUser memo
+        // will use this instead of the target user's actual DB role, so the
+        // admin sees the TenantPortal even if the DB role has drifted to
+        // 'Admin' or is null/undefined.
+        setImpersonationRoleOverride(user.role);
+        try {
+            sessionStorage.setItem('practicepro_impersonation_role', user.role);
+        } catch {
+            // Non-critical
+        }
         setSessionToken(user.email.toLowerCase());
         sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: user.email.toLowerCase() }));
     };
@@ -649,6 +713,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: originalSessionToken }));
             setOriginalSessionToken(null);
             sessionStorage.removeItem('practicepro_original_session');
+            // Clear the role override so the admin's actual DB role is used again
+            setImpersonationRoleOverride(null);
+            sessionStorage.removeItem('practicepro_impersonation_role');
         } else {
             // FALLBACK: If originalSessionToken was lost (e.g. page refresh),
             // try to restore from sessionStorage.
@@ -659,6 +726,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: stored }));
                     setOriginalSessionToken(null);
                     sessionStorage.removeItem('practicepro_original_session');
+                    setImpersonationRoleOverride(null);
+                    sessionStorage.removeItem('practicepro_impersonation_role');
                 }
             } catch {
                 // Non-critical
