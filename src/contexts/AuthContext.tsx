@@ -241,17 +241,75 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const originalUser: User | null = React.useMemo(() => {
         if (!originalUserData) return null;
+        // SECURITY: Same missing-role rejection as currentUser.
+        // Previously this fell back to UserRole.Admin, which meant a malformed
+        // original-user record would silently escalate to Admin on revert.
+        const rawOrigRole = (originalUserData as any).role;
+        if (!rawOrigRole || typeof rawOrigRole !== 'string' || rawOrigRole.trim() === '') {
+            console.warn('[Auth] Rejecting originalUser with missing/null role:', originalUserData.email);
+            return null;
+        }
         return {
             id: originalUserData._id,
             firmId: originalUserData.firmId,
             name: originalUserData.name,
             email: originalUserData.email,
-            role: (originalUserData.role as UserRole) || UserRole.Admin,
+            role: rawOrigRole as UserRole,
             avatarUrl: originalUserData.avatarUrl,
             onboardingCompleted: originalUserData.onboardingCompleted,
             showProTips: originalUserData.showProTips ?? true,
         };
     }, [originalUserData]);
+
+    // ── SECURITY: Auto-revert failed impersonation ──
+    // When an admin impersonates a portal user (Client/Tenant), loginAsUser
+    // sets sessionToken to the target user's email. The userData query then
+    // loads the ACTUAL role from the DB. If the actual DB role is NOT a portal
+    // role (Client/Tenant), the impersonation must not proceed — otherwise the
+    // admin would end up viewing the admin dashboard as another admin, which
+    // is both a security risk and the root cause of the "residents portal
+    // looks like the main app" bug.
+    //
+    // This effect watches userData while originalSessionToken is active and
+    // auto-reverts if the loaded user is not a portal user.
+    const isImpersonating = !!originalSessionToken;
+    React.useEffect(() => {
+        if (!isImpersonating) return;
+        if (!userData) return; // Still loading or user not found
+        if (!userData.isVerified) return; // Let the existing revoked-user path handle this
+
+        const actualRole = (userData as any).role;
+        if (actualRole !== 'Client' && actualRole !== 'Tenant') {
+            console.warn(
+                '[Auth] Impersonation auto-revert: target user has non-portal role:',
+                userData.email,
+                actualRole
+            );
+            // Restore the original admin session
+            setSessionToken(originalSessionToken);
+            sessionStorage.setItem(
+                LOCAL_STORAGE_USER_KEY,
+                JSON.stringify({ token: originalSessionToken })
+            );
+            setOriginalSessionToken(null);
+            // Surface a clear error to the admin via a window event that App.tsx
+            // can listen for and display as a toast. This avoids tightly coupling
+            // AuthContext to the toast system.
+            try {
+                window.dispatchEvent(
+                    new CustomEvent('practicepro:impersonation-rejected', {
+                        detail: {
+                            targetEmail: userData.email,
+                            targetRole: actualRole,
+                            reason: 'Target user is not a portal user (Client/Tenant).',
+                        },
+                    })
+                );
+            } catch {
+                // Event dispatch is best-effort
+            }
+        }
+    }, [isImpersonating, userData, originalSessionToken]);
 
     const login = async (email: string, password?: string, mfaCode?: string, rememberMe: boolean = true) => {
         const token = email.toLowerCase().trim();

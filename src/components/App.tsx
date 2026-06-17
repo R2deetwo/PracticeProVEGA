@@ -113,7 +113,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const dataHandlers = useDataActions();
-    const { currentUser, appMode, updateCurrentUser } = useAuth();
+    const { currentUser, appMode, updateCurrentUser, originalUser, revertToOriginalUser } = useAuth();
     const ui = useUI();
     const { view, selectedId, currentHistoryEntry, isSidebarRetracted, openModal, closeModal, navigateTo, theme, goBack } = ui;
     const { product } = useProduct();
@@ -390,6 +390,46 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         );
     }
 
+    // ── SECURITY: Defensive guard against failed impersonation ──
+    // When an admin impersonates a portal user via PortalAccessSettings, the
+    // loginAsUser function is called with a hardcoded role ('Tenant'/'Client').
+    // But the ACTUAL role is loaded from the DB via userData. If the DB record
+    // has a non-portal role (e.g. the user is actually an Admin, or the invite
+    // was for a user who hasn't been provisioned as a portal user yet), the
+    // admin would end up viewing the admin dashboard as another admin — which
+    // is the root cause of the "residents portal looks like the main app" bug.
+    //
+    // AuthContext has an auto-revert effect, but this guard ensures that even
+    // if the revert is delayed (e.g. slow network), the admin NEVER sees the
+    // admin dashboard while impersonation is active on a non-portal user.
+    if (currentUser && originalUser && !isPortalUser) {
+        return (
+            <main className="w-full h-[100dvh] flex items-center justify-center bg-amber-50 dark:bg-amber-950/30 p-8">
+                <div className="text-center max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 border border-amber-200 dark:border-amber-800/50">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    </div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Impersonation failed</h2>
+                    <p className="text-sm text-slate-600 dark:text-zinc-300 mb-1">
+                        The user you're trying to view (<strong>{currentUser.email}</strong>) doesn't have a portal role.
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 mb-6">
+                        Their account role is <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{currentUser.role}</span>. Only Residents and Clients can be previewed through the portal impersonation feature. Returning to your admin session now.
+                    </p>
+                    <button
+                        onClick={revertToOriginalUser}
+                        className="w-full px-5 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm transition-colors active:scale-[0.98]"
+                    >
+                        Return to Admin Session
+                    </button>
+                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                        You'll be returned to <strong>{originalUser.email}</strong> ({originalUser.role}).
+                    </p>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <div className="flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500">
             {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
@@ -472,6 +512,25 @@ export const App: React.FC = () => {
             // Small delay so ModalManager is mounted first
             setTimeout(() => openModal('login'), 300);
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Listen for impersonation-rejected events from AuthContext ──
+    // When AuthContext auto-reverts a failed impersonation (target user is not
+    // a portal user), it dispatches a 'practicepro:impersonation-rejected'
+    // window event. We surface it as a toast so the admin understands why
+    // they were returned to their own session instead of seeing the portal.
+    React.useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            const { addToast } = ui;
+            addToast(
+                `Could not preview portal: ${detail.targetEmail || 'that user'} is registered as ${detail.targetRole || 'a non-portal user'}, not a Resident/Client. Returning to your admin session.`,
+                { type: 'error', duration: 7000 }
+            );
+        };
+        window.addEventListener('practicepro:impersonation-rejected', handler);
+        return () => window.removeEventListener('practicepro:impersonation-rejected', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

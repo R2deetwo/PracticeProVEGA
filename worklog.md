@@ -863,3 +863,47 @@ Stage Summary:
 - 18 new dockable modals added including viewEvent (mini calendar), editTask, and 16 others
 - All changes compile cleanly
 - Previous session's changes (111 files) + this session's changes ready to commit
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Fix critical resident-portal permissions bug — residents seeing admin dashboard + auto-revert failed impersonation
+
+Work Log:
+- Investigated user report: "i am looking at a tenants portal and it looks like the main app"
+- Screenshot analysis showed admin dashboard with role label "ADMIN" and yellow impersonation banner "Viewing as Marcos Gilliam (Admin). ← Return"
+- Root cause: PortalAccessSettings.tsx handlePreview() calls loginAsUser() with a HARDCODED role ('Tenant'/'Client'). The loginAsUser() check at AuthContext.tsx:549 only validates the PASSED object's role — not the actual DB role. When the target user's actual DB role is Admin (e.g. data corruption, wrong user, or invite sent to an admin email), loginAsUser proceeds, userData loads with role='Admin', currentUser becomes Admin, and the admin sees the admin dashboard instead of the TenantPortal.
+- Previous fix in commit 072e6f0 added defense-in-depth (reject missing role, defensive guard for portal users in MainContent) but did NOT cover this impersonation-with-wrong-DB-role case.
+
+- Implemented 4 layered fixes:
+
+1. AuthContext.tsx — Auto-revert failed impersonation (lines 264-312):
+   - Added useEffect that watches userData while originalSessionToken is active
+   - If loaded user's actual DB role is NOT Client/Tenant, automatically restores the original admin session
+   - Dispatches a 'practicepro:impersonation-rejected' window event with targetEmail, targetRole, reason
+   - Also fixed residual privilege escalation in originalUser memo (line 247-251) — was `role: (originalUserData.role as UserRole) || UserRole.Admin`, now applies the same missing-role rejection as currentUser
+
+2. App.tsx — Defensive guard for failed impersonation (lines 393-431 in MainContent):
+   - Added `originalUser` and `revertToOriginalUser` to useAuth() destructure (line 116)
+   - If originalUser exists AND currentUser.role is NOT Client/Tenant, render a clear amber "Impersonation failed" screen with "Return to Admin Session" button
+   - This ensures the admin NEVER sees the admin dashboard while impersonation is active on a non-portal user, even if the AuthContext auto-revert is delayed by slow network
+   - Added event listener (lines 518-535) for 'practicepro:impersonation-rejected' that shows a clear error toast explaining the auto-revert
+
+3. PortalAccessSettings.tsx — Better guard in handlePreview (lines 941-988):
+   - Added status check: if invite.status !== 'accepted', show a warning toast and abort (pending invites mean the user hasn't activated their portal account yet — impersonation would fail)
+   - Updated success toast to set expectations: "If their account role isn't a portal role, you'll be returned to your admin session automatically."
+   - Added comment explaining the auto-revert behavior and that the role field passed to loginAsUser is the EXPECTED role, not the actual DB role
+
+4. usePermissions.ts — Tenant role branch (lines 35-42):
+   - Previously only UserRole.Client got the allFalse permissions gate
+   - Added UserRole.Tenant to the same gate (defense-in-depth — App.tsx already blocks portal users from admin views, but this prevents any latent issue if a Tenant ever reached a view consuming usePermissions())
+
+- Build verified: npx tsc --noEmit shows only 1 pre-existing error in src/app/page.tsx (marketing landing page, unrelated). npx vite build succeeds in 14.73s.
+
+Stage Summary:
+- 4 files modified: AuthContext.tsx, App.tsx, PortalAccessSettings.tsx, usePermissions.ts
+- 4 layered security fixes prevent residents from ever seeing the admin dashboard
+- Auto-revert with clear error toast when impersonation target has wrong DB role
+- Defensive guard ensures admin NEVER sees admin dashboard during failed impersonation (even before auto-revert fires)
+- Tenant role now gated in usePermissions (matches Client gating)
+- Build clean, ready for commit and push

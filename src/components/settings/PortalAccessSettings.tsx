@@ -939,13 +939,32 @@ export const PortalAccessSettings: React.FC = () => {
   };
 
   // Preview portal as a specific client/resident (impersonation)
+  // SECURITY: loginAsUser only accepts a portal user (Client/Tenant). The
+  // actual role is re-verified against the DB by AuthContext's auto-revert
+  // effect — if the underlying user record has a non-portal role (e.g. an
+  // admin or pending user), the impersonation is automatically reverted and
+  // a clear error toast is shown. This prevents the admin from accidentally
+  // viewing the admin dashboard as another admin when they intended to
+  // preview the resident portal.
   const handlePreview = (invite: any) => {
     const portalEmail = invite.inviteeEmail;
     if (!portalEmail) {
       addToast('No email on file for this portal user.', { type: 'error' });
       return;
     }
-    // Use the auth system's impersonation to view the portal as this user
+    // Guard: only attempt impersonation for accepted invites. Pending invites
+    // mean the user hasn't set up their portal account yet — impersonation
+    // would fail because no user record exists with the portal role.
+    if (invite.status && invite.status !== 'accepted') {
+      addToast(
+        `This ${invite.portalType === 'client' ? 'client' : 'resident'} hasn't activated their portal account yet. They need to accept the invitation first.`,
+        { type: 'warning', duration: 6000 }
+      );
+      return;
+    }
+    // Use the auth system's impersonation to view the portal as this user.
+    // The role field here is the EXPECTED role — AuthContext verifies the
+    // actual DB role after the session switches.
     const portalUser = {
       id: invite.inviteeEmail,
       firmId: firmId,
@@ -959,7 +978,10 @@ export const PortalAccessSettings: React.FC = () => {
       portalPresenceHidden: invite.portalType === 'resident',
     };
     loginAsUser(portalUser as any);
-    addToast(`Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. Click "Return to Admin" at the top to go back.`, { type: 'success' });
+    addToast(
+      `Viewing portal as ${invite.inviteeName || invite.inviteeEmail}. If their account role isn't a portal role, you'll be returned to your admin session automatically.`,
+      { type: 'success', duration: 6000 }
+    );
     // Navigate to root so the portal dashboard is shown (not the settings page)
     // Use navigate() to preserve in-memory state during impersonation
     navigateTo('dashboard');

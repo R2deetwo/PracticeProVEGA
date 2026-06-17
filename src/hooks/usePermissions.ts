@@ -32,7 +32,12 @@ export const usePermissions = () => {
       return allFalse;
     }
     
-    if (currentUser.role === UserRole.Client) {
+    // SECURITY: Portal users (Clients AND Tenants/Residents) get no admin
+    // permissions. Previously only Client was gated here — Tenants would
+    // have fallen through to the Lawyer/Paralegal/Admin permission tree if
+    // they ever reached a view consuming usePermissions(). Today App.tsx
+    // blocks portal users from admin views, but this is defense-in-depth.
+    if (currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant) {
         return allFalse;
     }
 
