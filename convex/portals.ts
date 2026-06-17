@@ -1017,7 +1017,7 @@ export const setupPortalPassword = action({
     password: v.string(),
     name: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{ success: boolean; message?: string; email?: string }> => {
+  handler: async (ctx, args): Promise<{ success: boolean; message?: string; email?: string; code?: string }> => {
     // 1. Validate the invite
     const invite = await ctx.runQuery(api.portals.getInviteByToken, { token: args.token });
     if (!invite) return { success: false, message: "Invalid invitation link." };
@@ -1096,6 +1096,35 @@ export const setupPortalPassword = action({
 
     // 3. Check if user exists
     const existingUser: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: email });
+
+    // ── SAFETY: Refuse to attach a portal role to an existing admin/internal account ──
+    // The "residents see admin dashboard" bug occurred because the same email
+    // existed as BOTH an Admin user record AND a Tenant user record. When the
+    // admin accepted a portal invite using their admin email, setupPortalPassword
+    // updated the Admin record's password (and isVerified flag) but left the
+    // role as Admin — so the user could log in via the portal but ended up in
+    // the admin dashboard.
+    //
+    // Going forward: if the email is already used by an Admin / Lawyer /
+    // Paralegal / ExternalCounsel account in this firm, refuse the invite
+    // acceptance with a clear error. The admin must use a different email
+    // address for the portal user (e.g. resident+unit@..., or a personal
+    // email), or have the conflicting admin account deleted first.
+    //
+    // The check is scoped to the SAME FIRM — we don't block a portal invite
+    // if the email is an admin in a different firm (that's a separate person
+    // who happens to share the email).
+    if (existingUser) {
+      const ADMIN_ROLES = new Set(["Admin", "Lawyer", "Paralegal", "ExternalCounsel"]);
+      const sameFirm = existingUser.firmId === invite.firmId;
+      if (sameFirm && ADMIN_ROLES.has(existingUser.role)) {
+        return {
+          success: false,
+          message: `This email is already registered as ${existingUser.role === "Admin" ? "an administrator" : "a " + existingUser.role.toLowerCase()} account in your firm. Please use a different email address for the portal user, or delete the existing admin account first.`,
+          code: "EMAIL_CONFLICTS_WITH_ADMIN" as const,
+        };
+      }
+    }
 
     // Track the portal user's Convex _id so we can link them to their property/unit
     let portalUserDocId: string | null = null;
@@ -2604,6 +2633,58 @@ export const markConversationReadByParticipant = mutation({
         await ctx.db.patch(msg._id, { isRead: true, updatedAt: now });
       }
     }
+  },
+});
+
+/**
+ * markInboundMessagesReadByTenant — Tenant marks all inbound messages addressed
+ * to them as read. Fixes the "Messages badge won't disappear after reading"
+ * bug: the badge counted unread atrium_inbound_messages, but no mutation
+ * existed to mark them as read — only portal_messages had a mark-read path.
+ *
+ * Called by TenantPortal's MessagesTab when the tab is opened. Marks ALL
+ * inbound messages for the tenant as read in a single batch.
+ *
+ * Args:
+ *   tenantId: The tenant's user ID (Convex _id) OR email — matches the
+ *             getInboundMessagesByTenant query's lookup logic.
+ *
+ * Returns: { marked: number } — count of messages updated.
+ */
+export const markInboundMessagesReadByTenant = mutation({
+  args: { tenantId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // Primary: lookup by tenantId directly
+    let messages = await ctx.db
+      .query("atrium_inbound_messages")
+      .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
+      .collect();
+
+    // Fallback: if tenantId looks like an email, resolve to the user's Convex _id
+    // and look up by that. This mirrors getInboundMessagesByTenant's fallback logic.
+    if (messages.length === 0 && args.tenantId.includes("@")) {
+      const user: any = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tenantId.toLowerCase()))
+        .first();
+      if (user) {
+        messages = await ctx.db
+          .query("atrium_inbound_messages")
+          .withIndex("by_tenant", (q) => q.eq("tenantId", String(user._id)))
+          .collect();
+      }
+    }
+
+    let marked = 0;
+    for (const msg of messages) {
+      if (!msg.isRead) {
+        await ctx.db.patch(msg._id, { isRead: true });
+        marked++;
+      }
+    }
+    return { marked };
   },
 });
 

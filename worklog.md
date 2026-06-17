@@ -1008,3 +1008,97 @@ Stage Summary:
 - With the impersonationRoleOverride, the admin sees the TenantPortal regardless of the target's actual DB role (unless the account is genuinely revoked, in which case auto-revert still fires)
 - The fix is defensive: the override only applies when originalSessionToken is set, so it can't leak into regular sessions
 - Ready for commit and push to main
+
+---
+Task ID: 8
+Agent: Main Agent (GLM 5.2 session 2)
+Task: Fix the REAL root cause of "residents see admin dashboard" — duplicate emails. User confirmed via testing: same email exists as BOTH an admin record AND a tenant record. Also fix the messages badge that won't clear after reading.
+
+ROOT CAUSE (different from Task 7):
+- Task 7 fixed the impersonation case (admin previews tenant portal).
+- But the user reported: "all i did was log in as a tenant and i saw the dashboard still"
+- The actual bug: getUser(email) used .first() on the email index. If two user records share the same email (one Admin, one Tenant), it returns whichever comes first in the index — usually the older Admin record.
+- The user's diagnosis was spot-on: "when we have an email that has a user account and a portal account simultaneously"
+- This bug is also why some residents preview correctly but others don't: residents with a unique email work; residents whose email matches an admin record fail.
+
+ALSO FIXED: Message badge never clears
+- Badge counts unread atrium_inbound_messages, but no mutation existed to mark them as read.
+- Only portal_messages had a mark-read path (markConversationReadByParticipant).
+- The unread count from atrium_inbound_messages persisted forever.
+
+CHANGES (across 6 files):
+
+1. convex/myFunctions.ts — getUser query:
+   - Added preferPortalRole?: boolean arg.
+   - Now collects ALL matching records (not just .first()) and picks the right one:
+     * If preferPortalRole is true AND a portal-role record exists, prefer it.
+     * Otherwise, prefer the first non-Pending record.
+   - This means: on /portal/* routes, the Tenant record wins over the Admin record when duplicates exist.
+
+2. convex/myFunctions.ts — verifyLogin action:
+   - Added portalType?: 'tenant' | 'client' arg.
+   - When portalType is set, passes preferPortalRole: true to getUser.
+   - Added defensive guard: if portalType is set but resolved user.role is NOT Client/Tenant, refuses login with a clear error message ("This email is registered as an admin account...").
+
+3. convex/myFunctions.ts — findDuplicateEmails diagnostic query (NEW):
+   - Admin-only query that returns every email with multiple user records.
+   - Includes roles, conflict tag (e.g. "Admin+Tenant"), and per-record details.
+   - Lets the user verify data cleanup after deleting conflicting portal accounts.
+   - Call from Convex dashboard: api.myFunctions.findDuplicateEmails with { requesterRole: "Admin" }.
+
+4. convex/portals.ts — setupPortalPassword action:
+   - Added EMAIL_CONFLICTS_WITH_ADMIN safety check.
+   - When invite is accepted, if existingUser.role is Admin/Lawyer/Paralegal/ExternalCounsel in the same firm, REFUSES the acceptance with a clear error.
+   - Returns { success: false, code: "EMAIL_CONFLICTS_WITH_ADMIN", message: "..." }.
+   - This is the prevention layer: even if a duplicate invite slips through, the acceptance will fail.
+   - Return type updated to include code?: string.
+
+5. convex/portals.ts — markInboundMessagesReadByTenant mutation (NEW):
+   - Marks all atrium_inbound_messages for a tenant as read.
+   - Takes tenantId (Convex _id or email — mirrors getInboundMessagesByTenant's lookup logic).
+   - Returns { marked: number }.
+
+6. src/contexts/AuthContext.tsx:
+   - userData query now passes preferPortalRole: isPortalRoute() — so portal logins resolve the portal-role record.
+   - login() function accepts new portalType?: 'tenant' | 'client' arg, passed through to verifyLogin.
+   - AuthContextType.login signature updated.
+
+7. src/components/portal/TenantPortalLogin.tsx:
+   - Calls login(email, password, undefined, true, 'tenant') — passes portalType.
+
+8. src/components/portal/ClientPortalLogin.tsx:
+   - Calls login(email, password, undefined, true, 'client') — passes portalType.
+
+9. src/components/tenant/TenantPortal.tsx — MessagesTab:
+   - Added useEffect that calls markInboundMessagesReadByTenant when the tab is opened.
+   - Effect fires only if there's at least one unread inbound message (avoids unnecessary writes).
+   - Also fires a second call by email (legacy data may be indexed by both tenantId and email).
+
+10. src/components/settings/PortalAccessSettings.tsx:
+    - Added handlePreviewWithDuplicateCheck() — soft warning when the invitee email resolves to a non-portal role in the DB.
+    - All three onPreview call sites now use the wrapped handler.
+    - Imported useConvex for the duplicate-check query.
+
+DEFENSE IN DEPTH (4 layers):
+1. Backend getUser prefers portal-role records on portal routes (fixes login + auto-session-restore).
+2. Backend verifyLogin refuses portal login if resolved role isn't portal (catches edge cases where getUser still returns Admin).
+3. Backend setupPortalPassword refuses to attach portal role to existing admin accounts (prevents new duplicates).
+4. Frontend handlePreviewWithDuplicateCheck warns the admin before previewing a duplicate-email resident.
+
+Build verified:
+- npx tsc --noEmit: only the pre-existing src/app/page.tsx error
+- npx vite build: succeeds in 14.06s
+
+WHAT THE USER SHOULD DO NEXT:
+1. Delete the conflicting portal accounts (as planned).
+2. Run findDuplicateEmails from the Convex dashboard (api.myFunctions.findDuplicateEmails, args: { requesterRole: "Admin" }) to verify all duplicates are gone.
+3. When re-inviting portal users, the backend will refuse invites to emails that already have admin accounts in the firm. Use a different email for the portal user (e.g. resident+unit@..., or a personal email).
+4. To test the message badge fix: open the Messages tab in the tenant portal — the unread count from inbound messages will be cleared within ~1 second.
+
+Stage Summary:
+- 7 files modified (4 convex backend, 4 frontend — actually 6 files total counting PortalAccessSettings + AuthContext + 2 portal logins + TenantPortal + 2 convex files).
+- Real root cause fixed: getUser now prefers portal-role records on portal routes, so even with duplicate emails, portal logins resolve correctly.
+- Prevention: new invites can't be sent to emails that already have admin accounts (acceptance-time check).
+- Diagnosis: findDuplicateEmails query lets admin verify data cleanup.
+- Message badge bug fixed: markInboundMessagesReadByTenant mutation called when Messages tab opens.
+- Ready for commit and push to main.

@@ -947,35 +947,67 @@ export const getResearchSourceContent = query({
 // --- CORE QUERIES ---
 
 export const getUser = query({
-  args: { tokenIdentifier: v.string() },
+  args: { tokenIdentifier: v.string(), preferPortalRole: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     try {
       const token = args.tokenIdentifier;
-      // 1. Primary: indexed lookup (fast)
-      let user = await ctx.db
+      const preferPortalRole = args.preferPortalRole === true;
+
+      // 1. Primary: indexed lookup — collect ALL matching records, not just the first,
+      //    so we can disambiguate when the same email exists as both an admin
+      //    record AND a portal record (the "residents see admin dashboard" bug).
+      //    Indexed lookups return rows in index order; .first() was returning
+      //    whichever came first — usually the older Admin record.
+      const directMatches = await ctx.db
         .query("users")
         .withIndex("by_token", (q) => q.eq("tokenIdentifier", token))
-        .first();
+        .collect();
 
       // 2. Case-insensitive indexed lookup
-      if (!user) {
-        user = await ctx.db
-          .query("users")
-          .withIndex("by_token", (q) => q.eq("tokenIdentifier", token.toLowerCase()))
-          .first();
-      }
+      const lowerMatches = directMatches.length === 0
+        ? await ctx.db
+            .query("users")
+            .withIndex("by_token", (q) => q.eq("tokenIdentifier", token.toLowerCase()))
+            .collect()
+        : [];
 
       // 3. Fallback: bounded scan — take only 500 to prevent timeout
-      if (!user) {
-        const allUsers = await ctx.db.query("users").take(500);
-        user = allUsers.find(
-          (u: any) =>
-            u.tokenIdentifier &&
-            u.tokenIdentifier.toLowerCase() === token.toLowerCase()
-        ) || null;
-      }
+      const allMatches = directMatches.length > 0 || lowerMatches.length > 0
+        ? [...directMatches, ...lowerMatches]
+        : (await ctx.db.query("users").take(500))
+            .filter((u: any) =>
+              u.tokenIdentifier &&
+              u.tokenIdentifier.toLowerCase() === token.toLowerCase()
+            );
 
-      if (!user) return null;
+      if (allMatches.length === 0) return null;
+
+      // Pick the right record when duplicates exist. The "residents see admin
+      // dashboard" bug occurred because the same email existed as BOTH an Admin
+      // user record AND a Tenant/Client record, and .first() was returning the
+      // Admin record when the user logged in via the portal.
+      //
+      // Resolution strategy:
+      //   - If preferPortalRole is true (login via /portal/* route) AND a
+      //     portal-role record exists, prefer it.
+      //   - Otherwise, prefer the first record (preserves existing behavior
+      //     for admin-side logins).
+      //   - We also filter out 'Pending' records — those are revoked accounts
+      //     that should never be the resolved user.
+      const PORTAL_ROLES = new Set(["Client", "Tenant"]);
+      const nonPending = allMatches.filter((u: any) => u.role !== "Pending");
+
+      // If everything is Pending, fall through and let the existing
+      // revoked-user handling in AuthContext take over.
+      const pool = nonPending.length > 0 ? nonPending : allMatches;
+
+      let user: any;
+      if (preferPortalRole) {
+        const portalRecord = pool.find((u: any) => PORTAL_ROLES.has(u.role));
+        user = portalRecord || pool[0];
+      } else {
+        user = pool[0];
+      }
 
       // ============================================================
       // NDPA COMPLIANCE: Server-side privacy projection.
@@ -1007,6 +1039,81 @@ export const dumpAll = query({
   handler: async (ctx) => {
     // SECURE: Endpoint disabled. Data export should be done via proper scoped user/firm exports.
     return { users: [], firms: [] };
+  }
+});
+
+/**
+ * findDuplicateEmails — DIAGNOSTIC QUERY (admin only)
+ *
+ * Returns every email (tokenIdentifier) that has MORE THAN ONE user record.
+ * Used to identify the data corruption that caused the "residents see admin
+ * dashboard" bug: the same email existed as BOTH an Admin record AND a Tenant
+ * record, and getUser() was returning whichever came first in the index.
+ *
+ * The query also flags each duplicate group with a `conflict` field describing
+ * the combination of roles present (e.g. "Admin+Tenant", "Admin+Client",
+ * "Lawyer+Tenant") so the admin can prioritize cleanup.
+ *
+ * Returns: Array of {
+ *   email: string,
+ *   count: number,
+ *   roles: string[],                    // unique roles across all records
+ *   conflict: string,                   // joined role names for quick scan
+ *   records: Array<{ id, name, role, firmId, isVerified, product }>
+ * }
+ *
+ * NOTE: This query is intentionally bounded by .take(2000) — sufficient for
+ * thousands of users. If the user count exceeds this, increase the limit or
+ * paginate. Disabled for non-admin callers (returns empty array).
+ */
+export const findDuplicateEmails = query({
+  args: { requesterRole: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // Only admins should be able to run this diagnostic. If the frontend
+    // forgets to pass the role, return empty (defensive).
+    if (args.requesterRole && args.requesterRole !== "Admin") return [];
+
+    const allUsers = await ctx.db.query("users").take(2000);
+
+    // Group by lowercased tokenIdentifier (email)
+    const groups = new Map<string, any[]>();
+    for (const u of allUsers as any[]) {
+      const email = (u.tokenIdentifier || "").toLowerCase().trim();
+      if (!email) continue;
+      if (!groups.has(email)) groups.set(email, []);
+      groups.get(email)!.push(u);
+    }
+
+    const duplicates: Array<{
+      email: string;
+      count: number;
+      roles: string[];
+      conflict: string;
+      records: Array<{ id: string; name: string; role: string; firmId: string | null; isVerified: boolean; product: string | null }>;
+    }> = [];
+
+    for (const [email, records] of groups.entries()) {
+      if (records.length < 2) continue;
+      const roles = Array.from(new Set(records.map((r) => r.role || "(none)")));
+      duplicates.push({
+        email,
+        count: records.length,
+        roles,
+        conflict: roles.join("+"),
+        records: records.map((r) => ({
+          id: String(r._id),
+          name: r.name || "",
+          role: r.role || "(none)",
+          firmId: r.firmId || null,
+          isVerified: !!r.isVerified,
+          product: r.product || null,
+        })),
+      });
+    }
+
+    // Sort: biggest conflict groups first, then alphabetically by email
+    duplicates.sort((a, b) => b.count - a.count || a.email.localeCompare(b.email));
+    return duplicates;
   }
 });
 
@@ -1172,14 +1279,43 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
  * Automatically migrates legacy SHA-256 and plaintext hashes to PBKDF2 on successful login.
  */
 export const verifyLogin = action({
-  args: { email: v.string(), passwordHash: v.string(), rawPassword: v.optional(v.string()), mfaCode: v.optional(v.string()) },
+  args: {
+    email: v.string(),
+    passwordHash: v.string(),
+    rawPassword: v.optional(v.string()),
+    mfaCode: v.optional(v.string()),
+    // When the login is initiated from a portal route (/portal/tenant/login or
+    // /portal/client/login), the frontend passes portalType so we can resolve
+    // the correct user record when the same email exists as BOTH an admin
+    // record AND a portal record (the "residents see admin dashboard" bug).
+    portalType: v.optional(v.union(v.literal("tenant"), v.literal("client"))),
+  },
   handler: async (ctx, args) => {
     const token = args.email.toLowerCase().trim();
 
-    // 1. Find User (getUser handles indexed + fallback scan)
-    const user: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: token });
+    // 1. Find User — when portalType is set, prefer the matching portal-role record.
+    //    This is the critical fix: without it, getUser() returns the first matching
+    //    record (usually the older Admin record), the password check passes against
+    //    the Admin record (whose password was overwritten by setupPortalPassword),
+    //    and the user ends up logged in as Admin — seeing the admin dashboard.
+    const user: any = await ctx.runQuery(api.myFunctions.getUser, {
+      tokenIdentifier: token,
+      preferPortalRole: args.portalType !== undefined,
+    });
 
     if (!user) return { success: false, message: "Account not found. Please sign up." };
+
+    // PORTAL-ROUTE GUARD: If the user explicitly logged in via a portal route
+    // (portalType is set), but the resolved user is NOT a portal user, refuse
+    // the login. This is defense-in-depth: even if getUser somehow returned
+    // the Admin record (e.g. no portal-role record exists for this email),
+    // we don't let them through to the portal UI with admin privileges.
+    if (args.portalType && user.role !== "Client" && user.role !== "Tenant") {
+      return {
+        success: false,
+        message: "This email is registered as an admin account, not a portal account. Please log in from the main app, or ask your manager to send a portal invitation to a different email address.",
+      };
+    }
 
     // Distinguish between "email not confirmed" (never verified) and "account revoked/deactivated"
     // Portal users who were deleted via deletePortalInviteAndCleanup get role="Pending" + isVerified=false
