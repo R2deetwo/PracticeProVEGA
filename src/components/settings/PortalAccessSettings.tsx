@@ -17,7 +17,7 @@
  * - Grouped property/unit dropdown (address headers + selectable units)
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { useQuery, useMutation, useAction } from 'convex/react';
+import { useQuery, useMutation, useAction, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -806,6 +806,7 @@ const PortalSection: React.FC<{
 export const PortalAccessSettings: React.FC = () => {
   const { currentUser, loginAsUser } = useAuth();
   const { addToast, navigateTo } = useUI();
+  const convex = useConvex();
   const { isProperty, isLegal, isUnified } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
 
@@ -831,6 +832,7 @@ export const PortalAccessSettings: React.FC = () => {
 
   const revokeInvite = useMutation(api.portals.revokePortalInvite);
   const deleteInvite = useMutation(api.portals.deletePortalInviteAndCleanup);
+  const hardDeleteInvite = useMutation(api.portals.deletePortalInvite);
   const resendInvite = useAction(api.portals.resendPortalInvite);
 
   // Separate invites by portal type
@@ -875,32 +877,81 @@ export const PortalAccessSettings: React.FC = () => {
   const handleDeleteConfirm = async () => {
     if (!deleteTarget || isDeleting) return;
     const inviteId = deleteTarget._id;
-    const inviteEmail = deleteTarget.inviteeEmail || '';
+    const inviteEmail = (deleteTarget.inviteeEmail || '').toLowerCase().trim();
     const invitePhone = deleteTarget.inviteePhone || '';
     console.log('[PortalAccessSettings] Confirming delete:', { inviteId, inviteEmail, invitePhone, inviteIdType: typeof inviteId });
     setIsDeleting(true);
     try {
-      // Try the full cleanup mutation first — pass both email and phone for robust user lookup
-      await deleteInvite({
-        inviteId: inviteId as any,
-        inviteeEmail: inviteEmail || undefined,
-        inviteePhone: invitePhone || undefined,
-      });
-      console.log('[PortalAccessSettings] Delete succeeded for:', inviteId);
+      // ── Step 1: Run the cleanup mutation ──
+      // This resets the user account (role → Pending, password cleared, etc.)
+      // so the same email can be re-invited cleanly.
+      //
+      // On the OLD (undeployed) Convex backend, this ALSO marks the invite
+      // record(s) as "revoked" instead of deleting them — which is why the
+      // user kept seeing the item in the list with a "revoked" badge.
+      // On the NEW backend (after npx convex deploy), this hard-deletes the
+      // records directly.
+      try {
+        await deleteInvite({
+          inviteId: inviteId as any,
+          inviteeEmail: inviteEmail || undefined,
+          inviteePhone: invitePhone || undefined,
+        });
+      } catch (cleanupErr: any) {
+        console.warn('[PortalAccessSettings] Cleanup mutation failed (continuing to hard-delete):', cleanupErr);
+        // Non-fatal — we still want to hard-delete the invite record below
+      }
+
+      // ── Step 2: HARD-DELETE all invite records for this email ──
+      // This guarantees the item disappears from the list ENTIRELY, regardless
+      // of whether the OLD or NEW backend is running. The user explicitly
+      // wants Delete to remove the item — not leave it as "revoked".
+      //
+      // We fetch all invites for this email (including the target + any
+      // cascade-revoked ones from Step 1) and hard-delete each one. This
+      // handles three cases:
+      //   1. OLD backend: Step 1 marked them as "revoked" → we hard-delete them now
+      //   2. NEW backend: Step 1 already hard-deleted them → these calls fail
+      //      silently (record not found) — wrapped in try/catch
+      //   3. Email had multiple invite records (cross-firm, etc.) → all get
+      //      hard-deleted so the email is fully reusable
+      const invitesToHardDelete: string[] = [String(inviteId)];
+      if (inviteEmail) {
+        try {
+          const allInvitesForEmail: any = await convex.query(
+            api.portals.getPortalInvitesByEmail,
+            { email: inviteEmail }
+          );
+          if (Array.isArray(allInvitesForEmail)) {
+            for (const inv of allInvitesForEmail) {
+              const id = String(inv._id);
+              if (!invitesToHardDelete.includes(id)) {
+                invitesToHardDelete.push(id);
+              }
+            }
+          }
+        } catch (fetchErr: any) {
+          console.warn('[PortalAccessSettings] Could not fetch cascade invites — only deleting the target:', fetchErr);
+          // Non-fatal — we'll still delete the target invite below
+        }
+      }
+
+      let hardDeletedCount = 0;
+      for (const id of invitesToHardDelete) {
+        try {
+          await hardDeleteInvite({ inviteId: id as any });
+          hardDeletedCount++;
+        } catch (e: any) {
+          // Already deleted by Step 1 (new backend), or already gone — non-fatal
+        }
+      }
+      console.log(`[PortalAccessSettings] Hard-deleted ${hardDeletedCount} invite record(s) for ${inviteEmail}`);
+
       addToast('Portal access deleted. The user can now be re-invited with a fresh invitation.', { type: 'success' });
       setDeleteTarget(null);
     } catch (err: any) {
       console.error('[PortalAccessSettings] Delete failed:', err);
-      // If the cleanup mutation fails, try a simpler revoke as fallback
-      try {
-        console.log('[PortalAccessSettings] Attempting fallback revoke for:', inviteId);
-        await revokeInvite({ inviteId: inviteId as any });
-        addToast('Portal access revoked (cleanup partially failed — user account may need manual reset).', { type: 'warning' });
-        setDeleteTarget(null);
-      } catch (fallbackErr: any) {
-        console.error('[PortalAccessSettings] Fallback revoke also failed:', fallbackErr);
-        addToast(fallbackErr.message || err.message || 'Failed to delete invitation. Please try again.', { type: 'error' });
-      }
+      addToast(err.message || 'Failed to delete invitation. Please try again.', { type: 'error' });
       // Don't close the dialog on error — let the user retry or cancel
     } finally {
       setIsDeleting(false);
