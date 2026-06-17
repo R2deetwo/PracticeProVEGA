@@ -993,44 +993,24 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     // TASK 17: When no product is chosen, "Get Started Free" scrolls to the
     // product cards and highlights them (one-pulse glow) instead of opening
     // the signup modal. The user explicitly requested this flow.
-    const [highlightCards, setHighlightCards] = useState(false);
-
+    // TASK 21: "Get Started" ALWAYS opens the signup modal with the product
+    // selection step showing — UNLESS a specific productOverride is passed
+    // (e.g. from the pricing section's product-specific CTAs).
+    //
+    // Previously, when productChosen was true (on /vega or /atrium), clicking
+    // "Get Started" passed selectedProduct to the modal, which skipped the
+    // product_selection step and went straight to the registration form.
+    // The user explicitly requested: "Clicking 'Get Started' should immediately
+    // present the product selection screen before prompting the user for their
+    // registration details."
+    //
+    // Now: ALL "Get Started" buttons (header, hub, product pages) open the
+    // signup modal with NO selectedProduct → the product_selection step shows.
+    // Only the pricing section's product-specific CTAs pass an override.
     const openSignup = (productOverride?: ProductMode) => {
-        // If a product is explicitly chosen (via URL or product card click),
-        // open the signup modal directly for that product.
-        if (productOverride || productChosen) {
-            openModal('signup', null, {
-                selectedProduct: productOverride || activeProduct,
-            });
-        } else {
-            // TASK 18: No product chosen — scroll to the product cards and
-            // highlight them. The user explicitly requested this behavior:
-            // "when the user clicks on get started for free on the main landing
-            //  page, it should scroll and direct them to the cards on the main
-            //  landing page, highlight them."
-            //
-            // We use the scrollRef (the main scrollable container) and compute
-            // the exact scroll position to center the cards in the viewport.
-            // scrollIntoView can be unreliable inside nested scroll containers,
-            // so we do the math manually.
-            const cardsContainer = document.querySelector('[data-product-cards]') as HTMLElement;
-            if (cardsContainer && scrollRef.current) {
-                const container = scrollRef.current;
-                const cardsRect = cardsContainer.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                // Compute the scroll position that centers the cards in the container
-                const targetScroll = container.scrollTop + (cardsRect.top - containerRect.top) - (containerRect.height / 2) + (cardsRect.height / 2);
-                container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
-            } else if (cardsContainer) {
-                // Fallback: use scrollIntoView if scrollRef isn't available
-                cardsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-            // Trigger the highlight animation. We toggle false → true with a
-            // small delay to force React to re-render the cards with the new
-            // highlightKey, which re-mounts them and replays the glow animation.
-            setHighlightCards(false);
-            setTimeout(() => setHighlightCards(true), 100);
-        }
+        openModal('signup', null, {
+            selectedProduct: productOverride || undefined,
+        });
     };
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);
     const [contactDrawerSource, setContactDrawerSource] = useState('landing_page');
@@ -1068,7 +1048,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                     onPickProduct={handlePickProduct}
                     onLogin={() => openModal('login')}
                     onSignup={openSignup}
-                    highlightKey={highlightCards ? Date.now() : 0}
+                    highlightKey={0}
                 />
             ) : (
                 <main key={activeProduct} className="animate-swap-in">
