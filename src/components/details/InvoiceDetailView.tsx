@@ -19,7 +19,7 @@ const InvoiceDetailViewContent: React.FC = () => {
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
     const { handleUpdateInvoiceStatus, handleRevertPayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
-    const { closeModal, navigateTo, openModal, selectedId: invoiceId, currentHistoryEntry } = useUI();
+    const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry } = useUI();
 
     const invoice = financeState.invoices.find((i: any) => i.id === invoiceId);
     const firmDetails = coreState.firmDetails;
@@ -99,7 +99,7 @@ const InvoiceDetailViewContent: React.FC = () => {
         if (client) {
             generateInvoicePdf(invoice, firmDetails, client);
         } else {
-            alert("Client details could not be found to generate the PDF.");
+            addToast("Client details could not be found to generate the PDF.", { type: 'error' });
         }
     };
 

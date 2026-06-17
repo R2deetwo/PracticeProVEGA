@@ -3,6 +3,7 @@ import { BankAccount } from '../../types';
 import { CurrencyDollarIcon, InfoIcon, XIcon, SaveIcon, ShieldCheckIcon } from '../../constants';
 import { Landmark as BankIcon, CreditCard as CreditCardIcon } from 'lucide-react';
 import { inputClassic } from '../../utils/formStyles';
+import { useUI } from '../../contexts/UIContext';
 
 interface BankAccountFormProps {
   accountToEdit?: BankAccount;
@@ -14,6 +15,7 @@ interface BankAccountFormProps {
 }
 
 const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddAccount, onUpdateAccount, onSetDefault, onDelete, onClose }) => {
+  const { addToast } = useUI();
   const [accountName, setAccountName] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
@@ -31,7 +33,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!bankName.trim() || !accountNumber.trim()) {
-      alert("Bank Name and Account Number are required.");
+      addToast("Bank Name and Account Number are required.", { type: 'error' });
       return;
     }
     const accountData = {

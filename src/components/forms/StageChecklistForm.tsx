@@ -3,6 +3,7 @@ import { Matter, WorkflowDefinition, Task, ChecklistTemplate, ChecklistItem, Tas
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useUI } from '../../contexts/UIContext';
 import { TrashIcon, PlusIcon } from '../../constants';
 import { inputClassic } from '../../utils/formStyles';
 
@@ -22,6 +23,7 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
   onClose,
 }) => {
   const { handleApplyStageChecklist, handleApplyCustomStageChecklist } = useDataActions();
+  const { addToast } = useUI();
   
   const [activeTab, setActiveTab] = useState<'template' | 'create'>('template');
 
@@ -55,14 +57,14 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
     e.preventDefault();
     if (activeTab === 'template') {
         if (!templateId) {
-            alert("Please select a template to apply.");
+            addToast("Please select a template to apply.", { type: 'error' });
             return;
         }
         handleApplyStageChecklist(matter.id, stage, templateId, shareWithClient);
     } else { // 'create' tab
         const finalItems = newChecklistItems.filter(i => i.text.trim());
         if (!newChecklistName.trim() || finalItems.length === 0) {
-            alert("Please provide a name and at least one item for the new checklist.");
+            addToast("Please provide a name and at least one item for the new checklist.", { type: 'error' });
             return;
         }
         handleApplyCustomStageChecklist(matter.id, stage, newChecklistName, finalItems, saveAsTemplate, shareWithClient);

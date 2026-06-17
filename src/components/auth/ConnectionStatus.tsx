@@ -5,6 +5,7 @@ import { ShieldCheckIcon, DismissIcon, RevertIcon, ZapIcon, OfficeBuildingIcon, 
 import { useAuth } from '../../contexts/AuthContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
@@ -12,6 +13,7 @@ const ConnectionStatus: React.FC = () => {
     const { currentUser, refreshUser } = useAuth();
     const { matterState } = useMatterState();
     const { coreState, isDataLoaded } = useCoreState();
+    const { addToast } = useUI();
     const diagnoseMutation = useMutation(api.myFunctions.diagnoseConnectivity);
     const repairMutation = useMutation(api.myFunctions.repairAccountConnection);
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
@@ -82,7 +84,7 @@ const ConnectionStatus: React.FC = () => {
                 window.location.reload();
             }, 1000);
         } catch (e) {
-            alert("Failed to connect. Please try again.");
+            addToast("Failed to connect. Please try again.", { type: 'error' });
             setIsScanning(false);
         }
     };
@@ -98,7 +100,7 @@ const ConnectionStatus: React.FC = () => {
             // Re-scan to update list
             await runScan();
         } catch (e) {
-            alert("Failed to delete workspace.");
+            addToast("Failed to delete workspace.", { type: 'error' });
         } finally {
             setIsDeleting(false);
         }

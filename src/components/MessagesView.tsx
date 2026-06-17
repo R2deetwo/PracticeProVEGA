@@ -371,6 +371,10 @@ const MessagesView: React.FC = () => {
     const logAutomation = useMutation(api.sentry.logAutomation);
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
     const deleteInboundMessage = useMutation(api.sentry.deleteInboundMessage);
+    // Admin-side delete for portal conversation messages. Allows admin to
+    // delete ANY message in a conversation (their own or the portal user's).
+    // Uses the new adminDeletePortalMessage mutation which has a cross-firm guard.
+    const adminDeletePortalMsg = useMutation(api.portals.adminDeletePortalMessage);
 
     // ── Inbox: selected conversation ──
     const [selectedInboxId, setSelectedInboxId] = useState<string | null>(null);
@@ -926,12 +930,15 @@ const MessagesView: React.FC = () => {
                                             {/* Conversation-based thread view */}
                                             {selectedInboundMsg._inboxType === 'conversation' ? (
                                                 conversationMessages && conversationMessages.length > 0 ? (
-                                                    conversationMessages.map((msg: any) => {
+                                                    // BUG FIX (Task 12): Filter out isDeleted messages — the
+                                                    // adminDeletePortalMessage mutation marks them as isDeleted:true
+                                                    // but getConversationMessages still returns them. Without
+                                                    // this filter, deleted messages would stay visible forever.
+                                                    conversationMessages.filter((msg: any) => !msg.isDeleted).map((msg: any) => {
                                                         const isAdmin = msg.senderRole === 'Admin';
-                                                        const isDeleted = msg.isDeleted;
                                                         return (
-                                                            <div key={msg._id} className={`flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
-                                                                <div className={`max-w-[85%] ${isAdmin
+                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
+                                                                <div className={`relative max-w-[85%] ${isAdmin
                                                                     ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm'
                                                                     : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm'
                                                                 }`}>
@@ -940,19 +947,12 @@ const MessagesView: React.FC = () => {
                                                                             {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
                                                                         </span>
                                                                         <div className="flex items-center gap-2">
-                                                                            {isDeleted && (
-                                                                                <span className="text-[9px] font-bold text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-1.5 py-0.5 rounded uppercase">Deleted by sender</span>
-                                                                            )}
                                                                             <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                                 {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
                                                                             </span>
                                                                         </div>
                                                                     </div>
-                                                                    {isDeleted ? (
-                                                                        <p className={`text-sm italic ${isAdmin ? 'text-primary-200/60' : 'text-slate-400 dark:text-zinc-500'}`}>This message was deleted by the sender</p>
-                                                                    ) : (
-                                                                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
-                                                                    )}
+                                                                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
                                                                     {/* Attachments */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
                                                                         <div className="mt-3 space-y-1.5">
@@ -968,6 +968,36 @@ const MessagesView: React.FC = () => {
                                                                             })}
                                                                         </div>
                                                                     )}
+                                                                    {/* Delete button — appears on hover. Admin can delete ANY
+                                                                        message in the conversation (their own or the portal user's). */}
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const ok = await confirm({
+                                                                                title: 'Delete this message?',
+                                                                                message: 'The message will be removed from this conversation. A record will be retained for compliance.',
+                                                                                confirmLabel: 'Delete',
+                                                                                cancelLabel: 'Cancel',
+                                                                                danger: true,
+                                                                            });
+                                                                            if (!ok) return;
+                                                                            try {
+                                                                                await adminDeletePortalMsg({
+                                                                                    messageId: String(msg._id),
+                                                                                    adminId: currentUser.id,
+                                                                                    firmId: currentUser.firmId || '',
+                                                                                });
+                                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                                            } catch (err: any) {
+                                                                                addToast(err.message || 'Failed to delete message.', { type: 'error' });
+                                                                            }
+                                                                        }}
+                                                                        className={`absolute -top-1 ${isAdmin ? '-left-1' : '-right-1'} opacity-0 group-hover:opacity-100 w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all`}
+                                                                        title="Delete message"
+                                                                    >
+                                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                                        </svg>
+                                                                    </button>
                                                                 </div>
                                                             </div>
                                                         );

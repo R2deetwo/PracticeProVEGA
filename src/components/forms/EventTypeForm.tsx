@@ -4,6 +4,7 @@ import { PALETTE_COLORS } from '../../constants';
 import { inputClassic } from '../../utils/formStyles';
 import { getEventTypeBadgeClass } from '../../utils/colorUtils';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 
 interface EventTypeFormProps {
   onAddEventType?: (newEventType: Omit<CustomEventType, 'id'>) => void;
@@ -15,6 +16,7 @@ interface EventTypeFormProps {
 
 const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateEventType, onDelete, onClose, eventTypeToEdit }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { addToast } = useUI();
     const [name, setName] = useState('');
   const [color, setColor] = useState(PALETTE_COLORS[0]);
   
@@ -30,7 +32,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Please provide a name for the event type.");
+      addToast("Please provide a name for the event type.", { type: 'error' });
       return;
     }
     

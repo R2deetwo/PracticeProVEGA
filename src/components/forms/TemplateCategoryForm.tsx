@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentTemplateCategory } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 import { inputClassic } from '../../utils/formStyles';
 
 interface TemplateCategoryFormProps {
@@ -13,6 +14,7 @@ interface TemplateCategoryFormProps {
 
 const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUpdate, onDelete, onClose, categoryToEdit }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { addToast } = useUI();
     const [name, setName] = useState('');
   
   const isEditing = !!categoryToEdit;
@@ -26,7 +28,7 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Please provide a name for the category.");
+      addToast("Please provide a name for the category.", { type: 'error' });
       return;
     }
     

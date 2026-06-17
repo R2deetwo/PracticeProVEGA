@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DocumentCategory } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 import { inputClassic } from '../../utils/formStyles';
 
 interface DocumentCategoryFormProps {
@@ -15,6 +16,7 @@ interface DocumentCategoryFormProps {
 
 const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCategory, onUpdateCategory, onDelete, onClose, categoryToEdit, allCategories, context }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { addToast } = useUI();
     const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
   
@@ -32,7 +34,7 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Please provide a name for the document category.");
+      addToast("Please provide a name for the document category.", { type: 'error' });
       return;
     }
     

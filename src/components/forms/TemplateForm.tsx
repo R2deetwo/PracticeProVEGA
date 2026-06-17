@@ -6,6 +6,7 @@ import { DocumentTemplate, DocumentTemplateCategory } from '../../types';
 import { TEMPLATE_PLACEHOLDERS } from '../../constants';
 import Tooltip from '../Tooltip';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 
 interface TemplateFormProps {
   onAddTemplate?: (template: Omit<DocumentTemplate, 'id'>) => void;
@@ -18,6 +19,7 @@ interface TemplateFormProps {
 
 const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemplate, onDelete, onClose, templateToEdit, documentTemplateCategories }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { addToast } = useUI();
     const [name, setName] = useState('');
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
@@ -45,7 +47,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !content.trim() || !categoryId) {
-      alert("Please provide a template name, content, and select a category.");
+      addToast("Please provide a template name, content, and select a category.", { type: 'error' });
       return;
     }
 

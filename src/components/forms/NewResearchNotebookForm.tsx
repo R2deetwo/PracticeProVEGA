@@ -3,6 +3,7 @@ import { Matter } from '../../types';
 import { UploadIcon, DocumentIcon, DismissIcon } from '../../constants';
 import { inputLarge } from '../../utils/formStyles';
 import { formatBytes } from '../../utils/formatting';
+import { useUI } from '../../contexts/UIContext';
 
 interface NewResearchNotebookFormProps {
     matters: Matter[];
@@ -11,6 +12,7 @@ interface NewResearchNotebookFormProps {
 }
 
 const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matters, onSubmit, onClose }) => {
+    const { addToast } = useUI();
     const [name, setName] = useState('');
     const [matterId, setMatterId] = useState<string | undefined>(undefined);
     const [files, setFiles] = useState<File[]>([]);
@@ -29,7 +31,7 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) {
-            alert("Please enter a name for the notebook.");
+            addToast("Please enter a name for the notebook.", { type: 'error' });
             return;
         }
         onSubmit({ name: name.trim(), matterId: matterId || undefined, files });

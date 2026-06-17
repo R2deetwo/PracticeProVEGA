@@ -2755,6 +2755,85 @@ export const softDeletePortalMessage = mutation({
 });
 
 /**
+ * adminDeletePortalMessage — Admin deletes any portal message in their firm.
+ *
+ * Unlike softDeletePortalMessage (which only allows the SENDER to delete
+ * their own messages), this mutation allows an admin to delete ANY message
+ * in a conversation — including messages sent by the portal user.
+ *
+ * Use case: the admin is reviewing a conversation in MessagesView and wants
+ * to remove an inappropriate or test message. The admin clicks the delete
+ * button on the individual chat bubble; this mutation is called.
+ *
+ * Security:
+ *   - The message must belong to a conversation whose firmId matches the
+ *     admin's firmId. Cross-firm deletion is refused.
+ *   - The message is soft-deleted (isDeleted: true) so the admin retains
+ *     the record for compliance/audit purposes — same as the sender-side
+ *     soft-delete. The UI filters isDeleted messages so they disappear
+ *     from the conversation view.
+ *
+ * Args:
+ *   messageId: The _id of the portal_messages record to delete.
+ *   adminId: The admin's user _id (for the deletedBy audit field).
+ *   firmId: The admin's firmId (for the cross-firm guard).
+ */
+export const adminDeletePortalMessage = mutation({
+  args: {
+    messageId: v.string(),
+    adminId: v.string(),
+    firmId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId as any) as any;
+    if (!message) throw new Error("Message not found");
+
+    // SECURITY: Cross-firm guard — admin can only delete messages in their own firm.
+    // The message may have a firmId directly, or we look it up via the conversation.
+    let messageFirmId = message.firmId;
+    if (!messageFirmId && message.conversationId) {
+      const conversation = await ctx.db.get(message.conversationId as any) as any;
+      if (conversation) {
+        messageFirmId = conversation.firmId;
+      }
+    }
+    if (messageFirmId && messageFirmId !== args.firmId) {
+      throw new Error("You can only delete messages in your own firm.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(message._id, {
+      isDeleted: true,
+      deletedBy: args.adminId,
+      deletedAt: now,
+      updatedAt: now,
+    });
+
+    // Update the conversation's last message preview if this was the last message
+    if (message.conversationId) {
+      const conversation = await ctx.db.get(message.conversationId as any);
+      if (conversation) {
+        const remainingMessages = await ctx.db
+          .query("portal_messages")
+          .withIndex("by_conversation", (q: any) => q.eq("conversationId", message.conversationId))
+          .order("desc")
+          .collect();
+
+        const lastVisible = remainingMessages.find((m: any) => !m.isDeleted);
+        if (lastVisible) {
+          await ctx.db.patch(conversation._id, {
+            lastMessagePreview: (lastVisible as any).content?.substring(0, 100) || "Message deleted",
+            updatedAt: now,
+          });
+        }
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+/**
  * getPortalMessagesByFirm — Gets all portal messages for a firm (admin side).
  * Kept for backward compat; new code should use getPortalConversationsByFirm.
  */

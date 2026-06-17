@@ -3,6 +3,7 @@ import { Contact, Matter } from '../../types';
 import { UserIcon, GavelIconLarge, InfoIcon, XIcon, SaveIcon, LinkIcon } from '../../constants';
 import { Building2 as OfficeBuildingIcon, Link2Off as UnlinkIcon } from 'lucide-react';
 import { inputLarge } from '../../utils/formStyles';
+import { useUI } from '../../contexts/UIContext';
 
 interface LinkMatterToContactFormProps {
     contact: Contact;
@@ -12,13 +13,14 @@ interface LinkMatterToContactFormProps {
 }
 
 export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = ({ contact, matters, onSave, onClose }) => {
+    const { addToast } = useUI();
     const [selectedMatterId, setSelectedMatterId] = useState<string>('');
     const [asClient, setAsClient] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedMatterId) {
-            alert('Please select a matter to link.');
+            addToast('Please select a matter to link.', { type: 'error' });
             return;
         }
         onSave(contact.id, selectedMatterId, asClient);

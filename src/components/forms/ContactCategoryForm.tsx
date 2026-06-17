@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ContactCategory } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 import { inputClassic } from '../../utils/formStyles';
 
 interface ContactCategoryFormProps {
@@ -13,6 +14,7 @@ interface ContactCategoryFormProps {
 
 const ContactCategoryForm: React.FC<ContactCategoryFormProps> = ({ onAddCategory, onUpdateCategory, onDelete, onClose, categoryToEdit }) => {
   const { coreState, isDataLoaded } = useCoreState();
+  const { addToast } = useUI();
     const [name, setName] = useState('');
   
   const isEditing = !!categoryToEdit;
@@ -26,7 +28,7 @@ const ContactCategoryForm: React.FC<ContactCategoryFormProps> = ({ onAddCategory
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert("Please provide a name for the category.");
+      addToast("Please provide a name for the category.", { type: 'error' });
       return;
     }
     

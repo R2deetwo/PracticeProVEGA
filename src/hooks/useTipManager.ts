@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useUI } from '../contexts/UIContext';
 
 export type TipCategory = 'Pro-Tip' | 'Workflow' | 'Billing' | 'Task Management';
 
@@ -30,6 +31,7 @@ const defaultSettings: TipSettings = {
 
 export const useTipManager = () => {
     const { currentUser } = useAuth();
+    const { addToast } = useUI();
     const [settings, setSettings] = useState<TipSettings>(() => getStoredJSON('practicepro_tip_settings', defaultSettings));
     const [dismissedTips, setDismissedTips] = useState<Record<string, boolean>>(() => getStoredJSON('practicepro_dismissed_tips', {}));
     const [snoozedTips, setSnoozedTips] = useState<Record<string, number>>(() => getStoredJSON('practicepro_snoozed_tips', {}));
@@ -98,9 +100,9 @@ export const useTipManager = () => {
         setDismissedTips({});
         setSnoozedTips({});
         if (!silent) {
-            alert("All dismissed and snoozed tips have been reset. They will reappear as you browse the app.");
+            addToast("All dismissed and snoozed tips have been reset. They will reappear as you browse the app.", { type: 'info' });
         }
-    }, []);
+    }, [addToast]);
 
     return {
         settings,

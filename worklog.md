@@ -1422,3 +1422,122 @@ Stage Summary:
 - Convex deploy is blocked on browser auth — user must run it themselves.
 - Patch file prepared for re-applying Task 8 frontend changes after deploy.
 - Ready for commit and push to main.
+
+---
+Task ID: 12-subagent-alerts
+Agent: Sub Agent
+Task: Replace all alert() calls with addToast() (useUI hook) for consistent in-app messaging
+
+CONTEXT:
+A previous task (Task 10) replaced all window.confirm() calls with a useConfirm
+hook. This task continues the consistency work by replacing all alert() calls
+with the existing addToast system (useUI → addToast(message, { type })).
+
+The addToast signature is:
+  addToast(message: React.ReactNode, options?: { type?: 'success' | 'error' | 'info', link?: ... })
+Default duration is 5000ms (hardcoded in UIContext). Note: 'warning' is NOT a
+valid type — only 'success' | 'error' | 'info'. The task brief mentioned
+'warning' and 'duration' options but the actual API doesn't support them; I
+used 'error' for validation failures (the most common case) and 'info' for
+the success-ish "tips reset" message in useTipManager.
+
+WORK LOG:
+- Read UIContext.tsx (539 lines) to confirm the addToast API. Confirmed that
+  Toast['type'] is 'success' | 'error' | 'info' (no 'warning').
+- Read AppProvider.tsx to confirm that UIProvider wraps OnboardingProvider
+  (so useTipManager — used inside OnboardingProvider — can safely call useUI).
+- Edited 14 files:
+
+1. src/components/details/InvoiceDetailView.tsx (line 102)
+   - Already imported useUI; added `addToast` to existing destructure on line 22.
+   - Replaced `alert("Client details could not be found to generate the PDF.")`
+     with `addToast("Client details could not be found to generate the PDF.", { type: 'error' })`.
+
+2. src/components/auth/ConnectionStatus.tsx (lines 85, 101)
+   - Added `import { useUI } from '../../contexts/UIContext';` after CoreContext import.
+   - Added `const { addToast } = useUI();` near other hooks (line 16).
+   - Replaced `alert("Failed to connect. Please try again.")` → `addToast("Failed to connect. Please try again.", { type: 'error' })`.
+   - Replaced `alert("Failed to delete workspace.")` → `addToast("Failed to delete workspace.", { type: 'error' })`.
+
+3. src/components/forms/LinkMatterToContactForm.tsx (line 21)
+   - Added `import { useUI } from '../../contexts/UIContext';`.
+   - Added `const { addToast } = useUI();` at top of component.
+   - Replaced validation `alert('Please select a matter to link.')` → `addToast('Please select a matter to link.', { type: 'error' })`.
+
+4. src/components/forms/TemplateCategoryForm.tsx (line 29)
+   - Added useUI import + destructure.
+   - Replaced `alert("Please provide a name for the category.")` → `addToast(..., { type: 'error' })`.
+
+5. src/components/forms/ContactCategoryForm.tsx (line 29)
+   - Added useUI import + destructure.
+   - Replaced `alert("Please provide a name for the category.")` → `addToast(..., { type: 'error' })`.
+
+6. src/components/forms/StageChecklistForm.tsx (lines 58, 65)
+   - Added useUI import + destructure (line 6, 26).
+   - Replaced `alert("Please select a template to apply.")` → `addToast(..., { type: 'error' })`.
+   - Replaced `alert("Please provide a name and at least one item for the new checklist.")` → `addToast(..., { type: 'error' })`.
+
+7. src/components/forms/DocumentCategoryForm.tsx (line 35)
+   - Added useUI import + destructure.
+   - Replaced `alert("Please provide a name for the document category.")` → `addToast(..., { type: 'error' })`.
+
+8. src/components/forms/WorkflowForm.tsx (lines 83, 88, 98)
+   - Added useUI import + destructure.
+   - Replaced 3 alerts:
+     * `alert(\`Please provide a workflow type (${isProperty ? 'Category' : 'Practice Area'}).\`)` → `addToast(\`...\`, { type: 'error' })`.
+     * `alert("Please provide at least one stage.")` → `addToast(..., { type: 'error' })`.
+     * `alert("Sub-category name is required.")` → `addToast(..., { type: 'error' })`.
+
+9. src/components/forms/BankAccountForm.tsx (line 34)
+   - Added useUI import + destructure.
+   - Replaced `alert("Bank Name and Account Number are required.")` → `addToast(..., { type: 'error' })`.
+
+10. src/components/forms/ExternalCounselInviteForm.tsx (line 31)
+    - Already imported useUI + destructured `addToast` (line 19).
+    - Replaced `alert('Please fill all required fields.')` → `addToast('Please fill all required fields.', { type: 'error' })`.
+
+11. src/components/forms/TemplateForm.tsx (line 48)
+    - Added useUI import + destructure.
+    - Replaced `alert("Please provide a template name, content, and select a category.")` → `addToast(..., { type: 'error' })`.
+
+12. src/components/forms/NewResearchNotebookForm.tsx (line 32)
+    - Added useUI import + destructure.
+    - Replaced `alert("Please enter a name for the notebook.")` → `addToast(..., { type: 'error' })`.
+
+13. src/components/forms/EventTypeForm.tsx (line 33)
+    - Added useUI import + destructure.
+    - Replaced `alert("Please provide a name for the event type.")` → `addToast(..., { type: 'error' })`.
+
+14. src/hooks/useTipManager.ts (line 101)
+    - This is a hook (not a component), but it's called from OnboardingProvider
+      (and other components) which are all inside the UIProvider tree.
+    - Added `import { useUI } from '../contexts/UIContext';` (note: ../contexts/, not ../../contexts/).
+    - Added `const { addToast } = useUI();` after the useAuth() call.
+    - Replaced `alert("All dismissed and snoozed tips have been reset. They will reappear as you browse the app.")` → `addToast("...", { type: 'info' })`.
+    - Updated the useCallback dependency array to include `addToast` (was empty `[]`).
+
+RULES OF HOOKS CHECK:
+For each component, I verified that the `useUI()` call is BEFORE any early
+returns. In particular:
+- InvoiceDetailView.tsx: useUI at line 22, early `if (!invoice) return` at line 32. ✓
+- ConnectionStatus.tsx: useUI at line 16, early return at line 162. ✓
+- ExternalCounselInviteForm.tsx: useUI at line 19, ternary return at line 58. ✓
+All other components have no early returns.
+
+VERIFICATION:
+- Grep for `\balert\(` across src/ returns only one match: src/stubs/jspdf-stub.ts
+  (the stub file we were instructed NOT to touch).
+- `tsc --noEmit` (excluding the pre-existing src/app/page.tsx error): 0 errors.
+
+Stage Summary:
+- 14 files modified.
+- 18 total alert() calls replaced with addToast() (1 in InvoiceDetailView, 2 in
+  ConnectionStatus, 1 in LinkMatterToContactForm, 1 in TemplateCategoryForm,
+  1 in ContactCategoryForm, 2 in StageChecklistForm, 1 in DocumentCategoryForm,
+  3 in WorkflowForm, 1 in BankAccountForm, 1 in ExternalCounselInviteForm,
+  1 in TemplateForm, 1 in NewResearchNotebookForm, 1 in EventTypeForm,
+  1 in useTipManager).
+- All in-app messages now use the consistent toast system (alongside the
+  useConfirm hook from Task 10 for confirmations).
+- Frontend-only — Vercel auto-deploys.
+- Ready for commit and push to main.

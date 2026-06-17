@@ -28,7 +28,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name || !email || !firmName || !roleInMatter) {
-            alert('Please fill all required fields.');
+            addToast('Please fill all required fields.', { type: 'error' });
             return;
         }
 

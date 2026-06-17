@@ -5,6 +5,7 @@ import { ChevronUp as ChevronUpIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useUI } from '../../contexts/UIContext';
 import { v4 as uuidv4 } from 'uuid';
 
 interface WorkflowFormProps {
@@ -34,6 +35,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
 }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { isProperty } = useProduct();
+    const { addToast } = useUI();
     const [type, setType] = useState('');
     const [subCategoryName, setSubCategoryName] = useState('');
     const [stages, setStages] = useState<string[]>(['']);
@@ -80,12 +82,12 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!type.trim()) {
-            alert(`Please provide a workflow type (${isProperty ? 'Category' : 'Practice Area'}).`);
+            addToast(`Please provide a workflow type (${isProperty ? 'Category' : 'Practice Area'}).`, { type: 'error' });
             return;
         }
         const finalStages = stages.filter(s => s.trim() !== '');
         if (finalStages.length === 0) {
-            alert("Please provide at least one stage.");
+            addToast("Please provide at least one stage.", { type: 'error' });
             return;
         }
 
@@ -95,7 +97,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
             // CASE 1: Adding a Sub-Category (e.g. "Company Registration" under "Corporate")
             if (isSubCategoryMode) {
                 if (!subCategoryName.trim()) {
-                    alert("Sub-category name is required.");
+                    addToast("Sub-category name is required.", { type: 'error' });
                     setIsSubmitting(false);
                     return;
                 }
