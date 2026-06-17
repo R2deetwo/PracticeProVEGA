@@ -113,7 +113,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const dataHandlers = useDataActions();
-    const { currentUser, appMode, updateCurrentUser, originalUser, revertToOriginalUser } = useAuth();
+    const { currentUser, appMode, updateCurrentUser, originalUser, revertToOriginalUser, isImpersonating } = useAuth();
     const ui = useUI();
     const { view, selectedId, currentHistoryEntry, isSidebarRetracted, openModal, closeModal, navigateTo, theme, goBack } = ui;
     const { product } = useProduct();
@@ -399,10 +399,18 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     // admin would end up viewing the admin dashboard as another admin — which
     // is the root cause of the "residents portal looks like the main app" bug.
     //
+    // CRITICAL: We use `isImpersonating` (a SYNCHRONOUS flag derived from
+    // originalSessionToken) rather than `originalUser` (which requires the
+    // originalUserData query to load). Without this, there's a race condition
+    // window where currentUser (the impersonated admin) loads before
+    // originalUser, and the admin dashboard flashes on screen.
+    //
     // AuthContext has an auto-revert effect, but this guard ensures that even
     // if the revert is delayed (e.g. slow network), the admin NEVER sees the
     // admin dashboard while impersonation is active on a non-portal user.
-    if (currentUser && originalUser && !isPortalUser) {
+    if (currentUser && isImpersonating && !isPortalUser) {
+        const targetEmail = currentUser.email;
+        const targetRole = currentUser.role;
         return (
             <main className="w-full h-[100dvh] flex items-center justify-center bg-amber-50 dark:bg-amber-950/30 p-8">
                 <div className="text-center max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 border border-amber-200 dark:border-amber-800/50">
@@ -411,10 +419,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     </div>
                     <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-2">Impersonation failed</h2>
                     <p className="text-sm text-slate-600 dark:text-zinc-300 mb-1">
-                        The user you're trying to view (<strong>{currentUser.email}</strong>) doesn't have a portal role.
+                        The user you're trying to view (<strong>{targetEmail}</strong>) doesn't have a portal role.
                     </p>
                     <p className="text-xs text-slate-500 dark:text-zinc-400 mb-6">
-                        Their account role is <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{currentUser.role}</span>. Only Residents and Clients can be previewed through the portal impersonation feature. Returning to your admin session now.
+                        Their account role is <span className="font-mono font-bold text-amber-700 dark:text-amber-300">{targetRole}</span>. Only Residents and Clients can be previewed through the portal impersonation feature. Returning to your admin session now.
                     </p>
                     <button
                         onClick={revertToOriginalUser}
@@ -422,9 +430,15 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     >
                         Return to Admin Session
                     </button>
-                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
-                        You'll be returned to <strong>{originalUser.email}</strong> ({originalUser.role}).
-                    </p>
+                    {originalUser ? (
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                            You'll be returned to <strong>{originalUser.email}</strong> ({originalUser.role}).
+                        </p>
+                    ) : (
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                            Restoring your admin session… (if this takes more than a few seconds, refresh the page)
+                        </p>
+                    )}
                 </div>
             </main>
         );

@@ -40,6 +40,7 @@ export interface AuthContextType {
     switchFirm: (firmId: string) => Promise<void>;
     loginAsUser: (user: User) => void;
     originalUser: User | null;
+    isImpersonating: boolean;
     revertToOriginalUser: () => void;
 }
 
@@ -94,7 +95,17 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const [isStorageLoaded, setIsStorageLoaded] = React.useState(true);
 
     // State to handle impersonation
-    const [originalSessionToken, setOriginalSessionToken] = React.useState<string | null>(null);
+    // RESTORE: On initial load, check if we were in the middle of an
+    // impersonation session (page was refreshed). If so, restore the
+    // originalSessionToken so revertToOriginalUser() works and the
+    // auto-revert guard can fire if the impersonated user is not a portal user.
+    const [originalSessionToken, setOriginalSessionToken] = React.useState<string | null>(() => {
+        try {
+            return sessionStorage.getItem('practicepro_original_session') || null;
+        } catch {
+            return null;
+        }
+    });
 
     // Local overrides for UI responsiveness (e.g. defaultViewModes)
     const [localUserOverrides, setLocalUserOverrides] = React.useState<Partial<User> | null>(null);
@@ -292,6 +303,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 JSON.stringify({ token: originalSessionToken })
             );
             setOriginalSessionToken(null);
+            sessionStorage.removeItem('practicepro_original_session');
             // Surface a clear error to the admin via a window event that App.tsx
             // can listen for and display as a toast. This avoids tightly coupling
             // AuthContext to the toast system.
@@ -509,6 +521,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setSessionToken(null);
         if (originalSessionToken) {
             setOriginalSessionToken(null);
+            sessionStorage.removeItem('practicepro_original_session');
         }
 
         // SECURITY: When a portal user logs out, only clear the PORTAL session.
@@ -615,6 +628,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
         if (!originalSessionToken) {
             setOriginalSessionToken(sessionToken); // Save current admin session
+            // PERSIST: Store the original admin token in sessionStorage so that
+            // if the page is refreshed during impersonation, we can restore the
+            // admin session. Without this, a refresh during a failed
+            // impersonation would leave the admin permanently stuck as the
+            // impersonated user with no way to revert.
+            try {
+                sessionStorage.setItem('practicepro_original_session', sessionToken || '');
+            } catch {
+                // sessionStorage might be unavailable (private mode) — non-critical
+            }
         }
         setSessionToken(user.email.toLowerCase());
         sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: user.email.toLowerCase() }));
@@ -625,6 +648,21 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setSessionToken(originalSessionToken);
             sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: originalSessionToken }));
             setOriginalSessionToken(null);
+            sessionStorage.removeItem('practicepro_original_session');
+        } else {
+            // FALLBACK: If originalSessionToken was lost (e.g. page refresh),
+            // try to restore from sessionStorage.
+            try {
+                const stored = sessionStorage.getItem('practicepro_original_session');
+                if (stored) {
+                    setSessionToken(stored);
+                    sessionStorage.setItem(LOCAL_STORAGE_USER_KEY, JSON.stringify({ token: stored }));
+                    setOriginalSessionToken(null);
+                    sessionStorage.removeItem('practicepro_original_session');
+                }
+            } catch {
+                // Non-critical
+            }
         }
     };
 
@@ -721,6 +759,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         deleteFirm,
         loginAsUser,
         originalUser,
+        isImpersonating: !!originalSessionToken,
         revertToOriginalUser
     };
 
