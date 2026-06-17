@@ -289,7 +289,8 @@ const TrustBadgesStrip: React.FC = () => (
 const HubHero: React.FC<{
     onPickProduct: (p: 'vega' | 'atrium') => void;
     onLogin: () => void;
-}> = ({ onPickProduct, onLogin }) => {
+    onSignup: () => void;
+}> = ({ onPickProduct, onLogin, onSignup }) => {
     const { isProperty } = useProduct();
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
@@ -385,6 +386,23 @@ const HubHero: React.FC<{
                     Already have an account?{' '}
                     <span className="text-primary-400 font-semibold hover:text-primary-300">Sign in →</span>
                 </button>
+
+                {/* TASK 14: "Get Started Free" CTA in the middle of the hub.
+                    Opens the signup modal with NO product pre-selected, so the
+                    user sees the product selection step (Vega / Atrium / Komplet
+                    cards with glow animation). This matches the user's expectation:
+                    "when i click on get started for free at the middle ... it
+                    should see product selection step (3 cards with glow)". */}
+                <div className="mt-2">
+                    <button
+                        onClick={onSignup}
+                        className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-bold text-base shadow-xl shadow-primary-500/30 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
+                    >
+                        Get Started Free
+                        <span className="text-sm opacity-80 group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
+                    </button>
+                    <p className="text-xs text-slate-600 mt-3">Not sure which product fits? Browse all options.</p>
+                </div>
 
                 {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
                 <p className="text-[10px] text-slate-600 mt-12 tracking-wide">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
@@ -870,6 +888,22 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    // TASK 14: Sync productChosen + activeProduct with initialProduct when it
+    // changes (SPA navigation). Without this, navigating from /vega back to /
+    // via the browser's back button or logo click would leave productChosen=true,
+    // showing the HomeSection ("Get Started" button) instead of the HubHero
+    // (product cards). useState only uses the initial value on FIRST mount —
+    // subsequent prop changes are ignored unless we sync them in a useEffect.
+    useEffect(() => {
+        if (initialProduct) {
+            setActiveProduct(initialProduct);
+            setProductChosen(true);
+        } else {
+            // On / (root), always show the HubHero — reset productChosen to false.
+            setProductChosen(false);
+        }
+    }, [initialProduct]);
+
     useEffect(() => {
         const handleScroll = () => {
             if (!scrollRef.current) return;
@@ -978,6 +1012,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 <HubHero
                     onPickProduct={handlePickProduct}
                     onLogin={() => openModal('login')}
+                    onSignup={openSignup}
                 />
             ) : (
                 <main key={activeProduct} className="animate-swap-in">

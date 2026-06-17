@@ -55,6 +55,15 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                 modalContext.selectedProduct;
             setSelectedProduct(mappedProduct as any);
             setStep('form');
+        } else {
+            // BUG FIX (Task 14): When NO product is selected, ALWAYS reset to
+            // the product_selection step. Previously, if the user had opened
+            // the signup modal before (e.g. from /vega which set step='form'),
+            // the step would persist as 'form' even when reopening from /
+            // (no product). This meant the user saw the signup form directly
+            // instead of the product selection step — exactly the bug the user
+            // reported: "it did not do what i expect".
+            setStep('product_selection');
         }
     }, [modalContext]);
 
