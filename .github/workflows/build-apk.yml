@@ -1,0 +1,83 @@
+# GitHub Action: Build Android APK with Capacitor
+#
+# This file needs to be placed at: .github/workflows/build-apk.yml
+# in your GitHub repo.
+#
+# Your current token doesn't have 'workflow' scope, so I couldn't push
+# this file directly. You have 2 options:
+#
+# OPTION 1 (Easiest): Create it via GitHub's web UI
+# 1. Go to: https://github.com/R2deetwo/PracticeProVEGA
+# 2. Click "Add file" → "Create new file"
+# 3. Name it: .github/workflows/build-apk.yml
+# 4. Paste this entire file's content
+# 5. Click "Commit changes"
+#
+# OPTION 2: Give me a new token with 'workflow' scope
+# 1. Go to: https://github.com/settings/tokens
+# 2. Click "Generate new token (classic)"
+# 3. Select scopes: repo + workflow
+# 4. Copy the token and send it to me
+# 5. I'll push the file for you
+
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          build-tools-version: '34.0.0'
+          ndk-version: '26.1.10909125'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon -x lintVitalAnalyzeRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: practicepro-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Verify APK
+        run: |
+          echo "APK built successfully!"
+          ls -lh android/app/build/outputs/apk/debug/app-debug.apk
