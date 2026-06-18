@@ -274,9 +274,14 @@ const MatterDetailViewContent: React.FC = () => {
             ),
             onConfirm: async () => {
                 if (!matterData) return;
-                await matterActions.deleteMatter(matterData.id, matterData.title);
-                closeModal();
-                onGoBack();
+                try {
+                    await matterActions.deleteMatter(matterData.id, matterData.title);
+                    closeModal();
+                    onGoBack();
+                } catch (err: any) {
+                    console.error('[MatterDetailView] Delete failed:', err);
+                    // Keep modal open so user sees the error
+                }
             },
             confirmText: 'Delete Everything',
             confirmButtonClass: 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'

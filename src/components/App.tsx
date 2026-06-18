@@ -376,7 +376,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     if (isEditorMode) {
         return (
-            <main className={`${protectionEnabled ? 'app-protected' : ''} w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900`}>
+            <main className={`${protectionEnabled ? 'app-protected' : ''} w-full h-[100dvh] overflow-hidden bg-slate-50 dark:bg-zinc-900 pt-safe`}>
                 {showScreenshotOverlay && (
                     <div className="screenshot-overlay visible">
                         <span>Content protected</span>
@@ -449,7 +449,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     }
 
     return (
-        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500`}>
+        <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 pt-safe`}>
             {/* Screenshot deterrent overlay — shows a black screen when the
                 window loses focus or PrintScreen is pressed. Best-effort only. */}
             {showScreenshotOverlay && (
@@ -728,10 +728,19 @@ export const App: React.FC = () => {
                 setHasInitialSplashFinished(true);
                 return;
             }
+            // TASK: Native app — skip the web splash entirely (native splash already played).
+            // Web — show splash for a brief moment, then proceed.
+            if (isNativePlatform()) {
+                setFlowState('app');
+                setHasInitialized(true);
+                setVisualsComplete(true);
+                setHasInitialSplashFinished(true);
+                return;
+            }
             setFlowState('splash');
             setVisualsComplete(false);
             setLoadingMessage("Welcome back");
-            const timerId = window.setTimeout(() => setVisualsComplete(true), 300);
+            const timerId = window.setTimeout(() => setVisualsComplete(true), 200);
             return () => window.clearTimeout(timerId);
         } else if (!currentUser) {
             setHasInitialized(false);
@@ -743,11 +752,13 @@ export const App: React.FC = () => {
     useEffect(() => {
         if (currentUser && visualsComplete && !isDataLoaded && !forceEntry) {
             if (!safetyTimeoutRef.current) {
+                // TASK: Native app gets a shorter safety timeout (5s) — web keeps 12s
+                const timeoutMs = isNativePlatform() ? 5000 : 12000;
                 safetyTimeoutRef.current = setTimeout(() => {
                     if (import.meta.env.DEV) console.warn("[App] Data load timeout - forcing entry.");
                     setForceEntry(true);
                     safetyTimeoutRef.current = null;
-                }, 12000);
+                }, timeoutMs);
             }
         } else {
             if (safetyTimeoutRef.current) {
@@ -770,6 +781,8 @@ export const App: React.FC = () => {
             }
             if (isDataLoaded || forceEntry) {
                 setLoadingMessage("Ready");
+                // TASK: Reduced from 500ms to 100ms — the "Ready" delay was making the
+                // app feel sluggish. 100ms is enough for React to batch the state update.
                 const t = setTimeout(() => {
                     if (!currentUser.firmId) {
                         setFlowState('setup');
@@ -783,7 +796,7 @@ export const App: React.FC = () => {
                     if (!hasInitialized && (modal === 'login' || modal === 'signup')) {
                         closeModal();
                     }
-                }, 500);
+                }, isNativePlatform() ? 100 : 500);
                 return () => clearTimeout(t);
             } else {
                 setLoadingMessage("Finalizing Data Synchronization...");

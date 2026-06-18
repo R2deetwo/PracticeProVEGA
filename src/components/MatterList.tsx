@@ -124,7 +124,15 @@ const MatterCardItem: React.FC<{
                     )}
                 </div>
             ),
-            onConfirm: async () => { await handleDeleteMatter(matter.id, matter.title); closeModal(); },
+            onConfirm: async () => {
+                try {
+                    await handleDeleteMatter(matter.id, matter.title);
+                    closeModal();
+                } catch (err: any) {
+                    console.error('[MatterList] Delete failed:', err);
+                    // Keep modal open so user sees the error toast
+                }
+            },
             confirmText: 'Delete Everything'
         });
     };
