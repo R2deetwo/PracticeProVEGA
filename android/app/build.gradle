@@ -3,6 +3,13 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.practicepro.app"
     compileSdk = rootProject.ext.compileSdkVersion
+
+    // TASK: Explicit Java 21 compatibility — required by Android Gradle Plugin 8.13+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
     defaultConfig {
         applicationId "com.practicepro.app"
         minSdkVersion rootProject.ext.minSdkVersion
