@@ -1,5 +1,6 @@
 
 import * as React from 'react';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { useAloa } from '../../contexts/AloaProvider';
 import { AloaChat } from './AloaChat';
 import { useUI } from '../../contexts/UIContext';
@@ -30,114 +31,101 @@ const AloaPanel: React.FC = () => {
     const isShifted = isPanelOpen && !isMinimized && dockedModalType && window.innerWidth >= 1280;
     const isFullVisible = isPanelOpen && !isMinimized;
 
-    // ── SWIPE-TO-CLOSE ──
-    // Clean implementation: track deltaX, apply translateX in real-time,
-    // on release: if > threshold → close, else → snap back to 0.
-    const [dragX, setDragX] = React.useState(0);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const startX = React.useRef(0);
-    const startY = React.useRef(0);
-    const hasMoved = React.useRef(false);
-    const SWIPE_THRESHOLD = 100; // px to trigger close
+    // ── FRAMER MOTION GESTURE HANDLING ──
+    // Framer Motion handles the drag physics natively — no manual transform
+    // manipulation, no CSS transition conflicts, no state race conditions.
+    // The panel follows the finger in real-time and snaps with spring physics.
+    const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+        const SWIPE_THRESHOLD = 100;
+        const SWIPE_VELOCITY = 500;
 
-    const onTouchStart = (e: React.TouchEvent) => {
-        if (!isFullVisible || !isMobile) return;
-        startX.current = e.touches[0].clientX;
-        startY.current = e.touches[0].clientY;
-        hasMoved.current = false;
-    };
-
-    const onTouchMove = (e: React.TouchEvent) => {
-        if (!isFullVisible || !isMobile) return;
-        const dx = e.touches[0].clientX - startX.current;
-        const dy = e.touches[0].clientY - startY.current;
-
-        // Only start dragging if horizontal movement dominates
-        if (!hasMoved.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-            hasMoved.current = true;
-            setIsDragging(true);
-        }
-
-        if (hasMoved.current && dx > 0) {
-            setDragX(dx);
-        }
-    };
-
-    const onTouchEnd = () => {
-        if (!hasMoved.current) return;
-
-        if (dragX > SWIPE_THRESHOLD) {
-            // Close the panel
-            medium();
-            setDragX(0);
-            setIsDragging(false);
-            hasMoved.current = false;
+        // Close if: dragged right past threshold OR flicked right with velocity
+        if (info.offset.x > SWIPE_THRESHOLD || info.velocity.x > SWIPE_VELOCITY) {
+            medium(); // Haptic feedback
             closePanel();
-        } else {
-            // Snap back
-            setDragX(0);
-            setIsDragging(false);
-            hasMoved.current = false;
         }
+        // Otherwise: Framer Motion's spring animation snaps it back to x: 0
     };
 
-    // Compute transform
-    const translateX = isFullVisible ? dragX : (isMobile ? window.innerWidth : 500);
-    const opacity = isFullVisible ? Math.max(0.4, 1 - dragX / 400) : 1;
+    // Panel animation variants
+    const panelVariants = {
+        hidden: (mobile: boolean) => ({
+            x: mobile ? '100%' : 500,
+            opacity: 0,
+        }),
+        visible: {
+            x: 0,
+            opacity: 1,
+            transition: {
+                type: 'spring' as const,
+                damping: 30,
+                stiffness: 300,
+            },
+        },
+        exit: (mobile: boolean) => ({
+            x: mobile ? '100%' : 500,
+            opacity: 0,
+            transition: {
+                type: 'spring' as const,
+                damping: 30,
+                stiffness: 400,
+            },
+        }),
+    };
 
     return (
         <>
-            {/* Mobile Backdrop */}
-            {isFullVisible && isMobile && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1999] transition-opacity duration-300"
-                    style={{ opacity: isDragging ? opacity : 1 }}
-                    onClick={closePanel}
-                />
-            )}
+            <AnimatePresence>
+                {isFullVisible && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            className={`fixed inset-0 z-[1999] ${isMobile ? 'bg-black/60 backdrop-blur-md' : 'bg-black/5 backdrop-blur-[2px]'}`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            onClick={closePanel}
+                        />
 
-            {/* Desktop Backdrop */}
-            {isFullVisible && !isMobile && !isShifted && (
-                <div
-                    className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[1999] transition-opacity duration-300"
-                    onClick={closePanel}
-                />
-            )}
-
-            {/* Main Panel */}
-            <div
-                className={`
-                    fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col
-                    bg-white dark:bg-zinc-950
-                    border-l border-slate-200 dark:border-zinc-800
-                    shadow-[-10px_0_30px_rgba(0,0,0,0.1)]
-                    ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[480px] max-w-[calc(100vw-40px)] rounded-l-[32px] overflow-hidden'}
-                    ${isDragging ? '' : 'transition-all duration-300 ease-out'}
-                `}
-                style={{
-                    transform: `translateX(${translateX}px)`,
-                    opacity: opacity,
-                    pointerEvents: isFullVisible ? 'auto' : 'none',
-                }}
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-            >
-                {/* Drag handle */}
-                {isMobile && isFullVisible && (
-                    <div
-                        className="flex-shrink-0 flex justify-center pt-2 pb-1.5 bg-slate-50/50 dark:bg-zinc-900/50"
-                        style={{ touchAction: 'pan-y' }}
-                    >
-                        <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
-                    </div>
+                        {/* Main Panel — draggable with Framer Motion */}
+                        <motion.div
+                            className={`
+                                fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col
+                                bg-white dark:bg-zinc-950
+                                border-l border-slate-200 dark:border-zinc-800
+                                shadow-[-10px_0_30px_rgba(0,0,0,0.1)]
+                                ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[480px] max-w-[calc(100vw-40px)] rounded-l-[32px] overflow-hidden'}
+                            `}
+                            custom={isMobile}
+                            variants={panelVariants}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            // Drag configuration — only on mobile, only horizontal
+                            drag={isMobile ? 'x' : false}
+                            dragConstraints={{ left: 0, right: 0 }} // Allow overscroll but snap back
+                            dragElastic={{ left: 0, right: 0.5 }} // Only allow dragging right
+                            onDragEnd={handleDragEnd}
+                            style={{
+                                right: isShifted ? '480px' : '0',
+                            }}
+                        >
+                            {/* Drag handle — visual affordance for swipe-to-close */}
+                            {isMobile && (
+                                <div className="flex-shrink-0 flex justify-center pt-2 pb-1.5 bg-slate-50/50 dark:bg-zinc-900/50 cursor-grab active:cursor-grabbing">
+                                    <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
+                                </div>
+                            )}
+                            {isPanelOpen && <AloaChat onClose={closePanel} onMinimize={isMobile ? closePanel : handleMinimize} isMobile={isMobile} />}
+                        </motion.div>
+                    </>
                 )}
-                {isPanelOpen && <AloaChat onClose={closePanel} onMinimize={isMobile ? closePanel : handleMinimize} isMobile={isMobile} />}
-            </div>
+            </AnimatePresence>
 
             {/* Mini Floating Mode */}
             {isPanelOpen && isMinimized && (
-                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ARIA Error</div>}>
+                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ALOA Error</div>}>
                     <MiniAloa />
                 </ErrorBoundary>
             )}

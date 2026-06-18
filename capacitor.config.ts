@@ -19,32 +19,25 @@ const config: CapacitorConfig = {
   appId: 'com.practicepro.app',
   appName: 'PracticePro',
   webDir: 'dist',
-  // OPTION A: Load the live Vercel deployment.
-  // The app opens this URL on launch. All routing, auth, and data stay
-  // on the web app — the APK is just a native shell.
-  server: {
-    url: 'https://practice-pro-vega.vercel.app',
-    cleartext: true,
-    // TASK: Removed androidScheme: 'https' — was causing white screen in
-    // BlueStacks and older WebView versions. The default 'https' scheme
-    // is used automatically when server.url is an HTTPS URL.
-  },
-  // Android-specific configuration
+  // TASK: Switched to Option B (bundled assets).
+  // The web app is now BAKED INTO the APK — no more loading from Vercel.
+  // This means:
+  //   - Every new APK = guaranteed latest JS/TS code (no WebView caching issues)
+  //   - App works offline (loads instantly, no network needed for UI)
+  //   - All JS changes show up immediately when you install a new APK
+  //
+  // The server.url is REMOVED. The APK loads from the bundled dist/ folder.
+  // Convex backend is still remote (requires network for data).
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false, // Disabled for production security
+    webContentsDebuggingEnabled: false,
   },
-  // Native plugins configuration
   plugins: {
     SplashScreen: {
-      // TASK: Hide the native splash FAST (100ms) so the web app's own
-      // SplashScreen component (the cinematic Vega→Atrium morph) takes over.
-      // The native splash is just a green background — the real splash is
-      // the React component with the logo animation.
       launchShowDuration: 100,
       launchAutoHide: true,
-      backgroundColor: '#0e0e11', // Match the web splash's dark background
+      backgroundColor: '#0e0e11',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,

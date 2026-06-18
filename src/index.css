@@ -920,9 +920,24 @@ html.font-size-lg .line-clamp-2 {
 @media (max-width: 768px) {
   html, body {
     overscroll-behavior-y: none;
+    touch-action: manipulation; /* Eliminates 300ms tap delay */
   }
   .allow-pull-refresh {
     overscroll-behavior-y: auto;
+  }
+}
+
+/* TASK: Global touch optimization — applies on ALL platforms */
+* {
+  -webkit-tap-highlight-color: transparent; /* No blue flash on tap */
+}
+
+/* TASK: Keyboard avoidance — when mobile keyboard opens, scroll the
+ * focused input into view. This prevents inputs from being hidden
+ * behind the on-screen keyboard. */
+@media (max-width: 768px) {
+  input:focus, textarea:focus, select:focus, [contenteditable]:focus {
+    scroll-margin-bottom: 300px; /* Leave room for the keyboard */
   }
 }
 
