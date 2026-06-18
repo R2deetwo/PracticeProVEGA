@@ -93,6 +93,7 @@ import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
 import { useContentProtection } from '../hooks/useContentProtection';
+import { isNativePlatform } from '../utils/capacitor';
 
 
 const IDLE_TIMEOUT = 15 * 60 * 1000;
@@ -540,6 +541,25 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // TASK: Native app — auto-open signup modal when the app launches and the
+    // user is not authenticated. This makes the app feel native: open the app
+    // → see the splash → land directly on "Choose Your Solution" (product
+    // selection step). No landing page, no marketing copy.
+    React.useEffect(() => {
+        if (!isNativePlatform()) return; // Only in native app
+        if (isAuthenticated) return; // Already logged in
+        if (isLoadingSession) return; // Still checking session
+        // Check if user is on a portal login route (tenant/client) — if so,
+        // don't auto-open the admin signup modal; let them use the portal login
+        if (location.pathname.startsWith('/portal/')) return;
+        // Small delay to let the splash screen finish + ModalManager mount
+        const timer = setTimeout(() => {
+            openModal('signup');
+        }, 500);
+        return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAuthenticated, isLoadingSession, location.pathname]);
+
     // ── Listen for impersonation-rejected events from AuthContext ──
     // When AuthContext auto-reverts a failed impersonation (target user is not
     // a portal user), it dispatches a 'practicepro:impersonation-rejected'
@@ -936,6 +956,27 @@ export const App: React.FC = () => {
             if (view === 'privacyPolicy') return <PrivacyPolicy onBack={() => navigateTo('dashboard')} />;
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
+            // TASK: Native app behavior — when running inside the Capacitor APK,
+            // NEVER show the landing page. Instead, open the login modal directly
+            // so the app feels native (no marketing pages in a mobile app).
+            // The user explicitly requested: "we should go straight to the signup
+            // and the ability to select your product."
+            if (isNativePlatform()) {
+                // Open the login modal if it's not already open
+                // (useEffect below handles this — we just need to render a
+                // branded loading screen here while the modal opens)
+                return (
+                    <div className="h-[100dvh] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
+                        <div className="animate-pulse">
+                            <Logo className="w-20 h-20 text-emerald-500" />
+                        </div>
+                        <p className="mt-6 text-sm font-bold tracking-widest text-slate-400 uppercase animate-pulse">
+                            PracticePro
+                        </p>
+                    </div>
+                );
+            }
+
             // TASK 13: Pass the URL-derived product to LandingPage so /vega and
             // /atrium routes show the correct product. The LandingPage uses this
             // to set its initial activeProduct state. When the user is on / (root),

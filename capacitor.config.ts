@@ -38,15 +38,16 @@ const config: CapacitorConfig = {
   // Native plugins configuration
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      // TASK: Hide the native splash FAST (100ms) so the web app's own
+      // SplashScreen component (the cinematic Vega→Atrium morph) takes over.
+      // The native splash is just a green background — the real splash is
+      // the React component with the logo animation.
+      launchShowDuration: 100,
       launchAutoHide: true,
-      backgroundColor: '#16A34A', // PracticePro green
+      backgroundColor: '#0e0e11', // Match the web splash's dark background
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
-      androidSpinnerStyle: 'large',
-      iosSpinnerStyle: 'small',
-      spinnerColor: '#ffffff',
       splashFullScreen: true,
       splashImmersive: true,
     },

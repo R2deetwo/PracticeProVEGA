@@ -10,6 +10,8 @@ import os
 
 # PracticePro brand green
 BRAND_GREEN = (22, 163, 74)  # #16A34A
+# Dark background matching the web splash screen
+SPLASH_BG = (14, 14, 17)  # #0e0e11
 WHITE = (255, 255, 255)
 
 # Source icon size
@@ -80,11 +82,11 @@ def save_icon(img, path, size):
     print(f"  Saved: {path} ({size}x{size})")
 
 def create_splash(size):
-    """Create a splash screen with the PracticePro green background and logo."""
+    """Create a splash screen with the dark background (matching web splash) and white logo."""
     # Portrait aspect ratio (3:4 roughly)
     width = size
     height = int(size * 4 / 3)
-    img = Image.new('RGBA', (width, height), BRAND_GREEN + (255,))
+    img = Image.new('RGBA', (width, height), SPLASH_BG + (255,))
     draw = ImageDraw.Draw(img)
 
     # Draw a white "P" in the center

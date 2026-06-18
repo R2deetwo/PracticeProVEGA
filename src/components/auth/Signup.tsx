@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
+import { isNativePlatform } from '../../utils/capacitor';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { EyeIcon, EyeOffIcon, MailIcon, CheckCircleIcon, SparklesIcon, ZapIcon } from '../../constants';
@@ -423,11 +424,34 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                     </button>
                 </div>
 
-                <div className="mt-auto pt-4 pb-2 text-center text-sm text-slate-600 dark:text-zinc-400">
-                    Already have an account?{' '}
-                    <button onClick={onSwitchToLogin} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
-                        Log in
-                    </button>
+                <div className="mt-auto pt-4 pb-2 text-center text-sm text-slate-600 dark:text-zinc-400 space-y-2">
+                    <div>
+                        Already have an account?{' '}
+                        <button onClick={onSwitchToLogin} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
+                            Log in
+                        </button>
+                    </div>
+                    {/* TASK: Portal login option — visible only in native app.
+                        Lets tenants/clients log in directly from the app. */}
+                    {isNativePlatform() && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-zinc-800">
+                            <p className="text-xs text-slate-400 dark:text-zinc-500 mb-1.5">Portal User?</p>
+                            <div className="flex gap-2 justify-center">
+                                <button
+                                    onClick={() => window.location.href = '/portal/tenant/login'}
+                                    className="active-press touch-target text-xs font-bold text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                                >
+                                    Resident Portal
+                                </button>
+                                <button
+                                    onClick={() => window.location.href = '/portal/client/login'}
+                                    className="active-press touch-target text-xs font-bold text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                >
+                                    Client Portal
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
