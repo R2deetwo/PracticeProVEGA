@@ -30,8 +30,8 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 34
-          build-tools-version: '34.0.0'
+          api-level: 35
+          build-tools-version: '35.0.0'
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
