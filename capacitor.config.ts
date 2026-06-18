@@ -33,7 +33,7 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: true, // Enable for debugging white screen
+    webContentsDebuggingEnabled: false, // Disabled for production security
   },
   // Native plugins configuration
   plugins: {
