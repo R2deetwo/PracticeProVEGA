@@ -4,19 +4,28 @@ android {
     namespace = "com.practicepro.app"
     compileSdk = rootProject.ext.compileSdkVersion
 
-    // TASK: Explicit Java 21 compatibility — required by Android Gradle Plugin 8.13+
+    // TASK: Java 17 compatibility — works with AGP 8.7 + compileSdk 34
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_21
-        targetCompatibility JavaVersion.VERSION_21
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     defaultConfig {
         applicationId "com.practicepro.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // TASK: Build a UNIVERSAL APK that includes ALL CPU architectures.
+        // Without this, Gradle may produce architecture-specific APKs (arm64-v8a,
+        // x86_64, etc.) that won't install on emulators like BlueStacks (which
+        // uses x86/x86_64). The universal filter ensures one APK works everywhere.
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -27,6 +36,16 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    // TASK: Generate a SINGLE universal APK (not per-architecture splits).
+    // This ensures the APK installs on ALL devices and emulators including
+    // BlueStacks (x86), real phones (ARM), and Android Studio emulator (x86_64).
+    splits {
+        abi {
+            enable false
+            universalApk true
         }
     }
 }
