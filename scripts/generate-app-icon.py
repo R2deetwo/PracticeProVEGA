@@ -12,7 +12,11 @@ import math
 # PracticePro brand green
 BRAND_GREEN = (22, 163, 74)  # #16A34A
 WHITE = (255, 255, 255)
+<<<<<<< HEAD
 DARK_BG = (15, 23, 42)  # #0f172a Slate-900 — matches auth screen gradient
+=======
+DARK_BG = (14, 14, 17)  # #0e0e11 for splash
+>>>>>>> 2bea3ae (fix: Logo not defined crash + correct PracticePro app icon)
 
 SOURCE_SIZE = 1024
 
