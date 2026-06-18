@@ -11,7 +11,7 @@ import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
-import { OfficeBuildingIcon } from '../constants';
+import { OfficeBuildingIcon, Logo } from '../constants';
 import { useProduct } from '../contexts/ProductContext';
 
 import Sidebar from './Sidebar';
