@@ -8,97 +8,95 @@ import ErrorBoundary from '../ErrorBoundary';
 import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 const AloaPanel: React.FC = () => {
-    const { isPanelOpen, togglePanel, closePanel, isMinimized, setIsMinimized } = useAloa();
+    const { isPanelOpen, closePanel, isMinimized, setIsMinimized } = useAloa();
     const { dockedModalType } = useUI();
     const { light, medium } = useHapticFeedback();
 
-    // Auto-minimize on small screens when other modals open
     React.useEffect(() => {
         if (dockedModalType && window.innerWidth < 1280 && isPanelOpen && !isMinimized) {
             setIsMinimized(true);
         }
     }, [dockedModalType, isPanelOpen, isMinimized, setIsMinimized]);
 
-    const handleMinimize = () => {
-        setIsMinimized(true);
-    };
+    const handleMinimize = () => setIsMinimized(true);
 
-    // Mobile detection
     const [isMobile, setIsMobile] = React.useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-
     React.useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // On large screens, shift left if a docked modal is open to show both side-by-side
     const isShifted = isPanelOpen && !isMinimized && dockedModalType && window.innerWidth >= 1280;
-
-    // Use transform for smooth slide-in/out visibility of the MAIN panel
     const isFullVisible = isPanelOpen && !isMinimized;
 
-    // ── SWIPE-TO-CLOSE GESTURE ──
-    // Track touch positions to detect a rightward swipe on the panel.
-    // When the user swipes right past a threshold (80px), close the panel.
-    const [dragOffset, setDragOffset] = React.useState(0);
-    const touchStartX = React.useRef(0);
-    const touchStartY = React.useRef(0);
-    const isDragging = React.useRef(false);
+    // ── SWIPE-TO-CLOSE ──
+    // Clean implementation: track deltaX, apply translateX in real-time,
+    // on release: if > threshold → close, else → snap back to 0.
+    const [dragX, setDragX] = React.useState(0);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const startX = React.useRef(0);
+    const startY = React.useRef(0);
+    const hasMoved = React.useRef(false);
+    const SWIPE_THRESHOLD = 100; // px to trigger close
 
-    const handleTouchStart = (e: React.TouchEvent) => {
+    const onTouchStart = (e: React.TouchEvent) => {
         if (!isFullVisible || !isMobile) return;
-        touchStartX.current = e.touches[0].clientX;
-        touchStartY.current = e.touches[0].clientY;
-        isDragging.current = false;
+        startX.current = e.touches[0].clientX;
+        startY.current = e.touches[0].clientY;
+        hasMoved.current = false;
     };
 
-    const handleTouchMove = (e: React.TouchEvent) => {
+    const onTouchMove = (e: React.TouchEvent) => {
         if (!isFullVisible || !isMobile) return;
-        const deltaX = e.touches[0].clientX - touchStartX.current;
-        const deltaY = e.touches[0].clientY - touchStartY.current;
+        const dx = e.touches[0].clientX - startX.current;
+        const dy = e.touches[0].clientY - startY.current;
 
-        // Only treat as horizontal swipe if horizontal movement > vertical
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
-            isDragging.current = true;
-            // Only allow dragging right (positive deltaX)
-            if (deltaX > 0) {
-                setDragOffset(deltaX);
-            }
+        // Only start dragging if horizontal movement dominates
+        if (!hasMoved.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+            hasMoved.current = true;
+            setIsDragging(true);
+        }
+
+        if (hasMoved.current && dx > 0) {
+            setDragX(dx);
         }
     };
 
-    const handleTouchEnd = () => {
-        if (!isFullVisible || !isMobile) return;
-        if (isDragging.current) {
-            // If swiped more than 80px to the right, close the panel
-            if (dragOffset > 80) {
-                medium(); // Haptic feedback
-                closePanel();
-            }
-            setDragOffset(0);
+    const onTouchEnd = () => {
+        if (!hasMoved.current) return;
+
+        if (dragX > SWIPE_THRESHOLD) {
+            // Close the panel
+            medium();
+            setDragX(0);
+            setIsDragging(false);
+            hasMoved.current = false;
+            closePanel();
+        } else {
+            // Snap back
+            setDragX(0);
+            setIsDragging(false);
+            hasMoved.current = false;
         }
-        isDragging.current = false;
     };
+
+    // Compute transform
+    const translateX = isFullVisible ? dragX : (isMobile ? window.innerWidth : 500);
+    const opacity = isFullVisible ? Math.max(0.4, 1 - dragX / 400) : 1;
 
     return (
         <>
-            {/* Mobile Backdrop - only if fully open and on mobile (overlay mode) */}
+            {/* Mobile Backdrop */}
             {isFullVisible && isMobile && (
                 <div
                     className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1999] transition-opacity duration-300"
+                    style={{ opacity: isDragging ? opacity : 1 }}
                     onClick={closePanel}
-                    onTouchEnd={(e) => {
-                        // Only close on backdrop tap, not on swipe
-                        if (!isDragging.current) {
-                            e.preventDefault();
-                            closePanel();
-                        }
-                    }}
                 />
             )}
 
-            {/* Backdrop for desktop if not shifted */}
+            {/* Desktop Backdrop */}
             {isFullVisible && !isMobile && !isShifted && (
                 <div
                     className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[1999] transition-opacity duration-300"
@@ -106,31 +104,29 @@ const AloaPanel: React.FC = () => {
                 />
             )}
 
-            {/* Main Side Panel — swipeable on mobile */}
+            {/* Main Panel */}
             <div
                 className={`
                     fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col
                     bg-white dark:bg-zinc-950
-                    border-l border-slate-200 dark:border-zinc-800 shadow-[-10px_0_30px_rgba(0,0,0,0.1)]
+                    border-l border-slate-200 dark:border-zinc-800
+                    shadow-[-10px_0_30px_rgba(0,0,0,0.1)]
                     ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[480px] max-w-[calc(100vw-40px)] rounded-l-[32px] overflow-hidden'}
-                    ${!isFullVisible ? 'pointer-events-none' : 'pointer-events-auto'}
-                    ${isMobile && dragOffset > 0 ? '' : 'transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)]'}
+                    ${isDragging ? '' : 'transition-all duration-300 ease-out'}
                 `}
                 style={{
-                    right: isShifted ? '480px' : '0',
-                    transform: isFullVisible
-                        ? `translateX(${dragOffset}px)`
-                        : 'translateX(105%)',
-                    opacity: isFullVisible ? Math.max(0.3, 1 - dragOffset / 300) : 1,
+                    transform: `translateX(${translateX}px)`,
+                    opacity: opacity,
+                    pointerEvents: isFullVisible ? 'auto' : 'none',
                 }}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
             >
-                {/* Mobile drag handle — visual affordance for swipe-to-close */}
+                {/* Drag handle */}
                 {isMobile && isFullVisible && (
                     <div
-                        className="flex-shrink-0 flex justify-center pt-2 pb-1 bg-slate-50/50 dark:bg-zinc-900/50 cursor-grab active:cursor-grabbing"
+                        className="flex-shrink-0 flex justify-center pt-2 pb-1.5 bg-slate-50/50 dark:bg-zinc-900/50"
                         style={{ touchAction: 'pan-y' }}
                     >
                         <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
@@ -139,7 +135,7 @@ const AloaPanel: React.FC = () => {
                 {isPanelOpen && <AloaChat onClose={closePanel} onMinimize={isMobile ? closePanel : handleMinimize} isMobile={isMobile} />}
             </div>
 
-            {/* Mini Floating Mode - Shown when minimized (on Desktop or Mobile) */}
+            {/* Mini Floating Mode */}
             {isPanelOpen && isMinimized && (
                 <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ARIA Error</div>}>
                     <MiniAloa />

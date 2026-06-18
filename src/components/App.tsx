@@ -94,6 +94,7 @@ import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
 import { useContentProtection } from '../hooks/useContentProtection';
 import { isNativePlatform } from '../utils/capacitor';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 
 const IDLE_TIMEOUT = 15 * 60 * 1000;
@@ -496,6 +497,7 @@ export const App: React.FC = () => {
     const location = useLocation();
     const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout } = useAuth();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo } = useUI();
+    const { light } = useHapticFeedback();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
     const { executionState } = useExecutionState();
@@ -541,24 +543,10 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // TASK: Native app — auto-open signup modal when the app launches and the
-    // user is not authenticated. This makes the app feel native: open the app
-    // → see the splash → land directly on "Choose Your Solution" (product
-    // selection step). No landing page, no marketing copy.
-    React.useEffect(() => {
-        if (!isNativePlatform()) return; // Only in native app
-        if (isAuthenticated) return; // Already logged in
-        if (isLoadingSession) return; // Still checking session
-        // Check if user is on a portal login route (tenant/client) — if so,
-        // don't auto-open the admin signup modal; let them use the portal login
-        if (location.pathname.startsWith('/portal/')) return;
-        // Small delay to let the splash screen finish + ModalManager mount
-        const timer = setTimeout(() => {
-            openModal('signup');
-        }, 500);
-        return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAuthenticated, isLoadingSession, location.pathname]);
+    // TASK: Native app — the auth buttons on the native launch screen handle
+    // opening login/signup modals. No auto-open needed — the user chooses
+    // Log In or Sign Up from the permanent buttons on the launch screen.
+    // If they dismiss a modal, the buttons are right there to tap again.
 
     // ── Listen for impersonation-rejected events from AuthContext ──
     // When AuthContext auto-reverts a failed impersonation (target user is not
@@ -970,22 +958,71 @@ export const App: React.FC = () => {
             if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={() => navigateTo('dashboard')} />;
             if (view === 'cookiePolicy') return <CookiePolicy onBack={() => navigateTo('dashboard')} />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
-            // NEVER show the landing page. Instead, open the login modal directly
-            // so the app feels native (no marketing pages in a mobile app).
-            // The user explicitly requested: "we should go straight to the signup
-            // and the ability to select your product."
+            // show a clean auth landing screen with permanent Log In + Sign Up buttons.
+            // The user explicitly requested:
+            // - Two permanent, prominent action buttons: [Log In] and [Sign Up]
+            // - Log In → goes straight to auth fields (no product selection first)
+            // - Sign Up → THEN show product selection
+            // - If user dismisses the modal, they see the buttons again (not stuck)
+            // - Remove "Demo Mode" from the native app
             if (isNativePlatform()) {
-                // Open the login modal if it's not already open
-                // (useEffect below handles this — we just need to render a
-                // branded loading screen here while the modal opens)
+                const isAuthModalOpen = modal === 'login' || modal === 'signup';
                 return (
-                    <div className="h-[100dvh] flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900">
-                        <div className="animate-pulse">
-                            <Logo className="w-20 h-20 text-emerald-500" />
+                    <div className="h-[100dvh] flex flex-col items-center justify-between bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 px-6 pt-safe pb-safe">
+                        {/* Top spacer */}
+                        <div className="flex-1" />
+
+                        {/* Logo + Branding */}
+                        <div className="flex flex-col items-center gap-4">
+                            <Logo className="w-24 h-24 text-emerald-500" />
+                            <div className="text-center">
+                                <h1 className="text-2xl font-black text-white tracking-tight">PracticePro</h1>
+                                <p className="text-sm text-slate-400 mt-1 max-w-xs">
+                                    Operating systems for the organizations that run modern Africa.
+                                </p>
+                            </div>
                         </div>
-                        <p className="mt-6 text-sm font-bold tracking-widest text-slate-400 uppercase animate-pulse">
-                            PracticePro
-                        </p>
+
+                        {/* Auth buttons — PERMANENT, never unmounted */}
+                        <div className="w-full max-w-sm space-y-3 pb-8">
+                            {!isAuthModalOpen && (
+                                <>
+                                    <button
+                                        onClick={() => { light(); openModal('login'); }}
+                                        className="active-press-lg w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base rounded-2xl shadow-xl shadow-emerald-600/30 transition-all"
+                                    >
+                                        Log In
+                                    </button>
+                                    <button
+                                        onClick={() => { light(); openModal('signup'); }}
+                                        className="active-press-lg w-full py-4 bg-white/10 hover:bg-white/20 text-white font-bold text-base rounded-2xl border border-white/20 backdrop-blur-sm transition-all"
+                                    >
+                                        Sign Up
+                                    </button>
+                                    {/* Portal login — for tenants and clients */}
+                                    <div className="pt-3 border-t border-white/10">
+                                        <p className="text-xs text-slate-500 text-center mb-2">Portal User?</p>
+                                        <div className="flex gap-2 justify-center">
+                                            <button
+                                                onClick={() => { light(); window.location.href = '/portal/tenant/login'; }}
+                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-emerald-400 rounded-xl bg-emerald-500/10 border border-emerald-500/20 transition-all"
+                                            >
+                                                Resident Portal
+                                            </button>
+                                            <button
+                                                onClick={() => { light(); window.location.href = '/portal/client/login'; }}
+                                                className="active-press touch-target flex-1 py-2.5 text-xs font-bold text-blue-400 rounded-xl bg-blue-500/10 border border-blue-500/20 transition-all"
+                                            >
+                                                Client Portal
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Bottom spacer */}
+                        <div className="flex-1" />
                     </div>
                 );
             }

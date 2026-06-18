@@ -502,17 +502,62 @@ select,
 }
 
 
-/* Global Font Scaling */
+/* Global Font Scaling — TASK: Fixed to prevent layout breakage.
+ * Instead of changing the root font-size (which scales ALL rem-based
+ * layouts and breaks fixed containers), we use CSS custom properties
+ * that only affect text elements, not structural dimensions.
+ * This way "Small" and "Large" only change text size, not button
+ * heights, paddings, or grid columns.
+ */
 html.font-size-sm {
-  font-size: 14px;
+  --text-scale: 0.875; /* 14px equivalent */
+}
+html.font-size-sm p,
+html.font-size-sm span,
+html.font-size-sm h1, html.font-size-sm h2, html.font-size-sm h3,
+html.font-size-sm h4, html.font-size-sm h5, html.font-size-sm h6,
+html.font-size-sm label,
+html.font-size-sm li,
+html.font-size-sm a,
+html.font-size-sm td,
+html.font-size-sm th,
+html.font-size-sm button {
+  font-size: calc(1em * var(--text-scale)) !important;
+  line-height: 1.4 !important;
 }
 
 html.font-size-md {
-  font-size: 16px;
+  --text-scale: 1; /* 16px — default, no change */
 }
 
 html.font-size-lg {
-  font-size: 18px;
+  --text-scale: 1.125; /* 18px equivalent */
+}
+html.font-size-lg p,
+html.font-size-lg span,
+html.font-size-lg h1, html.font-size-lg h2, html.font-size-lg h3,
+html.font-size-lg h4, html.font-size-lg h5, html.font-size-lg h6,
+html.font-size-lg label,
+html.font-size-lg li,
+html.font-size-lg a,
+html.font-size-lg td,
+html.font-size-lg th,
+html.font-size-lg button {
+  font-size: calc(1em * var(--text-scale)) !important;
+  line-height: 1.5 !important;
+}
+
+/* Prevent text from bursting containers when scaled up */
+html.font-size-lg .truncate {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+html.font-size-lg .line-clamp-1,
+html.font-size-lg .line-clamp-2 {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
 }
 
 @layer components {
