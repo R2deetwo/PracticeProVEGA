@@ -36,15 +36,15 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Build web app
+      - name: Build web app (bundled into APK)
         run: npx vite build
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor (bundles dist/ into APK)
         run: npx cap sync android
 
-      - name: Build APK
+      - name: Build APK (clean build to purge cached assets)
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew clean assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
