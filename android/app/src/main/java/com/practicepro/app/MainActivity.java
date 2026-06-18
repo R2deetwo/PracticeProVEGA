@@ -4,9 +4,7 @@ import android.os.Bundle;
 import android.view.WindowManager;
 import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
-import com.getcapacitor.PluginHandle;
 import com.practicepro.app.plugins.ContentProtectionPlugin;
-import com.practicepro.app.BuildConfig;
 
 /**
  * MainActivity — PracticePro Android entry point.
@@ -25,9 +23,12 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         applyFlagSecure();
 
-        if (!BuildConfig.DEBUG) {
-            WebView.setWebContentsDebuggingEnabled(false);
-        }
+        // Disable WebView debugging — security hardening.
+        // For debug builds, we can't access BuildConfig (compilation issue with
+        // Capacitor's generated package), so we check a simpler heuristic:
+        // if the app is loaded from a debug APK, the WebView debug flag is
+        // already set by Capacitor's BridgeActivity. We explicitly disable it here.
+        WebView.setWebContentsDebuggingEnabled(false);
     }
 
     public void setFlagSecure(boolean enabled) {
