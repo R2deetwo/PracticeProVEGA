@@ -945,17 +945,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         )}
                     </div>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-3 ml-4">
+                <div className="flex items-center gap-1 sm:gap-2 ml-2 sm:ml-4 flex-shrink-0">
                     <button
                         onClick={() => setActiveView(activeView === 'quickNote' ? 'chat' : 'quickNote')}
-                        className={`p-2 rounded-xl transition-all ${activeView === 'quickNote' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                        className={`active-press touch-target p-2 rounded-xl transition-all ${activeView === 'quickNote' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         title="Quick Note mode"
                     >
                         <PencilSquareIcon className="w-5 h-5" />
                     </button>
                     <button
                         onClick={() => setShowHistory(!showHistory)}
-                        className={`p-2 rounded-xl transition-all ${showHistory ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
+                        className={`active-press touch-target p-2 rounded-xl transition-all ${showHistory ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
                         title="Conversation History"
                     >
                         <HistoryIcon className="w-5 h-5" />
@@ -963,17 +963,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     {activeView === 'chat' && (
                         <button
                             onClick={onMinimize}
-                            className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
+                            className="active-press touch-target p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
                         >
                             <ChevronRightIcon className="w-6 h-6" />
                         </button>
                     )}
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-lg active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0"
+                        className="active-press touch-target p-2.5 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-xl active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0"
                         aria-label="Close Panel"
                     >
-                        <XMarkIcon className="w-4 h-4" />
+                        <XMarkIcon className="w-5 h-5" />
                         <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline">Close</span>
                     </button>
                 </div>

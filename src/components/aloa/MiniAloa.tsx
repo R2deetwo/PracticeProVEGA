@@ -392,11 +392,11 @@ export const MiniAloa: React.FC = () => {
                         </svg>
                     </button>
                     <button
-                        className="p-1 hover:bg-white/10 rounded-md text-white/70 hover:text-white transition-all active:scale-90"
+                        className="active-press touch-target p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all"
                         onClick={() => closePanel()}
                         title="Dismiss"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
