@@ -684,7 +684,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth-ios custom-scrollbar overscroll-contain">
+            <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain' }}>
                 <div className="max-w-7xl mx-auto p-3 sm:p-8 pb-24 md:pb-8 min-w-0">
 
                 {activeTab === 'summary' && (

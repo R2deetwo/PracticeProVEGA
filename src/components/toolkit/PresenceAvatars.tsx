@@ -88,7 +88,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                             {getInitials(user.name)}
                             {item.isOnline && (
                                 <span 
-                                    className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500" 
+                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500" 
                                 />
                             )}
                         </div>
