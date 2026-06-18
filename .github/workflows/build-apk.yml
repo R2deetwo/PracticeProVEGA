@@ -46,10 +46,15 @@ jobs:
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
 
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             android/app/build/outputs/apk/debug/PracticePro.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: practicepro-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: PracticePro-APK
+          path: android/app/build/outputs/apk/debug/PracticePro.apk
           retention-days: 30
           if-no-files-found: error
