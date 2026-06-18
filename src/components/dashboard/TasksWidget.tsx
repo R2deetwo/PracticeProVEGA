@@ -97,31 +97,32 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
 
   return (
     <div className="card-premium flex flex-col h-full overflow-hidden halo-hover border-slate-200/60 dark:border-zinc-800/60 shadow-xl">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 rounded-lg bg-primary-600/10 text-primary-600 dark:text-primary-400">
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50 gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="p-1.5 rounded-lg bg-primary-600/10 text-primary-600 dark:text-primary-400 flex-shrink-0">
             <TasksIcon className="w-4 h-4" />
           </div>
-          <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white leading-none">{widgetTitle}</h3>
-          
-          <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700 ml-4">
+          <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white leading-none truncate">{widgetTitle}</h3>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700">
             <button 
                 onClick={() => setViewType('due')}
-                className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`active-press px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Due
             </button>
             <button 
                 onClick={() => setViewType('matter')}
-                className={`px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`active-press px-2 py-0.5 text-[8px] font-black uppercase tracking-tighter rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
             >
                 Matter
             </button>
           </div>
+          <button onClick={() => onNavigateAndHighlight('tasks', {})} className="active-press touch-target flex items-center gap-1 text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-widest px-1">
+              {userTasks.total} <span className="opacity-40 hidden sm:inline">View All</span>
+          </button>
         </div>
-        <button onClick={() => onNavigateAndHighlight('tasks', {})} className="text-[10px] font-black text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 uppercase tracking-widest flex items-center gap-1">
-            {userTasks.total} <span className="opacity-40">View All</span>
-        </button>
       </div>
 
       <div className="flex-grow overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-950/20">
@@ -143,7 +144,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
         ) : viewType === 'due' ? (
           <div className="divide-y divide-slate-50 dark:divide-zinc-900/50">
             {userTasks.overdue.map(task => (
-              <div key={task.id} onClick={() => handleTaskClick(task)} className="px-5 py-3.5 cursor-pointer hover:bg-rose-50/50 dark:hover:bg-rose-900/10 transition-all border-l-2 border-rose-500 group">
+              <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-rose-50/50 dark:hover:bg-rose-900/10 transition-all border-l-2 border-rose-500 group">
                 <div className="flex justify-between items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-[12px] text-slate-800 dark:text-rose-200 truncate group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors">{task.title}</p>
@@ -154,7 +155,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
               </div>
             ))}
             {userTasks.upcoming.map(task => (
-              <div key={task.id} onClick={() => handleTaskClick(task)} className="px-5 py-3.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-all border-l-2 border-transparent group">
+              <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-all border-l-2 border-transparent group">
                 <div className="flex justify-between items-start gap-3">
                    <div className="min-w-0 flex-1">
                     <p className="font-bold text-[12px] text-slate-700 dark:text-zinc-300 truncate group-hover:text-primary-600 transition-colors">{task.title}</p>

@@ -122,43 +122,43 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
 
     return (
         <div className="card-premium flex flex-col h-full overflow-hidden halo-hover transition-all duration-300">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/30 dark:bg-zinc-900/30">
-                <div className="flex items-center gap-3">
-                   <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/30 dark:bg-zinc-900/30 gap-2">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                   <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 flex-shrink-0">
                         <button 
                             onClick={handlePrevCategory}
-                            className="p-1 rounded-md hover:bg-white dark:hover:bg-zinc-700 text-slate-400 hover:text-primary-600 transition-all"
+                            className="active-press touch-target p-1 rounded-md text-slate-400 hover:text-primary-600 transition-all"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                         </button>
                         <button 
                             onClick={handleNextCategory}
-                            className="p-1 rounded-md hover:bg-white dark:hover:bg-zinc-700 text-slate-400 hover:text-primary-600 transition-all"
+                            className="active-press touch-target p-1 rounded-md text-slate-400 hover:text-primary-600 transition-all"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                         </button>
                    </div>
-                    <div className="group flex items-center gap-1.5">
+                    <div className="group flex items-center gap-1.5 min-w-0">
                        {activeCategory === 'Stale' ? (
                            <button 
                                onClick={() => activeCategory === 'Stale' && onNavigateToDetail('reporting', null, { activeMainTab: 'dashboard', activeDashboardTab: 'bi', scrollTo: 'stale-matters-section', highlight: true })}
-                               className="group flex items-center gap-2 px-3 py-1 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-full border border-slate-200 dark:border-zinc-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-200 transition-all"
+                               className="active-press group flex items-center gap-2 px-2 sm:px-3 py-1 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-full border border-slate-200 dark:border-zinc-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-200 transition-all"
                            >
-                               <h3 className="text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors">
+                               <h3 className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors truncate">
                                    {activeCategory} Matters
                                </h3>
-                               <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+                               <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
                            </button>
                        ) : (
                            <h3 
-                            className="text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400"
+                            className="text-[11px] sm:text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400 truncate"
                            >
                                {activeCategory} Matters
                            </h3>
                        )}
                    </div>
                 </div>
-                <button onClick={() => onNavigateToDetail('matters', null)} className="text-[10px] font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit">All</button>
+                <button onClick={() => onNavigateToDetail('matters', null)} className="active-press touch-target text-[10px] font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit flex-shrink-0 px-1">All</button>
             </div>
             <div className="flex-grow overflow-y-auto relative min-h-0">
                 {isLoading ? (
@@ -194,10 +194,10 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                 <div
                                     key={item.matter.id}
                                     onClick={(e) => handleMatterClick(e, item.matter.id)}
-                                    className="group flex justify-between items-center hover:bg-slate-50 dark:hover:bg-zinc-700/30 cursor-pointer border-b border-slate-50 dark:border-zinc-700/50 last:border-0 transition-colors px-4 py-3"
+                                    className="active-press group flex justify-between items-center hover:bg-slate-50 dark:hover:bg-zinc-700/30 cursor-pointer border-b border-slate-50 dark:border-zinc-700/50 last:border-0 transition-colors px-4 sm:px-4 py-3"
                                 >
-                                    <div className="flex flex-col">
-                                        <div className="font-semibold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate max-w-[180px]">{item.matter.title}</div>
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                        <div className="font-semibold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate">{item.matter.title}</div>
                                         <p className="text-[10px] text-slate-500 font-medium truncate group-hover:text-primary-600/80 transition-colors">
                                             {activeCategory === 'Stale' ? (
                                                 <span className="text-amber-600 font-bold">Stale for {Math.floor((new Date().getTime() - new Date(item.lastUpdate).getTime()) / (1000 * 3600 * 24))} days</span>

@@ -21,23 +21,21 @@ import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 
 
 const TierAccessBanner: React.FC<{ plan: SubscriptionPlan, onUpgrade: () => void }> = ({ plan, onUpgrade }) => (
-    <div className="bg-slate-100 dark:bg-zinc-800 border-l-4 border-slate-500 rounded-r-lg p-4 mb-6 flex items-start justify-between shadow-sm animate-fade-in">
-        <div className="flex gap-3">
-            <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-full h-fit mt-1">
+    <div className="bg-slate-100 dark:bg-zinc-800 border-l-4 border-slate-500 rounded-r-lg p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-fade-in">
+        <div className="flex gap-3 min-w-0">
+            <div className="p-2 bg-slate-200 dark:bg-zinc-700 rounded-full h-fit mt-0 sm:mt-1 flex-shrink-0">
                 <LockClosedIcon className="w-5 h-5 text-slate-500 dark:text-zinc-400" />
             </div>
-            <div>
-                <h4 className="font-bold text-slate-800 dark:text-white">Team Access Paused</h4>
-                <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-xl">
-                    Your firm has moved to the <strong>{plan}</strong> plan, which supports single-user access.
-                    Shared matters and team data are safely archived but currently hidden.
-                    Upgrade to <strong>Pro</strong> to restore full team collaboration.
+            <div className="min-w-0">
+                <h4 className="font-bold text-slate-800 dark:text-white text-sm sm:text-base">Team Access Paused</h4>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-zinc-400 mt-1">
+                    Your firm has moved to the <strong>{plan}</strong> plan. Upgrade to <strong>Pro</strong> to restore full team collaboration.
                 </p>
             </div>
         </div>
         <button
             onClick={onUpgrade}
-            className="whitespace-nowrap px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-lg hover:opacity-90 transition-opacity"
+            className="active-press touch-target whitespace-nowrap px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-lg flex-shrink-0"
         >
             Restore Access
         </button>
@@ -114,20 +112,20 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar scroll-smooth-ios bg-slate-50 dark:bg-zinc-900">
-            <header className="sticky top-0 z-30 glass py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
-                <div>
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Overview</h2>
-                    <p className="text-xs font-medium text-slate-500 dark:text-zinc-400 mt-1">
-                        Good day, {currentUser.name?.split(' ')[0] || 'User'}. Here's what's happening.
+            <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0 pt-safe">
+                <div className="min-w-0">
+                    <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Overview</h2>
+                    <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
+                        Good day, {currentUser.name?.split(' ')[0] || 'User'}.
                     </p>
                 </div>
             </header>
 
-            <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 animate-fade-in">
+            <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 animate-fade-in pb-24 md:pb-8">
                 {/* Downgrade Banner */}
                 {isDowngradedState && <TierAccessBanner plan={plan} onUpgrade={handleUpgrade} />}
 
-                <div className="grid grid-cols-1 gap-8">
+                <div className="grid grid-cols-1 gap-4 sm:gap-8">
                     {isLoading ? (
                         <div className="w-full max-w-xl mx-auto">
                             <Skeleton height={32} width="100%" className="rounded-full" />
@@ -140,7 +138,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Stats Row */}
-                <div className="mb-6 flex-shrink-0">
+                <div className="flex-shrink-0">
                     <StatsWidget
                         activeMattersCount={isDowngradedState ? 0 : activeMattersCount}
                         overdueTasksCount={isDowngradedState ? 0 : overdueTasksCount}
@@ -157,30 +155,30 @@ const Dashboard: React.FC = () => {
 
                 {/* Main Content Grid */}
                 {!isDowngradedState ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-32 md:pb-20">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 pb-20 md:pb-4">
                         {/* Column 1: Recent Matters / Properties */}
-                        <div className="lg:col-span-1 h-auto min-h-[24rem] lg:h-[28rem] flex flex-col gap-2">
+                        <div className="lg:col-span-1 h-auto min-h-[20rem] sm:min-h-[24rem] lg:h-[28rem] flex flex-col gap-2">
                             {isUnified && (
                                 <div className="flex border border-slate-200/60 dark:border-zinc-700/60 bg-white dark:bg-zinc-800 rounded-xl p-1 shadow-sm flex-shrink-0">
                                     <button
                                         onClick={() => setActiveUnifiedTab('matters')}
-                                        className={`flex-1 text-center py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
                                             activeUnifiedTab === 'matters'
                                                 ? 'bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-white shadow-inner'
-                                                : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                                : 'text-slate-500 dark:text-zinc-400'
                                         }`}
                                     >
                                         Legal Matters
                                     </button>
                                     <button
                                         onClick={() => setActiveUnifiedTab('properties')}
-                                        className={`flex-1 text-center py-2 px-4 rounded-lg text-xs font-bold transition-all ${
+                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
                                             activeUnifiedTab === 'properties'
                                                 ? 'bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-white shadow-inner'
-                                                : 'text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                                                : 'text-slate-500 dark:text-zinc-400'
                                         }`}
                                     >
-                                        Real Estate Properties
+                                        Real Estate
                                     </button>
                                 </div>
                             )}
@@ -211,7 +209,7 @@ const Dashboard: React.FC = () => {
                         </div>
 
                         {/* Column 2: Tasks */}
-                        <div className="lg:col-span-1 h-auto min-h-[24rem] lg:h-[28rem]">
+                        <div className="lg:col-span-1 h-auto min-h-[20rem] sm:min-h-[24rem] lg:h-[28rem]">
                             <TasksWidget
                                 tasks={safeTasks}
                                 matters={safeMatters}
@@ -223,7 +221,7 @@ const Dashboard: React.FC = () => {
                         </div>
 
                         {/* Column 3: Calendar */}
-                        <div className="lg:col-span-1 h-96 lg:h-[28rem]">
+                        <div className="lg:col-span-1 h-80 sm:h-96 lg:h-[28rem]">
                             <CalendarWidget
                                 events={[...(events || []), ...(!isLegal ? computeAtriumVirtualEvents(safeProperties) : [])]}
                                 eventTypes={eventTypes || []}
