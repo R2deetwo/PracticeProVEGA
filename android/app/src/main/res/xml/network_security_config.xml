@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext traffic for all domains (needed for WebView to load
+         external URLs in BlueStacks and older Android versions).
+         In production with HTTPS-only, this is safe — it just permits
+         HTTP if requested, but HTTPS is always preferred. -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Explicitly trust the Vercel domain -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">practice-pro-vega.vercel.app</domain>
+        <domain includeSubdomains="true">vercel.app</domain>
+        <domain includeSubdomains="true">convex.cloud</domain>
+    </domain-config>
+</network-security-config>

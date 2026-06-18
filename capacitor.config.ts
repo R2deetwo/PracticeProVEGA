@@ -25,13 +25,15 @@ const config: CapacitorConfig = {
   server: {
     url: 'https://practice-pro-vega.vercel.app',
     cleartext: true,
-    androidScheme: 'https',
+    // TASK: Removed androidScheme: 'https' — was causing white screen in
+    // BlueStacks and older WebView versions. The default 'https' scheme
+    // is used automatically when server.url is an HTTPS URL.
   },
   // Android-specific configuration
   android: {
     allowMixedContent: true,
     captureInput: true,
-    webContentsDebuggingEnabled: false, // Disable in production
+    webContentsDebuggingEnabled: true, // Enable for debugging white screen
   },
   // Native plugins configuration
   plugins: {
