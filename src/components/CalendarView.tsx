@@ -16,7 +16,7 @@ import { useProduct } from '../contexts/ProductContext';
 
 const TimeSlot: React.FC<{ time: string, hourHeight: number }> = ({ time, hourHeight }) => (
     <div className="relative flex items-start -mt-[1px]" style={{ height: `${hourHeight}px` }}>
-        <div className="text-xs text-right w-12 pr-2 text-slate-400 dark:text-zinc-500 select-none font-medium pt-1">{time}</div>
+        <div className="text-[10px] sm:text-xs text-right w-10 sm:w-12 pr-1 sm:pr-2 text-slate-400 dark:text-zinc-500 select-none font-medium pt-1">{time}</div>
         <div className="flex-1 border-t border-slate-100 dark:border-zinc-800 z-0"></div>
     </div>
 );
@@ -612,7 +612,7 @@ export const CalendarView: React.FC = () => {
                             <div className="sticky left-0 w-12 sm:w-16 flex-shrink-0 border-r border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-30">
                                 <div className="h-10 border-b border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/90 backdrop-blur-sm sticky top-0 z-40"></div>
                                 {Array.from({ length: 24 }).map((_, i) => (
-                                    <TimeSlot key={i} time={`${i === 0 ? 12 : i > 12 ? i - 12 : i}${i < 12 ? 'a' : 'p'}`} hourHeight={80} />
+                                    <TimeSlot key={i} time={`${i === 0 ? 12 : i > 12 ? i - 12 : i}${i < 12 ? 'AM' : 'PM'}`} hourHeight={80} />
                                 ))}
                             </div>
 
