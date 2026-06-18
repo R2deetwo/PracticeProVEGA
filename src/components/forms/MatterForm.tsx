@@ -42,6 +42,13 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
     const { isProperty } = useProduct();
+
+    // TASK: Determine terminology based on the SELECTED MATTER TYPE, not just
+    // the firm's product. In Komplete firms, legal matters should use "Client"
+    // and property matters should use "Tenant". This prevents domain lingo
+    // leakage (e.g. showing "Tenant" in a Civil litigation matter).
+    const matterIsPropertyType = isProperty && !isLitigation && matterType !== MatterType.Civil && matterType !== MatterType.Criminal && matterType !== MatterType.CorporateCommercial && matterType !== MatterType.Family && matterType !== MatterType.MaritimeAdmiralty && matterType !== MatterType.OilGas && matterType !== MatterType.Tax;
+    const clientLabel = matterIsPropertyType ? 'Tenant' : 'Client';
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
@@ -680,7 +687,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
                     <div className="space-y-2 sm:space-y-3">
                         <div className="flex justify-between items-center mb-1">
-                            <label className={labelClass}>{isProperty ? 'Tenant' : 'Client'}</label>
+                            <label className={labelClass}>{clientLabel}</label>
                             <button
                                 type="button"
                                 onClick={() => setIsCreatingClient(!isCreatingClient)}
@@ -693,7 +700,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         {isCreatingClient ? (
                             <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder={isProperty ? 'Tenant Name' : 'Client Legal Name'} />
+                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder={matterIsPropertyType ? 'Tenant Name' : 'Client Legal Name'} />
                                     <input autoComplete="off" data-lpignore="true"  type="email" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} className={commonInputClass} placeholder="Contact Email" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -711,7 +718,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className="relative group">
                                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
                                 <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${commonInputClass} pl-11 ring-primary-500/0 focus:ring-primary-500/20`} required>
-                                    <option value="" disabled>{isProperty ? '-- Select Tenant --' : '-- Select Client --'}</option>
+                                    <option value="" disabled>{matterIsPropertyType ? '-- Select Tenant --' : '-- Select Client --'}</option>
                                     {contacts.filter(c => c.category === 'Client').map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}

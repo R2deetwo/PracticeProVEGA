@@ -35,7 +35,12 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 100,
+      // Show the native splash longer (2000ms) so there's NO black gap
+      // between the native splash hiding and React mounting.
+      // The native splash background is #0e0e11 (dark) which matches
+      // the auth screen's dark gradient background — so the transition
+      // from splash → auth screen is seamless (no black flash).
+      launchShowDuration: 2000,
       launchAutoHide: true,
       backgroundColor: '#0e0e11',
       androidSplashResourceName: 'splash',
