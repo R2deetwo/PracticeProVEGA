@@ -42,13 +42,6 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
     const { isProperty } = useProduct();
-
-    // TASK: Determine terminology based on the SELECTED MATTER TYPE, not just
-    // the firm's product. In Komplete firms, legal matters should use "Client"
-    // and property matters should use "Tenant". This prevents domain lingo
-    // leakage (e.g. showing "Tenant" in a Civil litigation matter).
-    const matterIsPropertyType = isProperty && !isLitigation && matterType !== MatterType.Civil && matterType !== MatterType.Criminal && matterType !== MatterType.CorporateCommercial && matterType !== MatterType.Family && matterType !== MatterType.MaritimeAdmiralty && matterType !== MatterType.OilGas && matterType !== MatterType.Tax;
-    const clientLabel = matterIsPropertyType ? 'Tenant' : 'Client';
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
@@ -127,6 +120,14 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const [newClientPhone, setNewClientPhone] = useState('');
 
     const isEditing = !!matterToEdit;
+
+    // TASK: Determine terminology based on the SELECTED MATTER TYPE, not just
+    // the firm's product. In Komplete firms, legal matters should use "Client"
+    // and property matters should use "Tenant". This prevents domain lingo
+    // leakage (e.g. showing "Tenant" in a Civil litigation matter).
+    // MUST be declared AFTER matterType and isLitigation useState calls.
+    const matterIsPropertyType = isProperty && !isLitigation && matterType !== MatterType.Civil && matterType !== MatterType.Criminal && matterType !== MatterType.CorporateCommercial && matterType !== MatterType.Family && matterType !== MatterType.MaritimeAdmiralty && matterType !== MatterType.OilGas && matterType !== MatterType.Tax;
+    const clientLabel = matterIsPropertyType ? 'Tenant' : 'Client';
 
     // --- EFFECT: ALOA Form Update Listener ---
     useEffect(() => {
