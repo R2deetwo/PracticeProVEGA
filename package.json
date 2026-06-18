@@ -14,9 +14,16 @@
     "deploy:staging": "npx convex dev --once --env-file .env.staging && npm run build:staging",
     "deploy:prod": "npx convex dev --once --env-file .env.production && npm run build:prod",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android",
+    "apk:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run cap:sync && cd android && ./gradlew assembleRelease"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
     "@fontsource/inter": "^5.2.8",
     "@google/genai": "^2.8.0",
     "@tiptap/extension-character-count": "^3.20.0",

@@ -36,3 +36,13 @@ codebase.zip
 upload/
 .next/
 tool-results/
+
+# Android build artifacts (keep source, ignore builds)
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+android/app/release/
+*.apk
+*.aab
+*.keystore
