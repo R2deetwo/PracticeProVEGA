@@ -510,70 +510,58 @@ export const CalendarView: React.FC = () => {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900 overflow-hidden">
             {/* Header Toolbar - Fixed at the top */}
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="sticky top-0 z-30 glass flex-shrink-0 py-3 sm:py-4 px-3 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-safe">
                 {/* Date Navigation */}
-                <div className="flex items-center gap-4">
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight min-w-[300px]">
+                <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+                    <h2 className="text-base sm:text-xl lg:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex-1 min-w-0 truncate">
                         {localViewMode === 'month'
                             ? currentMonthDate.toLocaleString('default', { month: 'long', year: 'numeric' })
                             : localViewMode === 'week'
                                 ? `${weekDays[0].toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${weekDays[6].toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                                : selectedDateObj.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                                : selectedDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
                         }
                     </h2>
-                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700">
-                        <button onClick={() => handleNav('prev')} className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors text-slate-500">
+                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0">
+                        <button onClick={() => handleNav('prev')} className="active-press touch-target p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors text-slate-500">
                             <ChevronRightIcon className="w-5 h-5 rotate-180" />
                         </button>
-                        <button onClick={() => handleNav('today')} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors">
+                        <button onClick={() => handleNav('today')} className="active-press px-2 sm:px-3 py-1 text-xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors">
                             Today
                         </button>
-                        <button onClick={() => handleNav('next')} className="p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors text-slate-500">
+                        <button onClick={() => handleNav('next')} className="active-press touch-target p-1.5 hover:bg-white dark:hover:bg-zinc-700 rounded-md transition-colors text-slate-500">
                             <ChevronRightIcon className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
 
                 {/* View Switcher & Action */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                     <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg border border-slate-200 dark:border-zinc-700">
-                        <Tooltip text="Month View">
-                            <button
-                                onClick={() => handleViewSwitch('month')}
-                                className={`p-2 rounded-md transition-all ${localViewMode === 'month' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <GridIcon className="w-4 h-4" />
-                            </button>
-                        </Tooltip>
-                        <Tooltip text="Week View">
-                            <button
-                                onClick={() => handleViewSwitch('week')}
-                                className={`p-2 rounded-md transition-all ${localViewMode === 'week' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <ClockIcon className="w-4 h-4" />
-                            </button>
-                        </Tooltip>
-                        <Tooltip text="Day View">
-                            <button
-                                onClick={() => handleViewSwitch('diary')}
-                                className={`p-2 rounded-md transition-all ${localViewMode === 'diary' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
-                            >
-                                <ListIcon className="w-4 h-4" />
-                            </button>
-                        </Tooltip>
-                        <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1 self-center"></div>
-                        <Tooltip text="Lock as default view">
-                            <button
-                                onClick={() => currentUser && updateCurrentUser({ defaultViewModes: { ...currentUser.defaultViewModes, calendar: localViewMode } })}
-                                className="p-2 rounded-md transition-all hover:bg-white dark:hover:bg-zinc-700"
-                            >
-                                <LockClosedIcon className={`w-4 h-4 ${isLocked ? 'text-primary-500' : 'text-slate-400'}`} />
-                            </button>
-                        </Tooltip>
+                        <button
+                            onClick={() => handleViewSwitch('month')}
+                            className={`active-press touch-target p-2 rounded-md transition-all ${localViewMode === 'month' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400'}`}
+                            title="Month View"
+                        >
+                            <GridIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => handleViewSwitch('week')}
+                            className={`active-press touch-target p-2 rounded-md transition-all ${localViewMode === 'week' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400'}`}
+                            title="Week View"
+                        >
+                            <ClockIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => handleViewSwitch('diary')}
+                            className={`active-press touch-target p-2 rounded-md transition-all ${localViewMode === 'diary' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400'}`}
+                            title="Day View"
+                        >
+                            <ListIcon className="w-4 h-4" />
+                        </button>
                     </div>
                     <button
                         onClick={() => openModal('newEvent', null, { date: selectedDateObj, openedFrom: 'calendar' })}
-                        className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 shadow-md hover:-translate-y-0.5 transition-all"
+                        className="active-press-lg flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 shadow-md transition-all flex-shrink-0"
                     >
                         <PlusIcon className="w-4 h-4" /> <span className="hidden sm:inline">New</span>
                     </button>
@@ -616,26 +604,26 @@ export const CalendarView: React.FC = () => {
                         </div>
                     </div>
                 ) : (
-                    <div ref={scrollContainerRef} className="flex-1 overflow-auto custom-scrollbar relative">
-                        {/* Diary / Week View (Time Grid) */}
-                        <div className="min-h-[1920px] flex w-full"> {/* 24h * 80px */}
+                    <div ref={scrollContainerRef} className="flex-1 overflow-auto custom-scrollbar relative overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        {/* Diary / Week View (Time Grid) — mobile: horizontal scroll for week, single column for day */}
+                        <div className="min-h-[1920px] flex w-full">
 
                             {/* Time Sidebar - Sticky Left */}
-                            <div className="sticky left-0 w-16 flex-shrink-0 border-r border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-30">
+                            <div className="sticky left-0 w-12 sm:w-16 flex-shrink-0 border-r border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 z-30">
                                 <div className="h-10 border-b border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/90 backdrop-blur-sm sticky top-0 z-40"></div>
                                 {Array.from({ length: 24 }).map((_, i) => (
-                                    <TimeSlot key={i} time={`${i === 0 ? 12 : i > 12 ? i - 12 : i} ${i < 12 ? 'AM' : 'PM'}`} hourHeight={80} />
+                                    <TimeSlot key={i} time={`${i === 0 ? 12 : i > 12 ? i - 12 : i}${i < 12 ? 'a' : 'p'}`} hourHeight={80} />
                                 ))}
                             </div>
 
-                            {/* Days Columns */}
-                            <div className="flex-1 relative min-h-full flex min-w-0">
+                            {/* Days Columns — on mobile, allow horizontal scroll for week view */}
+                            <div className="flex-1 relative min-h-full flex min-w-0 overflow-x-auto">
                                 {weekDays.map((dayDate, index) => {
                                     const eventsForDay = getEventsForDay(dayDate);
                                     const isDayToday = isToday(dayDate);
 
                                     return (
-                                        <div key={dayDate.toISOString()} className="flex-1 min-w-[120px] relative border-r border-slate-100 dark:border-zinc-800 last:border-r-0 min-h-full">
+                                        <div key={dayDate.toISOString()} className="flex-1 min-w-[100px] sm:min-w-[120px] relative border-r border-slate-100 dark:border-zinc-800 last:border-r-0 min-h-full">
 
                                             {/* Column Header */}
                                             <div className="sticky top-0 z-20 h-10 bg-slate-50 dark:bg-zinc-900/90 border-b border-slate-200 dark:border-zinc-800 flex flex-col items-center justify-center backdrop-blur-sm">
