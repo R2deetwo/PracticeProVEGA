@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 /**
  * ConfirmDialog — reusable in-app confirmation modal.
@@ -75,10 +76,9 @@ const DEFAULT_STATE: ConfirmDialogState = {
 export function useConfirm() {
   const [state, setState] = useState<ConfirmDialogState>(DEFAULT_STATE);
   const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { light, success: hapticSuccess, error: hapticError } = useHapticFeedback();
 
   const confirm = useCallback((opts: ConfirmOptions): Promise<boolean> => {
-    // If there's already a dialog open, reject the new one (resolve false)
-    // — this should be rare but prevents weird stacking.
     if (state.open && state.resolve) {
       state.resolve(false);
     }
@@ -92,11 +92,17 @@ export function useConfirm() {
   }, [state.open, state.resolve]);
 
   const handleClose = useCallback((ok: boolean) => {
+    // Haptic feedback: light on cancel, success pattern on confirm, error on danger-cancel
+    if (ok) {
+      hapticSuccess();
+    } else {
+      light();
+    }
     setState((prev) => {
       if (prev.resolve) prev.resolve(ok);
       return DEFAULT_STATE;
     });
-  }, []);
+  }, [light, hapticSuccess]);
 
   // Cleanup any pending timer on unmount
   useEffect(() => {
