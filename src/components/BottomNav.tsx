@@ -5,6 +5,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useCoreState } from '../contexts/CoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
     DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon
@@ -65,18 +66,22 @@ const NavItem: React.FC<{
     view: View;
     badgeCount?: number;
 }> = ({ text, icon, isActive, onClick, view, badgeCount }) => {
+    const { light } = useHapticFeedback();
     return (
         <button
-            onClick={onClick}
+            onClick={(e) => {
+                light(); // Haptic feedback on tap
+                onClick(e);
+            }}
             data-tour-id={`nav-${view}`}
-            className={`relative flex flex-col items-center justify-center flex-1 pt-2 pb-1 h-16 transition-colors duration-200 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400 hover:text-primary-500'}`}
+            className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-2 pb-1 h-16 transition-colors duration-200 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'}`}
             aria-current={isActive ? 'page' : undefined}
             aria-label={text}
         >
             <div className="relative">
                 {React.cloneElement(icon, { className: 'w-6 h-6 mb-1' })}
                 {badgeCount !== undefined && badgeCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10 animate-pulse">
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10">
                         {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                 )}
@@ -96,6 +101,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+    const { light } = useHapticFeedback();
 
     // Unified Badge Logic: Strictly filters for the current user and maps notifications to their respective tabs.
     const getBadgeCountForView = React.useCallback((view: View) => {
@@ -164,6 +170,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const handleMoreItemClick = (e: React.MouseEvent, view: View) => {
         e.preventDefault();
         e.stopPropagation();
+        light(); // Haptic feedback
         setView(view);
         setIsMoreMenuOpen(false);
     };
@@ -171,6 +178,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const handleToggleMore = (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        light(); // Haptic feedback
         setIsMoreMenuOpen(prev => !prev);
     };
 
@@ -189,7 +197,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
 
     return (
         <>
-            <nav id="bottom-nav" className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 md:hidden pb-safe">
+            <nav id="bottom-nav" className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 md:hidden pb-safe pt-1">
                 <div className="flex items-start">
                     {primaryItems.map(item => {
                         return (
@@ -243,7 +251,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                                             key={item.view}
                                             data-tour-id={`nav-${item.view}`}
                                             onClick={(e) => handleMoreItemClick(e, item.view)}
-                                            className="flex flex-col items-center gap-2 group relative"
+                                            className="active-press flex flex-col items-center gap-2 group relative"
                                         >
                                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${parentView === item.view ? 'bg-primary-600 text-white shadow-primary-500/30' : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-active:scale-95'}`}>
                                                 {React.cloneElement(item.icon, { className: "w-6 h-6" })}

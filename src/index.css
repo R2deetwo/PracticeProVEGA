@@ -736,6 +736,151 @@ html.font-size-lg {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * PHASE 1: MOBILE SHELL — Safe Areas, Touch Targets, Active States
+ * ═══════════════════════════════════════════════════════════════════════════
+ * These styles ensure the app works on phones with notches, status bars,
+ * and navigation gestures. They're applied mobile-only via Tailwind's
+ * responsive classes (md:hidden etc.) so desktop is unaffected.
+ */
+
+/* Safe area insets — handles notches, status bars, and bottom gestures.
+ * Applied via .pb-safe, .pt-safe, .px-safe utility classes. */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Padding utilities that respect safe areas */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.px-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.py-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Minimum touch target size — ensures all buttons are at least 44x44px
+ * (Apple HIG / Material Design standard). Apply via .touch-target class. */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Active press state — subtle scale-down on tap (mobile equivalent of hover).
+ * Applied via .active-press class. */
+.active-press {
+  transition: transform 0.1s ease-out;
+}
+.active-press:active {
+  transform: scale(0.96);
+}
+
+/* Larger press feedback for primary action buttons */
+.active-press-lg {
+  transition: transform 0.1s ease-out;
+}
+.active-press-lg:active {
+  transform: scale(0.98);
+}
+
+/* Bottom sheet animation — slides up from the bottom (mobile modal pattern) */
+@keyframes slide-up-sheet {
+  from {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up-sheet {
+  animation: slide-up-sheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide-out drawer animation (from left edge) */
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-slide-in-left {
+  animation: slide-in-left 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Skeleton shimmer — for loading states (mobile-optimized, lighter weight) */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.1) 25%,
+    rgba(148, 163, 184, 0.2) 37%,
+    rgba(148, 163, 184, 0.1) 63%
+  );
+  background-size: 200px 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+/* Prevent text selection on mobile UI chrome (buttons, nav, headers) —
+ * only on non-input elements. This prevents the annoying "blue flash"
+ * when tapping buttons on Android. */
+@media (max-width: 768px) {
+  nav,
+  button,
+  .no-select-mobile {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Smooth scrolling for mobile (momentum scrolling on iOS) */
+@media (max-width: 768px) {
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+}
+
+/* Prevent pull-to-refresh interference inside the app shell
+ * (allows it only on explicitly marked scroll containers) */
+@media (max-width: 768px) {
+  html, body {
+    overscroll-behavior-y: none;
+  }
+  .allow-pull-refresh {
+    overscroll-behavior-y: auto;
+  }
+}
+
 
 /* Fix for Drag and Drop highlighting issues */
 [data-rbd-drag-handle-context-id] {
