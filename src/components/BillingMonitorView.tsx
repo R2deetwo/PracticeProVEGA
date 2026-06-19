@@ -152,9 +152,20 @@ const BillingMonitorNotDeployedFallback: React.FC = () => {
 
     const downloadDeployScript = () => {
         const script = `#!/bin/bash
-# PracticePro — Convex Backend Deploy Script
-# Run this from your project root to deploy the new retainerBilling module
-# which powers the Billing Monitor's automated invoice outbox.
+# PracticePro — Convex Backend Deploy Setup
+# Two options to deploy the Convex backend (powers the Billing Monitor):
+#
+# OPTION A (recommended): Set up auto-deploy via GitHub Actions
+# 1. Go to https://dashboard.convex.dev/ → select gregarious-malamute-537
+# 2. Settings → Deploy Keys → Generate Production Deploy Key
+# 3. Copy the key (starts with "gregarious-malamute-537|...")
+# 4. Go to https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions
+# 5. Click "New repository secret" → Name: CONVEX_DEPLOY_KEY → paste the key
+# 6. Push any commit to main — the GitHub Action will auto-deploy Convex
+#    before building the APK. You never have to run anything manually again.
+#
+# OPTION B (one-time manual deploy from your machine):
+# Run the commands below from your project root.
 
 set -e
 
@@ -193,8 +204,10 @@ echo "→ Refresh the app in your browser or restart the APK."
                         <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed mb-3">
                             You're seeing existing retainer invoices below. To unlock the full
                             Billing Monitor — automated invoice staging, the pending outbox queue,
-                            and lawyer override controls (Approve &amp; Send, Pause, Skip Cycle) —
-                            deploy the latest Convex backend from your machine.
+                            and lawyer override controls — deploy the latest Convex backend.
+                            The easiest way: add a <strong>CONVEX_DEPLOY_KEY</strong> secret to
+                            your GitHub repo and every future push will auto-deploy the backend
+                            before building the APK. No manual commands ever again.
                         </p>
                         <div className="flex flex-wrap gap-2">
                             <button
@@ -214,11 +227,18 @@ echo "→ Refresh the app in your browser or restart the APK."
                         {showDeployScript && (
                             <div className="mt-3 p-3 bg-slate-900 dark:bg-black/40 rounded-lg overflow-x-auto">
                                 <code className="text-[11px] text-emerald-400 font-mono whitespace-pre">
-{`# From your project root:
-npx convex login      # one-time, opens browser
+{`OPTION A — Auto-deploy via GitHub Actions (recommended):
+1. https://dashboard.convex.dev → gregarious-malamute-537
+2. Settings → Deploy Keys → Generate Production Deploy Key
+3. https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions
+4. New repository secret: CONVEX_DEPLOY_KEY = <paste key>
+5. Push any commit — backend auto-deploys before APK build
+
+OPTION B — Manual one-time deploy:
+npx convex login      # opens browser
 npx convex deploy     # pushes schema + mutations + crons
 
-# Then refresh the app.`}
+Then refresh the app.`}
                                 </code>
                             </div>
                         )}

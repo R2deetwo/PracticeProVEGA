@@ -73,7 +73,10 @@ const RevenueEngine: React.FC = () => {
     { id: 'ledger', label: 'Payments & Receipts', shortLabel: 'Payments', icon: <LedgerIcon />, badge: pendingLedger || undefined },
     // NOTE: 'inbox' tab removed — Communications has moved to the Messages page
     // where it belongs with the rest of the messaging hub (team chat, notices, etc.)
-    { id: 'automations', label: 'Automation Center', shortLabel: 'Automations', icon: <BellIcon />, badge: todayLogs || undefined },
+    // Renamed from "Automation Center" to "Reminder Rules" for consistency with
+    // the Financials page tab naming. These are the RULES that generate the
+    // WhatsApp/Email messages you see in Messages > WhatsApp & Email.
+    { id: 'automations', label: 'Reminder Rules', shortLabel: 'Rules', icon: <BellIcon />, badge: todayLogs || undefined },
     { id: 'pipeline', label: 'Available Units', shortLabel: 'Vacancies', icon: <FunnelIcon />, badge: activePipeline || undefined },
   ];
 

@@ -44,9 +44,13 @@ const PdfIcon = ({ className }: { className?: string }) => (
 );
 
 // ── Tab type for the unified messaging hub ──────────────────────────────
-// 'communications' = AtriumInbox (WhatsApp/Email automations + audit trail)
-// Only shown for property/unified firms — moved here from the Revenue Engine
-// so all messaging lives in one place.
+// 'inbox'         = Conversations (live 2-way portal chat with clients/residents)
+// 'team'          = Team Chat (internal firm conversations)
+// 'notices'       = Notice Board (property only)
+// 'scheduled'     = Scheduled messages (queued for future send)
+// 'communications' = WhatsApp & Email (AtriumInbox — external-channel comms:
+//                    WhatsApp reminders, email demands, inbound replies, audit trail)
+//                    Only shown for property/unified firms.
 type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled' | 'communications';
 
 // ── Channel label helpers (shared with AtriumInbox) ────────────────────
@@ -767,7 +771,10 @@ const MessagesView: React.FC = () => {
             {/* ── Top Tab Bar ── */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 sm:px-4 pt-2">
                 <div className="flex items-center gap-1">
-                    {/* Inbox Tab */}
+                    {/* Conversations Tab (was "Inbox") — live 2-way chat threads
+                        with clients/residents via the portal. Renamed to avoid
+                        conceptual overlap with "WhatsApp & Email" (which handles
+                        external-channel communications). */}
                     <button
                         onClick={() => setActiveTab('inbox')}
                         className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
@@ -780,7 +787,7 @@ const MessagesView: React.FC = () => {
                             <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
                             <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
                         </svg>
-                        <span className="hidden sm:inline">Inbox</span>
+                        <span className="hidden sm:inline">Conversations</span>
                         {totalInboxUnread > 0 && (
                             <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {totalInboxUnread > 9 ? '9+' : totalInboxUnread}
@@ -841,9 +848,13 @@ const MessagesView: React.FC = () => {
                         )}
                     </button>
 
-                    {/* Communications Tab — AtriumInbox (WhatsApp/Email automations + audit trail)
-                        Only shown for property/unified firms. Moved here from the Revenue Engine
-                        so all messaging lives in one unified hub. */}
+                    {/* WhatsApp & Email Tab (was "Communications") — AtriumInbox
+                        Handles external-channel communications: WhatsApp rent
+                        reminders, email demand notices, inbound tenant replies
+                        via WhatsApp, and the full audit/print trail.
+                        Renamed from "Communications" to eliminate conceptual
+                        overlap with "Conversations" (which is portal-based chat).
+                        Only shown for property/unified firms. */}
                     {(isProperty || isUnified) && (
                     <button
                         onClick={() => setActiveTab('communications')}
@@ -856,8 +867,8 @@ const MessagesView: React.FC = () => {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
                         </svg>
-                        <span className="hidden sm:inline">Communications</span>
-                        <span className="sm:hidden">Comms</span>
+                        <span className="hidden sm:inline">WhatsApp & Email</span>
+                        <span className="sm:hidden">Chats</span>
                         <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
                             Property
                         </span>

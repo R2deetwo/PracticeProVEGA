@@ -231,7 +231,7 @@ export const AtriumInbox: React.FC = () => {
                         <ChatBubbleLeftRightIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-black text-white tracking-tight">Unified Inbox</h2>
+                        <h2 className="text-lg font-black text-white tracking-tight">WhatsApp & Email</h2>
                         <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Tenant Communication Hub</p>
                     </div>
                 </div>

@@ -263,15 +263,27 @@ export const BillingView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<FinancialsTab>('invoices');
 
     // Build the tab list based on product + tier
+    //
+    // Nomenclature audit:
+    //   - "Invoices & Demands" = the invoice list (legal invoices + property rent demands)
+    //   - "Service Charges" = the defaulters / service charge dashboard (was "Revenue Monitor")
+    //   - "Payments & Receipts" = ledger manager (property payment records)
+    //   - "Vacancies" = vacancy pipeline (available units)
+    //   - "Reminder Rules" = automation center (rent reminder rule config — was "Automations")
+    //   - "Billing Monitor" = automated retainer billing outbox (premium, legal)
+    //
+    // The "Reminder Rules" name makes it clear these are the RULES that generate
+    // the messages you see in Messages > WhatsApp & Email. Avoids conceptual
+    // overlap with the messaging automations.
     const tabs: { id: FinancialsTab; label: string; badge?: string; productTag?: 'Legal' | 'Property' }[] = [
         { id: 'invoices', label: 'Invoices & Demands' },
     ];
     if (isProperty || isUnified) {
         tabs.push(
-            { id: 'revenue', label: 'Revenue Monitor', productTag: 'Property' },
+            { id: 'revenue', label: 'Service Charges', productTag: 'Property' },
             { id: 'payments', label: 'Payments & Receipts', productTag: 'Property' },
             { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
-            { id: 'automations', label: 'Automations', productTag: 'Property' },
+            { id: 'automations', label: 'Reminder Rules', productTag: 'Property' },
         );
     }
     if (features.canUseRetainerAutoBilling) {
