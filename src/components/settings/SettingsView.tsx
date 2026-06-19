@@ -52,6 +52,7 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'contact-category-management': { main: 'templates', sub: 'contacts' },
     'document-category-management': { main: 'templates', sub: 'documents_folders' },
     'display-settings': { main: 'profile' },
+    'theme-preference': { main: 'profile' }, // Long-press theme toggle target
     'notification-settings': { main: 'profile' },
     'automation-settings': { main: 'templates', sub: 'automations' },
     'help-and-support': { main: 'help' },

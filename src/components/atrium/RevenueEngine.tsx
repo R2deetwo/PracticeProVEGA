@@ -71,7 +71,8 @@ const RevenueEngine: React.FC = () => {
   const tabs: Tab[] = [
     { id: 'defaulters', label: 'Service Charges', shortLabel: 'Charges', icon: <ShieldIcon />, badge: criticalCount || undefined },
     { id: 'ledger', label: 'Payments & Receipts', shortLabel: 'Payments', icon: <LedgerIcon />, badge: pendingLedger || undefined },
-    { id: 'inbox', label: 'Messages', shortLabel: 'Messages', icon: <InboxIcon /> },
+    // NOTE: 'inbox' tab removed — Communications has moved to the Messages page
+    // where it belongs with the rest of the messaging hub (team chat, notices, etc.)
     { id: 'automations', label: 'Automation Center', shortLabel: 'Automations', icon: <BellIcon />, badge: todayLogs || undefined },
     { id: 'pipeline', label: 'Available Units', shortLabel: 'Vacancies', icon: <FunnelIcon />, badge: activePipeline || undefined },
   ];
@@ -168,7 +169,6 @@ const RevenueEngine: React.FC = () => {
           <div className="h-full">
             {activeTab === 'defaulters' && <ServiceChargeMonitor />}
             {activeTab === 'ledger' && <LedgerManager />}
-            {activeTab === 'inbox' && <AtriumInbox />}
             {activeTab === 'automations' && <AutomationCenter />}
             {activeTab === 'pipeline' && <VacancyPipeline />}
           </div>

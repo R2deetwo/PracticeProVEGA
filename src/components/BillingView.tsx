@@ -15,6 +15,11 @@ import { useProduct } from '../contexts/ProductContext';
 import { useFeatures } from '../hooks/useFeatures';
 import EmptyState from './EmptyState';
 import { BillingMonitorView } from './BillingMonitorView';
+// Atrium revenue modules — conditionally rendered for property/unified firms
+import ServiceChargeMonitor from './atrium/ServiceChargeMonitor';
+import LedgerManager from './atrium/LedgerManager';
+import VacancyPipeline from './atrium/VacancyPipeline';
+import AutomationCenter from './atrium/AutomationCenter';
 
 const getStatusBadgeClass = (status: InvoiceStatus) => {
     switch (status) {
@@ -235,22 +240,88 @@ export const BillingView: React.FC = () => {
     const { openModal, navigateTo, closeModal } = useUI();
     const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
     const features = useFeatures();
+    const { isProperty, isUnified, product } = useProduct();
+    const { coreState } = useCoreState();
 
-    // Tab state — 'invoices' is always available; 'monitor' only shows for
-    // premium firms (Vega Growth+/Pro/Komplete). Default to 'invoices'.
-    const [activeTab, setActiveTab] = useState<'invoices' | 'monitor'>('invoices');
+    // Unified Financials tab state. Tabs are conditionally shown based on
+    // the firm's product (legal vs property vs unified) and tier.
+    //
+    // LEGAL (Vega) firms see:
+    //   - Invoices & Demands (their existing invoice list)
+    //   - Billing Monitor (premium — automated retainer outbox)
+    //
+    // PROPERTY (Atrium) firms see:
+    //   - Invoices & Demands (their existing invoice list — rent demands etc.)
+    //   - Revenue Monitor (defaulters / service charge dashboard)
+    //   - Payments & Receipts (ledger manager)
+    //   - Vacancies (vacancy pipeline)
+    //   - Automations (rent reminder automation center)
+    //
+    // UNIFIED (Komplete) firms see ALL of the above — clearly marked with
+    // Legal/Property badges so users always know which context they're in.
+    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'monitor';
+    const [activeTab, setActiveTab] = useState<FinancialsTab>('invoices');
 
-    const tabs: { id: 'invoices' | 'monitor'; label: string; locked?: boolean }[] = [
-        { id: 'invoices', label: 'Invoices' },
-        ...(features.canUseRetainerAutoBilling
-            ? [{ id: 'monitor' as const, label: 'Billing Monitor' }]
-            : []),
+    // Build the tab list based on product + tier
+    const tabs: { id: FinancialsTab; label: string; badge?: string; productTag?: 'Legal' | 'Property' }[] = [
+        { id: 'invoices', label: 'Invoices & Demands' },
     ];
+    if (isProperty || isUnified) {
+        tabs.push(
+            { id: 'revenue', label: 'Revenue Monitor', productTag: 'Property' },
+            { id: 'payments', label: 'Payments & Receipts', productTag: 'Property' },
+            { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
+            { id: 'automations', label: 'Automations', productTag: 'Property' },
+        );
+    }
+    if (features.canUseRetainerAutoBilling) {
+        tabs.push({ id: 'monitor', label: 'Billing Monitor', productTag: 'Legal' });
+    }
+
+    // KPI strip — unified metrics across legal + property
+    const kpiData = useMemo(() => {
+        const invoices = financeState.invoices || [];
+        const ledgerEntries = (coreState as any).ledgerEntries || [];
+        const serviceCharges = (coreState as any).serviceCharges || [];
+
+        const paidThisMonth = invoices.filter(i => {
+            if (i.status !== InvoiceStatus.Paid || !i.paidDate) return false;
+            const d = new Date(i.paidDate);
+            const now = new Date();
+            return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        }).reduce((s, i) => s + (i.total_amount || i.subTotal || 0), 0);
+
+        const outstanding = invoices
+            .filter(i => i.status === InvoiceStatus.Unpaid || i.status === InvoiceStatus.Overdue || i.status === InvoiceStatus.Sent)
+            .reduce((s, i) => s + (i.total_amount || i.subTotal || 0), 0);
+
+        const propertyCollected = ledgerEntries
+            .filter((e: any) => e.status === 'cleared')
+            .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+
+        const propertyOutstanding = ledgerEntries
+            .filter((e: any) => e.status === 'pending')
+            .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+
+        const criticalDefaulters = serviceCharges.filter((d: any) => d.isDefaulter && (d.daysOverdue ?? 0) > 14).length;
+
+        return {
+            collected: paidThisMonth + propertyCollected,
+            outstanding: outstanding + propertyOutstanding,
+            defaults: criticalDefaulters,
+            invoiceCount: invoices.length,
+        };
+    }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges]);
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
-                <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
+                <div>
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
+                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                        {isUnified ? 'Unified revenue & billing — Legal + Property' : isProperty ? 'Property revenue & billing' : 'Legal billing & invoices'}
+                    </p>
+                </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => openModal('newInvoice')}
@@ -262,6 +333,26 @@ export const BillingView: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
+                {/* KPI Strip — unified across legal + property */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Collected</p>
+                        <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatNaira(kpiData.collected)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/30 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Outstanding</p>
+                        <p className="text-lg font-black text-amber-600 dark:text-amber-400">{formatNaira(kpiData.outstanding)}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-800/30 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Defaults</p>
+                        <p className="text-lg font-black text-rose-600 dark:text-rose-400">{kpiData.defaults}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Invoices</p>
+                        <p className="text-lg font-black text-slate-900 dark:text-white">{kpiData.invoiceCount}</p>
+                    </div>
+                </div>
+
                 {/* Tab Bar — matches the Analytics page pattern */}
                 <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
                     <nav className="-mb-px flex space-x-6 overflow-x-auto">
@@ -276,8 +367,17 @@ export const BillingView: React.FC = () => {
                                 }`}
                             >
                                 {tab.label}
+                                {tab.productTag && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                        tab.productTag === 'Legal'
+                                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                            : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+                                    }`}>
+                                        {tab.productTag}
+                                    </span>
+                                )}
                                 {tab.id === 'monitor' && (
-                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                                         Premium
                                     </span>
                                 )}
@@ -298,6 +398,30 @@ export const BillingView: React.FC = () => {
                         closeModal={closeModal}
                         openConfirmationModal={openModal}
                     />
+                )}
+
+                {activeTab === 'revenue' && (isProperty || isUnified) && (
+                    <div className="min-h-[500px]">
+                        <ServiceChargeMonitor />
+                    </div>
+                )}
+
+                {activeTab === 'payments' && (isProperty || isUnified) && (
+                    <div className="min-h-[500px]">
+                        <LedgerManager />
+                    </div>
+                )}
+
+                {activeTab === 'vacancies' && (isProperty || isUnified) && (
+                    <div className="min-h-[500px]">
+                        <VacancyPipeline />
+                    </div>
+                )}
+
+                {activeTab === 'automations' && (isProperty || isUnified) && (
+                    <div className="min-h-[500px]">
+                        <AutomationCenter />
+                    </div>
                 )}
 
                 {activeTab === 'monitor' && <BillingMonitorView />}

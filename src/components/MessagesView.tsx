@@ -13,6 +13,7 @@ import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
 import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
+import { AtriumInbox } from './atrium/AtriumInbox';
 import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
@@ -43,7 +44,10 @@ const PdfIcon = ({ className }: { className?: string }) => (
 );
 
 // ── Tab type for the unified messaging hub ──────────────────────────────
-type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled';
+// 'communications' = AtriumInbox (WhatsApp/Email automations + audit trail)
+// Only shown for property/unified firms — moved here from the Revenue Engine
+// so all messaging lives in one place.
+type MessagingTab = 'inbox' | 'team' | 'notices' | 'scheduled' | 'communications';
 
 // ── Channel label helpers (shared with AtriumInbox) ────────────────────
 const CHANNEL_COLORS: Record<string, string> = {
@@ -325,13 +329,14 @@ const MessagesView: React.FC = () => {
         if (hint === 'team') return 'team';
         if (hint === 'notices') return 'notices';
         if (hint === 'scheduled') return 'scheduled';
+        if (hint === 'communications') return 'communications';
         return 'inbox';
     });
 
     // Also switch tabs when navigating from notifications while already on messaging view
     useEffect(() => {
         const hint = currentHistoryEntry.context?.initialTab;
-        if (hint === 'inbox' || hint === 'team' || hint === 'notices' || hint === 'scheduled') {
+        if (hint === 'inbox' || hint === 'team' || hint === 'notices' || hint === 'scheduled' || hint === 'communications') {
             setActiveTab(hint as MessagingTab);
         }
         // If navigating to inbox with a specific inbound message ID, select it
@@ -835,6 +840,29 @@ const MessagesView: React.FC = () => {
                             </span>
                         )}
                     </button>
+
+                    {/* Communications Tab — AtriumInbox (WhatsApp/Email automations + audit trail)
+                        Only shown for property/unified firms. Moved here from the Revenue Engine
+                        so all messaging lives in one unified hub. */}
+                    {(isProperty || isUnified) && (
+                    <button
+                        onClick={() => setActiveTab('communications')}
+                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
+                            activeTab === 'communications'
+                                ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
+                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                        }`}
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+                        </svg>
+                        <span className="hidden sm:inline">Communications</span>
+                        <span className="sm:hidden">Comms</span>
+                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                            Property
+                        </span>
+                    </button>
+                    )}
                 </div>
             </div>
 
@@ -1595,6 +1623,16 @@ const MessagesView: React.FC = () => {
                 {/* ═══ SCHEDULED TAB ═══ */}
                 {activeTab === 'scheduled' && (
                     <ScheduledTab firmId={firmId} />
+                )}
+
+                {/* ═══ COMMUNICATIONS TAB ═══ */}
+                {/* AtriumInbox — WhatsApp/Email automations + audit trail.
+                    Moved here from the Revenue Engine so all messaging lives
+                    in one unified hub. Only shown for property/unified firms. */}
+                {activeTab === 'communications' && (isProperty || isUnified) && (
+                    <div className="w-full h-full overflow-y-auto">
+                        <AtriumInbox />
+                    </div>
                 )}
             </div>
             {ConfirmDialog}

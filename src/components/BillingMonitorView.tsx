@@ -27,6 +27,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
 import { useFeatures } from '../hooks/useFeatures';
+import { useFinanceState } from '../contexts/FinanceContext';
 import { InvoiceOutboxState } from '../types';
 import { formatNaira } from '../utils/formatting';
 import {
@@ -123,24 +124,170 @@ export const BillingMonitorView: React.FC = () => {
 
     return (
         <ErrorBoundary
-            fallback={
-                <div className="p-6 max-w-2xl mx-auto text-center">
-                    <div className="w-16 h-16 mx-auto bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-4">
-                        <ExclamationTriangleIcon className="w-8 h-8 text-amber-500" />
-                    </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-                        Billing Monitor unavailable
-                    </h3>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed">
-                        The Convex backend hasn't been deployed with the new <code className="px-1 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[11px]">retainerBilling</code> module yet.
-                        Run <code className="px-1 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[11px]">npx convex deploy</code> from your project root to push the new schema, mutations, and cron jobs.
-                        After that, refresh this page.
-                    </p>
-                </div>
-            }
+            fallback={<BillingMonitorNotDeployedFallback />}
         >
             <BillingMonitorInner />
         </ErrorBoundary>
+    );
+};
+
+// ─── Fallback: shown when the Convex retainerBilling module isn't deployed ──
+// Instead of just saying "unavailable", we show the user's existing retainer
+// invoices (filtered from the regular invoices table) so the tab is still
+// useful. A clear banner explains how to unlock the full automation features.
+const BillingMonitorNotDeployedFallback: React.FC = () => {
+    const { openModal, navigateTo } = useUI();
+    const { financeState } = useFinanceState();
+    const [showDeployScript, setShowDeployScript] = useState(false);
+
+    // Filter invoices that look like retainer invoices (by title or matter type)
+    const retainerInvoices = useMemo(() => {
+        if (!financeState?.invoices) return [];
+        return financeState.invoices.filter(inv => {
+            const title = (inv.matter?.title || '').toLowerCase();
+            const num = (inv.invoiceNumber || '').toLowerCase();
+            return title.includes('retainer') || num.includes('ret') || num.includes('r-');
+        });
+    }, [financeState?.invoices]);
+
+    const downloadDeployScript = () => {
+        const script = `#!/bin/bash
+# PracticePro — Convex Backend Deploy Script
+# Run this from your project root to deploy the new retainerBilling module
+# which powers the Billing Monitor's automated invoice outbox.
+
+set -e
+
+echo "→ Logging in to Convex (opens browser)..."
+npx convex login
+
+echo "→ Deploying Convex backend..."
+npx convex deploy
+
+echo "→ Done! The Billing Monitor tab will now show the live outbox."
+echo "→ Refresh the app in your browser or restart the APK."
+`;
+        const blob = new Blob([script], { type: 'text/x-shellscript' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'deploy-convex-backend.sh';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* Banner — explains the situation + provides deploy action */}
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-200 dark:border-amber-800/30">
+                <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0">
+                        <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">
+                            Activate automated retainer billing
+                        </h3>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed mb-3">
+                            You're seeing existing retainer invoices below. To unlock the full
+                            Billing Monitor — automated invoice staging, the pending outbox queue,
+                            and lawyer override controls (Approve &amp; Send, Pause, Skip Cycle) —
+                            deploy the latest Convex backend from your machine.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={downloadDeployScript}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-all"
+                            >
+                                <ArrowPathIcon className="w-3 h-3" />
+                                Download Deploy Script
+                            </button>
+                            <button
+                                onClick={() => setShowDeployScript(!showDeployScript)}
+                                className="px-3 py-1.5 bg-white dark:bg-zinc-800 text-amber-700 dark:text-amber-300 rounded-lg text-xs font-bold border border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-zinc-700 transition-all"
+                            >
+                                {showDeployScript ? 'Hide' : 'Show'} instructions
+                            </button>
+                        </div>
+                        {showDeployScript && (
+                            <div className="mt-3 p-3 bg-slate-900 dark:bg-black/40 rounded-lg overflow-x-auto">
+                                <code className="text-[11px] text-emerald-400 font-mono whitespace-pre">
+{`# From your project root:
+npx convex login      # one-time, opens browser
+npx convex deploy     # pushes schema + mutations + crons
+
+# Then refresh the app.`}
+                                </code>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Existing retainer invoices (fallback content) */}
+            <div>
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                    <div className="w-1 h-5 bg-amber-500 rounded-full" />
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
+                        Existing Retainer Invoices
+                    </h3>
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+                        {retainerInvoices.length} found
+                    </span>
+                </div>
+                {retainerInvoices.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 dark:text-zinc-500">
+                        <BillingIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">No retainer invoices yet</p>
+                        <p className="text-xs mt-1">
+                            Create a matter with Retainer billing to see invoices here.
+                        </p>
+                        <button
+                            onClick={() => openModal('newMatter')}
+                            className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-all"
+                        >
+                            Create Matter
+                        </button>
+                    </div>
+                ) : (
+                    <div className="space-y-2.5">
+                        {retainerInvoices.slice(0, 20).map((inv: any) => (
+                            <div
+                                key={inv.id}
+                                onClick={() => navigateTo('invoiceDetail', inv.id)}
+                                className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all p-3 cursor-pointer"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                            {inv.invoiceNumber}
+                                        </p>
+                                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 truncate">
+                                            {inv.client?.name} • {inv.matter?.title}
+                                        </p>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                        <p className="text-sm font-black text-slate-900 dark:text-white">
+                                            ₦{(inv.total_amount || inv.subTotal || 0).toLocaleString('en-NG')}
+                                        </p>
+                                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                                            inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                            inv.status === 'Overdue' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                                            inv.status === 'Sent' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                                            'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'
+                                        }`}>
+                                            {inv.status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
     );
 };
 

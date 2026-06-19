@@ -358,7 +358,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                                 item={{ view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon /> }}
                                 setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                             />
-                            <RevenueEngineNavItem setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} firmId={coreState.firmDetails?.id || ''} />
+                            {/* NOTE: Standalone "Revenue Monitor" nav item removed.
+                                Revenue Monitor is now a tab inside the Financials page,
+                                unified with billing for both legal and property firms. */}
                         </>
                     )}
                     {isLegal && (
@@ -412,7 +414,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     <NavItemLink
                         item={{ view: 'billing', text: 'Financials', icon: <BillingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        locked={!features.canUseAdvancedBilling}
+                        // Financials is the unified revenue + billing hub.
+                        // For Atrium (property) firms, this is their PRIMARY
+                        // revenue entry point — never locked. For Vega (legal)
+                        // firms, it's gated to Pro+ (advanced billing feature).
+                        locked={isProperty ? false : !features.canUseAdvancedBilling}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
                     <NavItemLink

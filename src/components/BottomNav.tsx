@@ -132,8 +132,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
 
 
     const filteredNavItems = navItemsList.filter(item => {
-        // Revenue monitor: only show for property product
-        if (item.view === 'atriumEngine' && !isProperty) return false;
+        // Revenue monitor standalone view: hidden from bottom nav — Revenue
+        // Monitor is now a tab inside the Financials page. We keep the
+        // 'atriumEngine' view registered for backward compat (deep links
+        // from old notifications etc.) but don't surface it in the nav.
+        if (item.view === 'atriumEngine') return false;
         // Matters: only show for legal product users
         if (item.view === 'matters' && isProperty && !isUnified) return false;
         // Research: only show for legal product users  
@@ -141,11 +144,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         return item.permission(permissions);
     });
 
-    // Product-aware primary nav: property users get Properties + Revenue front-and-center
+    // Product-aware primary nav.
+    // Unified: Dashboard + Matters + Properties + Tasks
+    // Property (Atrium): Dashboard + Properties + Financials + Tasks
+    // Legal (Vega): Dashboard + Matters + Tasks + Research
+    //
+    // NOTE: 'atriumEngine' removed from primary nav — Revenue Monitor is now
+    // a tab inside Financials (billing view), unified across all products.
     const primaryViews: View[] = isUnified
-        ? ['dashboard', 'matters', 'properties', 'atriumEngine']
+        ? ['dashboard', 'matters', 'properties', 'tasks']
         : isProperty
-        ? ['dashboard', 'properties', 'atriumEngine', 'tasks']
+        ? ['dashboard', 'properties', 'billing', 'tasks']
         : ['dashboard', 'matters', 'tasks', 'research'];
     
     const primaryItems = useMemo(() => {

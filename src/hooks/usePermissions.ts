@@ -57,6 +57,14 @@ export const usePermissions = () => {
     const isLawyer = currentUser.role === UserRole.Lawyer;
     const isParalegal = currentUser.role === UserRole.Paralegal;
 
+    // Derive product mode from firm details — used to decide whether the
+    // Financials (billing) view should be visible to non-admin staff.
+    // For Atrium (property) firms, Financials is the primary revenue hub
+    // and should be visible to all team members. For Vega (legal) firms,
+    // full firm billing/profitability is admin-only.
+    const firmProduct = appState.firmDetails?.product || currentUser?.product || 'legal';
+    const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
+
     const canManageMatterBilling = (matter: Matter): boolean => {
         if (!matter) return false;
         if (isSolo || isAdmin) return true;
@@ -73,7 +81,11 @@ export const usePermissions = () => {
 
     return {
       // View-level permissions
-      canViewBilling: isSolo || isAdmin, // Only Admin (Head of Chambers) sees full firm billing/profitability
+      // Financials (billing) is the unified revenue + billing hub. For Atrium
+      // (property) firms, this is the primary revenue entry point — visible
+      // to all team members. For Vega (legal) firms, it's admin/solo only
+      // (full firm billing/profitability is sensitive).
+      canViewBilling: isSolo || isAdmin || isPropertyFirm,
       canViewArchive: isSolo || isAdmin,
       canViewMessaging: !isSolo, // Everyone sees messaging
       

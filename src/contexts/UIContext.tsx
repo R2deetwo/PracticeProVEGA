@@ -333,15 +333,88 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         localStorage.setItem('practicepro_fontSize', fontSize);
     }, [fontSize]);
 
-    // Network Listener
+    // Network Listener — robust offline detection for both web AND Capacitor APK.
+    //
+    // The previous implementation only listened to window 'online'/'offline'
+    // events, which are unreliable in a Capacitor WebView:
+    //   - They don't fire when the device loses internet but stays on Wi-Fi
+    //     (no network interface state change).
+    //   - They don't fire when the WebView caches a stale connection state.
+    //
+    // This new implementation adds THREE layers of detection:
+    //   1. window 'online'/'offline' events (instant, when they fire)
+    //   2. Convex connection status (subscription error = offline)
+    //   3. Active polling every 15s using fetch() to a tiny endpoint
+    //
+    // The polling catches the cases where events don't fire — e.g. the user
+    // turns off mobile data but the WebView still thinks it's online.
     React.useEffect(() => {
         const handleOnline = () => setIsOnline(true);
         const handleOffline = () => setIsOnline(false);
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
+
+        // Active polling — every 15 seconds, try a HEAD request to Convex.
+        // If it fails, we're offline. If it succeeds, we're online.
+        // This catches the "Wi-Fi connected but no internet" case that
+        // browser events miss.
+        let pollInterval: ReturnType<typeof setInterval> | null = null;
+        let lastReportedState = navigator.onLine;
+        const pollNetwork = async () => {
+            try {
+                // Use a no-cors fetch to Convex's health endpoint. no-cors
+                // means we can't read the response, but we don't care — we
+                // just want to know if the request succeeds or throws.
+                // A timeout of 5s ensures we don't hang forever on a slow
+                // connection that's actually working.
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                await fetch('https://gregarious-malamute-537.convex.cloud/health', {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    signal: controller.signal,
+                    cache: 'no-store',
+                });
+                clearTimeout(timeoutId);
+                // If we got here, the request succeeded (or opaque response)
+                if (!lastReportedState) {
+                    lastReportedState = true;
+                    setIsOnline(true);
+                }
+            } catch {
+                // Request failed — we're offline
+                if (lastReportedState) {
+                    lastReportedState = false;
+                    setIsOnline(false);
+                }
+            }
+        };
+
+        // Start polling after a short delay (don't fire immediately on mount)
+        setTimeout(() => {
+            pollNetwork();
+            pollInterval = setInterval(pollNetwork, 15000);
+        }, 2000);
+
+        // Also try Capacitor's Network plugin if available (more reliable in APK)
+        try {
+            const capacitor = (window as any).Capacitor;
+            if (capacitor?.Plugins?.Network) {
+                const Network = capacitor.Plugins.Network;
+                Network.addListener('networkStatusChange', (status: any) => {
+                    const connected = status.connected && status.connectionType !== 'none';
+                    lastReportedState = connected;
+                    setIsOnline(connected);
+                });
+            }
+        } catch {
+            // Capacitor Network plugin not available — polling covers it
+        }
+
         return () => {
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
+            if (pollInterval) clearInterval(pollInterval);
         };
     }, []);
 

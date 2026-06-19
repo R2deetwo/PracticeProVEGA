@@ -60,7 +60,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
         <>
             <SettingsCard title="Appearance" id="display-settings" className={className}>
                 <div className="space-y-6">
-                    <div>
+                    <div id="theme-preference">
                         <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-3">Theme System Preference</label>
                         <div className="relative">
                             <select

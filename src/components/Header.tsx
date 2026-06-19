@@ -147,6 +147,38 @@ const Header: React.FC = React.memo(() => {
         setTheme(themes[nextIndex]);
     };
 
+    // Long-press the theme toggle → open Settings → Theme preference dropdown.
+    // Lets users access the full theme picker (midnight, oled, neon-cyber, etc.)
+    // instead of just cycling through system/light/dark.
+    const themeLongPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const themeLongPressFired = useRef(false);
+
+    const handleThemeTouchStart = () => {
+        themeLongPressFired.current = false;
+        themeLongPressTimer.current = setTimeout(() => {
+            themeLongPressFired.current = true;
+            // Navigate to settings with a context hint so DisplaySettings
+            // can auto-open the theme dropdown
+            navigateTo('settings', null, { settingsTargetId: 'theme-preference' });
+        }, 500); // 500ms = long press
+    };
+
+    const handleThemeTouchEnd = () => {
+        if (themeLongPressTimer.current) {
+            clearTimeout(themeLongPressTimer.current);
+            themeLongPressTimer.current = null;
+        }
+    };
+
+    const handleThemeClick = () => {
+        // If the long-press already fired, don't also cycle the theme
+        if (themeLongPressFired.current) {
+            themeLongPressFired.current = false;
+            return;
+        }
+        handleThemeCycle();
+    };
+
     const toggleUserMenu = (e: React.MouseEvent) => {
         e.stopPropagation();
         setUserMenuOpen(prev => !prev);
@@ -260,7 +292,23 @@ const Header: React.FC = React.memo(() => {
                 {/* DB Connection Status */}
                 <ConnectionStatus />
 
-                <button onClick={handleThemeCycle} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500">
+                <button
+                    onClick={handleThemeClick}
+                    onContextMenu={(e) => {
+                        // Right-click also opens the full theme picker (desktop equivalent of long-press)
+                        e.preventDefault();
+                        navigateTo('settings', null, { settingsTargetId: 'theme-preference' });
+                    }}
+                    onTouchStart={handleThemeTouchStart}
+                    onTouchEnd={handleThemeTouchEnd}
+                    onTouchMove={handleThemeTouchEnd}
+                    onMouseDown={handleThemeTouchStart}
+                    onMouseUp={handleThemeTouchEnd}
+                    onMouseLeave={handleThemeTouchEnd}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 select-none"
+                    title="Click to cycle (System → Light → Dark). Long-press or right-click for full theme picker."
+                    aria-label="Theme toggle — long-press for more options"
+                >
                     <ThemeIcon />
                 </button>
 
