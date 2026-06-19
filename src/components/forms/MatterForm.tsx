@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
+import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { useFeatures } from '../../hooks/useFeatures';
 import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon } from '../../constants';
 import { UserAssignment } from './UserAssignment';
 import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
@@ -43,9 +44,11 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
     const { isProperty } = useProduct();
+    const features = useFeatures();
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
+    const upsertRetainerSchedule = useMutation(api.retainerBilling.upsertMatterRetainerSchedule);
     const { queueMutation, isOnline } = useOfflineQueue();
 
     const availableWorkflows = executionState.workflows && executionState.workflows.length > 0 ? executionState.workflows : workflows;
@@ -83,6 +86,9 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const [fixedFeeAmount, setFixedFeeAmount] = useState(0);
     const [billingPercentage, setBillingPercentage] = useState(2.5);
     const [billingBase, setBillingBase] = useState<'Rent' | 'Value' | 'Outcome' | 'Custom'>('Rent');
+    // Retainer auto-billing fields — only active when billingModel === Retainer
+    const [billingFrequency, setBillingFrequency] = useState<BillingFrequency>(BillingFrequency.Monthly);
+    const [retainerAutoBillingEnabled, setRetainerAutoBillingEnabled] = useState<boolean>(true);
     const [assignedUsers, setAssignedUsers] = useState<Set<string>>(new Set());
 
     // Litigation Toggle & Fields
@@ -180,6 +186,9 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
             setFixedFeeAmount(matterToEdit.fixedFeeAmount || 0);
             setBillingPercentage(matterToEdit.billingPercentage || 2.5);
             setBillingBase(matterToEdit.billingBase || 'Rent');
+            // Retainer auto-billing fields — only meaningful when billingModel is Retainer
+            setBillingFrequency(matterToEdit.billingFrequency || BillingFrequency.Monthly);
+            setRetainerAutoBillingEnabled(matterToEdit.retainerAutoBillingEnabled ?? true);
             setAssignedUsers(new Set(matterToEdit.assignedUsers));
 
             if (matterToEdit.suitNumber || matterToEdit.court) {
@@ -249,6 +258,8 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     if (draft.suitNumber) setSuitNumber(draft.suitNumber);
                     if (draft.court) setCourt(draft.court);
                     if (draft.billingModel) setBillingModel(draft.billingModel);
+                    if (draft.billingFrequency) setBillingFrequency(draft.billingFrequency);
+                    if (typeof draft.retainerAutoBillingEnabled === 'boolean') setRetainerAutoBillingEnabled(draft.retainerAutoBillingEnabled);
                 } catch (e) {
                     console.error("Failed to parse matter draft", e);
                 }
@@ -262,11 +273,12 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
         if (!isEditing && !isSubmitting && title && currentUser?.id) {
             const draft = {
                 title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel,
+                billingFrequency, retainerAutoBillingEnabled,
                 lastSaved: new Date().toISOString()
             };
             localStorage.setItem(`draft_newMatter_${currentUser.id}`, JSON.stringify(draft));
         }
-    }, [title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel, isEditing, isSubmitting, currentUser]);
+    }, [title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel, billingFrequency, retainerAutoBillingEnabled, isEditing, isSubmitting, currentUser]);
 
     const activeWorkflow = availableWorkflows.find(w => w.type === matterType);
     const subCategoryOptions = activeWorkflow?.subCategories ? Object.keys(activeWorkflow.subCategories) : [];
@@ -370,6 +382,10 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 type: finalMatterType as MatterType,
                 subCategory,
                 billingModel, hourlyRate, fixedFeeAmount, billingPercentage, billingBase,
+                // Retainer auto-billing config — passed to backend which enforces
+                // premium-tier gating (Vega Growth+/Pro or Komplete).
+                billingFrequency: billingModel === BillingModel.Retainer ? billingFrequency : undefined,
+                retainerAutoBillingEnabled: billingModel === BillingModel.Retainer ? retainerAutoBillingEnabled : false,
                 stage: isEditing ? matterToEdit!.stage : 'Intake',
                 stageLastUpdated: new Date().toISOString(),
                 status: isEditing ? matterToEdit!.status : MatterStatus.Active,
@@ -441,6 +457,21 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                          await dataHandlers.updateItem('properties', { ...prop, id: linkedPropertyId, matterId: matterToEdit.id }, 'Property Link');
                     }
                 }
+                // ─── Sync retainer schedule on the backend ────────────────
+                // This computes nextBillingDate and persists the auto-billing flag.
+                // Non-premium firms will have autoBillingEnabled forced to false
+                // by the backend (defense-in-depth).
+                if (matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
+                    try {
+                        await upsertRetainerSchedule({
+                            matterId: matterToEdit.id,
+                            billingFrequency: matterData.billingFrequency,
+                            autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,
+                        });
+                    } catch (e) {
+                        console.warn('Failed to sync retainer schedule:', e);
+                    }
+                }
                 addToast("Matter updated successfully.", { type: 'success' });
             } else {
                 // TASK: Offline queue — if the device is offline, queue the
@@ -474,6 +505,21 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 if (newMatter && linkedPropertyId) {
                     const prop = coreState.properties.find(p => p.id === linkedPropertyId);
                     await dataHandlers.updateItem('properties', { ...(prop || {}), id: linkedPropertyId, matterId: newMatter.id }, 'Property Link');
+                }
+
+                // ─── Sync retainer schedule on the backend ────────────────
+                // Sets nextBillingDate = matter.createdAt + 1 cycle so the
+                // cron-based retainer scheduler can pick it up at the right time.
+                if (newMatter && matterData.billingModel === BillingModel.Retainer && matterData.billingFrequency) {
+                    try {
+                        await upsertRetainerSchedule({
+                            matterId: newMatter.id,
+                            billingFrequency: matterData.billingFrequency,
+                            autoBillingEnabled: matterData.retainerAutoBillingEnabled ?? false,
+                        });
+                    } catch (e) {
+                        console.warn('Failed to sync retainer schedule:', e);
+                    }
                 }
 
                 localStorage.removeItem(`draft_newMatter_${currentUser.id}`); // Clear draft on success
@@ -890,6 +936,83 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                         </select>
                                     </div>
                                     <p className="col-span-2 text-[10px] font-medium text-slate-400 px-1">Calculated as {billingPercentage}% of the selected basis.</p>
+                                </div>
+                            )}
+
+                            {/* ─── RETAINER AUTO-BILLING SUB-CONFIG ──────────────────────────
+                                Only visible when the user picks "Retainer" as the billing model.
+                                Exposes a Payment Frequency selector (Weekly/Monthly/Quarterly/
+                                Bi-Annually/Annually) and an auto-invoicing toggle.
+
+                                Feature gate: `canUseRetainerAutoBilling` (Vega Growth+/Pro +
+                                Komplete only). Lower-tier users can still select the Retainer
+                                model itself (manual invoicing), but the auto-billing toggle is
+                                locked and prompts an upgrade.
+                            */}
+                            {billingModel === BillingModel.Retainer && (
+                                <div className="animate-in fade-in slide-in-from-right-2 duration-300 col-span-full mt-2 p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/10 border border-emerald-200/60 dark:border-emerald-800/30 space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] font-bold text-emerald-700/80 dark:text-emerald-400 uppercase tracking-widest leading-none mb-0.5">Recurring Retainer</p>
+                                            <h4 className="text-sm font-bold text-slate-800 dark:text-white">Payment Frequency</h4>
+                                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                System auto-generates a draft invoice per cycle, staged for your review in the Billing Monitor.
+                                            </p>
+                                        </div>
+                                        <div className={`shrink-0 px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${features.canUseRetainerAutoBilling ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400'}`}>
+                                            {features.canUseRetainerAutoBilling ? 'Premium' : 'Upgrade'}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-1.5 bg-white dark:bg-zinc-800 p-1 rounded-xl ring-1 ring-slate-200 dark:ring-zinc-700/50 shadow-sm">
+                                        {Object.values(BillingFrequency).map((freq) => (
+                                            <button
+                                                key={freq}
+                                                type="button"
+                                                onClick={() => setBillingFrequency(freq)}
+                                                className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${billingFrequency === freq ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                            >
+                                                {freq}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Auto-billing toggle — locked for non-premium tiers */}
+                                    <div className="flex items-center justify-between gap-3 pt-1">
+                                        <div className="flex-1">
+                                            <p className="text-[11px] font-bold text-slate-700 dark:text-zinc-200">
+                                                Automated Invoicing
+                                            </p>
+                                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                                {features.canUseRetainerAutoBilling
+                                                    ? 'Enables cron-based invoice generation + email staging.'
+                                                    : 'Upgrade to Vega Growth+ or Komplete to enable cron-based auto-invoicing.'}
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!features.canUseRetainerAutoBilling) {
+                                                    openModal('upgradePlan');
+                                                    return;
+                                                }
+                                                setRetainerAutoBillingEnabled(prev => !prev);
+                                            }}
+                                            className={`w-11 h-6 rounded-full p-0.5 transition-all duration-500 ease-in-out shrink-0 ${retainerAutoBillingEnabled && features.canUseRetainerAutoBilling ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-700'}`}
+                                            aria-label="Toggle automated retainer invoicing"
+                                        >
+                                            <div className={`w-5 h-5 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${retainerAutoBillingEnabled && features.canUseRetainerAutoBilling ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+
+                                    {retainerAutoBillingEnabled && features.canUseRetainerAutoBilling && (
+                                        <div className="flex items-center gap-2 pt-1 text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">
+                                            <CalendarIcon className="w-3 h-3" />
+                                            <span>
+                                                Next invoice will stage automatically based on the {billingFrequency.toLowerCase()} cycle starting from matter creation.
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

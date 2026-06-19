@@ -107,4 +107,25 @@ crons.daily(
   {}
 );
 
+// ─── PART 2: AUTOMATED RETAINER BILLING CRONS ──────────────────────────────
+// Premium feature for Vega Growth+/Pro and Komplete firms. Scans all
+// retainer-billed matters with retainerAutoBillingEnabled=true and stages
+// draft invoices in invoice_outbox when nextBillingDate <= now.
+
+// Every 30 minutes — scan matters for due retainer cycles
+crons.interval(
+  "scanMattersForRetainerCycle",
+  { minutes: 30 },
+  internal.retainerBilling.scanMattersForRetainerCycle,
+  {}
+);
+
+// Every 15 minutes — advance Staged entries to Queued and trigger send
+crons.interval(
+  "advanceStagedRetainerOutbox",
+  { minutes: 15 },
+  internal.retainerBilling.advanceStagedOutbox,
+  {}
+);
+
 export default crons;

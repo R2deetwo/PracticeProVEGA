@@ -32,6 +32,7 @@ import type * as myFunctions from "../myFunctions.js";
 import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
 import type * as productPermissions from "../productPermissions.js";
+import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   portals: typeof portals;
   proactive: typeof proactive;
   productPermissions: typeof productPermissions;
+  retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;

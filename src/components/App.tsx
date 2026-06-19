@@ -22,6 +22,7 @@ import { TasksView } from './TasksView';
 import { DocumentList } from './DocumentList';
 import { CalendarView } from './CalendarView';
 import { BillingView } from './BillingView';
+import { BillingMonitorView } from './BillingMonitorView';
 import ReportingView from './ReportingView';
 import ComplianceView from './ComplianceView';
 import SettingsView from './settings/SettingsView';
@@ -350,6 +351,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'calendar': return <ViewWrapper><CalendarView /></ViewWrapper>;
             case 'timeline': return <ViewWrapper><TimelineView /></ViewWrapper>;
             case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
+            case 'billingMonitor': return <ViewWrapper><BillingMonitorView /></ViewWrapper>;
             case 'reporting': return <ViewWrapper><ReportingView /></ViewWrapper>;
             case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
 

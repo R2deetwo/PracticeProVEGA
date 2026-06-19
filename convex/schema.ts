@@ -112,6 +112,13 @@ export default defineSchema({
     billingModel: nullableString,
     billingPercentage: nullableNumber,
     billingBase: nullableString,
+    // ─── Recurring Retainer Auto-Billing Config ───────────────────────
+    // billingFrequency: Weekly | Monthly | Quarterly | Bi-Annually | Annually
+    // nextBillingDate: ISO string of the next scheduled invoice staging date
+    // retainerAutoBillingEnabled: when false, the matter is excluded from cron scans
+    billingFrequency: nullableString,
+    nextBillingDate: nullableString,
+    retainerAutoBillingEnabled: nullableBoolean,
     withholdingTaxApplicable: nullableBoolean,
     status: nullableString,
     assignedUsers: v.optional(v.array(v.string())),
@@ -1373,5 +1380,50 @@ export default defineSchema({
     .index("by_firm", ["firmId"])
     .index("by_actor", ["actorId"])
     .index("by_resource", ["resource"]),
+
+  // ─── Invoice Outbox (Automated Retainer Billing) ───────────────────
+  // Tracks every system-generated invoice through a strict state machine:
+  //   Staged → Queued → Sent   (happy path)
+  //   Staged → Failed          (missing client email / gateway error)
+  //   Staged → Paused          (lawyer froze for editing)
+  //   Staged → Skipped         (lawyer cancelled this cycle only)
+  //
+  // Each entry is linked back to its parent matter so the recurring
+  // scheduler can keep advancing nextBillingDate without re-sending.
+  invoice_outbox: defineTable({
+    firmId: v.string(),
+    matterId: v.string(),               // source matter (retainer)
+    invoiceId: v.optional(v.string()),  // link to invoices table once created
+    invoiceNumber: v.optional(v.string()),
+    clientId: v.optional(v.string()),
+    clientName: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),  // resolved at staging time
+    matterTitle: v.optional(v.string()),
+    cycleLabel: v.optional(v.string()),   // e.g. "June 2026 Retainer — Matter #ABC-001"
+    frequency: v.optional(v.string()),     // Weekly | Monthly | Quarterly | Bi-Annually | Annually
+    scheduledFor: v.string(),             // ISO datetime — when the staged draft should auto-advance to Queued
+    stagedAt: v.string(),                 // ISO datetime — when the cron created this entry
+    sentAt: v.optional(v.string()),
+    failedAt: v.optional(v.string()),
+    pausedAt: v.optional(v.string()),
+    skippedAt: v.optional(v.string()),
+    state: v.string(),                    // Staged | Queued | Sent | Failed | Paused | Skipped
+    failureReason: v.optional(v.string()),
+    subTotal: v.optional(v.number()),
+    taxAmount: v.optional(v.number()),
+    totalAmount: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    lineItems: v.optional(v.array(v.any())),
+    lastEditedBy: v.optional(v.string()),
+    lastEditedAt: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_firm_state", ["firmId", "state"])
+    .index("by_firm", ["firmId"])
+    .index("by_firm_matter", ["firmId", "matterId"])
+    .index("by_matter", ["matterId"])
+    .index("by_state", ["state"])
+    .index("by_scheduled_for", ["scheduledFor"]),
 
 }, { schemaValidation: false });

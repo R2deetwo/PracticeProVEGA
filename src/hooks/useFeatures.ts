@@ -81,6 +81,17 @@ export const useFeatures = () => {
         canUseAdvancedBilling: isProOrAbove,           // Advanced billing & analytics (Pro+)
         canUseReportGenerator: isGrowthOrAbove,        // Report Generator (Growth+) — Core gets basic billing only
 
+        // ─── AUTOMATED RETAINER BILLING (Premium) ───────────────────────
+        // High-value operational feature: cron-based recurring retainer
+        // invoicing + Billing Monitor outbox. Strictly gated to:
+        //   - Vega (legal) firms on Growth, Pro, or Enterprise
+        //   - Komplete (unified) firms (any plan — all features included)
+        // Excluded for:
+        //   - Atrium-only (property) firms — retainer billing is legal-only
+        //   - Vega Core (free tier)
+        // Backend mirrors this in convex/retainerBilling.ts → isFirmPremiumRetainerEligible
+        canUseRetainerAutoBilling: isLegalFirm && isGrowthOrAbove,
+
         // Research
         canUseResearchStudio: isLegalFirm && isGrowthOrAbove,  // AI research studio (Growth+ legal)
         canAccessLawReports: isLegalFirm,                       // Basic law reports (all legal plans)
@@ -101,7 +112,7 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling') => {
             switch (feature) {
                 case 'ai':                return isGrowthOrAbove;
                 case 'automation':        return isEnterpriseOrAbove;
@@ -119,6 +130,7 @@ export const useFeatures = () => {
                 case 'advancedBilling':   return isProOrAbove;
                 case 'reportGenerator':   return isGrowthOrAbove;
                 case 'externalCounsel':   return isEnterpriseOrAbove;
+                case 'retainerAutoBilling': return isLegalFirm && isGrowthOrAbove;
                 default:                  return true;
             }
         }

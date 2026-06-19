@@ -11,6 +11,37 @@ export enum MatterType { CivilLitigation = 'Civil Litigation', CriminalDefense =
 export enum InvoiceStatus { Draft = 'Draft', Sent = 'Sent', Paid = 'Paid', Overdue = 'Overdue', Unpaid = 'Unpaid', Reversed = 'Reversed', Void = 'Void' }
 // Fix: Enum member name cannot contain spaces; changed 'Fixed Fee' to 'FixedFee'
 export enum BillingModel { Hourly = 'Hourly', FixedFee = 'Fixed Fee', Retainer = 'Retainer', Contingency = 'Contingency', Percentage = 'Percentage' }
+
+/**
+ * Recurring retainer billing frequency. Only meaningful when the matter's
+ * billingModel === Retainer. Used by the automated invoice scheduler
+ * (convex/retainerBilling.ts) to compute the next billing date.
+ */
+export enum BillingFrequency {
+  Weekly = 'Weekly',
+  Monthly = 'Monthly',
+  Quarterly = 'Quarterly',
+  BiAnnually = 'Bi-Annually',
+  Annually = 'Annually',
+}
+
+/**
+ * State machine for automated invoice outbox entries.
+ * - Staged: System-generated draft, awaiting review window or manual trigger
+ * - Queued: Approved & scheduled for delivery
+ * - Sent: Successfully delivered via email/WhatsApp
+ * - Failed: Errored (missing client email, gateway error, etc.)
+ * - Skipped: Lawyer cancelled this cycle but kept the recurring schedule
+ * - Paused: Manually frozen for editing
+ */
+export enum InvoiceOutboxState {
+  Staged = 'Staged',
+  Queued = 'Queued',
+  Sent = 'Sent',
+  Failed = 'Failed',
+  Skipped = 'Skipped',
+  Paused = 'Paused',
+}
 export enum ContactType { Individual = 'Individual', Company = 'Company', Court = 'Court' }
 export enum NoteScope { Private = 'private', Firm = 'firm' }
 export enum LeadStatus { New = 'New', IntakeSent = 'Intake Sent', IntakeSubmitted = 'Intake Submitted', Analyzing = 'Analyzing', Activated = 'Activated', Converted = 'Converted', Lost = 'Lost' }
@@ -21,7 +52,7 @@ export enum FirmSpecialty { Maritime = 'Maritime & Admiralty', OilGas = 'Oil & G
 // Basic Types
 export type Theme = 'light' | 'dark' | 'system' | 'midnight' | 'oled' | 'neon-cyber' | 'sunlight-soft' | 'city-lights' | 'city-emerald' | 'midnight-emerald' | 'army-dark' | 'army-light';
 export type FontSize = 'sm' | 'md' | 'lg';
-export type View = 'dashboard' | 'matters' | 'matterDetail' | 'contacts' | 'contactDetail' | 'documents' | 'documentDetail' | 'tasks' | 'calendar' | 'billing' | 'invoiceDetail' | 'receiptDetail' | 'reporting' | 'compliance' | 'settings' | 'messaging' | 'notes' | 'help' | 'archive' | 'editor' | 'research' | 'timeline' | 'properties' | 'propertyDetail' | 'intake' | 'privacyPolicy' | 'termsOfService' | 'portalTermsOfUse' | 'dataProcessingAgreement' | 'cookiePolicy' | 'indexer' | 'atriumEngine' | 'tenantPortal';
+export type View = 'dashboard' | 'matters' | 'matterDetail' | 'contacts' | 'contactDetail' | 'documents' | 'documentDetail' | 'tasks' | 'calendar' | 'billing' | 'invoiceDetail' | 'receiptDetail' | 'reporting' | 'compliance' | 'settings' | 'messaging' | 'notes' | 'help' | 'archive' | 'editor' | 'research' | 'timeline' | 'properties' | 'propertyDetail' | 'intake' | 'privacyPolicy' | 'termsOfService' | 'portalTermsOfUse' | 'dataProcessingAgreement' | 'cookiePolicy' | 'indexer' | 'atriumEngine' | 'tenantPortal' | 'billingMonitor';
 export type ModalType = 'login' | 'signup' | 'leadCapture' | 'newMatter' | 'editMatter' | 'closeMatter' | 'archiveMatter' | 'newContact' | 'editContact' | 'mergeContact' | 'collectRent' | 'newDocument' | 'editDocument' | 'shareDocument' | 'signDocument' | 'newEvent' | 'editEvent' | 'viewEvent' | 'newInvoice' | 'editInvoice' | 'viewInvoice' | 'generateInvoice' | 'newUser' | 'editUser' | 'newTimeEntry' | 'editTimeEntry' | 'newExpense' | 'editExpense' | 'deleteConfirmation' | 'newWorkflow' | 'editWorkflow' | 'newEventType' | 'editEventType' | 'newContactCategory' | 'editContactCategory' | 'newChecklistTemplate' | 'editChecklistTemplate' | 'editFirmDetails' | 'newTemplate' | 'editTemplate' | 'newTemplateCategory' | 'editTemplateCategory' | 'googleDrivePicker' | 'noTeamMembers' | 'folderPermissions' | 'assignUsers' | 'viewTask' | 'newTask' | 'editTask' | 'stageChecklist' | 'newChannel' | 'newDirectMessage' | 'externalCounsel' | 'newExternalCounsel' | 'aloaHelp' | 'feedback' | 'newBankAccount' | 'editBankAccount' | 'newNotebook' | 'editNotebook' | 'newPage' | 'copyPage' | 'newLead' | 'activateLead' | 'sendIntakeLink' | 'sendPostActivationEmail' | 'requestFinancialDocument' | 'linkContactToMatter' | 'newProperty' | 'editProperty' | 'bulkEditProperty' | 'newDocumentCategory' | 'editDocumentCategory' | 'newResearchNotebook' | 'addResearchSource' | 'addCaseToNotebook' | 'keyboardShortcuts' | 'quickLook' | 'requestTrustDeposit' | 'compareDocuments' | 'composeEmail' | 'paymentGateway' | 'upgradePlan' | 'onboarding' | 'demoUpsell' | 'newDraft' | 'workspaceSetup' | 'saveToNote' | 'linkMatterToContact' | 'batchUpload' | 'joinFirm' | 'aiConsent' | 'recordRentPayment'
     | 'create_matter' | 'create_contact' | 'create_task' | 'matterIngestion'; // Aliases for AI tools
 export type SelectedId = string | null;
@@ -254,7 +285,7 @@ export interface MatterProcess { id: string; processName: string; filedDate: str
 export interface ProcessSuggestion { id: string; type: 'reminder' | 'event' | 'task' | 'deadline'; title: string; description: string; dueDate?: string; dismissed: boolean; relatedProcessId?: string; }
 export interface MatterReviewReminder { remindAt: string; note?: string; dismissed?: boolean; }
 export interface LitigationParty { id: string; name: string; contactId?: string; role: 'Claimant' | 'Defendant' | 'Applicant' | 'Respondent' | string; isRepresentative?: boolean; capacity?: string; isRepresented?: boolean; }
-export interface Matter { id: string; firmId: string; referenceNumber: string; suitNumber?: string; title: string; type: MatterType; subCategory?: string; clientId: string; court: string; judicialDivision: string; stage: string; stageLastUpdated: string; createdAt: string; opposingCounsel?: string; hourlyRate: number; fixedFeeAmount?: number; billingModel: BillingModel; billingPercentage?: number; billingBase?: 'Rent' | 'Value' | 'Outcome' | 'Custom'; withholdingTaxApplicable?: boolean; status: MatterStatus; assignedUsers: string[]; billingAccess?: string[]; trustBalance?: number; intakeAnalysis?: any; intakeRecordings?: any[]; intakeTranscription?: string; clientActionItems?: any[]; associatedContactIds?: string[]; attorneyNotes?: AttorneyNote[]; jurisdictionalAnalysis?: JurisdictionalAnalysis; presidingJudge?: string; courtRoom?: string; nextAdjournedDate?: string; originatingProcess?: string; cacAvailabilityCode?: string; rcNumber?: string; shareCapital?: number; annualReturnsDueDate?: string; propertyValue?: number; titleRegistrationDetails?: string; transactionStage?: string; billingCurrency?: 'NGN' | 'USD' | 'GBP' | 'EUR'; leadSource?: string; hasExternalAccess?: boolean; processTracking?: { activeProcesses: MatterProcess[]; suggestions: ProcessSuggestion[]; suggestionsEnabled: boolean; }; reviewReminder?: MatterReviewReminder; parties?: LitigationParty[];
+export interface Matter { id: string; firmId: string; referenceNumber: string; suitNumber?: string; title: string; type: MatterType; subCategory?: string; clientId: string; court: string; judicialDivision: string; stage: string; stageLastUpdated: string; createdAt: string; opposingCounsel?: string; hourlyRate: number; fixedFeeAmount?: number; billingModel: BillingModel; billingPercentage?: number; billingBase?: 'Rent' | 'Value' | 'Outcome' | 'Custom'; billingFrequency?: BillingFrequency; nextBillingDate?: string; retainerAutoBillingEnabled?: boolean; withholdingTaxApplicable?: boolean; status: MatterStatus; assignedUsers: string[]; billingAccess?: string[]; trustBalance?: number; intakeAnalysis?: any; intakeRecordings?: any[]; intakeTranscription?: string; clientActionItems?: any[]; associatedContactIds?: string[]; attorneyNotes?: AttorneyNote[]; jurisdictionalAnalysis?: JurisdictionalAnalysis; presidingJudge?: string; courtRoom?: string; nextAdjournedDate?: string; originatingProcess?: string; cacAvailabilityCode?: string; rcNumber?: string; shareCapital?: number; annualReturnsDueDate?: string; propertyValue?: number; titleRegistrationDetails?: string; transactionStage?: string; billingCurrency?: 'NGN' | 'USD' | 'GBP' | 'EUR'; leadSource?: string; hasExternalAccess?: boolean; processTracking?: { activeProcesses: MatterProcess[]; suggestions: ProcessSuggestion[]; suggestionsEnabled: boolean; }; reviewReminder?: MatterReviewReminder; parties?: LitigationParty[];
     // Enterprise Specialty Data — keyed by specialty to allow multi-specialty matters
     specialtyData?: MatterSpecialtyData;
 }

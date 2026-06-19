@@ -12,6 +12,7 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useFinanceState } from '../contexts/FinanceContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useFeatures } from '../hooks/useFeatures';
 import EmptyState from './EmptyState';
 
 const getStatusBadgeClass = (status: InvoiceStatus) => {
@@ -232,17 +233,29 @@ export const BillingView: React.FC = () => {
     const { financeState } = useFinanceState();
     const { openModal, navigateTo, closeModal } = useUI();
     const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
+    const features = useFeatures();
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
-                <button
-                    onClick={() => openModal('newInvoice')}
-                    className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider"
-                >
-                    <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" /> New
-                </button>
+                <div className="flex items-center gap-2">
+                    {features.canUseRetainerAutoBilling && (
+                        <button
+                            onClick={() => navigateTo('billingMonitor')}
+                            className="hidden sm:flex p-1.5 px-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/30"
+                            title="Billing Monitor — automated retainer outbox & pending queue"
+                        >
+                            <BillingIcon className="w-3 h-3 sm:w-4 sm:h-4" /> Monitor
+                        </button>
+                    )}
+                    <button
+                        onClick={() => openModal('newInvoice')}
+                        className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider"
+                    >
+                        <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" /> New
+                    </button>
+                </div>
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
