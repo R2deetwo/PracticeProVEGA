@@ -275,7 +275,12 @@ const InviteForm: React.FC<{
       // instead of success. The email was NOT actually delivered — the recipient won't
       // receive the invitation. The admin needs to know this is a configuration issue.
       const toastType = hasErrors ? 'error' : isSimulated ? 'warning' : 'success';
-      addToast(`Invitation created — ${feedback}${isSimulated ? '. IMPORTANT: The email was NOT actually sent — configure the Brevo API key in Convex environment variables.' : ''}`, { type: toastType });
+      // User-friendly message — no technical jargon about API keys or environment variables.
+      // If email wasn't sent, the message says so plainly and suggests contacting support.
+      const simulatedSuffix = isSimulated
+          ? '. The email could not be delivered — please contact support to complete email setup.'
+          : '';
+      addToast(`Invitation created — ${feedback}${simulatedSuffix}`, { type: toastType });
       onSent();
     } catch (err: any) {
       const msg = err?.message || 'Failed to send invitation';
