@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { User } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useUI } from '../../contexts/UIContext';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
 
@@ -13,9 +14,9 @@ interface PresenceAvatarsProps {
 
 export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, currentUser, className = '' }) => {
     const { coreState, isDataLoaded } = useCoreState();
+    const { isOnline: deviceOnline } = useUI();
     const [displayList, setDisplayList] = useState<{ id: string, isOnline: boolean, lastSeen: number }[]>([]);
     
-    // Reduced timeout to 10 seconds for more responsive "offline" visual feedback
     const OFFLINE_TIMEOUT = 10 * 1000; 
 
     useEffect(() => {
@@ -25,7 +26,6 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         setDisplayList(prevList => {
             const newList = [...prevList];
 
-            // 1. Update status for currently online users
             current.forEach(peerId => {
                 if (peerId === currentUser?.id) return;
                 
@@ -38,14 +38,12 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 }
             });
 
-            // 2. Mark users as offline if they are no longer in activePeers
             newList.forEach(item => {
                 if (!current.includes(item.id)) {
                     item.isOnline = false;
                 }
             });
 
-            // 3. Remove users who have been offline longer than timeout
             return newList.filter(item => {
                 if (item.isOnline) return true;
                 return (now - item.lastSeen) < OFFLINE_TIMEOUT;
@@ -54,12 +52,11 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
     }, [activePeers, currentUser?.id]);
 
-    // Cleanup interval to remove stale ghosts even if no presence events fire
     useEffect(() => {
         const interval = setInterval(() => {
             const now = Date.now();
             setDisplayList(prev => prev.filter(item => item.isOnline || (now - item.lastSeen) < OFFLINE_TIMEOUT));
-        }, 2000); // Check every 2s for snappy removal
+        }, 2000);
         return () => clearInterval(interval);
     }, []);
 
@@ -73,22 +70,35 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 const user = getUser(item.id);
                 if (!user) return null;
 
+                // TASK: The green dot only shows when BOTH:
+                // 1. The peer is marked online in presence data (item.isOnline)
+                // 2. The DEVICE has a network connection (deviceOnline)
+                // If the device goes offline, ALL green dots turn grey —
+                // the user immediately knows they've lost connection.
+                const showOnline = item.isOnline && deviceOnline;
+
                 return (
-                    <Tooltip key={item.id} text={`${user.name} ${item.isOnline ? '(Online)' : '(Away)'}`}>
+                    <Tooltip key={item.id} text={`${user.name} ${showOnline ? '(Online)' : deviceOnline ? '(Away)' : '(Offline)'}`}>
                         <div 
                             className={`
                                 relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800 
                                 flex items-center justify-center text-white font-bold text-xs 
                                 transition-all duration-500
                                 ${getUserColor(user.name)}
-                                ${item.isOnline ? 'ring-2 ring-green-500' : 'opacity-60 grayscale filter ring-0'} 
+                                ${showOnline ? 'ring-2 ring-green-500' : 'opacity-60 grayscale filter ring-0'} 
                                 z-10 cursor-default
                             `}
                         >
                             {getInitials(user.name)}
-                            {item.isOnline && (
+                            {showOnline && (
                                 <span 
                                     className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20" 
+                                    style={{ transform: 'translate(25%, 25%)' }}
+                                />
+                            )}
+                            {!showOnline && item.isOnline && (
+                                <span 
+                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-slate-400 z-20" 
                                     style={{ transform: 'translate(25%, 25%)' }}
                                 />
                             )}

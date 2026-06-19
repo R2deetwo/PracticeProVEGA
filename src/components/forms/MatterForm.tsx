@@ -5,6 +5,7 @@ import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon } from '../../constants';
 import { UserAssignment } from './UserAssignment';
 import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
@@ -45,6 +46,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
+    const { queueMutation, isOnline } = useOfflineQueue();
 
     const availableWorkflows = executionState.workflows && executionState.workflows.length > 0 ? executionState.workflows : workflows;
 
@@ -441,6 +443,30 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 }
                 addToast("Matter updated successfully.", { type: 'success' });
             } else {
+                // TASK: Offline queue — if the device is offline, queue the
+                // matter creation in localStorage and notify the user.
+                // The useOfflineQueue hook will auto-replay when connection returns.
+                if (!isOnline) {
+                    queueMutation({
+                        table: 'matters',
+                        data: { ...matterData, userEmail: currentUser?.email },
+                        itemName: 'Matter',
+                        userEmail: currentUser?.email,
+                    });
+                    if (clientToCreate) {
+                        queueMutation({
+                            table: 'contacts',
+                            data: { ...clientToCreate.data, userEmail: currentUser?.email },
+                            itemName: 'Contact',
+                            userEmail: currentUser?.email,
+                        });
+                    }
+                    localStorage.removeItem(`draft_newMatter_${currentUser.id}`);
+                    addToast('Matter saved offline. It will sync automatically when you reconnect.', { type: 'info', duration: 6000 });
+                    onClose();
+                    return;
+                }
+
                 const res = await onAddMatter(matterData, clientToCreate);
                 const newMatter = res as any; // onAddMatter returns the matter
                 
