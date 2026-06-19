@@ -5,8 +5,7 @@ import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { Matter, Contact, Document, Task } from '../types';
 import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon } from '../constants';
-
-declare const Fuse: any;
+import Fuse from 'fuse.js';
 
 type SearchableItem = (Matter | Contact | Document | Task) & { dataType: 'Matter' | 'Contact' | 'Document' | 'Task', clientName?: string };
 

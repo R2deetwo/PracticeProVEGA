@@ -5,9 +5,7 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon } from '../constants';
-
-// Fuse.js is loaded via CDN
-declare const Fuse: any;
+import Fuse from 'fuse.js';
 
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task';
 

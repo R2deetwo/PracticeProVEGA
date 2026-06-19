@@ -4,9 +4,7 @@ import { ArchivedItem } from '../types';
 import { ArchiveIcon } from '../constants';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
-
-// Fuse.js is loaded from a CDN in index.html
-declare const Fuse: any;
+import Fuse from 'fuse.js';
 
 const ArchiveView: React.FC = () => {
   const { coreState } = useCoreState();
