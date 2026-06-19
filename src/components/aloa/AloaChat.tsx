@@ -63,6 +63,23 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
 );
 
 export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; onMinimize?: () => void; isMobile?: boolean }> = ({ onClose, onDraftStream, onMinimize, isMobile }) => {
+    // ─── Bulletproof close/minimize handlers ──────────────────────────
+    // These use onPointerDown (NOT onClick) because pointerdown is the
+    // VERY FIRST event in the browser's pointer event chain. It fires
+    // before mousedown, touchstart, click, and any drag-start handlers.
+    // This means NO parent element's drag/touch handler can intercept
+    // or suppress the close action. The panel WILL close.
+    const handleClose = React.useCallback((e: React.PointerEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onClose();
+    }, [onClose]);
+
+    const handleMinimizeClick = React.useCallback((e: React.PointerEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onMinimize?.();
+    }, [onMinimize]);
     const {
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled,
@@ -950,8 +967,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     </button>
                     {activeView === 'chat' && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); onMinimize(e); }}
-                            className="touch-target p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
+                            onPointerDown={handleMinimizeClick}
+                            className="touch-target p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all relative z-30"
                             title="Minimize"
                             aria-label="Minimize panel"
                         >
@@ -959,8 +976,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         </button>
                     )}
                     <button
-                        onClick={(e) => { e.stopPropagation(); onClose(e); }}
-                        className="touch-target p-2.5 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-xl active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0"
+                        onPointerDown={handleClose}
+                        className="touch-target p-2.5 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-xl active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0 relative z-30"
                         title="Close"
                         aria-label="Close panel"
                     >

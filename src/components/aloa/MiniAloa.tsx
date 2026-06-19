@@ -389,19 +389,17 @@ export const MiniAloa: React.FC = () => {
                     </span>
                 </div>
 
-                {/* Button container — stopPropagation on ALL pointer events
-                    so the parent drag handler doesn't fire when tapping buttons. */}
+                {/* Button container — uses onPointerDown for bulletproof
+                    tap detection. pointerdown fires BEFORE the parent's
+                    onMouseDown/onTouchStart drag handlers, so the button
+                    action executes before the drag system can intercept. */}
                 <div
                     className="flex items-center gap-0.5 relative z-10"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onMouseUp={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                 >
                     <button
                         className="p-1.5 hover:bg-white/10 rounded-md text-white/70 hover:text-white transition-all active:scale-90 touch-target flex items-center justify-center"
-                        onClick={(e) => { e.stopPropagation(); handleExpand(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); handleExpand(); }}
                         title="Open Full Assistant"
                         aria-label="Expand to full panel"
                     >
@@ -411,7 +409,7 @@ export const MiniAloa: React.FC = () => {
                     </button>
                     <button
                         className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all touch-target flex items-center justify-center"
-                        onClick={(e) => { e.stopPropagation(); closePanel(); }}
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); closePanel(); }}
                         title="Dismiss"
                         aria-label="Dismiss panel"
                     >

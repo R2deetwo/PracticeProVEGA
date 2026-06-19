@@ -65,10 +65,10 @@ const AloaPanel: React.FC = () => {
                 <div
                     className={`fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[480px] max-w-[calc(100vw-40px)] rounded-l-[32px] overflow-hidden'}`}
                     style={{ right: isShifted ? '480px' : '0' }}
-                    // CRITICAL: Stop propagation so clicks inside the panel
-                    // don't bubble to the backdrop and trigger closePanel.
+                    // Only stop click propagation (NOT touch) so the backdrop
+                    // doesn't close the panel when clicking inside it. Touch
+                    // events are handled by onPointerDown on the buttons.
                     onClick={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
                 >
                     {/* Mobile drag handle — visual only, NOT a drag starter.
                         The previous version used onPointerDown to start a

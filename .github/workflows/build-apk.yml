@@ -97,15 +97,27 @@ jobs:
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon
 
-      - name: Rename APK
+      - name: Rename APK with version number
         run: |
+          # Read version from version.properties
+          MAJOR=$(grep '^MAJOR=' android/app/version.properties | cut -d= -f2)
+          MINOR=$(grep '^MINOR=' android/app/version.properties | cut -d= -f2)
+          PATCH=$(grep '^PATCH=' android/app/version.properties | cut -d= -f2)
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Version: $VERSION"
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             "android/app/build/outputs/apk/debug/PracticePro-v${VERSION}.apk"
+          # Also keep a generic name for backward compat
           cp android/app/build/outputs/apk/debug/app-debug.apk \
              android/app/build/outputs/apk/debug/PracticePro.apk
+          echo "APK_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PracticePro-APK
-          path: android/app/build/outputs/apk/debug/PracticePro.apk
+          name: PracticePro-v${{ env.APK_VERSION }}
+          path: |
+            android/app/build/outputs/apk/debug/PracticePro-v*.apk
+            android/app/build/outputs/apk/debug/PracticePro.apk
           retention-days: 30
           if-no-files-found: error

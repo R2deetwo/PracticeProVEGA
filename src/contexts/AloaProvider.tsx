@@ -139,7 +139,11 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     };
 
     const closePanel = React.useCallback(() => {
-        window.speechSynthesis.cancel();
+        // Wrap speechSynthesis in try-catch — some Android WebViews throw
+        // if speechSynthesis is unavailable, which would silently prevent
+        // setIsPanelOpen(false) from executing. This was a hidden cause of
+        // the "close button doesn't work" bug.
+        try { window.speechSynthesis?.cancel?.(); } catch {}
         setAloaState('idle');
         setIsPanelOpen(false);
         setIsMinimized(false);
