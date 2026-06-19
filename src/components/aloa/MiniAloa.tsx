@@ -365,13 +365,18 @@ export const MiniAloa: React.FC = () => {
                 transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
         >
-            {/* Header - Premium Dark, Draggable */}
+            {/* Header - Draggable. CRITICAL: The buttons below have their own
+                stopPropagation on onMouseDown/onTouchStart so the drag handler
+                on this parent div doesn't intercept button taps. Without this,
+                tapping the dismiss/expand button starts a drag instead of
+                firing the button's onClick — this was the root cause of the
+                persistent "close button doesn't work" bug. */}
             <div
                 onMouseDown={handleDragStart}
                 onTouchStart={handleDragStart}
                 className="h-10 bg-slate-900/90 dark:bg-zinc-950/90 backdrop-blur-md flex items-center justify-between px-3 cursor-move active:cursor-grabbing select-none"
             >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pointer-events-none">
                     <div className={`
                         w-6 h-6 rounded-lg flex items-center justify-center transition-colors duration-500
                         ${isActive ? (isFirmSearchEnabled ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : 'bg-green-600 shadow-lg shadow-green-600/30') : 'bg-primary-500'}
@@ -384,20 +389,31 @@ export const MiniAloa: React.FC = () => {
                     </span>
                 </div>
 
-                <div className="flex items-center gap-0.5">
+                {/* Button container — stopPropagation on ALL pointer events
+                    so the parent drag handler doesn't fire when tapping buttons. */}
+                <div
+                    className="flex items-center gap-0.5 relative z-10"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <button
-                        className="p-1 hover:bg-white/10 rounded-md text-white/70 hover:text-white transition-all active:scale-90"
-                        onClick={handleExpand}
-                        title="Open Full ARIA Assistant"
+                        className="p-1.5 hover:bg-white/10 rounded-md text-white/70 hover:text-white transition-all active:scale-90 touch-target flex items-center justify-center"
+                        onClick={(e) => { e.stopPropagation(); handleExpand(); }}
+                        title="Open Full Assistant"
+                        aria-label="Expand to full panel"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                         </svg>
                     </button>
                     <button
-                        className="active-press touch-target p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all"
-                        onClick={() => closePanel()}
+                        className="p-1.5 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-all touch-target flex items-center justify-center"
+                        onClick={(e) => { e.stopPropagation(); closePanel(); }}
                         title="Dismiss"
+                        aria-label="Dismiss panel"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
