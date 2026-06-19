@@ -5,6 +5,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+# Permissions needed for:
+#   - contents: write → to commit the version bump back to main
+#   - actions: write → to manage workflow runs
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   build:
     name: Build APK
@@ -40,6 +47,34 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      # ─── Auto-Increment Version Code ───────────────────────────────────
+      # Reads android/app/version.properties, increments versionCode by 1,
+      # and commits the change back to main so the next build gets the next
+      # number. This ensures every APK has a strictly-increasing versionCode,
+      # which Android requires to accept an APK as a valid update (instead of
+      # "App not installed as package appears to be invalid").
+      - name: Increment version code
+        run: |
+          cd android/app
+          CURRENT=$(grep '^versionCode=' version.properties | cut -d= -f2)
+          NEW=$((CURRENT + 1))
+          sed -i "s/^versionCode=.*/versionCode=$NEW/" version.properties
+          # Also bump the versionName patch number for human readability
+          CURRENT_NAME=$(grep '^versionName=' version.properties | cut -d= -f2)
+          MAJOR=$(echo $CURRENT_NAME | cut -d. -f1)
+          MINOR=$(echo $CURRENT_NAME | cut -d. -f2)
+          PATCH=$(echo $CURRENT_NAME | cut -d. -f3)
+          NEW_PATCH=$((PATCH + 1))
+          NEW_NAME="$MAJOR.$MINOR.$NEW_PATCH"
+          sed -i "s/^versionName=.*/versionName=$NEW_NAME/" version.properties
+          echo "Bumped versionCode from $CURRENT to $NEW, versionName from $CURRENT_NAME to $NEW_NAME"
+          cd ../..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add android/app/version.properties
+          git commit -m "chore: bump versionCode to $NEW [skip ci]" || echo "No changes to commit"
+          git push
 
       # ─── Convex Backend Deploy ───────────────────────────────────────────
       # Auto-deploys the Convex backend (schema, mutations, queries, crons)

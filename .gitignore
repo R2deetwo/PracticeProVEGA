@@ -46,3 +46,7 @@ android/app/release/
 *.apk
 *.aab
 *.keystore
+# Exception: commit the shared debug keystore so CI builds use the same
+# signature as local builds. This prevents "App not installed as package
+# appears to be invalid" errors when updating the APK.
+!android/app/debug.keystore

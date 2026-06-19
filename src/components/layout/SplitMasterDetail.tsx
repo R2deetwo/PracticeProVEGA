@@ -32,14 +32,15 @@ export const SplitMasterDetail: React.FC<SplitMasterDetailProps> = ({
         <div className="flex h-full w-full overflow-hidden bg-white dark:bg-zinc-900 relative">
             
             {/* --- MASTER PANE (Sidebar) --- */}
-            <div 
+            <div
                 className={`
                     flex-col h-full flex-shrink-0
                     bg-slate-50 dark:bg-zinc-900/50
                     border-r border-slate-200 dark:border-zinc-700
                     overflow-hidden relative
                     ${isDetailVisible ? 'hidden md:flex' : 'flex w-full md:w-auto'}
-                    md:w-[380px] lg:w-[420px]
+                    md:w-[340px] lg:w-[400px] xl:w-[440px]
+                    landscape:md:w-[320px] landscape:lg:w-[380px]
                 `}
             >
                 {/* Content Container */}

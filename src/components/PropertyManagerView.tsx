@@ -381,18 +381,16 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                             <PlusIcon className="w-4 h-4" /> New
                         </button>
                     </div>
-                    {/* Filter Presets — aligned with Matters module */}
-                    <div className="flex gap-1.5">
+                    {/* Filter Preset — consolidated dropdown (was a row of pills) */}
+                    <select
+                        value={preset}
+                        onChange={(e) => setPreset(e.target.value as PropPreset)}
+                        className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                    >
                         {PROP_PRESETS.map(p => (
-                            <button
-                                key={p.id}
-                                onClick={() => setPreset(p.id)}
-                                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${preset === p.id ? 'bg-primary-600 text-white shadow' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
-                            >
-                                {p.label}
-                            </button>
+                            <option key={p.id} value={p.id}>{p.label}</option>
                         ))}
-                    </div>
+                    </select>
                     <div className="relative">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input autoComplete="off" data-lpignore="true"  type="search" placeholder="Search properties..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
@@ -504,18 +502,16 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                 {/* Filter Bar */}
                 <div className="bg-white dark:bg-zinc-800 p-4 rounded-t-xl border border-slate-200 dark:border-zinc-700 flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-4 transition-all">
                     <div className="flex items-center gap-4 flex-grow max-w-2xl w-full">
-                        {/* Filter Presets — aligned with Matters module */}
-                        <div className="flex gap-1.5 mr-2 border-r border-slate-200 dark:border-zinc-700 pr-4">
+                        {/* Filter Preset — consolidated dropdown (was a row of pills) */}
+                        <select
+                            value={preset}
+                            onChange={(e) => setPreset(e.target.value as PropPreset)}
+                            className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                        >
                             {PROP_PRESETS.map(p => (
-                                <button
-                                    key={p.id}
-                                    onClick={() => setPreset(p.id)}
-                                    className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${preset === p.id ? 'bg-primary-600 text-white shadow' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
-                                >
-                                    {p.label}
-                                </button>
+                                <option key={p.id} value={p.id}>{p.label}</option>
                             ))}
-                        </div>
+                        </select>
                         <div className="relative flex-grow">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input autoComplete="off" data-lpignore="true" 

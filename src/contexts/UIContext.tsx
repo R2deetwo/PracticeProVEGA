@@ -217,6 +217,39 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
     const [isSidebarRetracted, setIsSidebarRetracted] = React.useState(false);
 
+    // ─── Mobile Landscape Auto-Collapse ──────────────────────────────────
+    // On mobile devices in landscape orientation, the sidebar takes up too
+    // much horizontal space, cramping the list + detail panes. We auto-
+    // collapse it to the icon-only rail (w-20) when the viewport is narrow
+    // AND in landscape. This maximizes the active workspace in the 3-pane
+    // layout (Sidebar + List + Detail).
+    //
+    // Detection:
+    //   - matchMedia('(orientation: landscape)') — true when width > height
+    //   - matchMedia('(max-width: 1024px)') — tablet/phone landscape
+    //   (We use 1024px instead of 768px because tablets in landscape can
+    //    still benefit from the collapsed sidebar — the 3-pane layout needs
+    //    all the width it can get.)
+    React.useEffect(() => {
+        if (typeof window === 'undefined' || !window.matchMedia) return;
+        const landscapeMobile = window.matchMedia('(orientation: landscape) and (max-width: 1024px)');
+        const handleLandscapeChange = (e: MediaQueryListEvent | MediaQueryList) => {
+            const isLandscapeMobile = 'matches' in e ? e.matches : false;
+            setIsSidebarRetracted(isLandscapeMobile);
+        };
+        // Set initial state
+        handleLandscapeChange(landscapeMobile);
+        // Listen for changes (rotation)
+        try {
+            landscapeMobile.addEventListener('change', handleLandscapeChange);
+            return () => landscapeMobile.removeEventListener('change', handleLandscapeChange);
+        } catch {
+            // Safari < 14 fallback
+            landscapeMobile.addListener(handleLandscapeChange);
+            return () => landscapeMobile.removeListener(handleLandscapeChange);
+        }
+    }, []);
+
     const [history, setHistory] = React.useState<HistoryEntry[]>([{ view: 'dashboard', selectedId: null }]);
     const [historyIndex, setHistoryIndex] = React.useState(0);
     const [modal, setModal] = React.useState<ModalType | null>(null);

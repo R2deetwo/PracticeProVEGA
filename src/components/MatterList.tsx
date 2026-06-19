@@ -322,14 +322,10 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                             </button>
                         </div>
 
-                        {/* Export all */}
-                        <button
-                            onClick={() => exportMattersToCSV(filteredMatters, matterState.contacts, documentState.notePages)}
-                            title="Export to CSV"
-                            className="p-2 bg-slate-100 dark:bg-zinc-800 text-slate-500 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
-                        >
-                            <DownloadIcon className="w-4 h-4" />
-                        </button>
+                        {/* NOTE: The standalone "Export to CSV" download button that was here
+                            (next to the Ingest button) has been removed per UI simplification
+                            — it was redundant with the bulk-export action in the selection bar.
+                            Keeping the Ingest + New buttons only for a cleaner action row. */}
 
                         <button onClick={() => openModal('matterIngestion')} className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold">
                             <CloudArrowUpIcon className="w-4 h-4" /> Ingest
@@ -340,20 +336,22 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                     </div>
                 </div>
 
-                {/* ── Filter Presets & Type Filter ── */}
+                {/* ── Consolidated Filter Row ── */}
+                {/* Filter pills (All / My Active / Overdue / This Month) have been
+                    consolidated into a single dropdown next to the Practice Areas
+                    dropdown for a cleaner, more scannable layout. */}
                 <div className="flex gap-2 flex-wrap items-center">
-                    <div className="flex gap-1.5 mr-2 border-r border-slate-200 dark:border-zinc-700 pr-4">
+                    {/* Status preset filter (was a row of pills) */}
+                    <select
+                        value={preset}
+                        onChange={(e) => setPreset(e.target.value as Preset)}
+                        className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                    >
                         {PRESETS.map(p => (
-                            <button
-                                key={p.id}
-                                onClick={() => setPreset(p.id)}
-                                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all ${preset === p.id ? 'bg-primary-600 text-white shadow' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
-                            >
-                                {p.label}
-                            </button>
+                            <option key={p.id} value={p.id}>{p.label}</option>
                         ))}
-                    </div>
-                    
+                    </select>
+
                     {uniqueTypes.length > 0 && (
                         <select
                             value={typeFilter}

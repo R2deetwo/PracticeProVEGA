@@ -223,51 +223,54 @@ export const AtriumInbox: React.FC = () => {
     };
 
     return (
-        <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
-            {/* Header */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-950/50 backdrop-blur-md">
+        <div className="min-h-full flex flex-col bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white sm:overflow-hidden">
+            {/* Header — restyled to match PracticePro's minimalist aesthetic.
+                Was: dark bg-slate-950 + emerald neon accents (broke product continuity).
+                Now: clean white/zinc card with primary green accents, consistent
+                with the rest of the app's design language. */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-900/40 text-emerald-400 rounded-xl">
+                    <div className="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-xl">
                         <ChatBubbleLeftRightIcon className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-black text-white tracking-tight">WhatsApp & Email</h2>
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-medium">Tenant Communication Hub</p>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">WhatsApp & Email</h2>
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-medium">Occupant Messages & Reminders</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Print Button */}
-                    <button 
+                    <button
                         onClick={handlePrintAll}
-                        className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-xs font-bold rounded-xl transition-colors"
                         title="Print all communications"
                     >
                         <PrinterIcon className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Print</span>
                     </button>
-                    <button 
+                    <button
                         onClick={() => setShowCompose(true)}
-                        className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-colors"
+                        className="flex items-center gap-2 px-3 py-2 bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                     >
                         <PlusIcon className="w-4 h-4" /> Compose
                     </button>
                     <div className="flex gap-2">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 rounded-full text-xs font-semibold flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                        <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-semibold flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                             {messages.filter(m => !m.isRead).length} Unread
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Sub-tabs: Inbox / Audit Trail */}
-            <div className="flex-shrink-0 flex items-center gap-0 border-b border-slate-800 bg-slate-900/30 px-4 sm:px-6">
+            {/* Sub-tabs: Inbox / Audit Trail — restyled to match app tab style */}
+            <div className="flex-shrink-0 flex items-center gap-0 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 sm:px-6">
                 <button
                     onClick={() => setActiveTab('inbox')}
                     className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
                         activeTab === 'inbox'
-                            ? 'border-emerald-500 text-white'
-                            : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                            ? 'border-primary-600 text-primary-700 dark:text-primary-400'
+                            : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
                     }`}
                 >
                     <EnvelopeIcon className="w-3.5 h-3.5" />
@@ -283,7 +286,7 @@ export const AtriumInbox: React.FC = () => {
                     className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold border-b-2 -mb-px transition-colors ${
                         activeTab === 'audit'
                             ? 'border-emerald-500 text-white'
-                            : 'border-transparent text-slate-500 hover:text-slate-300 hover:border-slate-700'
+                            : 'border-transparent text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
                     }`}
                 >
                     <ClockIcon className="w-3.5 h-3.5" />
@@ -301,7 +304,7 @@ export const AtriumInbox: React.FC = () => {
                 /* ─── INBOX VIEW ────────────────────────────────────────────────── */
                 <div className="flex flex-1 sm:overflow-hidden">
                     {/* Threads List - Hidden on mobile if thread selected */}
-                    <div className={`${selectedThreadId ? 'hidden md:block' : 'block'} w-full md:w-1/3 border-r border-slate-800 bg-slate-900/20 sm:overflow-y-auto custom-scrollbar pb-24 md:pb-0`}>
+                    <div className={`${selectedThreadId ? 'hidden md:block' : 'block'} w-full md:w-1/3 border-r border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 sm:overflow-y-auto custom-scrollbar pb-24 md:pb-0`}>
                         {messages.length === 0 ? (
                             <div className="p-12 text-center text-slate-600 flex flex-col items-center justify-center h-64">
                                 <EnvelopeIcon className="w-12 h-12 mb-4 opacity-20" />
@@ -313,12 +316,12 @@ export const AtriumInbox: React.FC = () => {
                                 <div 
                                     key={msg._id}
                                     onClick={() => handleSelectThread(msg._id)}
-                                    className={`group p-4 border-b border-slate-800/50 cursor-pointer transition-all relative ${selectedThreadId === msg._id ? 'bg-emerald-950/30 border-r-2 border-r-emerald-500' : 'hover:bg-slate-900/50'}`}
+                                    className={`group p-4 border-b border-slate-100 dark:border-zinc-700 cursor-pointer transition-all relative ${selectedThreadId === msg._id ? 'bg-primary-50 dark:bg-primary-900/20 border-r-2 border-r-primary-500' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/50'}`}
                                 >
                                     <div className="flex justify-between items-start mb-1">
                                         <div className="flex items-center gap-2">
                                             {!msg.isRead && <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></span>}
-                                            <h4 className={`text-sm truncate max-w-[140px] ${!msg.isRead ? 'font-black text-white' : 'font-semibold text-slate-400'}`}>
+                                            <h4 className={`text-sm truncate max-w-[140px] ${!msg.isRead ? 'font-black text-slate-900 dark:text-white' : 'font-semibold text-slate-600 dark:text-zinc-400'}`}>
                                                 {msg.senderName || msg.senderContact}
                                             </h4>
                                         </div>
@@ -357,16 +360,16 @@ export const AtriumInbox: React.FC = () => {
                     </div>
 
                     {/* Thread Detail */}
-                    <div className={`${selectedThreadId ? 'flex' : 'hidden md:flex'} flex-1 bg-slate-950 flex flex-col relative`}>
+                    <div className={`${selectedThreadId ? 'flex' : 'hidden md:flex'} flex-1 bg-white dark:bg-zinc-900 flex flex-col relative`}>
                         {selectedMessage ? (
                             <>
                                 {/* Thread Header - Mobile only */}
-                                <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/50">
+                                <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                                     <button onClick={() => setSelectedThreadId(null)} className="p-1 text-slate-400">
                                         <ChevronLeftIcon className="w-6 h-6" />
                                     </button>
                                     <div className="flex-1 min-w-0">
-                                        <h3 className="text-sm font-bold text-white">{selectedMessage.senderName || selectedMessage.senderContact}</h3>
+                                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{selectedMessage.senderName || selectedMessage.senderContact}</h3>
                                         <p className="text-[10px] text-slate-500">{selectedMessage.senderContact}</p>
                                     </div>
                                     <button
@@ -385,8 +388,8 @@ export const AtriumInbox: React.FC = () => {
                                 <div className="flex-1 sm:overflow-y-auto p-6 pb-44 md:pb-6 space-y-8 custom-scrollbar">
                                     <div className="flex flex-col">
                                         <div className="flex justify-start mb-6">
-                                            <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none px-5 py-4 shadow-xl max-w-[85%] relative group">
-                                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-800/50">
+                                            <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%] relative group">
+                                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
                                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                                         {selectedMessage.senderName || 'Tenant'}
                                                     </span>
@@ -394,7 +397,7 @@ export const AtriumInbox: React.FC = () => {
                                                         {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : ''}
                                                     </span>
                                                 </div>
-                                                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                                <p className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">
                                                     {selectedMessage.content}
                                                 </p>
                                                 <button 
@@ -435,7 +438,7 @@ export const AtriumInbox: React.FC = () => {
                                                     >
                                                         <PaperAirplaneIcon className="w-3.5 h-3.5" /> Use Reply
                                                     </button>
-                                                    <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 text-xs font-bold rounded-xl transition-colors">
+                                                    <button className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-400 text-xs font-bold rounded-xl transition-colors">
                                                         Ignore
                                                     </button>
                                                 </div>
@@ -445,7 +448,7 @@ export const AtriumInbox: React.FC = () => {
                                 </div>
 
                                 {/* Reply Input Area */}
-                                <div className="p-5 bg-slate-900/80 backdrop-blur-md border-t border-slate-800 shadow-2xl">
+                                <div className="p-5 bg-white dark:bg-zinc-800 backdrop-blur-md border-t border-slate-200 dark:border-zinc-700 shadow-lg">
                                     <div className="flex items-end gap-3 max-w-4xl mx-auto">
                                         <div className="flex-1 relative">
                                             <textarea 
@@ -453,12 +456,12 @@ export const AtriumInbox: React.FC = () => {
                                                 onChange={(e) => setReplyText(e.target.value)}
                                                 placeholder="Type a manual reply..." 
                                                 rows={Math.min(5, replyText.split('\n').length || 1)}
-                                                className="w-full bg-slate-950 border border-slate-800 text-white text-sm rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 resize-none transition-all placeholder:text-slate-700"
+                                                className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white text-sm rounded-2xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                                             />
                                             {replyText && (
                                                 <button 
                                                     onClick={() => setReplyText("")}
-                                                    className="absolute right-4 top-4 text-slate-600 hover:text-white"
+                                                    className="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
                                                 >
                                                     ×
                                                 </button>
@@ -467,7 +470,7 @@ export const AtriumInbox: React.FC = () => {
                                         <button 
                                             onClick={handleSendReply}
                                             disabled={!replyText.trim() || isSending}
-                                            className="p-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-2xl shadow-xl transition-all flex-shrink-0 hover:-translate-y-0.5 active:translate-y-0"
+                                            className="p-4 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-200 dark:disabled:bg-zinc-700 disabled:text-slate-400 dark:disabled:text-zinc-600 text-white rounded-2xl shadow-lg transition-all flex-shrink-0 hover:-translate-y-0.5 active:translate-y-0"
                                         >
                                             <PaperAirplaneIcon className={`w-5 h-5 ${isSending ? 'animate-pulse' : ''}`} />
                                         </button>
@@ -482,7 +485,7 @@ export const AtriumInbox: React.FC = () => {
                             </>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-slate-700 p-8 text-center">
-                                <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mb-6 border border-slate-800">
+                                <div className="w-20 h-20 bg-slate-100 dark:bg-zinc-800 rounded-3xl flex items-center justify-center mb-6 border border-slate-200 dark:border-zinc-700">
                                     <ChatBubbleLeftRightIcon className="w-10 h-10 opacity-20" />
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-400 mb-2">No Thread Selected</h3>
@@ -497,7 +500,7 @@ export const AtriumInbox: React.FC = () => {
                 /* ─── AUDIT TRAIL VIEW ──────────────────────────────────────────── */
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {/* Filter Bar */}
-                    <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm border-b border-slate-800">
+                    <div className="sticky top-0 z-10 bg-white dark:bg-zinc-800 backdrop-blur-sm border-b border-slate-200 dark:border-zinc-700">
                         <div className="flex items-center justify-between px-4 sm:px-6 py-3">
                             <div className="flex items-center gap-2">
                                 <button
