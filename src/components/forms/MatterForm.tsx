@@ -121,25 +121,12 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
     const isEditing = !!matterToEdit;
 
-    // TASK: Determine terminology based on the SELECTED MATTER TYPE, not just
-    // the firm's product. In Komplete firms, legal matters should use "Client"
-    // and property matters should use "Tenant". This prevents domain lingo
-    // leakage (e.g. showing "Tenant" in a Civil litigation matter).
-    // MUST be declared AFTER matterType and isLitigation useState calls.
-    //
-    // The ONLY matter type that uses "Tenant" is RealEstate. All other matter
-    // types (Civil, Criminal, Corporate, Family, IP, Immigration, Employment,
-    // Tax, Maritime, Oil&Gas, Other) are legal → always use "Client".
-    const LEGAL_MATTER_TYPES = new Set([
-        MatterType.CivilLitigation, MatterType.CriminalDefense,
-        MatterType.CorporateCommercial, MatterType.FamilyLaw,
-        MatterType.IntellectualProperty, MatterType.Immigration,
-        MatterType.EmploymentLabor, MatterType.Tax,
-        MatterType.MaritimeAdmiralty, MatterType.OilGas,
-        MatterType.Other,
-    ]);
-    const matterIsPropertyType = isProperty && !LEGAL_MATTER_TYPES.has(matterType as MatterType);
-    const clientLabel = matterIsPropertyType ? 'Tenant' : 'Client';
+    // TASK: Matters ALWAYS use "Client" terminology — never "Tenant".
+    // Even in Komplete firms and even for Real Estate matters, the person
+    // you're representing in a legal matter is your CLIENT.
+    // The user explicitly stated: "in matters you are dealing with clients
+    // even if they come from a landlord/tenant issue from the properties section."
+    const clientLabel = 'Client';
 
     // --- EFFECT: ALOA Form Update Listener ---
     useEffect(() => {
@@ -346,17 +333,13 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 }
             }
 
-            if (workflow && subCategory.trim()) {
-                const existingSub = workflow.subCategories ? workflow.subCategories[subCategory.trim()] : undefined;
-                if (!existingSub) {
-                    handleAddWorkflowSubCategory(workflow.id, {
-                        [subCategory.trim()]: {
-                            stages: ['Intake', 'Processing', 'Review', 'Completed', 'Closed'],
-                            suggestions: {}
-                        }
-                    });
-                }
-            }
+            // TASK: Removed handleAddWorkflowSubCategory call — it was NEVER
+            // defined in the codebase, causing 'p is not a function' error.
+            // The sub-category is saved as a plain text field on the matter
+            // (matterData.subCategory at line 386). It doesn't need to be
+            // registered as a workflow sub-category to function.
+            // If we need workflow sub-categories in the future, we'll add a
+            // proper mutation in Convex and wire it through the context.
 
             let finalClientId = clientId;
             let clientToCreate: any = null;
@@ -731,7 +714,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         {isCreatingClient ? (
                             <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-900/50 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder={matterIsPropertyType ? 'Tenant Name' : 'Client Legal Name'} />
+                                    <input autoComplete="off" data-lpignore="true"  type="text" value={newClientName} onChange={e => setNewClientName(e.target.value)} className={commonInputClass} placeholder="Client Legal Name" />
                                     <input autoComplete="off" data-lpignore="true"  type="email" value={newClientEmail} onChange={e => setNewClientEmail(e.target.value)} className={commonInputClass} placeholder="Contact Email" />
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -749,7 +732,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className="relative group">
                                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
                                 <select value={clientId} onChange={e => setClientId(e.target.value)} className={`${commonInputClass} pl-11 ring-primary-500/0 focus:ring-primary-500/20`} required>
-                                    <option value="" disabled>{matterIsPropertyType ? '-- Select Tenant --' : '-- Select Client --'}</option>
+                                    <option value="" disabled>-- Select Client --</option>
                                     {contacts.filter(c => c.category === 'Client').map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
