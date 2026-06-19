@@ -476,7 +476,8 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     ) : <DashboardSkeleton />}
                 </main>
                 {currentUser && !isPortalUser && <BottomNav currentView={view} setView={navigateTo} />}
-                <DemoProductSwitcher />
+                {/* DemoProductSwitcher — web only, hidden in native APK */}
+                {!isNativePlatform() && <DemoProductSwitcher />}
             </div>
             {currentUser && flowState === 'app' && !isPortalUser && (
                 <>

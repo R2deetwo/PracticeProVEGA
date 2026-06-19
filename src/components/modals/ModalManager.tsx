@@ -251,7 +251,7 @@ const ModalManager: React.FC = () => {
     const { modal, closeModal, modalContext, editingId, getModalTitle, navigateTo, setHighlightTarget, openModal, updateCurrentHistoryEntry } = useUI();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
-    const { executionState } = useExecutionState();
+    const { executionState, executionActions } = useExecutionState();
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const dataHandlers = useDataActions();
@@ -299,7 +299,7 @@ const ModalManager: React.FC = () => {
                     matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
                     onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
                     onClose={closeModal} currentUser={currentUser!} appMode={appMode}
-                    handleAddWorkflow={dataHandlers.handleAddWorkflow} handleAddWorkflowSubCategory={dataHandlers.handleAddWorkflowSubCategory}
+                    handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
                     onNavigate={navigateTo} initialContext={modalContext}
                     openModal={openModal}
                     isCompact={false}
@@ -314,7 +314,7 @@ const ModalManager: React.FC = () => {
                     matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
                     onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
                     onClose={closeModal} matterToEdit={matter} currentUser={currentUser!} appMode={appMode}
-                    handleAddWorkflow={dataHandlers.handleAddWorkflow} handleAddWorkflowSubCategory={dataHandlers.handleAddWorkflowSubCategory}
+                    handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
                     onNavigate={navigateTo} initialContext={modalContext}
                     openModal={openModal}
                     isCompact={false}

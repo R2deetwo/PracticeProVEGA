@@ -595,6 +595,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setImpersonationRoleOverride(null);
             sessionStorage.removeItem('practicepro_impersonation_role');
         }
+        // TASK: Clear ALL matter drafts so a different user logging in doesn't
+        // see the previous user's form data. The draft key format is:
+        // draft_newMatter_${userId} — but we don't know the next user's ID,
+        // so we clear ALL keys that start with 'draft_newMatter_'.
+        try {
+            const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('draft_newMatter_'));
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch {
+            // Non-critical
+        }
 
         // SECURITY: When a portal user logs out, only clear the PORTAL session.
         // NEVER clear practicepro_user_session — that's the admin's session and

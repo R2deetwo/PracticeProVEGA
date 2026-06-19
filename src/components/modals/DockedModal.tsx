@@ -59,7 +59,7 @@ import UpgradeModal from './UpgradeModal';
 export const DockedModal: React.FC = () => {
     const { dockedModalType, modalContext, editingId, closeModal, getModalTitle, navigateTo, openModal, setHighlightTarget } = useUI();
     const { matterState } = useMatterState();
-    const { executionState } = useExecutionState();
+    const { executionState, executionActions } = useExecutionState();
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const { financeState } = useFinanceState();
@@ -104,7 +104,7 @@ export const DockedModal: React.FC = () => {
                         matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
                         onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
                         onClose={closeModal} matterToEdit={matter} currentUser={currentUser!} appMode={appMode}
-                        handleAddWorkflow={dataHandlers.handleAddWorkflow} handleAddWorkflowSubCategory={dataHandlers.handleAddWorkflowSubCategory}
+                        handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
                         onNavigate={navigateTo} initialContext={modalContext}
                         openModal={openModal} 
                         isCompact={true}

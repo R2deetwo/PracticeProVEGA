@@ -12,7 +12,7 @@ import math
 # PracticePro brand green
 BRAND_GREEN = (22, 163, 74)  # #16A34A
 WHITE = (255, 255, 255)
-DARK_BG = (14, 14, 17)  # #0e0e11 for splash
+DARK_BG = (15, 23, 42)  # #0f172a Slate-900 — matches auth screen gradient
 
 SOURCE_SIZE = 1024
 
