@@ -10,6 +10,11 @@ jobs:
     name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Job-level env — exposes the secret presence as a simple boolean string
+    # that step-level `if` conditions can safely reference. GitHub Actions
+    # cannot reference `secrets.*` directly in step `if` conditions.
+    env:
+      HAS_CONVEX_KEY: ${{ secrets.CONVEX_DEPLOY_KEY != '' }}
 
     steps:
       - name: Checkout code
@@ -36,8 +41,13 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # ─── Convex Backend Deploy ───────────────────────────────────────────
+      # Auto-deploys the Convex backend (schema, mutations, queries, crons)
+      # on every push to main. Requires the CONVEX_DEPLOY_KEY GitHub secret.
+      # If the secret is not set, HAS_CONVEX_KEY is 'false' and this step
+      # is skipped (APK still builds).
       - name: Deploy Convex backend
-        if: ${{ secrets.CONVEX_DEPLOY_KEY != '' }}
+        if: ${{ env.HAS_CONVEX_KEY == 'true' }}
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
         run: npx convex deploy --cmd "echo 'Convex deployed successfully'"
