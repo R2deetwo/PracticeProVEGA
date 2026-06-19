@@ -1,0 +1,76 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 36
+          build-tools-version: '36.0.0'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      # ─── Convex Backend Deploy ───────────────────────────────────────────
+      # Auto-deploys the Convex backend (schema, mutations, queries, crons)
+      # on every push to main. Requires the CONVEX_DEPLOY_KEY GitHub secret
+      # to be set once. Get the key from:
+      #   https://dashboard.convex.dev/ → select gregarious-malamute-537 →
+      #   Settings → Deploy Keys → Generate Production Deploy Key
+      # Then add it as a GitHub repo secret named CONVEX_DEPLOY_KEY at:
+      #   https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions
+      #
+      # If the secret is not set, this step is skipped (APK still builds).
+      - name: Deploy Convex backend
+        if: ${{ secrets.CONVEX_DEPLOY_KEY != '' }}
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: npx convex deploy --cmd "echo 'Convex deployed successfully'"
+
+      - name: Build web app (bundled into APK)
+        run: npx vite build
+
+      - name: Sync Capacitor (bundles dist/ into APK)
+        run: npx cap sync android
+
+      - name: Build APK (clean build to purge cached assets)
+        working-directory: android
+        run: ./gradlew clean assembleDebug --no-daemon
+
+      - name: Rename APK
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             android/app/build/outputs/apk/debug/PracticePro.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PracticePro-APK
+          path: android/app/build/outputs/apk/debug/PracticePro.apk
+          retention-days: 30
+          if-no-files-found: error
