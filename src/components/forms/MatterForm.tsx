@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, SubscriptionPlan, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -270,11 +270,29 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const activeWorkflow = availableWorkflows.find(w => w.type === matterType);
     const subCategoryOptions = activeWorkflow?.subCategories ? Object.keys(activeWorkflow.subCategories) : [];
 
+    // TASK: Removed the useEffect that was CLEARING the subCategory field when
+    // the user typed custom text. The old logic was:
+    //   if (!isEditing && subCategory && !subCategoryOptions.includes(subCategory)) {
+    //       setSubCategory('');
+    //   }
+    //
+    // When subCategoryOptions is empty (no presets), ANY text the user types
+    // fails the .includes() check → the effect fires → clears the field.
+    // This is why "letters get immediately erased".
+    //
+    // The fix: only clear subCategory when the MATTER TYPE changes (not when
+    // subCategory itself changes), and only if the current subCategory is NOT
+    // a custom value (i.e., it was a preset option that no longer applies).
+    const prevMatterTypeRef = useRef(matterType);
     useEffect(() => {
-        if (!isEditing && subCategory && !subCategoryOptions.includes(subCategory)) {
-            setSubCategory('');
+        if (matterType !== prevMatterTypeRef.current) {
+            // Matter type changed — check if the current subCategory is still valid
+            if (!isEditing && subCategory && subCategoryOptions.length > 0 && !subCategoryOptions.includes(subCategory)) {
+                setSubCategory('');
+            }
+            prevMatterTypeRef.current = matterType;
         }
-    }, [matterType, subCategoryOptions, isEditing]);
+    }, [matterType, subCategoryOptions, isEditing, subCategory]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
