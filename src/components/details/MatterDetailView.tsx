@@ -85,7 +85,20 @@ const MatterDetailViewContent: React.FC = () => {
     );
 
     // Track whether the on-demand query is still loading (undefined = loading, null = not found)
-    const isOnDemandLoading = selectedId && onDemandMatter === undefined;
+    const isOnDemandLoading = selectedId && onDemandMatter === undefined && !matterState.matters.find(m => m.id === selectedId);
+
+    // TASK: Timeout fallback — if the on-demand query takes more than 8 seconds,
+    // stop showing the skeleton and show a "not found" message instead.
+    // This prevents the indefinite skeleton hang on slow connections (APK).
+    const [hasTimedOut, setHasTimedOut] = useState(false);
+    useEffect(() => {
+        if (!isOnDemandLoading) {
+            setHasTimedOut(false);
+            return;
+        }
+        const timer = setTimeout(() => setHasTimedOut(true), 8000);
+        return () => clearTimeout(timer);
+    }, [isOnDemandLoading, selectedId]);
 
     // ── Derived helpers wired to contexts ──────────────────────────────────────
     const users = coreState.users;
@@ -315,11 +328,19 @@ const MatterDetailViewContent: React.FC = () => {
     }, [matterData?.createdAt, matterData?.stageLastUpdated]);
 
     // All hooks have now been called; safe to execute early returns.
-    if (isOnDemandLoading) {
+    if (isOnDemandLoading && !hasTimedOut) {
         return <MattersSkeleton />;
     }
     if (!matterData) {
-        return <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8"><p className="text-lg font-medium">Matter not found</p></div>;
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
+                <p className="text-lg font-medium mb-2">{hasTimedOut ? 'Taking too long to load' : 'Matter not found'}</p>
+                <p className="text-sm text-slate-400 mb-4">{hasTimedOut ? 'Your connection may be slow. Try going back and opening the matter again.' : 'This matter may have been deleted or you may not have access.'}</p>
+                <button onClick={onGoBack} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                    Back to Matters
+                </button>
+            </div>
+        );
     }
 
     return (

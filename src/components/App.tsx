@@ -189,7 +189,8 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             switch (view) {
                 case 'dashboard': return <DashboardSkeleton />;
                 case 'tasks': return <TasksSkeleton />;
-                case 'matters': return <MattersSkeleton />;
+                case 'matters':
+                case 'matterDetail': return <MattersSkeleton />;
                 case 'contacts': return <ContactsSkeleton />;
                 case 'documents': return <DocumentsSkeleton />;
                 default: return <GenericSkeleton />;
