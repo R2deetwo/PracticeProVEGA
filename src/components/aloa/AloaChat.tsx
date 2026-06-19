@@ -32,6 +32,7 @@ import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
 import { loadAloaXLibrary } from '../indexer/AloaXView';
 import { analyzePartyName, analyzeMatterIntelligence } from '../../utils/defenseUtils';
+import { getAssistantName, getAssistantFullName, getChatPlaceholder } from '../../utils/assistantIdentity';
 import { ActionCard } from './ActionCard';
 import { NoteDetails } from './NoteDetails';
 import { ConversationList } from './ConversationList';
@@ -487,7 +488,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages(prev => [...prev, {
                 id: uuidv4(),
                 role: 'model',
-                content: "**Demo Limit Reached.** Start your account to unlock unlimited ARIA voice interactions.",
+                content: `**Demo Limit Reached.** Start your account to unlock unlimited ${getAssistantName(isProperty)} voice interactions.`,
                 toolAction: {
                     type: 'modal',
                     modalType: 'demoUpsell',
@@ -591,7 +592,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages(prev => [...prev, {
                 id: uuidv4(),
                 role: 'model',
-                content: `**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ARIA's capabilities and ${isProperty ? 'automate your property operations' : 'automate your legal practice'}, please create your account.`,
+                content: `**Demo Limit Reached.** You've used all 5 demo messages. To continue exploring ${getAssistantName(isProperty)}'s capabilities and ${isProperty ? 'automate your property operations' : 'automate your legal practice'}, please create your account.`,
                 toolAction: {
                     type: 'modal',
                     modalType: 'demoUpsell',
@@ -918,7 +919,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     <div className="min-w-0 overflow-hidden">
                         <div className="flex items-center gap-2 overflow-hidden flex-wrap">
                             <h2 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-none truncate">
-                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : 'ARIA'}
+                                {activeView === 'form' ? 'Edit Note' : activeView === 'details' ? 'Note Details' : activeView === 'quickNote' ? 'New Note' : getAssistantName(isProperty)}
                             </h2>
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
                             {activeView === 'chat' && injectedContext && (
@@ -940,7 +941,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         </div>
                         {activeView === 'chat' && (
                             <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
-                                {isAtrium ? 'Asset & Revenue Intelligent Assistant' : 'Artificial Legal & Operational Assistant'}
+                                {getAssistantFullName(isProperty)}
                             </p>
                         )}
                     </div>
@@ -1135,10 +1136,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 <AloaIcon className="w-10 h-10 text-white" />
                             </div>
                             <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
-                                ARIA
+                                {getAssistantName(isProperty)}
                             </h3>
                             <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
-                                {isAtrium ? 'Asset & Revenue Intelligent Assistant' : 'Artificial Legal & Operational Assistant'}
+                                {getAssistantFullName(isProperty)}
                             </p>
                             <p className="text-sm text-slate-500 dark:text-zinc-500 max-w-[260px] leading-relaxed">
                                 {isAtrium
@@ -1260,7 +1261,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     </div>
                                 </div>
                                 <div className={`mt-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'user' ? 'You' : 'ARIA'}
+                                    {msg.role === 'user' ? 'You' : getAssistantName(isProperty)}
                                 </div>
                             </div>
                         </div>
@@ -1292,7 +1293,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 value={textInput}
                                 onChange={e => setTextInput(e.target.value)}
                                 placeholder={
-                                    isAtrium ? 'Ask ARIA about your properties…' : 'Ask ARIA about your practice…'
+                                    isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
                                 }
                                 className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
                                 disabled={isLoading || aloaState !== 'idle'}

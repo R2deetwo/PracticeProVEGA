@@ -8,6 +8,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { AloaIcon, SparklesIcon, ZapIcon } from '../../constants';
 import { AloaMessage } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -16,6 +17,7 @@ import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
 import { ModalType } from '../../types';
 import { loadAloaXLibrary } from '../indexer/AloaXView';
+import { getAssistantName, getChatPlaceholder } from '../../utils/assistantIdentity';
 
 const SendIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -84,6 +86,7 @@ export const MiniAloa: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
     const { currentHistoryEntry, addToast, openModal } = useUI();
+    const { isProperty } = useProduct();
     const convex = useConvex();
     const [textInput, setTextInput] = useState('');
     const [miniStatus, setMiniStatus] = useState('');
@@ -377,7 +380,7 @@ export const MiniAloa: React.FC = () => {
                         <AloaIcon className="w-3.5 h-3.5 text-white" />
                     </div>
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
-                        {isLoading ? 'Processing' : 'ARIA Mini'}
+                        {isLoading ? 'Processing' : `${getAssistantName(isProperty)} Mini`}
                     </span>
                 </div>
 
@@ -456,23 +459,16 @@ export const MiniAloa: React.FC = () => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Overlay with RAG Toggle */}
+            {/* Input Overlay — RAG toggle removed per user request.
+                The mini version is for quick questions only; firm search
+                stays in the full panel. */}
             <div className="p-3 bg-white/50 dark:bg-zinc-950/50 border-t border-slate-200 dark:border-zinc-800">
                 <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center px-1">
                         <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${isFirmSearchEnabled ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]'}`} />
-                            <span className="text-[9px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-tighter">{preferredModel} {isFirmSearchEnabled ? '(RAG)' : ''}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]" />
+                            <span className="text-[9px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-tighter">{preferredModel}</span>
                         </div>
-                        <button
-                            onClick={() => setIsFirmSearchEnabled(!isFirmSearchEnabled)}
-                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full transition-all border ${isFirmSearchEnabled ? 'bg-blue-600/10 border-blue-500/30 text-blue-600' : 'bg-slate-100 dark:bg-zinc-800 border-transparent text-slate-400'}`}
-                        >
-                            <span className="text-[8px] font-black uppercase tracking-tight">Firm Search</span>
-                            <div className={`w-3.5 h-2 rounded-full relative transition-colors ${isFirmSearchEnabled ? 'bg-blue-600' : 'bg-slate-300 dark:bg-zinc-600'}`}>
-                                <div className={`absolute top-0.5 w-1 h-1 rounded-full bg-white transition-all ${isFirmSearchEnabled ? 'right-0.5' : 'left-0.5'}`} />
-                            </div>
-                        </button>
                     </div>
 
                     <form
@@ -482,18 +478,18 @@ export const MiniAloa: React.FC = () => {
                         }}
                         className="flex gap-2 items-end"
                     >
-                        <div className={`flex-1 flex items-center border transition-all rounded-2xl p-1 ${isFirmSearchEnabled ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800 ring-2 ring-blue-500/5' : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-primary-500/20'}`}>
+                        <div className="flex-1 flex items-center border transition-all rounded-2xl p-1 bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 focus-within:ring-2 focus-within:ring-primary-500/20">
                             <input autoComplete="off" data-lpignore="true" 
                                 value={textInput}
                                 onChange={e => setTextInput(e.target.value)}
-                                placeholder={isFirmSearchEnabled ? "Search documents..." : "Ask ARIA..."}
+                                placeholder={getChatPlaceholder(isProperty)}
                                 className="flex-1 bg-transparent border-none text-[12px] text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-zinc-500 p-2 focus:ring-0"
                                 disabled={isLoading}
                             />
                             <button
                                 type="submit"
                                 disabled={!textInput.trim() || isLoading}
-                                className={`p-1.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 ${isFirmSearchEnabled ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-primary-600 text-white shadow-lg shadow-primary-500/20'}`}
+                                className="p-1.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 bg-primary-600 text-white shadow-lg shadow-primary-500/20"
                             >
                                 <SendIcon />
                             </button>

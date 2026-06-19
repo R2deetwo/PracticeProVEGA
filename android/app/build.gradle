@@ -40,28 +40,28 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
 
-        // ─── Version Code Auto-Increment ─────────────────────────────────
-        // versionCode is read from a version.properties file that CI auto-
-        // increments on each build. This ensures the Android OS recognizes
-        // each new APK as a valid update (versionCode must strictly increase).
+        // ─── Semantic Version Code Computation ────────────────────────────
+        // Reads MAJOR, MINOR, PATCH from version.properties and computes:
+        //   versionCode = MAJOR × 10000 + MINOR × 100 + PATCH
+        //   versionName = "MAJOR.MINOR.PATCH"
         //
-        // The file is at android/app/version.properties with format:
-        //   versionCode=3
-        //   versionName=1.0.2
+        // This guarantees versionCode always strictly increases as PATCH
+        // auto-increments in CI, while keeping the numbers compact.
         //
-        // If the file doesn't exist (local dev without CI), we fall back to
-        // sensible defaults.
+        // Example: 1.2.3 → versionCode 10203, versionName "1.2.3"
         def versionPropsFile = file('version.properties')
-        def vCode = 2
-        def vName = "1.0.1"
+        def major = 1
+        def minor = 0
+        def patch = 0
         if (versionPropsFile.canRead()) {
             def versionProps = new Properties()
             versionProps.load(new FileInputStream(versionPropsFile))
-            vCode = versionProps['versionCode'].toInteger()
-            vName = versionProps['versionName']
+            major = versionProps['MAJOR'].toInteger()
+            minor = versionProps['MINOR'].toInteger()
+            patch = versionProps['PATCH'].toInteger()
         }
-        versionCode vCode
-        versionName vName
+        versionCode major * 10000 + minor * 100 + patch
+        versionName "${major}.${minor}.${patch}"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 

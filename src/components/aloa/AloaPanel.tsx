@@ -14,13 +14,12 @@ const AloaPanel: React.FC = () => {
     const { light, medium } = useHapticFeedback();
     const dragControls = useDragControls();
 
+    // Auto-minimize when a modal opens on narrow screens
     React.useEffect(() => {
         if (dockedModalType && window.innerWidth < 1280 && isPanelOpen && !isMinimized) {
             setIsMinimized(true);
         }
     }, [dockedModalType, isPanelOpen, isMinimized, setIsMinimized]);
-
-    const handleMinimize = () => setIsMinimized(true);
 
     const [isMobile, setIsMobile] = React.useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
     React.useEffect(() => {
@@ -31,6 +30,23 @@ const AloaPanel: React.FC = () => {
 
     const isShifted = isPanelOpen && !isMinimized && dockedModalType && window.innerWidth >= 1280;
     const isFullVisible = isPanelOpen && !isMinimized;
+
+    // ─── Close handler ──────────────────────────────────────────────────
+    // Wraps closePanel with haptic feedback. This is the DISMISS action —
+    // the panel disappears entirely (both isPanelOpen and isMinimized go false).
+    const handleClose = React.useCallback(() => {
+        light();
+        closePanel();
+    }, [closePanel, light]);
+
+    // ─── Minimize handler ───────────────────────────────────────────────
+    // Wraps setIsMinimized(true) with haptic feedback. This is the MINIMIZE
+    // action — the panel shrinks to MiniAloa (isPanelOpen stays true,
+    // isMinimized goes true). The full panel unmounts, MiniAloa mounts.
+    const handleMinimize = React.useCallback(() => {
+        light();
+        setIsMinimized(true);
+    }, [setIsMinimized, light]);
 
     const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
         if (info.offset.x > 100 || info.velocity.x > 500) {
@@ -50,13 +66,14 @@ const AloaPanel: React.FC = () => {
             <AnimatePresence>
                 {isFullVisible && (
                     <>
+                        {/* Backdrop — clicking it dismisses the panel entirely */}
                         <motion.div
                             className={`fixed inset-0 z-[1999] ${isMobile ? 'bg-black/60 backdrop-blur-md' : 'bg-black/5 backdrop-blur-[2px]'}`}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            onClick={closePanel}
+                            onClick={handleClose}
                         />
 
                         <motion.div
@@ -75,7 +92,8 @@ const AloaPanel: React.FC = () => {
                             style={{ right: isShifted ? '480px' : '0' }}
                         >
                             {/* Drag handle — the ONLY element that starts the drag.
-                                The close button and chat content below remain fully tappable. */}
+                                The close button, minimize button, and chat content
+                                below remain fully tappable. */}
                             {isMobile && (
                                 <div
                                     onPointerDown={(e) => dragControls.start(e)}
@@ -85,14 +103,20 @@ const AloaPanel: React.FC = () => {
                                     <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-zinc-600" />
                                 </div>
                             )}
-                            {isPanelOpen && <AloaChat onClose={closePanel} onMinimize={isMobile ? closePanel : handleMinimize} isMobile={isMobile} />}
+                            {isPanelOpen && (
+                                <AloaChat
+                                    onClose={handleClose}
+                                    onMinimize={handleMinimize}
+                                    isMobile={isMobile}
+                                />
+                            )}
                         </motion.div>
                     </>
                 )}
             </AnimatePresence>
 
             {isPanelOpen && isMinimized && (
-                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini ALOA Error</div>}>
+                <ErrorBoundary fallback={<div className="fixed bottom-24 right-4 bg-red-500 text-white p-2">Mini Assistant Error</div>}>
                     <MiniAloa />
                 </ErrorBoundary>
             )}

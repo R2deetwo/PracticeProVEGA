@@ -44,7 +44,7 @@ const vegaTourSteps: TourStep[] = [
   {
     target: '#new-matter-button',
     title: 'Quick Create',
-    content: 'Open a new file instantly. You can also ask ARIA to "Create a new matter for [Client Name]" using voice commands.',
+    content: 'Open a new file instantly. You can also ask ALOA to "Create a new matter for [Client Name]" using voice commands.',
     placement: 'bottom',
     mobilePlacement: 'top',
     navigateTo: 'matters',
@@ -59,7 +59,7 @@ const vegaTourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="aloa-fab"]',
-    title: 'Meet ARIA®',
+    title: 'Meet ALOA®',
     content: 'Your AI Paralegal is always one click away. Tap here to draft documents, summarize briefs, or navigate the app using voice or text.',
     placement: 'top',
     mobilePlacement: 'top',
@@ -120,7 +120,7 @@ const atriumTourSteps: TourStep[] = [
   {
     target: '[data-tour-id="aloa-fab"]',
     title: 'Meet ARIA®',
-    content: 'Your AI property assistant is one click away. Ask ARIA to generate demand notices, summarize tenant ledgers, or draft lease agreements.',
+    content: 'Your AI property assistant is one click away. Ask ARIA to generate demand notices, summarize occupant ledgers, or draft lease agreements.',
     placement: 'top',
     mobilePlacement: 'top',
     navigateTo: 'dashboard',
@@ -171,7 +171,7 @@ const kompleteTourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="aloa-fab"]',
-    title: 'Meet ARIA®',
+    title: 'Meet Your AI Assistant®',
     content: 'Your AI assistant handles both legal and property tasks. Draft documents, generate notices, or analyze your portfolio — all from one chat.',
     placement: 'top',
     mobilePlacement: 'top',

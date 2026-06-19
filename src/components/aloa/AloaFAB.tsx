@@ -4,14 +4,18 @@ import { useAloa } from '../../contexts/AloaProvider';
 import Tooltip from '../Tooltip';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { AloaIcon, LockClosedIcon, MicrophoneIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
+import { getAssistantName } from '../../utils/assistantIdentity';
 
 const AloaFAB: React.FC = () => {
     const { togglePanel, openPanel, isPanelOpen, isMinimized, aloaState } = useAloa();
     const { coreState, isDataLoaded } = useCoreState();
     const { view, modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
+    const { isProperty } = useProduct();
     const { canUseAI } = useFeatures();
+    const assistantName = getAssistantName(isProperty);
 
     const aiFeaturesEnabled = coreState.firmDetails.aiSettings?.enableAllAiFeatures ?? true;
     const isAiActive = canUseAI && aiFeaturesEnabled;
@@ -63,7 +67,7 @@ const AloaFAB: React.FC = () => {
 
     return (
         <div className={`fixed bottom-20 md:bottom-8 right-6 z-[1001] transition-all duration-500 ease-in-out ${visibilityClass}`}>
-            <Tooltip text={isAiActive ? (isPanelOpen && isMinimized ? "Resume Chat" : "Open ARIA®") : "Unlock ARIA® AI"}>
+            <Tooltip text={isAiActive ? (isPanelOpen && isMinimized ? "Resume Chat" : `Open ${assistantName}®`) : `Unlock ${assistantName}® AI`}>
                 <button
                     onClick={handleClick}
                     data-tour-id="aloa-fab"
@@ -74,7 +78,7 @@ const AloaFAB: React.FC = () => {
                         ${bgClass}
                         ${animationClass}
                     `}
-                    aria-label="Open AI Assistant ARIA"
+                    aria-label={`Open AI Assistant ${assistantName}`}
                 >
                     {isAiActive && !isListening && (
                         <span

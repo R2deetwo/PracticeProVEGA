@@ -13,12 +13,17 @@ const ConnectionStatus: React.FC = () => {
     const { currentUser, refreshUser } = useAuth();
     const { matterState } = useMatterState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { addToast } = useUI();
+    const { addToast, isOnline: deviceOnline } = useUI();
     const diagnoseMutation = useMutation(api.myFunctions.diagnoseConnectivity);
     const repairMutation = useMutation(api.myFunctions.repairAccountConnection);
     const deleteFirmMutation = useMutation(api.myFunctions.deleteFirm);
 
-    const [status, setStatus] = useState<'connected' | 'offline' | 'orphaned'>('connected');
+    // Status now includes 'network-offline' — distinct from 'offline' (offline MODE)
+    // 'connected' = account is linked AND device has network
+    // 'network-offline' = device has no network (green dot turns grey)
+    // 'offline' = user is in offline MODE (account-level)
+    // 'orphaned' = account has no firm
+    const [status, setStatus] = useState<'connected' | 'network-offline' | 'offline' | 'orphaned'>('connected');
 
     // Diagnostic Modal State
     const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -38,12 +43,17 @@ const ConnectionStatus: React.FC = () => {
             setStatus('offline');
         } else if (isOrphaned) {
             setStatus('orphaned');
+        } else if (!deviceOnline) {
+            // Device has no network — show grey "Offline" indicator.
+            // This is the KEY fix: previously this check was missing, so the
+            // green "Online" dot stayed green even when data was turned off.
+            setStatus('network-offline');
         } else if (isDataLoaded && matterState.matters) {
             setStatus('connected');
         } else {
             setStatus('connected');
         }
-    }, [isDataLoaded, currentUser, isOfflineMode, isOrphaned, matterState.matters]);
+    }, [isDataLoaded, currentUser, isOfflineMode, isOrphaned, matterState.matters, deviceOnline]);
 
     // Auto-Scan whenever the modal is opened
     useEffect(() => {
@@ -130,6 +140,12 @@ const ConnectionStatus: React.FC = () => {
     }, [scanResult]);
 
     const handleButtonClick = () => {
+        // When the device is offline, show a simple toast — NOT the workspace
+        // diagnostics modal. The user just needs to know they're offline.
+        if (status === 'network-offline') {
+            addToast('You are currently offline. Some features may be unavailable.', { type: 'warning' });
+            return;
+        }
         setShowDiagnostics(true);
     };
 
@@ -140,6 +156,17 @@ const ConnectionStatus: React.FC = () => {
                 <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors group">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
                     <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest hidden sm:inline">Online</span>
+                </div>
+            );
+        }
+
+        if (status === 'network-offline') {
+            // Grey indicator — device has no network connection.
+            // This is what shows when the user turns off their data.
+            return (
+                <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                    <div className="w-2 h-2 bg-slate-400 dark:bg-zinc-500 rounded-full"></div>
+                    <span className="text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest hidden sm:inline">Offline</span>
                 </div>
             );
         }
@@ -161,11 +188,11 @@ const ConnectionStatus: React.FC = () => {
         );
     };
 
-    if (!showDiagnostics && status === 'connected') {
+    if (!showDiagnostics && (status === 'connected' || status === 'network-offline')) {
         return (
             <button
-                onClick={() => setShowDiagnostics(true)}
-                title="System Online - Click for details"
+                onClick={handleButtonClick}
+                title={status === 'network-offline' ? "You are offline — tap for info" : "System Online - Click for details"}
                 className="focus:outline-none"
             >
                 {renderBadge()}

@@ -48,7 +48,7 @@ const ARIA_OPERATIONAL_RULES = `
 `;
 
 const ALOA_IDENTITY: AgentIdentity = {
-  name: "ARIA",
+  name: "ALOA",
   role: "Senior Legal Counsel",
   expertise: [
     "Nigerian Civil Procedure",
