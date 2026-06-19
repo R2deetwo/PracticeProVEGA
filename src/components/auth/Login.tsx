@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
+import { isNativePlatform } from '../../utils/capacitor';
 import { EyeIcon, EyeOffIcon, SparklesIcon, MailIcon, ShieldCheckIcon, WarningIcon, ZapIcon } from '../../constants';
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -432,7 +433,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                     </div>
                 )}
 
-                {!isLoading && !requiresMfa && !isRecovering && (
+                {!isLoading && !requiresMfa && !isRecovering && !isNativePlatform() && (
                     <button
                         onClick={handleDemoLogin}
                         className="w-full flex justify-center items-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-lg font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"

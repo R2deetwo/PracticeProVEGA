@@ -560,14 +560,17 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    onClick={handleDemoLogin}
-                    className="w-full flex justify-center items-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-lg font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                >
-                    <SparklesIcon className="w-5 h-5" />
-                    Explore Demo Mode
-                </button>
+                {/* Demo Mode — web only, hidden in native APK */}
+                {!isNativePlatform() && (
+                    <button
+                        type="button"
+                        onClick={handleDemoLogin}
+                        className="w-full flex justify-center items-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-lg font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                    >
+                        <SparklesIcon className="w-5 h-5" />
+                        Explore Demo Mode
+                    </button>
+                )}
             </div>
         </div>
     );
