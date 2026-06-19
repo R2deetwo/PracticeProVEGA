@@ -15,22 +15,21 @@
  *   [Skip Cycle]          — cancels current cycle without breaking schedule
  *   [Retry]               — re-queues a Failed entry after the issue is fixed
  *
- * Access:
- *   - Strictly gated to firms with canUseRetainerAutoBilling (Vega Growth+
- *     or Komplete). Non-premium firms see an upgrade CTA.
- *   - Visible to all firm members; mutations are scoped to the caller's firm.
+ * Resilience:
+ *   - The Convex queries are wrapped in a child component so that if the
+ *     backend hasn't been deployed yet (functions missing), the rest of
+ *     the Financials page keeps working. The user sees a clear "Backend
+ *     not deployed" message instead of a hard crash.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, ReactNode } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
 import { useFeatures } from '../hooks/useFeatures';
-import { useProduct } from '../contexts/ProductContext';
 import { InvoiceOutboxState } from '../types';
 import { formatNaira } from '../utils/formatting';
 import {
-    PlusIcon,
     BillingIcon,
     ExclamationTriangleIcon,
     ZapIcon,
@@ -44,7 +43,6 @@ import {
     ChevronRightIcon,
 } from '../constants';
 import EmptyState from './EmptyState';
-import Tooltip from './Tooltip';
 
 type OutboxEntry = {
     _id: string;
@@ -75,7 +73,7 @@ type OutboxEntry = {
 
 type FilterTab = 'all' | InvoiceOutboxState;
 
-const STATE_META: Record<string, { label: string; color: string; dot: string; icon: React.ReactNode }> = {
+const STATE_META: Record<string, { label: string; color: string; dot: string; icon: ReactNode }> = {
     Staged:  { label: 'Staged',  color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',   dot: 'bg-amber-500',   icon: <ClockIcon className="w-3.5 h-3.5" /> },
     Queued:  { label: 'Queued',  color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',       dot: 'bg-blue-500',    icon: <ForwardIcon className="w-3.5 h-3.5" /> },
     Sent:    { label: 'Sent',    color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', dot: 'bg-emerald-500', icon: <CheckCircleIcon className="w-3.5 h-3.5" /> },
@@ -94,15 +92,72 @@ const FILTER_TABS: { id: FilterTab; label: string }[] = [
     { id: InvoiceOutboxState.Skipped, label: 'Skipped' },
 ];
 
+/**
+ * Outer component — handles the "premium not eligible" gate and the
+ * "Convex backend not deployed yet" fallback. All actual data fetching
+ * happens inside <BillingMonitorInner /> so a query failure can't crash
+ * the parent Financials page.
+ */
 export const BillingMonitorView: React.FC = () => {
-    const { openModal, navigateTo, addToast } = useUI();
     const features = useFeatures();
-    const { isProperty } = useProduct();
+
+    // ─── Non-premium gate ──────────────────────────────────────────────
+    if (!features.canUseRetainerAutoBilling) {
+        return (
+            <div className="py-10 max-w-2xl mx-auto text-center">
+                <div className="w-20 h-20 mx-auto bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6 ring-8 ring-amber-50/50 dark:ring-amber-900/10">
+                    <ZapIcon className="w-10 h-10 text-amber-500 dark:text-amber-400" />
+                </div>
+                <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
+                    Automated Retainer Billing
+                </h2>
+                <p className="text-slate-500 dark:text-zinc-400 mb-8 leading-relaxed">
+                    The Billing Monitor — including automated invoice generation, the pending outbox,
+                    and lawyer override controls — is a premium feature available on Vega Growth+,
+                    Vega Pro, and Komplete plans. Upgrade to unlock cron-based retainer invoicing
+                    with full transparency and control.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <ErrorBoundary
+            fallback={
+                <div className="p-6 max-w-2xl mx-auto text-center">
+                    <div className="w-16 h-16 mx-auto bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-4">
+                        <ExclamationTriangleIcon className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                        Billing Monitor unavailable
+                    </h3>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed">
+                        The Convex backend hasn't been deployed with the new <code className="px-1 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[11px]">retainerBilling</code> module yet.
+                        Run <code className="px-1 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[11px]">npx convex deploy</code> from your project root to push the new schema, mutations, and cron jobs.
+                        After that, refresh this page.
+                    </p>
+                </div>
+            }
+        >
+            <BillingMonitorInner />
+        </ErrorBoundary>
+    );
+};
+
+// ─── Inner component — does the actual data fetching ────────────────────────
+// Wrapped in ErrorBoundary above so any Convex query/mutation error is caught
+// and shown as a friendly message instead of crashing the whole app.
+const BillingMonitorInner: React.FC = () => {
+    const { openModal, navigateTo, addToast } = useUI();
     const [activeTab, setActiveTab] = useState<FilterTab>('all');
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
-    const outbox = useQuery(api.retainerBilling.getOutboxForFirm, {}) as OutboxEntry[] | undefined;
+    // useQuery returns `undefined` while loading and throws if the function
+    // doesn't exist on the backend. The ErrorBoundary above catches the throw.
+    const outbox = useQuery(api.retainerBilling.getOutboxForFirm, {}) as
+        | OutboxEntry[]
+        | undefined;
     const stats = useQuery(api.retainerBilling.getOutboxStats, {});
 
     const approveAndSendNow = useMutation(api.retainerBilling.approveAndSendNow);
@@ -114,43 +169,15 @@ export const BillingMonitorView: React.FC = () => {
     const filteredEntries = useMemo(() => {
         if (!outbox) return [];
         if (activeTab === 'all') return outbox;
-        return outbox.filter(e => e.state === activeTab);
+        return outbox.filter((e) => e.state === activeTab);
     }, [outbox, activeTab]);
 
     const selectedEntry = useMemo(() => {
         if (!selectedId || !outbox) return null;
-        return outbox.find(e => e._id === selectedId) || null;
+        return outbox.find((e) => e._id === selectedId) || null;
     }, [selectedId, outbox]);
 
-    // ─── Non-premium gate ──────────────────────────────────────────────
-    if (!features.canUseRetainerAutoBilling) {
-        return (
-            <div className="h-full overflow-y-auto bg-slate-50 dark:bg-zinc-900 pb-32">
-                <div className="px-4 sm:px-6 lg:px-8 py-10 max-w-2xl mx-auto text-center">
-                    <div className="w-20 h-20 mx-auto bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6 ring-8 ring-amber-50/50 dark:ring-amber-900/10">
-                        <ZapIcon className="w-10 h-10 text-amber-500 dark:text-amber-400" />
-                    </div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-3">
-                        Automated Retainer Billing
-                    </h2>
-                    <p className="text-slate-500 dark:text-zinc-400 mb-8 leading-relaxed">
-                        The Billing Monitor — including automated invoice generation, the pending outbox,
-                        and lawyer override controls — is a premium feature available on Vega Growth+,
-                        Vega Pro, and Komplete plans. Upgrade to unlock cron-based retainer invoicing
-                        with full transparency and control.
-                    </p>
-                    <button
-                        onClick={() => openModal('upgradePlan')}
-                        className="px-6 py-3 bg-primary-600 text-white rounded-xl font-bold shadow-lg hover:bg-primary-700 transition-all"
-                    >
-                        View Upgrade Options
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    const handleAction = async (action: string, outboxId: string, ...args: any[]) => {
+    const handleAction = async (action: string, outboxId: string) => {
         setActionLoadingId(outboxId);
         try {
             switch (action) {
@@ -179,113 +206,106 @@ export const BillingMonitorView: React.FC = () => {
     };
 
     const totalSentValue = stats?.totalValue ?? 0;
+    const isLoading = outbox === undefined;
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            {/* Header */}
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
-                <div>
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                        <BillingIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
-                        Billing Monitor
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                        Outbox & pending queue for automated retainer invoices
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="hidden sm:inline-flex px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-full">
-                        Premium
-                    </span>
-                </div>
+        <div className="space-y-5">
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <KpiCard
+                    label="Staged"
+                    value={stats?.Staged ?? 0}
+                    dot="bg-amber-500"
+                    icon={<ClockIcon className="w-4 h-4" />}
+                />
+                <KpiCard
+                    label="Queued"
+                    value={stats?.Queued ?? 0}
+                    dot="bg-blue-500"
+                    icon={<ForwardIcon className="w-4 h-4" />}
+                />
+                <KpiCard
+                    label="Sent"
+                    value={stats?.Sent ?? 0}
+                    dot="bg-emerald-500"
+                    icon={<CheckCircleIcon className="w-4 h-4" />}
+                    subtitle={formatNaira(totalSentValue)}
+                />
+                <KpiCard
+                    label="Failed"
+                    value={stats?.Failed ?? 0}
+                    dot="bg-rose-500"
+                    icon={<XCircleIcon className="w-4 h-4" />}
+                    highlight={!!stats?.Failed}
+                />
             </div>
 
-            <div className="px-4 sm:px-6 lg:px-8 space-y-5">
-                {/* KPI Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <KpiCard
-                        label="Staged"
-                        value={stats?.Staged ?? 0}
-                        dot="bg-amber-500"
-                        icon={<ClockIcon className="w-4 h-4" />}
-                    />
-                    <KpiCard
-                        label="Queued"
-                        value={stats?.Queued ?? 0}
-                        dot="bg-blue-500"
-                        icon={<ForwardIcon className="w-4 h-4" />}
-                    />
-                    <KpiCard
-                        label="Sent"
-                        value={stats?.Sent ?? 0}
-                        dot="bg-emerald-500"
-                        icon={<CheckCircleIcon className="w-4 h-4" />}
-                        subtitle={formatNaira(totalSentValue)}
-                    />
-                    <KpiCard
-                        label="Failed"
-                        value={stats?.Failed ?? 0}
-                        dot="bg-rose-500"
-                        icon={<XCircleIcon className="w-4 h-4" />}
-                        highlight={!!stats?.Failed}
-                    />
-                </div>
-
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-                    {FILTER_TABS.map(tab => {
-                        const count = tab.id === 'all'
-                            ? (stats?.total ?? 0)
-                            : (stats?.[tab.id as keyof typeof stats] as number) ?? 0;
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 ${
-                                    isActive
-                                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
-                                        : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                {FILTER_TABS.map((tab) => {
+                    const count =
+                        tab.id === 'all'
+                            ? stats?.total ?? 0
+                            : ((stats?.[tab.id as keyof typeof stats] as number) ?? 0);
+                    const isActive = activeTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                                isActive
+                                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+                                    : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
+                            }`}
+                        >
+                            {tab.label}
+                            <span
+                                className={`px-1.5 py-0.5 rounded-full text-[9px] ${
+                                    isActive ? 'bg-white/20' : 'bg-slate-100 dark:bg-zinc-700'
                                 }`}
                             >
-                                {tab.label}
-                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${
-                                    isActive ? 'bg-white/20' : 'bg-slate-100 dark:bg-zinc-700'
-                                }`}>
-                                    {count}
-                                </span>
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* Outbox List */}
-                {!outbox || outbox.length === 0 ? (
-                    <EmptyState
-                        icon={<BillingIcon className="w-12 h-12" />}
-                        title="No automated invoices yet"
-                        description="When you create a Retainer-billed matter with automated invoicing enabled, system-generated invoices will appear here as they cycle through Staged → Queued → Sent."
-                        actionLabel="Create Matter"
-                        onAction={() => openModal('newMatter')}
-                    />
-                ) : filteredEntries.length === 0 ? (
-                    <div className="text-center py-16 text-slate-400 dark:text-zinc-500">
-                        <p className="text-sm font-medium">No entries in this state.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-2.5">
-                        {filteredEntries.map(entry => (
-                            <OutboxRow
-                                key={entry._id}
-                                entry={entry}
-                                onSelect={() => setSelectedId(entry._id)}
-                                onAction={handleAction}
-                                actionLoadingId={actionLoadingId}
-                            />
-                        ))}
-                    </div>
-                )}
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
             </div>
+
+            {/* Outbox List */}
+            {isLoading ? (
+                <div className="space-y-2.5">
+                    {[1, 2, 3].map((i) => (
+                        <div
+                            key={i}
+                            className="h-24 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 animate-pulse"
+                        />
+                    ))}
+                </div>
+            ) : !outbox || outbox.length === 0 ? (
+                <EmptyState
+                    icon={<BillingIcon className="w-12 h-12" />}
+                    title="No automated invoices yet"
+                    description="When you create a Retainer-billed matter with automated invoicing enabled, system-generated invoices will appear here as they cycle through Staged → Queued → Sent."
+                    actionLabel="Create Matter"
+                    onAction={() => openModal('newMatter')}
+                />
+            ) : filteredEntries.length === 0 ? (
+                <div className="text-center py-16 text-slate-400 dark:text-zinc-500">
+                    <p className="text-sm font-medium">No entries in this state.</p>
+                </div>
+            ) : (
+                <div className="space-y-2.5">
+                    {filteredEntries.map((entry) => (
+                        <OutboxRow
+                            key={entry._id}
+                            entry={entry}
+                            onSelect={() => setSelectedId(entry._id)}
+                            onAction={handleAction}
+                            actionLoadingId={actionLoadingId}
+                        />
+                    ))}
+                </div>
+            )}
 
             {/* Detail Drawer */}
             {selectedEntry && (
@@ -297,7 +317,10 @@ export const BillingMonitorView: React.FC = () => {
                     onUpdate={async (updates) => {
                         setActionLoadingId(selectedEntry._id);
                         try {
-                            await updateOutboxEntry({ outboxId: selectedEntry._id, ...updates });
+                            await updateOutboxEntry({
+                                outboxId: selectedEntry._id,
+                                ...updates,
+                            });
                             addToast('Entry updated.', { type: 'success' });
                         } catch (err: any) {
                             addToast(err?.message || 'Update failed.', { type: 'error' });
@@ -320,15 +343,21 @@ const KpiCard: React.FC<{
     label: string;
     value: number;
     dot: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
     subtitle?: string;
     highlight?: boolean;
 }> = ({ label, value, dot, icon, subtitle, highlight }) => (
-    <div className={`p-3 rounded-xl border bg-white dark:bg-zinc-800 shadow-sm transition-all ${
-        highlight ? 'border-rose-300 dark:border-rose-700 ring-2 ring-rose-100 dark:ring-rose-900/30' : 'border-slate-200 dark:border-zinc-700'
-    }`}>
+    <div
+        className={`p-3 rounded-xl border bg-white dark:bg-zinc-800 shadow-sm transition-all ${
+            highlight
+                ? 'border-rose-300 dark:border-rose-700 ring-2 ring-rose-100 dark:ring-rose-900/30'
+                : 'border-slate-200 dark:border-zinc-700'
+        }`}
+    >
         <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">{label}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                {label}
+            </span>
             <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />
         </div>
         <div className="flex items-center gap-2">
@@ -356,9 +385,7 @@ const OutboxRow: React.FC<{
     const canRetry = entry.state === 'Failed';
 
     return (
-        <div
-            className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all overflow-hidden"
-        >
+        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:shadow-md transition-all overflow-hidden">
             <button
                 onClick={onSelect}
                 className="w-full text-left p-3 sm:p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors"
@@ -366,7 +393,9 @@ const OutboxRow: React.FC<{
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${meta.color}`}>
+                            <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${meta.color}`}
+                            >
                                 {meta.icon}
                                 {meta.label}
                             </span>
@@ -382,7 +411,13 @@ const OutboxRow: React.FC<{
                         <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-zinc-400">
                             <span>{entry.clientName || 'Unknown client'}</span>
                             <span>•</span>
-                            <span>{entry.clientEmail || <span className="text-rose-500 dark:text-rose-400 font-medium">No email</span>}</span>
+                            <span>
+                                {entry.clientEmail || (
+                                    <span className="text-rose-500 dark:text-rose-400 font-medium">
+                                        No email
+                                    </span>
+                                )}
+                            </span>
                         </div>
                         {entry.failureReason && (
                             <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
@@ -396,7 +431,10 @@ const OutboxRow: React.FC<{
                             {formatNaira(entry.totalAmount ?? 0)}
                         </p>
                         <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
-                            {new Date(entry.scheduledFor).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                            {new Date(entry.scheduledFor).toLocaleDateString('en-NG', {
+                                day: 'numeric',
+                                month: 'short',
+                            })}
                         </p>
                     </div>
                 </div>
@@ -455,27 +493,27 @@ const OutboxRow: React.FC<{
 // ─── Action Button ──────────────────────────────────────────────────────────
 const ActionButton: React.FC<{
     label: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
     onClick: () => void;
     loading?: boolean;
     variant?: 'primary' | 'neutral' | 'warning';
 }> = ({ label, icon, onClick, loading, variant = 'neutral' }) => {
     const variantClasses = {
         primary: 'bg-emerald-600 text-white hover:bg-emerald-700',
-        neutral: 'bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600',
+        neutral:
+            'bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600',
         warning: 'bg-amber-500 text-white hover:bg-amber-600',
     };
     return (
         <button
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
+            onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+            }}
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[32px] ${variantClasses[variant]}`}
         >
-            {loading ? (
-                <ArrowPathIcon className="w-3 h-3 animate-spin" />
-            ) : (
-                icon
-            )}
+            {loading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : icon}
             <span className="hidden sm:inline">{label}</span>
         </button>
     );
@@ -501,17 +539,16 @@ const OutboxDetailDrawer: React.FC<{
     return (
         <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center">
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
 
             {/* Drawer */}
             <div className="relative w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-800 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-700 animate-in slide-in-from-bottom-4 duration-300">
                 {/* Header */}
                 <div className="sticky top-0 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 px-5 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
+                        <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${meta.color}`}
+                        >
                             {meta.icon}
                             {meta.label}
                         </span>
@@ -530,12 +567,14 @@ const OutboxDetailDrawer: React.FC<{
                 <div className="p-5 space-y-4">
                     {/* Cycle Info */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Cycle</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
+                            Cycle
+                        </p>
                         {editing && canEdit ? (
                             <input
                                 type="text"
                                 value={editCycleLabel}
-                                onChange={e => setEditCycleLabel(e.target.value)}
+                                onChange={(e) => setEditCycleLabel(e.target.value)}
                                 className="w-full px-2 py-1.5 text-sm font-bold text-slate-900 dark:text-white bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg"
                             />
                         ) : (
@@ -544,42 +583,68 @@ const OutboxDetailDrawer: React.FC<{
                             </p>
                         )}
                         <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-zinc-400">
-                            <span>Frequency: <strong className="text-slate-700 dark:text-zinc-300">{entry.frequency || 'Monthly'}</strong></span>
-                            <span>Scheduled: <strong className="text-slate-700 dark:text-zinc-300">{new Date(entry.scheduledFor).toLocaleString('en-NG')}</strong></span>
+                            <span>
+                                Frequency:{' '}
+                                <strong className="text-slate-700 dark:text-zinc-300">
+                                    {entry.frequency || 'Monthly'}
+                                </strong>
+                            </span>
+                            <span>
+                                Scheduled:{' '}
+                                <strong className="text-slate-700 dark:text-zinc-300">
+                                    {new Date(entry.scheduledFor).toLocaleString('en-NG')}
+                                </strong>
+                            </span>
                         </div>
                     </div>
 
                     {/* Client Info */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">Client</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
+                            Client
+                        </p>
                         <div className="space-y-2">
                             <div>
-                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">Name</label>
+                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                    Name
+                                </label>
                                 {editing && canEdit ? (
                                     <input
                                         type="text"
                                         value={editName}
-                                        onChange={e => setEditName(e.target.value)}
+                                        onChange={(e) => setEditName(e.target.value)}
                                         className="w-full px-2 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-slate-900 dark:text-white"
                                     />
                                 ) : (
-                                    <p className="text-sm text-slate-900 dark:text-white">{entry.clientName || '—'}</p>
+                                    <p className="text-sm text-slate-900 dark:text-white">
+                                        {entry.clientName || '—'}
+                                    </p>
                                 )}
                             </div>
                             <div>
-                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">Email</label>
+                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                    Email
+                                </label>
                                 {editing && canEdit ? (
                                     <input
                                         type="email"
                                         value={editEmail}
-                                        onChange={e => setEditEmail(e.target.value)}
+                                        onChange={(e) => setEditEmail(e.target.value)}
                                         className={`w-full px-2 py-1.5 text-sm bg-white dark:bg-zinc-800 border rounded-lg text-slate-900 dark:text-white ${
-                                            !editEmail ? 'border-amber-400' : 'border-slate-300 dark:border-zinc-600'
+                                            !editEmail
+                                                ? 'border-amber-400'
+                                                : 'border-slate-300 dark:border-zinc-600'
                                         }`}
                                         placeholder="client@example.com"
                                     />
                                 ) : (
-                                    <p className={`text-sm ${entry.clientEmail ? 'text-slate-900 dark:text-white' : 'text-rose-500 dark:text-rose-400 font-medium'}`}>
+                                    <p
+                                        className={`text-sm ${
+                                            entry.clientEmail
+                                                ? 'text-slate-900 dark:text-white'
+                                                : 'text-rose-500 dark:text-rose-400 font-medium'
+                                        }`}
+                                    >
                                         {entry.clientEmail || 'No email — send will fail'}
                                     </p>
                                 )}
@@ -589,12 +654,18 @@ const OutboxDetailDrawer: React.FC<{
 
                     {/* Line Items */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">Line Items</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
+                            Line Items
+                        </p>
                         <div className="space-y-1.5">
                             {(entry.lineItems || []).map((item: any, i: number) => (
                                 <div key={i} className="flex items-center justify-between text-sm">
-                                    <span className="text-slate-700 dark:text-zinc-300">{item.description}</span>
-                                    <span className="font-bold text-slate-900 dark:text-white">{formatNaira(item.total || 0)}</span>
+                                    <span className="text-slate-700 dark:text-zinc-300">
+                                        {item.description}
+                                    </span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                        {formatNaira(item.total || 0)}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -621,17 +692,42 @@ const OutboxDetailDrawer: React.FC<{
                                 <ExclamationTriangleIcon className="w-3 h-3" />
                                 Failure Reason
                             </p>
-                            <p className="text-sm text-rose-700 dark:text-rose-300">{entry.failureReason}</p>
+                            <p className="text-sm text-rose-700 dark:text-rose-300">
+                                {entry.failureReason}
+                            </p>
                         </div>
                     )}
 
                     {/* Timestamps */}
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 dark:text-zinc-400">
-                        <div>Staged: <strong>{new Date(entry.stagedAt).toLocaleString('en-NG')}</strong></div>
-                        {entry.sentAt && <div>Sent: <strong>{new Date(entry.sentAt).toLocaleString('en-NG')}</strong></div>}
-                        {entry.failedAt && <div>Failed: <strong>{new Date(entry.failedAt).toLocaleString('en-NG')}</strong></div>}
-                        {entry.pausedAt && <div>Paused: <strong>{new Date(entry.pausedAt).toLocaleString('en-NG')}</strong></div>}
-                        {entry.skippedAt && <div>Skipped: <strong>{new Date(entry.skippedAt).toLocaleString('en-NG')}</strong></div>}
+                        <div>
+                            Staged:{' '}
+                            <strong>{new Date(entry.stagedAt).toLocaleString('en-NG')}</strong>
+                        </div>
+                        {entry.sentAt && (
+                            <div>
+                                Sent:{' '}
+                                <strong>{new Date(entry.sentAt).toLocaleString('en-NG')}</strong>
+                            </div>
+                        )}
+                        {entry.failedAt && (
+                            <div>
+                                Failed:{' '}
+                                <strong>{new Date(entry.failedAt).toLocaleString('en-NG')}</strong>
+                            </div>
+                        )}
+                        {entry.pausedAt && (
+                            <div>
+                                Paused:{' '}
+                                <strong>{new Date(entry.pausedAt).toLocaleString('en-NG')}</strong>
+                            </div>
+                        )}
+                        {entry.skippedAt && (
+                            <div>
+                                Skipped:{' '}
+                                <strong>{new Date(entry.skippedAt).toLocaleString('en-NG')}</strong>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -690,5 +786,35 @@ const OutboxDetailDrawer: React.FC<{
         </div>
     );
 };
+
+// ─── Local Error Boundary ───────────────────────────────────────────────────
+// Catches any render-time errors thrown by the inner component (most likely
+// from useQuery/useMutation when the Convex backend hasn't been deployed with
+// the retainerBilling module yet). Shows a friendly fallback instead of a
+// hard white-screen crash.
+class ErrorBoundary extends React.Component<
+    { children: ReactNode; fallback: ReactNode },
+    { hasError: boolean; errorMessage?: string }
+> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, errorMessage: error?.message || String(error) };
+    }
+
+    componentDidCatch(error: any, info: any) {
+        console.error('[BillingMonitorView] ErrorBoundary caught:', error, info);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return <>{this.props.fallback}</>;
+        }
+        return this.props.children;
+    }
+}
 
 export default BillingMonitorView;

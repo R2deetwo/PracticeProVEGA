@@ -14,6 +14,7 @@ import { useFinanceState } from '../contexts/FinanceContext';
 import { useProduct } from '../contexts/ProductContext';
 import { useFeatures } from '../hooks/useFeatures';
 import EmptyState from './EmptyState';
+import { BillingMonitorView } from './BillingMonitorView';
 
 const getStatusBadgeClass = (status: InvoiceStatus) => {
     switch (status) {
@@ -235,20 +236,22 @@ export const BillingView: React.FC = () => {
     const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
     const features = useFeatures();
 
+    // Tab state — 'invoices' is always available; 'monitor' only shows for
+    // premium firms (Vega Growth+/Pro/Komplete). Default to 'invoices'.
+    const [activeTab, setActiveTab] = useState<'invoices' | 'monitor'>('invoices');
+
+    const tabs: { id: 'invoices' | 'monitor'; label: string; locked?: boolean }[] = [
+        { id: 'invoices', label: 'Invoices' },
+        ...(features.canUseRetainerAutoBilling
+            ? [{ id: 'monitor' as const, label: 'Billing Monitor' }]
+            : []),
+    ];
+
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
                 <div className="flex items-center gap-2">
-                    {features.canUseRetainerAutoBilling && (
-                        <button
-                            onClick={() => navigateTo('billingMonitor')}
-                            className="hidden sm:flex p-1.5 px-3 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-all items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider border border-emerald-200 dark:border-emerald-800/30"
-                            title="Billing Monitor — automated retainer outbox & pending queue"
-                        >
-                            <BillingIcon className="w-3 h-3 sm:w-4 sm:h-4" /> Monitor
-                        </button>
-                    )}
                     <button
                         onClick={() => openModal('newInvoice')}
                         className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider"
@@ -259,16 +262,45 @@ export const BillingView: React.FC = () => {
             </div>
 
             <div className="px-4 sm:px-6 lg:px-8">
-                <InvoicesContent
-                    invoices={financeState.invoices}
-                    openModal={openModal}
-                    onViewDetails={(id: string) => navigateTo('invoiceDetail', id)}
-                    handleUpdateInvoiceStatus={handleUpdateInvoiceStatus}
-                    handleSendInvoiceReminder={handleSendInvoiceReminder}
-                    handleRevertPayment={handleRevertPayment}
-                    closeModal={closeModal}
-                    openConfirmationModal={openModal}
-                />
+                {/* Tab Bar — matches the Analytics page pattern */}
+                <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+                    <nav className="-mb-px flex space-x-6 overflow-x-auto">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm flex items-center gap-2 transition-colors ${
+                                    activeTab === tab.id
+                                        ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                                }`}
+                            >
+                                {tab.label}
+                                {tab.id === 'monitor' && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                        Premium
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </nav>
+                </div>
+
+                {/* Tab Content */}
+                {activeTab === 'invoices' && (
+                    <InvoicesContent
+                        invoices={financeState.invoices}
+                        openModal={openModal}
+                        onViewDetails={(id: string) => navigateTo('invoiceDetail', id)}
+                        handleUpdateInvoiceStatus={handleUpdateInvoiceStatus}
+                        handleSendInvoiceReminder={handleSendInvoiceReminder}
+                        handleRevertPayment={handleRevertPayment}
+                        closeModal={closeModal}
+                        openConfirmationModal={openModal}
+                    />
+                )}
+
+                {activeTab === 'monitor' && <BillingMonitorView />}
             </div>
         </div>
     );

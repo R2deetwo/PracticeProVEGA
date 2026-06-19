@@ -12,7 +12,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon, LockClosedIcon, ZapIcon
+    ShieldCheckIcon, LockClosedIcon
 } from '../constants';
 
 // ARIA-X inline icon
@@ -415,12 +415,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         locked={!features.canUseAdvancedBilling}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
-                    {features.canUseRetainerAutoBilling && (
-                        <NavItemLink
-                            item={{ view: 'billingMonitor', text: 'Billing Monitor', icon: <ZapIcon /> }}
-                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        />
-                    )}
                     <NavItemLink
                         item={{ view: 'reporting', text: 'Analytics', icon: <ReportingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
