@@ -60,7 +60,12 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     const [assignedUsers, setAssignedUsers] = useState<Set<string>>(new Set());
 
     const [reminderEnabled, setReminderEnabled] = useState(false);
-    const [reminderValue, setReminderValue] = useState(30);
+    // Use a STRING for the input so the user can freely delete and retype
+    // digits without the controlled-input bug where `parseInt('') || 1`
+    // immediately resets the field to "1". The number is parsed at submit
+    // time with a sane fallback. The stepper buttons (+/-) provide an even
+    // smoother touch UX.
+    const [reminderValueStr, setReminderValueStr] = useState('30');
     const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
 
     const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
@@ -85,7 +90,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
             setJudicialDivision(eventToEdit.judicialDivision || '');
             setAssignedUsers(new Set(eventToEdit.assignedUsers || []));
             setReminderEnabled(!!eventToEdit.reminder);
-            setReminderValue(eventToEdit.reminder?.value || 30);
+            setReminderValueStr(String(eventToEdit.reminder?.value ?? 30));
             setReminderUnit(eventToEdit.reminder?.unit || 'minutes');
             setRecurrenceEnabled(!!eventToEdit.recurrence);
             setRecurrenceFrequency(eventToEdit.recurrence?.frequency || 'weekly');
@@ -208,7 +213,11 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
             court: isCourtEventType ? court : undefined,
             judicialDivision: isCourtEventType ? judicialDivision : undefined,
             assignedUsers: Array.from(assignedUsers),
-            reminder: reminderEnabled ? { value: reminderValue, unit: reminderUnit } : undefined,
+            // Parse the reminder value at submit time. Empty / invalid → fallback to 1.
+            reminder: reminderEnabled ? {
+                value: Math.max(1, parseInt(reminderValueStr, 10) || 1),
+                unit: reminderUnit
+            } : undefined,
             recurrence: recurrenceEnabled ? { frequency: recurrenceFrequency, endDate: recurrenceEndDate || undefined } : undefined,
         };
 
@@ -308,13 +317,60 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                 <div className="flex items-center gap-3">
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="reminderEnabled" checked={reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer" />
                                     {reminderEnabled && (
-                                        <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
-                                            <input autoComplete="off" data-lpignore="true"  type="number" min="1" value={reminderValue} onChange={e => setReminderValue(parseInt(e.target.value) || 1)} className="w-12 py-1 text-center text-xs font-black bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none" />
-                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1 px-1.5 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                        <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+                                            {/* Stepper UI — touch-friendly +/- buttons + free-text input.
+                                                The input is a STRING so users can delete and retype freely.
+                                                parseInt('') || 1 no longer clobbers their typing. */}
+                                            <div className="flex items-center bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg overflow-hidden">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = parseInt(reminderValueStr, 10) || 1;
+                                                        setReminderValueStr(String(Math.max(1, current - 1)));
+                                                    }}
+                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    aria-label="Decrease reminder value"
+                                                >
+                                                    −
+                                                </button>
+                                                <input
+                                                    autoComplete="off"
+                                                    data-lpignore="true"
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
+                                                    value={reminderValueStr}
+                                                    onChange={e => {
+                                                        // Allow only digits and empty string. No more forced "1".
+                                                        const cleaned = e.target.value.replace(/[^\d]/g, '');
+                                                        setReminderValueStr(cleaned);
+                                                    }}
+                                                    onBlur={() => {
+                                                        // On blur, if empty or 0, fall back to 1.
+                                                        const num = parseInt(reminderValueStr, 10);
+                                                        if (isNaN(num) || num < 1) setReminderValueStr('1');
+                                                    }}
+                                                    className="w-12 py-1.5 text-center text-xs font-black bg-transparent outline-none border-0"
+                                                    placeholder="1"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = parseInt(reminderValueStr, 10) || 1;
+                                                        setReminderValueStr(String(Math.min(999, current + 1)));
+                                                    }}
+                                                    className="px-2.5 py-1.5 text-xs font-black text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 active:scale-95 transition-all min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    aria-label="Increase reminder value"
+                                                >
+                                                    +
+                                                </button>
+                                            </div>
+                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="minutes">Min</option>
                                                 <option value="hours">Hrs</option>
-                                                <option value="days">D</option>
+                                                <option value="days">Day</option>
                                             </select>
+                                            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">before</span>
                                         </div>
                                     )}
                                 </div>

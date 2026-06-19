@@ -4,27 +4,12 @@ import { Matter, User, Document, ModalType, View, MatterType } from '../../types
 import { GavelIconLarge } from '../../constants';
 import ActivityLogTab from './ActivityLogTab';
 import FilingDeadlineNotice from './FilingDeadlineNotice';
-import { DocumentsTab } from './DocumentsTab';
 import MatterProcessTracking from './MatterProcessTracking';
 import { EnterpriseMatterDashboard } from './EnterpriseWidgets';
 import { ProceduralComplianceReport } from './ProceduralComplianceReport';
 
-const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number }> = ({ label, isActive, onClick, badgeCount }) => (
-    <button
-        onClick={onClick}
-        className={`flex-none text-center relative whitespace-nowrap py-3 px-6 border-b-2 font-bold text-sm transition-all outline-none ${isActive
-            ? 'border-primary-500 text-primary-600 dark:text-primary-400'
-            : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:border-slate-300 dark:hover:border-zinc-600'
-            }`}
-    >
-        {label}
-        {badgeCount !== undefined && badgeCount > 0 && (
-            <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
-                {badgeCount}
-            </span>
-        )}
-    </button>
-);
+// NOTE: TabButton + DocumentsTab imports removed — Document Repository is now
+// a top-level tab in MatterDetailView, no longer a sub-tab inside the Brief.
 
 const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="flex flex-col justify-center min-w-0">
@@ -88,7 +73,8 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
 
     const isContentious = CONTENTIOUS_MATTER_TYPES.includes(matter.type);
 
-    const [subTab, setSubTab] = useState<'processes' | 'documents'>(isContentious ? 'processes' : 'documents');
+    // NOTE: subTab state removed — Document Repository is now a top-level tab
+    // in MatterDetailView. Filed Processes stays inline below when applicable.
 
     const formattedDate = matter.createdAt
         ? new Date(matter.createdAt).toLocaleDateString('en-GB')
@@ -155,54 +141,33 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
                 </div>
             )}
 
-            {/* Documents & Processes Section */}
-            <div className="flex flex-col min-h-[500px]">
-                <div className="flex w-full overflow-x-auto custom-scrollbar border-b border-slate-200 dark:border-zinc-700">
-                    {isContentious && (
-                        <TabButton
-                            label="Filed Processes"
-                            isActive={subTab === 'processes'}
-                            onClick={() => setSubTab('processes')}
-                            badgeCount={processBadgeCount}
-                        />
-                    )}
-                    <TabButton
-                        label="Document Repository"
-                        isActive={subTab === 'documents'}
-                        onClick={() => setSubTab('documents')}
-                        badgeCount={documents.filter(doc =>
-                            new Date(doc.dateFiled).getTime() > lastViewedAt && doc.uploadedBy !== currentUser?.id
-                        ).length}
-                    />
-                </div>
+            {/* NOTE: The "Document Repository" sub-tab previously lived here.
+                It has been promoted to a top-level tab in MatterDetailView
+                so the matter detail page now has a clean tab order:
+                Endorsements → Brief → Tasks → Finance → Documents (last). */}
 
-                <div className="flex-grow py-6 bg-transparent">
-                    <div className="max-w-5xl">
-                        {subTab === 'processes' && isContentious ? (
-                            <MatterProcessTracking
-                                matter={matter}
-                                onUpdate={onUpdateMatter}
-                                hideSuggestions={true}
-                                documents={documents}
-                                onViewDocumentDetails={onViewDocumentDetails}
-                            />
-                        ) : (
-                            <div className="min-h-[400px]">
-                                <DocumentsTab
-                                    documents={documents}
-                                    matterId={matter.id}
-                                    openModal={openModal}
-                                    onViewDocumentDetails={onViewDocumentDetails}
-                                    users={users}
-                                    onDraftDocument={handleDraftDocument}
-                                    variant="embedded"
-                                    lastViewedAt={lastViewedAt}
-                                />
-                            </div>
+            {/* Filed Processes — kept inline because it's tightly coupled to
+                the matter's procedural lifecycle, not a document browser. */}
+            {isContentious && (
+                <div className="flex flex-col min-h-[300px]">
+                    <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-200 dark:border-zinc-700">
+                        <div className="w-1 h-5 bg-rose-500 rounded-full" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Filed Processes</h3>
+                        {processBadgeCount > 0 && (
+                            <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                                {processBadgeCount} pending
+                            </span>
                         )}
                     </div>
+                    <MatterProcessTracking
+                        matter={matter}
+                        onUpdate={onUpdateMatter}
+                        hideSuggestions={true}
+                        documents={documents}
+                        onViewDocumentDetails={onViewDocumentDetails}
+                    />
                 </div>
-            </div>
+            )}
         </div>
     );
 };

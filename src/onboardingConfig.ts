@@ -204,10 +204,36 @@ export function getTourStepsForProduct(product?: string | null): TourStep[] {
  * Mobile viewport detection — used by the tour engine to switch target anchors
  * from the desktop side panel to the mobile bottom nav.
  *
- * Matches Tailwind's `md` breakpoint (768px) which is also where BottomNav
- * toggles its visibility (`md:hidden`).
+ * Returns true if EITHER:
+ *   1. The window is narrower than Tailwind's `md` breakpoint (768px), OR
+ *   2. The app is running inside a Capacitor native shell (APK) — because the
+ *      APK is fundamentally a mobile form factor, even when the WebView reports
+ *      a wider viewport (e.g. tablet, BlueStacks landscape, foldable).
+ *
+ * This dual check fixes the bug where the tour was rendering desktop-style
+ * tooltips inside the APK because `window.innerWidth` was >= 768.
  */
 export function isMobileViewport(): boolean {
   if (typeof window === 'undefined') return false;
-  return window.innerWidth < 768;
+
+  // CSS viewport check — matches Tailwind's `md` breakpoint
+  const isNarrowViewport = window.innerWidth < 768;
+
+  // Native platform check — Capacitor APK / iOS app
+  let isNative = false;
+  try {
+    // Capacitor exposes itself as window.Capacitor when running natively
+    const capacitor = (window as any).Capacitor;
+    if (capacitor && typeof capacitor.isNativePlatform === 'function') {
+      isNative = capacitor.isNativePlatform();
+    } else if (typeof navigator !== 'undefined') {
+      // Fallback: Android WebView user-agent detection
+      const ua = navigator.userAgent || '';
+      isNative = /Android.*; wv\)/.test(ua) || /iPhone|iPad|iPod/.test(ua);
+    }
+  } catch {
+    // Ignore — assume not native
+  }
+
+  return isNarrowViewport || isNative;
 }

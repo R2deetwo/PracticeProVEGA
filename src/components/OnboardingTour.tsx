@@ -41,6 +41,18 @@ const OnboardingTour: React.FC = () => {
         };
     }, []);
 
+    // Recompute isMobile whenever the tour starts — the initial useState was
+    // set at component mount which could be long before the user actually
+    // starts the tour (e.g. they log in on desktop, then resize, then start
+    // the tour, or they're in a Capacitor APK that was launched in landscape
+    // and rotated to portrait).
+    useEffect(() => {
+        if (isTourRunning) {
+            const next = isMobileViewport();
+            setIsMobile(prev => prev !== next ? next : prev);
+        }
+    }, [isTourRunning]);
+
     // Resolve which CSS selector to use for the current step. On mobile we
     // prefer the mobileTarget if defined; otherwise fall back to the desktop
     // target. This lets us gracefully anchor to either the side panel or the
@@ -160,8 +172,13 @@ const OnboardingTour: React.FC = () => {
     // overflows or obscures the nav bar.
     if (isMobile) {
         const isCenter = effectivePlacement === 'center' || currentStep.target === 'body';
+        // NOTE: We do NOT use `md:hidden` here. In a Capacitor APK running on
+        // a tablet or BlueStacks landscape, `window.innerWidth` can be >= 768
+        // even though the app is fundamentally mobile. We rely on the JS
+        // `isMobile` state (which considers isNativePlatform()) to decide
+        // which branch to render — CSS classes would hide the wrong branch.
         return (
-            <div className="fixed inset-0 z-[9999] pointer-events-none md:hidden">
+            <div className="fixed inset-0 z-[9999] pointer-events-none">
                 {/* Backdrop */}
                 <div
                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
@@ -309,7 +326,7 @@ const OnboardingTour: React.FC = () => {
     }
 
     return (
-        <div className="fixed inset-0 z-[9999] pointer-events-none hidden md:block">
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"

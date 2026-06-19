@@ -62,7 +62,7 @@ const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: R
     </div>
 );
 
-type MatterTab = 'overview' | 'notes' | 'schedule_tasks' | 'billing';
+type MatterTab = 'overview' | 'notes' | 'schedule_tasks' | 'billing' | 'documents';
 
 const MatterDetailViewContent: React.FC = () => {
     const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
@@ -155,8 +155,9 @@ const MatterDetailViewContent: React.FC = () => {
     const resolveTab = (t?: string): MatterTab => {
         if (t === 'endorsements_logs' || t === 'endorsements') return 'notes';
         if (t === 'processes') return 'overview';
-        const validTabs: MatterTab[] = ['overview', 'notes', 'schedule_tasks', 'billing'];
-        return validTabs.includes(t as MatterTab) ? (t as MatterTab) : 'overview';
+        // Legacy: 'documents' used to be a sub-tab inside Brief — now top-level
+        const validTabs: MatterTab[] = ['overview', 'notes', 'schedule_tasks', 'billing', 'documents'];
+        return validTabs.includes(t as MatterTab) ? (t as MatterTab) : 'notes'; // default to Endorsements (first tab)
     };
 
     const initialTab = currentHistoryEntry.initialTab || currentHistoryEntry.context?.initialTab;
@@ -219,7 +220,7 @@ const MatterDetailViewContent: React.FC = () => {
         const noteItems = notePages.filter((n: any) => n.matterId === matterData?.id && (n.type === 'user' || n.type === 'endorsement'));
 
         return {
-            docs: checkUnread('overview', documents, 'dateFiled'),
+            docs: checkUnread('documents', documents, 'dateFiled'),
             tasks: checkUnread('schedule_tasks', tasks, 'createdAt') + checkUnread('schedule_tasks', events, 'created_at'),
             notes: checkUnread('notes', noteItems, 'createdAt'),
             finance: canViewBilling ? checkUnread('billing', invoices, 'issueDate') : 0
@@ -434,11 +435,12 @@ const MatterDetailViewContent: React.FC = () => {
 
 
                 <nav className="flex w-full overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    <TabButton label="Brief" isActive={activeTab === 'overview'} onClick={() => handleTabClick('overview')} badgeCount={tabBadges.docs} />
+                    {/* Tab order: Endorsements (first) → Brief → Tasks → Finance → Documents (last) */}
                     <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
+                    <TabButton label="Brief" isActive={activeTab === 'overview'} onClick={() => handleTabClick('overview')} />
                     <TabButton label="Tasks" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} />
                     {canViewBilling && <TabButton label="Finance" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
-
+                    <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => handleTabClick('documents')} badgeCount={tabBadges.docs} />
                 </nav>
             </header>
 
@@ -481,6 +483,21 @@ const MatterDetailViewContent: React.FC = () => {
                         />
                     ) : activeTab === 'billing' ? (
                         !canViewBilling ? null : <BillingSummaryWidget matter={matterData} timeEntries={timeEntries} expenses={expenses} invoices={invoices} openModal={openModal} onDeleteTimeEntry={onDeleteTimeEntry} onDeleteExpense={onDeleteExpense} navigateTo={navigateTo} />
+                    ) : activeTab === 'documents' ? (
+                        // Top-level Documents tab — promoted from the Brief sub-tab
+                        // so the matter detail page has a cleaner tab order.
+                        <div className="min-h-[400px]">
+                            <DocumentsTab
+                                documents={documents}
+                                matterId={matterData.id}
+                                openModal={openModal}
+                                onViewDocumentDetails={onViewDocumentDetails}
+                                users={users}
+                                onDraftDocument={handleDraftDocument}
+                                variant="embedded"
+                                lastViewedAt={getTabBaseline('documents')}
+                            />
+                        </div>
                     ) : (
                         // Default: Brief (Overview)
                         <div className="space-y-6">
