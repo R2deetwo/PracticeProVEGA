@@ -126,7 +126,19 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     // and property matters should use "Tenant". This prevents domain lingo
     // leakage (e.g. showing "Tenant" in a Civil litigation matter).
     // MUST be declared AFTER matterType and isLitigation useState calls.
-    const matterIsPropertyType = isProperty && !isLitigation && matterType !== MatterType.Civil && matterType !== MatterType.Criminal && matterType !== MatterType.CorporateCommercial && matterType !== MatterType.Family && matterType !== MatterType.MaritimeAdmiralty && matterType !== MatterType.OilGas && matterType !== MatterType.Tax;
+    //
+    // The ONLY matter type that uses "Tenant" is RealEstate. All other matter
+    // types (Civil, Criminal, Corporate, Family, IP, Immigration, Employment,
+    // Tax, Maritime, Oil&Gas, Other) are legal → always use "Client".
+    const LEGAL_MATTER_TYPES = new Set([
+        MatterType.CivilLitigation, MatterType.CriminalDefense,
+        MatterType.CorporateCommercial, MatterType.FamilyLaw,
+        MatterType.IntellectualProperty, MatterType.Immigration,
+        MatterType.EmploymentLabor, MatterType.Tax,
+        MatterType.MaritimeAdmiralty, MatterType.OilGas,
+        MatterType.Other,
+    ]);
+    const matterIsPropertyType = isProperty && !LEGAL_MATTER_TYPES.has(matterType as MatterType);
     const clientLabel = matterIsPropertyType ? 'Tenant' : 'Client';
 
     // --- EFFECT: ALOA Form Update Listener ---
