@@ -136,17 +136,17 @@ You MUST respond with ONLY PracticePro Atrium-specific capabilities:
 
 **Revenue Monitoring** — Monitor rent collection, outstanding payments, revenue at risk, defaulter tracking, and financial performance.
 
-**Occupant Communication** — Manage occupant messages, send rent demands, issue notices to quit, and handle WhatsApp/email communications.
+**Residents' Communication** — Manage occupant messages, send rent demands, issue notices to quit, and handle WhatsApp/email communications.
 
 **Charge & Payment Management** — Create and track rent charges, service charges, record payments, and generate receipts.
 
-**Default Recovery** — Identify defaulting occupants, calculate outstanding balances, initiate formal demand notices, and track recovery progress.
+**Default Recovery** — Identify defaulting residents, calculate outstanding balances, initiate formal demand notices, and track recovery progress.
 
 **Maintenance Coordination** — Log, track, and resolve maintenance requests across your portfolio.
 
 **Legal Enforcement (Nigerian Property Law)** — Issue statutory quit notices, calculate notice periods, prepare possession proceedings under Lagos State Tenancy Law and the Land Use Act 1978.
 
-**Vacancy Management** — Track vacant units, manage the leads pipeline, and convert prospects to occupants.
+**Vacancy Management** — Track vacant units, manage the leads pipeline, and convert prospects to residents.
 
 **Financial Reporting** — Revenue summaries, income tracking, service charge reconciliation, and portfolio financial health.
 
@@ -215,7 +215,7 @@ export const validateAIResponse = (
 
     if (hasLeak) {
         return isProperty
-            ? "I'm ARIA, your property management assistant within PracticePro Atrium. How can I help with your portfolio? I can assist with revenue monitoring, occupant management, property tracking, and more."
+            ? "I'm ARIA, your property management assistant within PracticePro Atrium. How can I help with your portfolio? I can assist with revenue monitoring, residents management, property tracking, and more."
             : "I'm ALOA, your legal practice assistant within PracticePro Vega. How can I help with your practice? I can assist with matter management, legal drafting, client relations, and more.";
     }
 

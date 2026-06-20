@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { Invoice, InvoiceStatus, ModalType, AppState } from '../types';
-import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon } from '../constants';
+import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon, ExclamationTriangleIcon } from '../constants';
+import { Clock, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import Tooltip from './Tooltip';
 import StatCard from './StatCard';
 import { formatNaira } from '../utils/formatting';
@@ -159,10 +160,10 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
     return (
         <div ref={containerRef}>
             <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6">
-                <StatCard title="Total Outstanding" value={<><NairaSymbol />{formatNaira(financialSummary.outstanding)}</>} icon={<div />} colorClass="text-yellow-500" scrollOnOverflow={true} />
-                <StatCard title="Total Overdue" value={<><NairaSymbol />{formatNaira(financialSummary.overdue)}</>} icon={<div />} colorClass="text-red-500" scrollOnOverflow={true} />
-                <StatCard title="Total Paid (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalPaid)}</>} icon={<div />} colorClass="text-green-500" scrollOnOverflow={true} />
-                <StatCard title="Total Billed (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalBilled)}</>} icon={<div />} colorClass="text-blue-500" scrollOnOverflow={true} />
+                <StatCard title="Total Outstanding" value={<><NairaSymbol />{formatNaira(financialSummary.outstanding)}</>} icon={<Clock className="w-full h-full" />} colorClass="bg-yellow-500" scrollOnOverflow={true} />
+                <StatCard title="Total Overdue" value={<><NairaSymbol />{formatNaira(financialSummary.overdue)}</>} icon={<AlertCircle className="w-full h-full" />} colorClass="bg-red-500" scrollOnOverflow={true} />
+                <StatCard title="Total Paid (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalPaid)}</>} icon={<CheckCircle className="w-full h-full" />} colorClass="bg-green-500" scrollOnOverflow={true} />
+                <StatCard title="Total Billed (All Time)" value={<><NairaSymbol />{formatNaira(financialSummary.totalBilled)}</>} icon={<FileText className="w-full h-full" />} colorClass="bg-blue-500" scrollOnOverflow={true} />
             </div>
 
             <div className="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">

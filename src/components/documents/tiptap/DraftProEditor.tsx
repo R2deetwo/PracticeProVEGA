@@ -389,6 +389,34 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
 
+    // ─── Pinch-to-Zoom Support ──────────────────────────────────────────
+    // Tracks two-finger pinch gestures on the editor canvas so users can
+    // zoom in/out with their fingers (like Google Docs mobile). The gesture
+    // listener is attached to the scroll area div below.
+    const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null);
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            pinchRef.current = {
+                startDist: Math.hypot(dx, dy),
+                startZoom: zoom,
+            };
+        }
+    };
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (e.touches.length === 2 && pinchRef.current) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.hypot(dx, dy);
+            const ratio = dist / pinchRef.current.startDist;
+            const newZoom = Math.max(0.3, Math.min(2.5, pinchRef.current.startZoom * ratio));
+            setZoom(newZoom);
+        }
+    };
+    const handleTouchEnd = () => { pinchRef.current = null; };
+
     const [isHeaderDesignerOpen, setIsHeaderDesignerOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(true);
     const [placeholderCount, setPlaceholderCount] = useState(0);
@@ -864,7 +892,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 </div>
             </div>
 
-            {/* ── Ribbon Toolbar ── */}
+            {/* ── Ribbon Toolbar ──
+                Organized into clear functional groups with visual dividers:
+                File | Font | Paragraph | Insert | Tools | AI | Zoom
+                Each group is separated by a thin vertical divider for
+                better visual scannability. */}
             <div className="flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 shadow-sm z-50">
                 <div className="flex items-stretch gap-0 px-1 py-1 overflow-x-auto custom-scrollbar no-scrollbar">
 
@@ -1057,14 +1089,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 className="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar"
                 style={{ background: '#e2e8f0' }}
                 id="draftpro-scroll-area"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
             >
                 {/*
                  * Layout space holder: its size is the scaled total height of all pages.
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
+                 *
+                 * The pt-6 (24px top padding) DETACHES the first page from the
+                 * ribbon so it floats independently — like a real document on a
+                 * desk, not glued to the toolbar.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0"
+                    className="flex justify-center mb-20 shrink-0 pt-6"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,

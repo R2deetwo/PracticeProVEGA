@@ -230,23 +230,22 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                       <CalculatorIcon className="w-4 h-4" />
                   </div>
                   <div>
-                      <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Financial Instrument</p>
-                      <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Identity & Source</h3>
+                      <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Client & Matter</h3>
                   </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2 group">
-                      <label className={labelClass}>{terminology.client} Asset</label>
+                      <label className={labelClass}>Client</label>
                       <select value={clientId} onChange={e => setClientId(e.target.value)} className={commonInputClass} required>
-                          <option value="" disabled>Select Principal</option>
+                          <option value="" disabled>Select client</option>
                           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                   </div>
                   <div className="space-y-2 group">
-                      <label className={labelClass}>{terminology.matter} Association</label>
+                      <label className={labelClass}>{isProperty ? 'Property' : 'Matter'}</label>
                       <select value={matterId} onChange={e => setMatterId(e.target.value)} className={commonInputClass} required disabled={!clientId}>
-                          <option value="" disabled>{isProperty ? 'Select Property Context' : 'Select Case Context'}</option>
+                          <option value="" disabled>Select {isProperty ? 'property' : 'matter'}</option>
                           {matters.filter(m => m.clientId === clientId).map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                       </select>
                   </div>
@@ -261,8 +260,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                           <PlusIcon className="w-4 h-4" />
                       </div>
                       <div>
-                          <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Ledger Entries</p>
-                          <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Billable Components</h3>
+                          <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Items</h3>
                       </div>
                   </div>
 
@@ -272,19 +270,19 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   {lineItems.map((item, index) => (
                       <div key={index} className="flex flex-wrap items-center gap-4 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                           <div className="flex-1 min-w-[200px]">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Narrative</label>
-                              <input autoComplete="off" data-lpignore="true"  type="text" value={item.description} onChange={e => handleLineItemChange(index, 'description', e.target.value)} placeholder="Description of service..." className={commonInputClass} />
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Description</label>
+                              <input autoComplete="off" data-lpignore="true"  type="text" value={item.description} onChange={e => handleLineItemChange(index, 'description', e.target.value)} placeholder="What is this charge for?" className={commonInputClass} />
                           </div>
                           <div className="w-24">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Units</label>
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Qty</label>
                               <input autoComplete="off" data-lpignore="true"  type="number" value={item.hours || ''} onChange={e => handleLineItemChange(index, 'hours', parseFloat(e.target.value))} placeholder="0.0" className={commonInputClass} />
                           </div>
                           <div className="w-32">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Unit Rate</label>
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Rate</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.rate)} onChange={e => handleLineItemChange(index, 'rate', parseFormattedNumber(e.target.value))} placeholder="0.00" className={commonInputClass} />
                           </div>
                           <div className="w-32">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Subtotal</label>
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Amount</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.total)} onChange={e => handleLineItemChange(index, 'total', parseFormattedNumber(e.target.value))} className={`${commonInputClass} font-bold text-primary-600`} />
                           </div>
                           <button type="button" onClick={() => removeLineItem(index)} className="p-2 text-rose-400 hover:text-rose-600 transition-colors mt-5">
@@ -303,16 +301,16 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 px-1">
               <div className="p-3 sm:p-4 bg-slate-900 dark:bg-zinc-950 rounded-xl border border-zinc-800 flex flex-col justify-between">
                   <div>
-                      <p className="text-[10px] font-bold text-emerald-500/70 uppercase tracking-widest leading-none mb-4">Financial Summation</p>
+                      <p className="text-[10px] font-bold text-emerald-500/70 uppercase tracking-widest leading-none mb-4">Summary</p>
                       <div className="space-y-3">
                           <div className="flex justify-between items-center text-zinc-400 gap-4">
-                              <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">Gross Subtotal</span>
+                              <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">Subtotal</span>
                               <span className="text-sm font-bold text-white tabular-nums"><NairaSymbol />{formatNumberWithCommas(subTotal)}</span>
                           </div>
                           <div className="flex justify-between items-center gap-4">
                               <div className="flex items-center gap-3 min-w-0">
                                   <input autoComplete="off" data-lpignore="true"  type="checkbox" id="vat" checked={applyVat} onChange={e => setApplyVat(e.target.checked)} className="rounded border-zinc-700 bg-zinc-800 text-primary-500 focus:ring-primary-500 flex-shrink-0" />
-                                  <label htmlFor="vat" className="text-[10px] uppercase tracking-widest text-zinc-400 cursor-pointer truncate">Taxation (VAT {vatPercentage}%)</label>
+                                  <label htmlFor="vat" className="text-[10px] uppercase tracking-widest text-zinc-400 cursor-pointer truncate">VAT ( {vatPercentage}%)</label>
                               </div>
                               <span className="text-sm font-bold text-white tabular-nums flex-shrink-0"><NairaSymbol />{formatNumberWithCommas(vatAmount)}</span>
                           </div>
@@ -320,7 +318,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                               <div className="flex justify-between items-center gap-4">
                                   <div className="flex items-center gap-3 min-w-0">
                                       <input autoComplete="off" data-lpignore="true"  type="checkbox" id="wht" checked={applyWht} onChange={e => setApplyWht(e.target.checked)} className="rounded border-zinc-700 bg-zinc-800 text-rose-500 focus:ring-rose-500 flex-shrink-0" />
-                                      <label htmlFor="wht" className="text-[10px] uppercase tracking-widest text-zinc-400 cursor-pointer truncate">Retention (WHT {whtPercentage}%)</label>
+                                      <label htmlFor="wht" className="text-[10px] uppercase tracking-widest text-zinc-400 cursor-pointer truncate">Withholding ( {whtPercentage}%)</label>
                                   </div>
                                   <span className="text-sm font-bold text-rose-400 tabular-nums flex-shrink-0">-(<NairaSymbol />{formatNumberWithCommas(whtAmount)})</span>
                               </div>
@@ -329,12 +327,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   </div>
                   <div className="mt-8 pt-8 border-t border-zinc-800 flex justify-between items-end gap-4 overflow-hidden">
                       <div className="min-w-0">
-                          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total Receivable</p>
+                          <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">Total</p>
                           <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tighter leading-none truncate"><NairaSymbol />{formatNumberWithCommas(invoiceTotal)}</h2>
                       </div>
                       {applyWht && (
                           <div className="text-right flex-shrink-0">
-                              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Net Position</p>
+                              <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-0.5">Net</p>
                               <p className="text-base sm:text-lg font-black text-emerald-500 tracking-tight leading-none"><NairaSymbol />{formatNumberWithCommas(netReceivable)}</p>
                           </div>
                       )}
@@ -344,14 +342,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
               <div className="space-y-3">
                   <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
-                          <label className={labelClass}>Temporal Parameters</label>
+                          <label className={labelClass}>Dates</label>
                           <div className="grid grid-cols-2 gap-3 sm:gap-4">
                               <div>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Issue</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Issue Date</p>
                                   <input autoComplete="off" data-lpignore="true"  type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className={commonInputClass} required />
                               </div>
                               <div>
-                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Maturity</p>
+                                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Due Date</p>
                                   <input autoComplete="off" data-lpignore="true"  type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className={commonInputClass} required />
                               </div>
                           </div>
@@ -360,7 +358,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   
                   <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
-                          <label className={labelClass}>Payment Routing</label>
+                          <label className={labelClass}>Bank Account</label>
                           {safeBankAccounts.length > 0 ? (
                               <select value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)} className={commonInputClass} required>
                                   {safeBankAccounts.map(acc => <option key={acc.id} value={acc.id}>{acc.bankName} (...{acc.accountNumber.slice(-4)})</option>)}
@@ -368,7 +366,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                           ) : (
                               <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-2xl flex items-center gap-2">
                                   <CheckCircleIcon className="w-4 h-4" />
-                                  Account Configuration Required
+                                  Add a bank account in settings first
                               </div>
                           )}
                       </div>
@@ -379,10 +377,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
         <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
-              <XIcon className="w-4 h-4" /> Discard
+              <XIcon className="w-4 h-4" /> Cancel
           </button>
           <button onClick={handleSubmit} type="submit" disabled={!paymentAccountId && safeBankAccounts.length === 0} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-              <SaveIcon className="w-4 h-4" /> {isEditing ? 'Authorize Update' : 'Initialize Invoice'}
+              <SaveIcon className="w-4 h-4" /> {isEditing ? 'Update Invoice' : 'Create Invoice'}
           </button>
         </div>
       </div>

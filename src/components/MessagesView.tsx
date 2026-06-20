@@ -886,7 +886,7 @@ const MessagesView: React.FC = () => {
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
                             <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {isProperty ? 'Residents Chat' : 'Client Messages'}
+                                    {isProperty ? "Residents' Messages" : 'Client Messages'}
                                 </h3>
                                 <div className="flex items-center gap-1.5">
                                     {/* TASK 15: Mark all inbound messages as read (clears badge) */}

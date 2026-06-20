@@ -70,7 +70,14 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                 </div>
 
                 <div className="relative z-10 flex items-center justify-between flex-1 px-5">
-                    <div className="flex flex-col justify-center min-w-0 pr-2 flex-1">
+                    {/* Icon on LEFT — matches StatCard layout (icon left, text right).
+                        Previously the naira icon was on the RIGHT which conflicted
+                        with the monochrome naira symbol in the text on the LEFT,
+                        making both naira symbols appear on the same side. */}
+                    <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${colorClass} bg-opacity-10 flex-shrink-0 shadow-sm border border-white/10`}>
+                        <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
+                    </div>
+                    <div className="flex flex-col justify-center min-w-0 pl-3 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
                             <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap truncate">{label}</p>
                             {showTabs && (
@@ -96,9 +103,6 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                         <div className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-tight break-all">
                             {isLoading ? <Skeleton width={100} height={28} /> : <><NairaSymbol />{formatLargeNumber(value)}</>}
                         </div>
-                    </div>
-                    <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center ${colorClass} bg-opacity-10 flex-shrink-0 shadow-sm border border-white/10`}>
-                        <NairaCircleIcon className={`w-5 h-5 ${textClass}`} />
                     </div>
                 </div>
             </div>

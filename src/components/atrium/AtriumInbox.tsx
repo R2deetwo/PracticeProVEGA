@@ -235,7 +235,7 @@ export const AtriumInbox: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">WhatsApp & Email</h2>
-                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-medium">Occupant Messages & Reminders</p>
+                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-medium">Residents' Messages & Reminders</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
