@@ -1,6 +1,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { captureError } from '../utils/sentry';
 
 interface Props {
   children: ReactNode;
@@ -25,6 +26,8 @@ class GlobalErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: any, errorInfo: ErrorInfo) {
     console.error('[GlobalErrorBoundary] Uncaught error:', error, errorInfo);
+    // Report to Sentry so the dev team sees production crashes
+    captureError(error, { componentStack: errorInfo?.componentStack });
     this.setState({ errorInfo: errorInfo?.componentStack || '' });
   }
 

@@ -8,6 +8,12 @@ import { AppProvider } from './contexts/AppProvider';
 import GlobalErrorBoundary from './components/GlobalErrorBoundary';
 import ConvexErrorBoundary from './components/ConvexErrorBoundary';
 import App from './components/App';
+import { initSentry } from './utils/sentry';
+import { initPostHog } from './utils/analytics';
+
+// ─── Initialize crash reporting + analytics BEFORE anything else ────────
+initSentry();
+initPostHog();
 
 // --- DATABASE CONNECTION CONFIGURATION ---
 // Prefers the environment variable; falls back to the live production instance.

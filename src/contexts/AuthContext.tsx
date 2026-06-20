@@ -3,6 +3,8 @@ import * as React from 'react';
 import { User, AppMode, UserRole, SubscriptionPlan } from '../types';
 import { useQuery, useMutation, useAction, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { setSentryUser, clearSentryUser } from '../utils/sentry';
+import { identifyUser, resetUser as resetAnalyticsUser } from '../utils/analytics';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
@@ -570,6 +572,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         const portalType = sessionStorage.getItem('practicepro_portal_type');
         const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
 
+        // Clear Sentry + PostHog user context on logout
+        try { clearSentryUser(); resetAnalyticsUser(); } catch {}
+
         // Fire-and-forget tracking — NEVER block logout on analytics.
         // If the Convex connection is stale or the network is slow, awaiting
         // this mutation can cause the logout button to appear unresponsive.
@@ -816,6 +821,27 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // We expose this so the App can redirect them to the login page with a clear message
     // instead of showing "Loading your portal..." for 15 seconds.
     const isAccountRevoked = !!sessionToken && !!userData && !userData.isVerified && (userData as any).role === 'Pending';
+
+    // ─── Sentry + PostHog user context ─────────────────────────────────
+    // Set/clear the user identity in both crash reporting and analytics
+    // whenever currentUser changes.
+    React.useEffect(() => {
+        if (currentUser) {
+            setSentryUser({
+                id: currentUser.id,
+                email: currentUser.email,
+                name: currentUser.name,
+            });
+            identifyUser(currentUser.id, {
+                email: currentUser.email,
+                name: currentUser.name,
+                role: currentUser.role,
+            });
+        } else {
+            clearSentryUser();
+            resetAnalyticsUser();
+        }
+    }, [currentUser]);
 
     const value = {
         isAuthenticated: !!currentUser,
