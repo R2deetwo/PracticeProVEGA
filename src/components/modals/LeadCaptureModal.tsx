@@ -6,7 +6,7 @@ import { SparklesIcon, MailIcon } from '../../constants';
 
 const LeadCaptureModal: React.FC = () => {
     const { loginAsDemoUser } = useAuth();
-    const { closeModal, addToast, modalContext } = useUI();
+    const { closeModal, openModal, addToast, modalContext } = useUI();
     const [email, setEmail] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
     const [selectedProduct, setSelectedProduct] = React.useState<'vega' | 'atrium'>(modalContext?.demoProduct || 'vega');
@@ -22,12 +22,20 @@ const LeadCaptureModal: React.FC = () => {
         try {
             sessionStorage.setItem('practicepro_demo_product', selectedProduct);
             // Log the lead and enter demo
-            await loginAsDemoUser(email);
+            const result = await loginAsDemoUser(email);
+            if (result && result.success === false) {
+                // Demo mode is not available in production — guide user to sign up instead
+                addToast("Demo mode is not available here. Please create a free account to explore.", { type: 'info', duration: 5000 });
+                closeModal();
+                // Open the signup modal so the user has a clear next step
+                setTimeout(() => openModal('signup'), 500);
+                return;
+            }
             addToast("Welcome! Launching Demo Mode...", { type: 'success' });
             closeModal();
         } catch (err) {
             console.error("Demo launch failed", err);
-            addToast("Connection failed. Please try again.", { type: 'error' });
+            addToast("Something went wrong. Please try creating an account instead.", { type: 'error' });
         } finally {
             setIsLoading(false);
         }

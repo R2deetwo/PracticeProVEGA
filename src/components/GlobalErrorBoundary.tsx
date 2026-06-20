@@ -47,7 +47,12 @@ class GlobalErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      const msg = this.getErrorMessage(this.state.error);
+      const rawMsg = this.getErrorMessage(this.state.error);
+      // In production, show a user-friendly message instead of raw error details.
+      // The raw error is still logged to console for developer debugging.
+      const msg = process.env.NODE_ENV === 'development'
+        ? rawMsg
+        : 'Something went wrong. Please try reloading the page. If the problem persists, contact support.';
 
       try {
         return (
@@ -71,6 +76,9 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 <Trash2 size={14} style={{ display: 'inline', marginRight: 6 }} /> Reset Data &amp; Sign Out
               </button>
             </div>
+            {/* Error details — ONLY shown in development. In production, users
+                see a clean error message without stack traces or internal details. */}
+            {process.env.NODE_ENV === 'development' && (
             <div style={{ marginTop: 32, padding: 16, background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, maxWidth: 680, width: '100%', textAlign: 'left', overflowX: 'auto' }}>
               <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#dc2626', fontWeight: 700, marginBottom: 8, wordBreak: 'break-all' }}>
                 <XCircle size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} /> {msg}
@@ -81,6 +89,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
                 </pre>
               )}
             </div>
+            )}
           </div>
         );
       } catch (renderError) {

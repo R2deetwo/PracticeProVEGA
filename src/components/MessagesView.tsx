@@ -1584,7 +1584,7 @@ const MessagesView: React.FC = () => {
                                                                             <SparklesIcon className="w-4 h-4" />
                                                                         </div>
                                                                         <div className="flex flex-col items-start group">
-                                                                            <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">ARIA</span>
+                                                                            <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">{isProperty ? 'ARIA' : 'ALOA'}</span>
                                                                             <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm">
                                                                                 <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(item.adminReply) }} />
                                                                             </div>

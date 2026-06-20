@@ -348,7 +348,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                         {canAddMoreUsers ? (
                             <button onClick={() => openModal('newUser')} className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center gap-2 text-sm">
                                 <PlusIcon className="w-4 h-4" />
-                                Add User Placeholder
+                                Add User
                             </button>
                         ) : (
                             <button onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })} className="w-full sm:w-auto px-4 py-2 bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-slate-300 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center gap-2 text-sm">

@@ -5,6 +5,7 @@ import Accordion, { AccordionItem } from './Accordion';
 import { useAloa } from '../contexts/AloaProvider';
 import { useUI } from '../contexts/UIContext';
 import { useProduct } from '../contexts/ProductContext';
+import { getAssistantName, getAssistantFullName } from '../utils/assistantIdentity';
 
 const HelpView: React.FC = () => {
     const { currentHistoryEntry } = useUI();
@@ -12,6 +13,8 @@ const HelpView: React.FC = () => {
     const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
     const { togglePanel } = useAloa();
     const { isProperty } = useProduct();
+    const assistantName = getAssistantName(isProperty);
+    const assistantFullName = getAssistantFullName(isProperty);
 
     React.useEffect(() => {
         if (currentHistoryEntry.context?.activeSection) {
@@ -37,7 +40,7 @@ const HelpView: React.FC = () => {
     };
 
     const handleAskAloa = () => {
-        togglePanel(); // Opens ARIA panel
+        togglePanel(); // Opens the assistant panel
     };
 
     return (
@@ -70,7 +73,7 @@ const HelpView: React.FC = () => {
                             className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-full hover:shadow-lg transition-all flex items-center gap-2 hover:scale-105 whitespace-nowrap"
                         >
                             <SparklesIcon className="w-5 h-5" />
-                            Ask ARIA
+                            Ask {assistantName}
                         </button>
                     </div>
                 </header>
@@ -95,7 +98,7 @@ const HelpView: React.FC = () => {
                         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-200 mb-4 group-hover:scale-110 transition-transform">
                             <ZapIcon className="w-6 h-6" />
                         </div>
-                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">ARIA Tips</h3>
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{assistantName} Tips</h3>
                         <p className="text-sm text-slate-600 dark:text-zinc-400">Master your AI assistant. Learn commands for drafting, research, and analysis.</p>
                     </button>
 
@@ -142,7 +145,7 @@ const HelpView: React.FC = () => {
 
                         <AccordionItem
                             id="aloa-tips"
-                            title="Mastering ARIA (AI Assistant)"
+                            title="Mastering {assistantName} (AI Assistant)"
                             isOpen={activeSection === 'aloa-tips'}
                             onToggle={() => setActiveSection(activeSection === 'aloa-tips' ? null : 'aloa-tips')}
                         >
@@ -150,8 +153,8 @@ const HelpView: React.FC = () => {
                                 <div className="flex items-start gap-4 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg">
                                     <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
                                     <div>
-                                        <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is ARIA?</h4>
-                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? 'ARIA (Advanced Revenue Intelligence Agent) is your AI-powered assistant and portfolio manager' : 'ARIA (Advanced Legal Office Assistant) is your AI-powered paralegal and practice manager'}. She drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
+                                        <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is {assistantName}?</h4>
+                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? ' () is your AI-powered assistant and portfolio manager' : ' () is your AI-powered paralegal and practice manager'}. She drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
                                     </div>
                                 </div>
 
@@ -179,22 +182,22 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">The Integrated Note Taker</h4>
-                                    <p className="mb-2">ARIA includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within her chat panel.</p>
+                                    <p className="mb-2">{assistantName} includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within her chat panel.</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
                                         <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts perfectly transcribed into text.</li>
                                         <li><strong>Quick Save:</strong> Use the "Save to Matter" feature in the generated note to instantly store your typed or dictated memo safely into a Matter's Notebook.</li>
-                                        <li><strong>Zero Layout Shift:</strong> Open ARIA securely over any screen, take your voice notes, and close it without losing your place in the app.</li>
+                                        <li><strong>Zero Layout Shift:</strong> Open {assistantName} securely over any screen, take your voice notes, and close it without losing your place in the app.</li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">Firm-Wide Brain (RAG)</h4>
-                                    <p className="text-sm">ARIA constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and she will cross-reference your specific uploaded documents to generate accurate results.</p>
+                                    <h4 className="font-bold text-lg mb-2">{isProperty ? "Portfolio Brain (RAG)" : "Firm-Wide Brain (RAG)"}</h4>
+                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and she will cross-reference your specific uploaded documents to generate accurate results.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">On-Demand Briefings</h4>
-                                    <p className="text-sm">Get an instant snapshot of your practice. Ask ARIA "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
+                                    <p className="text-sm">Get an instant snapshot of your practice. Ask {assistantName} "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -222,7 +225,7 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Firm Branding</h4>
                                     <p className="mb-2">Go to <strong>Settings {'>'} Firm Details</strong> to customize:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Logo:</strong> Appears on the navigation bar and {isProperty ? 'tenant portal' : 'client portal'}.</li>
+                                        <li><strong>Logo:</strong> Appears on the navigation bar and {isProperty ? "Residents' Portal" : 'client portal'}.</li>
                                         <li><strong>Letterhead:</strong> Upload your official letterhead image. This will be used as the background for all generated PDFs (Invoices, Receipts).</li>
                                         <li><strong>Digital Stamp:</strong> Used for digitally signing documents within the app.</li>
                                     </ul>
@@ -452,7 +455,7 @@ const HelpView: React.FC = () => {
 
                                 <div className="mt-4 p-4 border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/10 rounded-r-xl">
                                     <p className="text-xs text-amber-800 dark:text-amber-200">
-                                        <strong>Pro Tip:</strong> Use the 'Revenue Monitor' navigation tab to see a firm-wide view of all properties. If the shield icon turns red, you have critical defaults requiring immediate attention.
+                                        <strong>Pro Tip:</strong> Use the 'Revenue Monitor' navigation tab to see a firm-wide view of all properties. If the shield icon turns red, you have critical defaulters requiring immediate attention.
                                     </p>
                                 </div>
                             </div>
@@ -479,7 +482,7 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers</li>
-                                        <li><strong>AI Drafting:</strong> Use ARIA to generate document sections</li>
+                                        <li><strong>AI Drafting:</strong> Use {assistantName} to generate document sections</li>
                                         <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
                                         <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'}</li>
                                         <li><strong>Auto-Save:</strong> Your work is saved automatically</li>
@@ -492,7 +495,7 @@ const HelpView: React.FC = () => {
                                     <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
                                         <li>Click <strong>Draft</strong> in the navigation to open DraftPro.</li>
                                         <li>Choose a template or start from scratch.</li>
-                                        <li>Use the toolbar for formatting or click "Ask ARIA" to generate content.</li>
+                                        <li>Use the toolbar for formatting or click "Ask {assistantName}" to generate content.</li>
                                         <li>Fill any placeholder blanks — printing is blocked until they are all resolved.</li>
                                         <li>When finished, save to a matter, print, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
                                     </ol>
@@ -530,8 +533,8 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">ARIA Hints & Checklists</h4>
-                                    <p className="text-sm">During intake, ARIA will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{assistantName} Hints & Checklists</h4>
+                                    <p className="text-sm">During intake, ${assistantName} will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
                                 </div>
                             </div>
                         </AccordionItem>}

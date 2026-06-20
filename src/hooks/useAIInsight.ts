@@ -33,7 +33,7 @@ export function useAIInsight(): AIInsight {
 
   return useMemo<AIInsight>(() => {
     const now = new Date();
-    const agentName = isProperty ? 'ARIA' : 'ARIA®';
+    const agentName = isProperty ? 'ARIA' : 'ALOA';
 
     // ─── PROPERTY OS (Atrium) Insights ─────────────────────────────────
     if (isProperty) {

@@ -530,7 +530,7 @@ const VEGA_FEATURE_CATEGORIES = [
         Icon: SparklesIcon,
         items: [
             { title: 'DraftPro Editor', desc: 'Rich-text editor with A4 pagination and Nigerian legal fonts. Placeholder guardrails block printing until every blank is filled — so you never accidentally send incomplete work. Draft, tweak, then save to a matter, print, or copy to Word.' },
-            { title: 'ARIA AI Copilot', desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.', badge: 'Growth+' },
+            { title: 'ALOA AI Copilot', desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.', badge: 'Growth+' },
             { title: 'Document Vault', desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.' },
             { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.', badge: 'Growth+', isLegalOnly: true },
             { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations.', badge: 'Growth+', isPropertyOnly: true },
@@ -700,7 +700,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
         const description = TIER_DESCRIPTIONS[productMode][id];
         const features = tier.features.map((text) => ({
             text,
-            note: text.includes('ARIA') ? 'Growth+' : undefined,
+            note: (text.includes('ARIA') || text.includes('ALOA')) ? 'Growth+' : undefined,
         }));
         return {
             id,

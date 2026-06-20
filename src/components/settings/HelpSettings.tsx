@@ -3,6 +3,7 @@ import Accordion, { AccordionItem } from '../Accordion';
 import { useOnboarding } from '../../contexts/OnboardingProvider';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { getAssistantName } from '../../utils/assistantIdentity';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 ${className || ''}`}>
@@ -18,6 +19,7 @@ export const HelpSettings: React.FC = () => {
     const { resetTour } = useOnboarding();
     const { addToast } = useUI();
     const { isProperty, isVega } = useProduct();
+    const assistantName = getAssistantName(isProperty);
 
     const handleRestartTour = () => {
         resetTour();
@@ -106,11 +108,11 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem title="Using ARIA (AI Assistant)">
+                        <AccordionItem title="Using {assistantName} (AI Assistant)">
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg">What is ARIA?</h4>
-                                    <p>ARIA is your AI-powered assistant, designed to help you with tasks, provide insights, and streamline your workflow. You can interact with it by typing or using your voice via the microphone icon.</p>
+                                    <h4 className="font-bold text-lg">What is {assistantName}?</h4>
+                                    <p>{assistantName} is your AI-powered assistant, designed to help you with tasks, provide insights, and streamline your workflow. You can interact with it by typing or using your voice via the microphone icon.</p>
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Knowledge Base & RAG</h4>

@@ -279,7 +279,7 @@ export const SettingsView: React.FC = () => {
                         {/* AI Settings accessible to ALL users for Personal Key */}
                         {canUseAI && <NavItem label="AI Settings" icon={<ZapIcon />} isActive={activeTab === 'agents'} onClick={() => handleNavClick('agents')} />}
 
-                        {isProperty && !useProduct().isUnified && (
+                        {isProperty && !isUnified && (
                             <NavItem 
                                 label="Revenue Protection Guide" 
                                 icon={<ShieldCheckIcon className="text-emerald-500" />} 
