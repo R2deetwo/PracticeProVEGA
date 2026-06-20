@@ -100,7 +100,7 @@ const analysisSchema: Schema = {
   required: ['summary', 'riskAnalysis', 'extractedMetadata', 'dataProtection']
 };
 
-const getSystemPrompt = (isProperty?: boolean) => `You are ALDIA (${isProperty ? 'Advanced Document Intelligence Agent' : 'Advanced Legal Document Intelligence Agent'}), the Orchestrator for PracticePro Nigeria.
+const getSystemPrompt = (isProperty?: boolean) => `You are ALDIA (${isProperty ? 'Advanced Legal Document Intelligence Agent' : 'Advanced Legal Document Intelligence Agent'}), the Orchestrator for PracticePro Nigeria.
 Your role is to coordinate a multi-agent analysis of the provided ${isProperty ? 'property' : 'legal'} document.
 
 You must emulate the output of three distinct sub-agents:

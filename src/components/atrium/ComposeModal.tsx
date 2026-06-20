@@ -72,7 +72,7 @@ export function buildMessage(
 ): string {
   if (customText) return customText;
 
-  const name = tenantName || 'Tenant';
+  const name = tenantName || 'Resident';
   const addr = unitLabel;
   const baseRent = amount || 0;
   
@@ -111,7 +111,7 @@ export function buildMessage(
         message = `LEASE RENEWAL\n\nDear {{TENANT_NAME}},\n\nYour lease for {{PROPERTY_ADDRESS}} is expiring soon. We invite you to renew your tenancy agreement. Please contact {{FIRM_NAME}} to discuss renewal terms.`; 
         break;
       case 'welcome_note': 
-        message = `Welcome to your new home at {{PROPERTY_ADDRESS}}, {{TENANT_NAME}}! We are excited to have you. Please find the tenant handbook in your portal. — {{FIRM_NAME}}`; 
+        message = `Welcome to your new home at {{PROPERTY_ADDRESS}}, {{TENANT_NAME}}! We are excited to have you. Please find the resident handbook in your portal. — {{FIRM_NAME}}`; 
         break;
       case 'promotion': 
         message = `Hello {{TENANT_NAME}}, we have a special offer for our residents! Get 10% off professional cleaning services this month. Use code: CLEAN10. — {{FIRM_NAME}}`; 

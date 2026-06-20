@@ -81,7 +81,7 @@ const atriumTourSteps: TourStep[] = [
   {
     target: 'body',
     title: 'Welcome to Atrium',
-    content: 'Your complete property management system. This quick tour will show you how to manage your properties, tenants, and revenue from one powerful dashboard.',
+    content: 'Your complete property management system. This quick tour will show you how to manage your properties, residents, and revenue from one powerful dashboard.',
     placement: 'center',
     mobilePlacement: 'center',
   },
@@ -103,8 +103,8 @@ const atriumTourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="nav-contacts"]',
-    title: 'Tenant Directory',
-    content: 'Keep track of all your tenants, their lease terms, and contact details. Send rent reminders and demand notices directly from here.',
+    title: 'Resident Directory',
+    content: 'Keep track of all your residents, their lease terms, and contact details. Send rent reminders and demand notices directly from here.',
     placement: 'right',
     mobilePlacement: 'top',
     navigateTo: 'contacts',
@@ -129,7 +129,7 @@ const atriumTourSteps: TourStep[] = [
     target: '#nav-settings-sidebar',
     mobileTarget: '[data-tour-id="nav-settings"]',
     title: 'Portfolio Configuration',
-    content: 'Customize your setup. Configure service charge templates, WhatsApp notification settings, and manage portal access for your tenants.',
+    content: 'Customize your setup. Configure service charge templates, WhatsApp notification settings, and manage portal access for your residents.',
     placement: 'right',
     mobilePlacement: 'top',
     navigateTo: 'settings',
@@ -164,7 +164,7 @@ const kompleteTourSteps: TourStep[] = [
   {
     target: '[data-tour-id="nav-billing"]',
     title: 'Financial Hub',
-    content: 'Track legal billing and property revenue together. Generate invoices for clients and rent demands for tenants.',
+    content: 'Track legal billing and property revenue together. Generate invoices for clients and rent demands for residents.',
     placement: 'right',
     mobilePlacement: 'top',
     navigateTo: 'billing',

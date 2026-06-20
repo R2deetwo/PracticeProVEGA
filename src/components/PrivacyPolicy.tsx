@@ -380,8 +380,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-6">
                                     <p>
                                         <strong>PracticePro Legal Technologies Limited</strong><br />
-                                        <strong>Data Protection Officer:</strong> practiceprovega@gmail.com<br />
-                                        <strong>General Inquiries:</strong> privacy@practicepro.com
+                                        <strong>Data Protection Officer:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 hover:underline">practiceprovega@gmail.com</a><br />
+                                        <strong>General Inquiries:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 hover:underline">practiceprovega@gmail.com</a>
                                     </p>
                                 </div>
                             </div>

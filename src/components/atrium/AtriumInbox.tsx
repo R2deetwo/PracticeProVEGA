@@ -490,7 +490,7 @@ export const AtriumInbox: React.FC = () => {
                                 </div>
                                 <h3 className="text-lg font-bold text-slate-400 mb-2">No Thread Selected</h3>
                                 <p className="text-sm max-w-xs text-slate-600 leading-relaxed">
-                                    Select a conversation from the sidebar to view messages and respond to tenants.
+                                    Select a conversation from the sidebar to view messages and respond to residents.
                                 </p>
                             </div>
                         )}

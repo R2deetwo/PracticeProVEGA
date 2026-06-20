@@ -6,7 +6,7 @@ import { SparklesIcon, MailIcon } from '../../constants';
 
 const LeadCaptureModal: React.FC = () => {
     const { loginAsDemoUser } = useAuth();
-    const { closeModal, openModal, addToast, modalContext } = useUI();
+    const { closeModal, openModal, navigateTo, addToast, modalContext } = useUI();
     const [email, setEmail] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
     const [selectedProduct, setSelectedProduct] = React.useState<'vega' | 'atrium'>(modalContext?.demoProduct || 'vega');
@@ -114,7 +114,7 @@ const LeadCaptureModal: React.FC = () => {
                 </button>
                 
                 <p className="text-center text-xs text-slate-400">
-                    By continuing, you agree to our <button type="button" className="underline hover:text-slate-600">Privacy Policy</button>.
+                    By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600">Privacy Policy</button>.
                 </p>
             </form>
         </div>

@@ -122,12 +122,12 @@ const AutomationCenter: React.FC = () => {
 
   const handleBulkRentReminder = async () => {
     const props = (coreState.properties || []).filter(p => p.rentalDetails?.tenantPhone);
-    if (props.length === 0) { addToast(`No tenanted ${terminology.matter.toLowerCase()}s with phone numbers found`, { type: 'error' }); return; }
+    if (props.length === 0) { addToast(`No occupied ${terminology.matter.toLowerCase()}s with phone numbers found`, { type: 'error' }); return; }
     addToast(`Sending ${Math.min(props.length, 20)} reminder(s)…`, { type: 'info' });
     let sent = 0, failed = 0;
     for (const p of props.slice(0, 20)) {
       const phone = p.rentalDetails!.tenantPhone!;
-      const tenantName = p.rentalDetails?.tenantName || 'Tenant';
+      const tenantName = p.rentalDetails?.tenantName || 'Resident';
       const rentAmount = (p.rentalDetails?.rentAmount || 0).toLocaleString('en-NG');
       const address = p.address;
       const plainMsg = buildMessage('rent_reminder', address, tenantName, p.rentalDetails?.rentAmount, undefined, coreState.firmDetails?.automationSettings?.automationTemplates);
@@ -247,7 +247,7 @@ const AutomationCenter: React.FC = () => {
           <div className="flex-1">
             <h4 className="text-xs font-bold text-amber-400">Late Penalty Fee</h4>
             <p className="text-[10px] text-slate-400 mt-0.5 mb-2 leading-relaxed">
-              When a tenant defaults on payment, a late notice is automatically sent. You can choose to apply an automatic penalty fee to their ledger balance.
+              When a resident defaults on payment, a late notice is automatically sent. You can choose to apply an automatic penalty fee to their ledger balance.
             </p>
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-slate-500">Current Rate:</span>

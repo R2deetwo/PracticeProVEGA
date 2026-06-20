@@ -95,13 +95,13 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     const isLegal = isVega || isUnified;
 
     // Terminology: Atrium-exclusive gets property language; everything else (including Unified) stays neutral
-    const usePropertyTerms = isAtrium; // Only pure Atrium mode uses Property/Tenant language
+    const usePropertyTerms = isAtrium; // Only pure Atrium mode uses Property/Resident language
 
     const terminology: Terminology = {
       matter:        usePropertyTerms ? 'Property' : 'Matter',
       matters:       usePropertyTerms ? 'Properties' : 'Matters',
-      client:        usePropertyTerms ? 'Tenant' : 'Client',
-      clients:       usePropertyTerms ? 'Tenants' : 'Clients',
+      client:        usePropertyTerms ? 'Resident' : 'Client',
+      clients:       usePropertyTerms ? 'Residents' : 'Clients',
       type:          usePropertyTerms ? 'Property Category' : 'Practice Area',
       stage:         usePropertyTerms ? 'Pipeline State' : 'Stage',
       newMatter:     usePropertyTerms ? 'New Property' : 'New Matter',

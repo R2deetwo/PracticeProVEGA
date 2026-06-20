@@ -251,7 +251,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 </div>
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-600">© {new Date().getFullYear()} PracticePro Tech Ltd. Lagos, Nigeria.</p>
+                <p className="text-xs text-slate-600">© {new Date().getFullYear()} PracticePro Legal Technologies Limited Lagos, Nigeria.</p>
                 <p className="text-xs text-slate-700">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
             </div>
         </div>
@@ -553,9 +553,9 @@ const ATRIUM_FEATURE_CATEGORIES = [
         Icon: OfficeBuildingIcon,
         items: [
             { title: 'Property Portfolio', desc: 'Manage residential, commercial, and mixed-use properties from a single dashboard. Track occupancy, upload photos, organize by location, and link to tenancy records.' },
-            { title: 'Tenant Management', desc: 'Complete tenant profiles with KYC fields, lease agreements, and communication history. Manage tenant lifecycles from application through to departure.' },
+            { title: 'Resident Management', desc: 'Complete resident profiles with KYC fields, lease agreements, and communication history. Manage resident lifecycles from application through to departure.' },
             { title: "Residents' Portal", desc: "Self-service portal where residents view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.", badge: 'Growth+' },
-            { title: 'Revenue Monitor', desc: 'Real-time defaulter dashboard, rent collection tracking, and portfolio-level financial analytics. Know which tenants are overdue and which properties are underperforming.' },
+            { title: 'Revenue Monitor', desc: 'Real-time defaulter dashboard, rent collection tracking, and portfolio-level financial analytics. Know which residents are overdue and which properties are underperforming.' },
         ],
     },
     {
@@ -572,7 +572,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         category: 'Maintenance & Operations',
         Icon: ShieldCheckIcon,
         items: [
-            { title: 'Maintenance Tickets', desc: 'Tenants log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
+            { title: 'Maintenance Tickets', desc: 'Residents log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
             { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
             { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.', badge: 'Pro' },
         ],
@@ -598,7 +598,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                     <p className={`text-lg max-w-2xl mx-auto leading-relaxed ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
                         {isVega
                             ? 'From intake to resolution, VEGA covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
-                            : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — tenants, maintenance, and financials.'}
+                            : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — residents, maintenance, and financials.'}
                     </p>
                 </div>
 
@@ -724,7 +724,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto text-lg leading-relaxed mb-6">
-                    {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your tenants.'}
+                    {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your residents.'}
                 </p>
 
                 {/* Billing Toggle (VEGA Only — Atrium is annual-only) */}

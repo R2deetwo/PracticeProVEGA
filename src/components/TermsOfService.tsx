@@ -24,7 +24,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
                     <div className="mb-16">
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">TERMS AND CONDITIONS OF SERVICE</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Technologies Limited</p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Legal Technologies Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                             <span>Effective Date: January 1, 2026</span>
                             <span>Last Updated: April 10, 2026</span>
@@ -83,9 +83,9 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                         {isVega && <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant, the artificial intelligence agent powered by Google's Gemini API that provides conversational interfaces, research assistance, document drafting, voice control, and proactive intelligence features within the Platform.</p>}
                                         {isProperty && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Asset & Revenue Intelligence Assistant, the artificial intelligence agent embedded within Atrium OS that monitors rent collection, resident compliance, and portfolio revenue performance.</p>}
                                         <p><strong>"AI Agents"</strong> means collectively, ALOA™/ARIA™ (as applicable), Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent, all of which constitute the artificial intelligence-powered components of the Platform.</p>
-                                        <p><strong>"ALDIA"</strong> means AI-Powered Document Intelligence Agent, which provides automated document summarization, risk analysis, metadata extraction, and clause identification services.</p>
+                                        <p><strong>"ALDIA"</strong> means Advanced Legal Document Intelligence Agent, which provides automated document summarization, risk analysis, metadata extraction, and clause identification services.</p>
                                         <p><strong>"Agreement"</strong> means these Terms and Conditions, together with all schedules, exhibits, and documents incorporated by reference, including the Privacy Policy.</p>
-                                        <p><strong>"Company," "we," "us," "our"</strong> means PracticePro Technologies Limited, a company operating under the laws of the Federal Republic of Nigeria with its registered office at No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.</p>
+                                        <p><strong>"Company," "we," "us," "our"</strong> means PracticePro Legal Technologies Limited, a company operating under the laws of the Federal Republic of Nigeria with its registered office at No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria.</p>
                                         <p><strong>"Content"</strong> means all data, text, software, photographs, graphics, video, messages, tags, or other materials, whether publicly posted or privately transmitted, uploaded to or transmitted through the Platform by Users.</p>
                                         {isVega && <p><strong>"Court Rules Agent"</strong> means the AI component that calculates statutory filing deadlines based on Nigerian Civil Procedure Rules and automatically generates tasks for calculated deadlines.</p>}
                                         <p><strong>"DraftPro"</strong> means the AI-powered document drafting assistant that generates legal documents based on templates, user inputs, and matter-specific data.</p>
@@ -134,7 +134,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <div className="space-y-16">
                                 <div id="2-1" className="space-y-8">
                                     <h3 className="text-xl font-bold">2.1 Binding Contract</h3>
-                                    <p>2.1.1 These Terms and Conditions constitute a legally binding contract between you and PracticePro Technologies Limited governing your access to and use of the Platform.</p>
+                                    <p>2.1.1 These Terms and Conditions constitute a legally binding contract between you and PracticePro Legal Technologies Limited governing your access to and use of the Platform.</p>
                                     <p>2.1.2 By creating an account, accessing the Platform, or using any Platform services, you acknowledge that you have read, understood, and agree to be legally bound by this Agreement.</p>
                                     <p>2.1.3 <strong>IF YOU DO NOT AGREE TO BE BOUND BY THIS AGREEMENT, YOU MUST NOT ACCESS OR USE THE PLATFORM.</strong></p>
                                 </div>
@@ -286,7 +286,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <div className="space-y-12">
                                 <div id="7-1" className="space-y-8">
                                     <h3 className="text-xl font-bold">7.1 Ownership of Platform</h3>
-                                    <p>7.1.1 The Platform, including all software, code, algorithms, AI models, user interface designs, trademarks, and documentation, remains the exclusive intellectual property of PracticePro Technologies Limited. Nothing in this Agreement transfers any intellectual property rights to you.</p>
+                                    <p>7.1.1 The Platform, including all software, code, algorithms, AI models, user interface designs, trademarks, and documentation, remains the exclusive intellectual property of PracticePro Legal Technologies Limited. Nothing in this Agreement transfers any intellectual property rights to you.</p>
                                     <p>7.1.2 <strong>Restricted License:</strong> Subject to your compliance with this Agreement, we grant you a limited, non-exclusive, non-transferable, revocable license to access and use the Platform solely for your legitimate professional purposes.</p>
                                 </div>
                                 <div id="7-2" className="space-y-8">
@@ -476,7 +476,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                             <div className="space-y-12">
                                 <p>For any questions, complaints, or notices relating to this Agreement, please contact us at:</p>
                                 <div className="pl-4 border-l-2 border-slate-100 dark:border-zinc-800 space-y-3">
-                                    <p><strong>Company:</strong> PracticePro Technologies Limited</p>
+                                    <p><strong>Company:</strong> PracticePro Legal Technologies Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
                                     <p><strong>General Enquiries:</strong> <a href="mailto:practiceprovega@gmail.com">practiceprovega@gmail.com</a></p>
                                     <p><strong>Data Protection / Privacy:</strong> <a href="mailto:practiceproindex@gmail.com">practiceproindex@gmail.com</a></p>

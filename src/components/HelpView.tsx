@@ -175,7 +175,7 @@ const HelpView: React.FC = () => {
                                         </li>
                                         <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
                                             <strong className="block mb-1 text-primary-600">Drafting</strong>
-                                            {isProperty ? '"Draft a notice to the tenant regarding lease renewal terms."' : '"Draft a letter to the opposing counsel for adjournment."'}
+                                            {isProperty ? '"Draft a notice to the resident regarding lease renewal terms."' : '"Draft a letter to the opposing counsel for adjournment."'}
                                         </li>
                                     </ul>
                                 </div>
@@ -280,7 +280,7 @@ const HelpView: React.FC = () => {
                                     <SparklesIcon className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
                                     <div>
                                         <h4 className="font-bold text-indigo-800 dark:text-indigo-200">What is ALDIA?</h4>
-                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{isProperty ? 'ALDIA (Advanced Document Intelligence Agent) analyzes your property documents' : 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your legal documents'} for risk, compliance, and key metadata extraction.</p>
+                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{isProperty ? 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your property documents' : 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your legal documents'} for risk, compliance, and key metadata extraction.</p>
                                     </div>
                                 </div>
 
@@ -421,7 +421,7 @@ const HelpView: React.FC = () => {
                                     <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-xl">
                                         <h5 className="font-bold text-slate-900 dark:text-white mb-2">Defaulter Dashboard</h5>
                                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                                            Identify revenue at risk instantly. The dashboard highlights tenants who have crossed the 14-day grace period, allowing managers to trigger recovery processes or restriction notices with one click.
+                                            Identify revenue at risk instantly. The dashboard highlights residents who have crossed the 14-day grace period, allowing managers to trigger recovery processes or restriction notices with one click.
                                         </p>
                                     </div>
                                 </div>
@@ -433,14 +433,14 @@ const HelpView: React.FC = () => {
                                             <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center text-blue-600 dark:text-blue-400 text-[10px] font-bold shrink-0">01</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">Rent Synchronization</strong>
-                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Link tenant payments to bank statements. The engine automatically reconciles deposits and marks periods as 'Paid' or 'Defaulted'.</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Link resident payments to bank statements. The engine automatically reconciles deposits and marks periods as 'Paid' or 'Defaulted'.</p>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg">
                                             <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-[10px] font-bold shrink-0">02</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">SCE Tracking (Service Charge Equivalent)</strong>
-                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Break down maintenance and utility costs into the SCE framework. This allows you to justify tenant contributions based on real-time operational expenses like security and cleaning.</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Break down maintenance and utility costs into the SCE framework. This allows you to justify resident contributions based on real-time operational expenses like security and cleaning.</p>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg">
