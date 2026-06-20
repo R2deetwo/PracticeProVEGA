@@ -442,12 +442,12 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
     const allModulesRaw = useQuery(api.legalRepo.getAllModules);
     const allModules = [
         ...(allModulesRaw || []),
-        ...LEGAL_MODULES.filter(m => m.status !== 'active')
+        ...LEGAL_MODULES.filter(m => m.status === 'locked')
     ];
 
     const totalActiveCount = activeKeys.size;
     const lockedCount   = allModules.filter((m: any) => m.status === 'locked').length;
-    const comingCount   = allModules.filter((m: any) => m.status === 'coming_soon').length;
+    const comingCount   = 0; // coming_soon modules are hidden from the UI
 
     const filtered = allModules.map((m: any) => ({
         ...m,

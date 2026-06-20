@@ -121,13 +121,8 @@ const ContactListContent: React.FC<{
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Contacts</h2>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => addToast('Import Contacts feature is currently under active development. You will soon be able to upload CSV and vCard files.', { type: 'info' })}
-                            className="p-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                            Import
-                        </button>
+                        {/* Import button removed — feature not yet implemented.
+                            Re-add when CSV/vCard import is ready. */}
                         <button
                             onClick={openModal}
                             className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold"

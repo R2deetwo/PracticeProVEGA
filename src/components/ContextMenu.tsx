@@ -145,7 +145,7 @@ const ContextMenu: React.FC = () => {
                      <MenuItem icon={<div className="font-bold text-xs">View</div>} label="View Document" onClick={() => navigateTo('documentDetail', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Rename / Properties" onClick={() => openModal('editDocument', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Open in Editor" onClick={() => navigateTo('editor', contextMenu.itemId)} />
-                     {/* // TODO: Implement document download */}
+                     {/* Document download — not yet implemented. Re-add when file download is wired. */}
                      <Divider />
                      <MenuItem icon={<ShareIcon />} label="Share" onClick={() => openModal('shareDocument', contextMenu.itemId)} />
                      <MenuItem icon={<TrashIcon />} label="Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, { onConfirm: () => deleteItem('documents', contextMenu.itemId!, 'Document') })} />

@@ -22,7 +22,7 @@ export const DocumentComparisonModal: React.FC<DocumentComparisonModalProps> = (
             </p>
             <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl max-w-md">
                 <p className="text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-                    <strong>Coming Soon:</strong> Inline redline diff and side-by-side comparison views are under development. For now, open both versions from the document history to compare manually.
+                    Inline redline comparison is not yet available. For now, open both versions from the document history to compare them side by side.
                 </p>
             </div>
             <div className="mt-6">

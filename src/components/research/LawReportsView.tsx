@@ -424,7 +424,7 @@ const LawReportsView: React.FC = () => {
                                     <LawLibraryIcon className="w-16 h-16 text-slate-300 dark:text-zinc-600" />
                                 </div>
                                 <h3 className="text-xl font-bold text-slate-700 dark:text-zinc-300">Case Law Intelligence Terminal</h3>
-                                <p className="text-sm mt-2 max-w-md text-center mb-6 text-slate-500">Search thousands of Supreme Court and Court of Appeal precedents from 1960 to date. (Full Text Coming Soon)</p>
+                                <p className="text-sm mt-2 max-w-md text-center mb-6 text-slate-500">Search thousands of Supreme Court and Court of Appeal precedents from 1960 to date.</p>
                             </div>
                         </div>
                     )}

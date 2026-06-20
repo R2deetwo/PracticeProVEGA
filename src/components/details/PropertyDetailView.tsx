@@ -1390,6 +1390,8 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         >
                                                                             <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
                                                                         </button>
+                                                                        {/* Export Unit Report button removed — not yet implemented. */}
+                                                                        {false && (
                                                                         <button
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
@@ -1400,6 +1402,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         >
                                                                             <FileDown className="w-3.5 h-3.5 shrink-0" /> Export Unit Report
                                                                         </button>
+                                                                        )}
                                                                     </div>
 
                                                                     <button
@@ -1624,9 +1627,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                     <CheckCircleIcon className="w-3 h-3" /> Occupied
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); addToast('Unit report generation coming soon', { type: 'info' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Export Unit Report">
-                                                                                <FileDown className="w-3 h-3" /> Export
-                                                                            </button>
+                                                                            {/* Export Unit Report button removed — not yet implemented. */}
                                                                             <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
                                                                                 <Trash2 className="w-3 h-3" /> Remove
                                                                             </button>

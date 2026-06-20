@@ -382,7 +382,8 @@ const ClientDashboard: React.FC = () => {
 
     // ── Handlers ─────────────────────────────────────────────────────────
     const handleUploadClick = () => {
-        addToast('Upload coming soon', { type: 'info' });
+        // Upload functionality not yet available for portal users.
+        // The upload button is hidden from the UI (see Coming Soon badge removal below).
     };
 
     const handleSendMessage = async () => {
@@ -777,14 +778,7 @@ const ClientDashboard: React.FC = () => {
                             {docs.length} document{docs.length !== 1 ? 's' : ''}
                         </span>
                     </div>
-                    <button
-                        onClick={handleUploadClick}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600/60 dark:bg-emerald-700/50 text-white/80 rounded-lg font-semibold text-sm transition-colors cursor-default relative"
-                    >
-                        <UploadIcon className="w-4 h-4" />
-                        Upload Document
-                        <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-white/20 rounded-full">Coming Soon</span>
-                    </button>
+                    {/* Upload Document button removed — not yet available for portal users. */}
                 </div>
 
                 {/* ─── Terms & Consents Section ───────────────────────────── */}

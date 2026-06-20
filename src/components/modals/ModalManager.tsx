@@ -70,7 +70,7 @@ import { ShareDocumentModal } from './ShareDocumentModal';
 import { SignDocumentModal } from './SignDocumentModal';
 import { DocumentComparisonModal } from './DocumentComparisonModal';
 import ComposeEmailModal from './ComposeEmailModal';
-import GoogleDrivePickerModal from './GoogleDrivePickerModal';
+// GoogleDrivePickerModal import removed — not yet implemented
 import NoTeamMembersModal from './NoTeamMembersModal';
 import AloaHelpModal from './AloaHelpModal';
 import LinkContactModal from './LinkContactModal';
@@ -512,10 +512,8 @@ const ModalManager: React.FC = () => {
             if (document && version) content = <DocumentComparisonModal currentDocument={document} versionToCompare={version} onClose={closeModal} />;
             break;
         }
-        case 'googleDrivePicker': {
-            content = <GoogleDrivePickerModal onSelect={(file) => { /* Handle file pick */ closeModal(); }} onClose={closeModal} />;
-            break;
-        }
+        // googleDrivePicker case removed — integration not yet implemented.
+        // Re-add when Google Drive API integration is ready.
         case 'folderPermissions': {
             const folder = coreState.documentCategories.find(c => c.id === editingId);
             if (folder) {
