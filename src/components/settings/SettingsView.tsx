@@ -265,15 +265,15 @@ export const SettingsView: React.FC = () => {
                 ">
 
                     {/* Account Section */}
-                    <div className="flex lg:flex-col gap-2 lg:gap-1 lg:mb-6">
-                        <p className="hidden lg:block px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Account</p>
+                    <div className="flex lg:flex-col gap-2 lg:gap-1 lg:mb-6 shrink-0">
+                        <p className="px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">Account</p>
                         <NavItem label="My Profile" icon={<UserCircleIcon />} isActive={activeTab === 'profile'} onClick={() => handleNavClick('profile')} />
                     </div>
 
                     {/* Practice/Workspace Config Section */}
-                    <div className="flex lg:flex-col gap-2 lg:gap-1 lg:mb-6">
-                        <p className="hidden lg:block px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                            {isProperty ? 'Workspace Configuration' : 'Practice Configuration'}
+                    <div className="flex lg:flex-col gap-2 lg:gap-1 lg:mb-6 shrink-0">
+                        <p className="px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                            {isProperty ? 'Workspace' : 'Practice'}
                         </p>
 
                         {/* AI Settings accessible to ALL users for Personal Key */}
@@ -320,8 +320,8 @@ export const SettingsView: React.FC = () => {
                     </div>
 
                     {/* System Section */}
-                    <div className="flex lg:flex-col gap-2 lg:gap-1">
-                        <p className="hidden lg:block px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">System</p>
+                    <div className="flex lg:flex-col gap-2 lg:gap-1 shrink-0">
+                        <p className="px-3 pb-2 text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">System</p>
                         <NavItem label="Data & Export" icon={<TrashIcon />} isActive={activeTab === 'data'} onClick={() => handleNavClick('data')} />
                         <NavItem label="Security" icon={canUseAuditLogs ? <ShieldCheckIcon /> : <LockClosedIcon />} isActive={activeTab === 'security'} onClick={() => handleNavClick('security')} />
                         {currentUser?.role === UserRole.Admin && (

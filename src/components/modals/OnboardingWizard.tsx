@@ -202,6 +202,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             <div className="w-full max-w-3xl space-y-8 animate-fade-in" style={{ animationDuration: '2s', animationDelay: '0.5s', animationFillMode: 'both' }}>
                 {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm text-center border border-red-100 font-bold">{error}</div>}
 
+                {/* ── Progress Indicator ── */}
+                <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className={`h-2 rounded-full transition-all duration-500 ${step >= 1 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200'}`} />
+                    <div className={`h-2 rounded-full transition-all duration-500 ${step >= 2 ? 'w-8 bg-primary-500' : 'w-2 bg-slate-200'}`} />
+                </div>
+                <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest">Step {step} of 2</p>
+
                 {/* ── STEP 1: Workspace Name ─────────────────────────────── */}
                 {step === 1 && (
                     <div className="space-y-8">

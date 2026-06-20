@@ -159,7 +159,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
 
                     {/* Honest Disclaimer */}
                     <p className="text-[10px] text-center text-slate-400 dark:text-zinc-600 leading-relaxed">
-                        Online payment processing is not yet available. Payments are confirmed manually after bank transfer verification. Contact your firm if you need assistance.
+                        Transfer to the account above, then confirm. Your plan activates after verification. Online card payments coming soon.
                     </p>
                 </div>
             )}

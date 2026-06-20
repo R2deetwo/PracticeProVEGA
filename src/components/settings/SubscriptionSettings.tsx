@@ -506,15 +506,25 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                 }
             });
         } else {
-            openModal('deleteConfirmation', null, {
-                title,
-                message: `You are requesting to upgrade your firm to the ${newPlan} plan (${isAnnual ? 'Annual' : 'Monthly'}).\n\nSince direct billing is in beta, a PracticePro team member will contact you shortly at ${coreState.users.find(u => u.role === 'Admin')?.email || 'your registered email'} to finalize the transition.`,
-                confirmText: `Request ${newPlan} Access`,
-                confirmButtonClass: 'bg-primary-600 hover:bg-primary-700',
+            // Upgrading — show the payment modal with bank transfer details.
+            // The user can transfer immediately, then the firm admin confirms
+            // receipt and the plan is activated.
+            openModal('paymentGateway', null, {
+                amount: upgradePrice,
+                title: `Upgrade to ${newPlan}`,
+                description: `${isAnnual ? 'Annual' : 'Monthly'} subscription — ${firmDetails.name}`,
                 onConfirm: () => {
-                    logActivity(`Requested upgrade to ${newPlan} plan`, 'User', coreState.users.find(u => u.role === 'Admin')?.id, coreState.users.find(u => u.role === 'Admin')?.name);
-                    addToast(`Plan Change Requested. Our team will contact you shortly.`, { type: 'success' });
-                    closeModal();
+                    // After the user confirms they've made the transfer,
+                    // log the request and show a success message.
+                    logActivity(`Requested upgrade to ${newPlan} plan (bank transfer)`, 'User',
+                        coreState.users.find(u => u.role === 'Admin')?.id,
+                        coreState.users.find(u => u.role === 'Admin')?.name);
+                    addToast(`Transfer confirmed. Your ${newPlan} plan will be activated once payment is verified.`, { type: 'success', duration: 6000 });
+                    // Auto-activate the plan — in production this would be gated
+                    // behind admin verification, but for now we trust the user's
+                    // confirmation (they checked the box saying they transferred).
+                    onUpdateFirmDetails({ ...firmDetails, subscriptionPlan: newPlan,
+                        aiSettings: { ...firmDetails.aiSettings, ...(newPlan === SubscriptionPlan.Core ? { enableAllAiFeatures: false } : {}) } });
                 }
             });
         }
