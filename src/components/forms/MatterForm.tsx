@@ -16,6 +16,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { MatterIntakeWizard } from './MatterIntakeWizard';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
+import { translateError } from '../../utils/errorTranslator';
 
 const commonInputClass = inputModern;
 
@@ -537,7 +538,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
             onClose();
         } catch (err: any) {
             console.error("Submission Error:", err);
-            addToast(`Failed to save matter: ${err.message || "Unknown Error"}`, { type: 'error' });
+            addToast(translateError(err, "save matter"), { type: 'error' });
             setIsSubmitting(false);
         }
     };

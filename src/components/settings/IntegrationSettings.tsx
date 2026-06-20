@@ -3,6 +3,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { translateError } from '../../utils/errorTranslator';
 import { 
   estimateChakraPlan, 
   deriveIntegrationStatus, 
@@ -57,7 +58,7 @@ const IntegrationSettings: React.FC = () => {
       });
       addToast('Integration settings updated', { type: 'success' });
     } catch (e: any) {
-      addToast(`Error: ${e.message}`, { type: 'error' });
+      addToast(translateError(e, "save settings"), { type: 'error' });
     } finally {
       setIsSaving(false);
     }

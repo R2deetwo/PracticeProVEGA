@@ -24,6 +24,7 @@ import {
     FileText as FileTextIcon,
 } from 'lucide-react';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { translateError } from '../../utils/errorTranslator';
 
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', 
@@ -184,7 +185,7 @@ export const AtriumInbox: React.FC = () => {
                 setIsSending(false);
             }
         } catch (e: any) {
-            addToast(`Error: ${e.message}`, { type: "error" });
+            addToast(translateError(e, "send reply"), { type: "error" });
             setIsSending(false);
         }
     };

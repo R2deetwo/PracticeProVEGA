@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
 import { useFeatures } from '../../hooks/useFeatures';
+import { translateError } from '../../utils/errorTranslator';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2 } from 'lucide-react';
 
@@ -559,7 +560,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       onClose();
     } catch (e: any) {
       console.error("Error during send:", e);
-      onToast(`Error: ${e.message || 'Validation failed'}`);
+      onToast(translateError(e, "send message"));
     } finally { 
       setLoading(false); 
     }

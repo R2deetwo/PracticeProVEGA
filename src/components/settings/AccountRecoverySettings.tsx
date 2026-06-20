@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
 import { SearchIcon, TrashIcon, CheckCircleIcon, ShieldCheckIcon } from '../../constants';
+import { translateError } from '../../utils/errorTranslator';
 import { useConfirm } from '../ui/ConfirmDialog';
 
 
@@ -38,7 +39,7 @@ const AccountRecoverySettings: React.FC = () => {
             await adminDeleteUser({ userId: userId as any });
             addToast('User deleted successfully.', { type: 'success' });
         } catch (e: any) {
-            addToast(`Error: ${e.message}`, { type: 'error' });
+            addToast(translateError(e), { type: 'error' });
         }
     };
 
@@ -54,7 +55,7 @@ const AccountRecoverySettings: React.FC = () => {
             await adminForceVerify({ userId: userId as any });
             addToast('User verified successfully.', { type: 'success' });
         } catch (e: any) {
-            addToast(`Error: ${e.message}`, { type: 'error' });
+            addToast(translateError(e), { type: 'error' });
         }
     };
 

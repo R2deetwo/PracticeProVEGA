@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { SubscriptionPlan } from '../../types';
+import { translateError } from '../../utils/errorTranslator';
 import { useAuth } from '../../contexts/AuthContext';
 import { LogoutIcon, CheckIcon, LockClosedIcon, RevertIcon } from '../../constants';
 import { useMutation } from "convex/react";
@@ -152,7 +153,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             }
         } catch (e: any) {
             console.error('Setup Error:', e);
-            setError(e.message || 'Failed to create workspace.');
+            setError(translateError(e, 'create workspace'));
             setIsSubmitting(false);
         }
     };
@@ -170,7 +171,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 throw new Error('Invalid Invite Code or Firm not found.');
             }
         } catch (e: any) {
-            let msg = e.message || 'Failed to join firm.';
+            let msg = translateError(e, 'join workspace');
             if (msg.includes('Invalid')) msg = 'Invalid Invite Code. Please check and try again.';
             setError(msg);
             setIsSubmitting(false);
@@ -186,7 +187,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             if (result.success) { await refreshUser(); onComplete(); }
             else setError(result.message || 'Could not recover. Please create a new workspace.');
         } catch (e: any) {
-            setError('Recovery failed: ' + e.message);
+            setError(translateError(e, 'recover connection'));
         } finally {
             setIsRecovering(false);
         }
