@@ -277,7 +277,7 @@ const TenantPortalLogin: React.FC = () => {
                                             ? `Welcome, ${invite.inviteeName}. Your email has been pre-filled.`
                                             : 'Your email has been pre-filled from the invitation.'}
                                         {invite.expiresAt && (
-                                            <span> Set up your password before {new Date(invite.expiresAt).toLocaleDateString()} to get started.</span>
+                                            <span> Set up your password before {new Date(invite.expiresAt).toLocaleDateString("en-GB")} to get started.</span>
                                         )}
                                     </p>
                                 </div>

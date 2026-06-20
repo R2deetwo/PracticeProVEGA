@@ -27,6 +27,7 @@ export const HelpSettings: React.FC = () => {
     };
 
     return (
+        <div className="space-y-6">
         <SettingsCard title="Help & Support" id="help-and-support">
             <div className="space-y-6">
                 <div>
@@ -209,7 +210,7 @@ export const HelpSettings: React.FC = () => {
                                         {isProperty ? 'https://practice-pro-vega.vercel.app/portal/tenant/login' : 'https://practice-pro-vega.vercel.app/portal/client/login'}
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                        This URL is also available in the footer of your product landing page and in <code>Settings → {isProperty ? "Residents' Portal" : 'Client Portal'}</code>. {isProperty ? 'Residents' : 'Clients'} can bookmark it for direct access.
+                                        Note: This URL is shown for reference. The actual portal link is available on the Portal Access settings page with a one-click copy button. {isProperty ? 'Residents' : 'Clients'} can bookmark it for direct access.
                                     </p>
                                 </div>
 
@@ -308,5 +309,38 @@ export const HelpSettings: React.FC = () => {
                 </div>
             </div>
         </SettingsCard>
+
+            {/* ─── Contact Support ─── */}
+            <SettingsCard title="Contact Support" className="mt-6">
+                <div className="space-y-4">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Need help that the articles above didn't cover? Our team is here for you.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <a
+                            href="mailto:practiceprovega@gmail.com?subject=PracticePro%20Support%20Request"
+                            className="flex items-center gap-2 px-5 py-3 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-all shadow-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            Email Support
+                        </a>
+                        <button
+                            onClick={() => { resetTour(); addToast("App tour has been reset.", { type: 'success' }); }}
+                            className="flex items-center gap-2 px-5 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                            </svg>
+                            Replay App Tour
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500">
+                        Response time: typically within 24 hours on business days.
+                    </p>
+                </div>
+            </SettingsCard>
+        </div>
     );
 };

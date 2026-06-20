@@ -43,6 +43,48 @@ const HelpView: React.FC = () => {
         togglePanel(); // Opens the assistant panel
     };
 
+    // ─── Search filtering ──────────────────────────────────────────────
+    // When the user types a query, we expand ALL accordion items so the
+    // browser's built-in find-in-page works across all content. We also
+    // filter the visible sections to only those whose title or content
+    // matches the query. When the query is cleared, normal accordion
+    // behavior resumes.
+    const hasSearch = searchQuery.trim().length > 0;
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    // Section metadata: id + title + keywords for search matching
+    const SECTIONS = [
+        { id: 'getting-started', title: 'Getting Started: The Basics', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics'] },
+        { id: 'aloa-tips', title: `Mastering ${assistantName}`, keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', assistantName.toLowerCase()] },
+        { id: 'admin-guide', title: 'Admin Guide & Settings', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template'] },
+        { id: 'research-guide', title: 'Research Studio', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery'] },
+        { id: 'aldia-analysis', title: 'ALDIA Document Analysis', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii'] },
+        { id: 'litigation-tracking', title: 'Litigation Tracking', keywords: ['litigation', 'court', 'filing', 'deadline', 'process'] },
+        { id: 'property-management', title: 'Property Management', keywords: ['property', 'rent', 'resident', 'lease', 'maintenance', 'service charge'] },
+        { id: 'revenue-monitor', title: 'Revenue Monitor', keywords: ['revenue', 'monitor', 'defaulter', 'ledger', 'rent', 'collection', 'atrium'] },
+        { id: 'draftpro-editor', title: 'DraftPro Document Editor', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font'] },
+        { id: 'enterprise-jurisdiction', title: 'Enterprise Jurisdiction & Intake', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules'] },
+    ];
+
+    // Filter sections based on search query
+    const visibleSections = hasSearch
+        ? SECTIONS.filter(s =>
+            s.title.toLowerCase().includes(normalizedQuery) ||
+            s.keywords.some(k => k.includes(normalizedQuery))
+        )
+        : SECTIONS;
+
+    // When searching, all visible sections are open
+    const isSectionOpen = (sectionId: string) => {
+        if (hasSearch) return visibleSections.some(s => s.id === sectionId);
+        return activeSection === sectionId;
+    };
+
+    const handleSectionToggle = (sectionId: string) => {
+        if (hasSearch) return; // Can't toggle while searching (all open)
+        setActiveSection(activeSection === sectionId ? null : sectionId);
+    };
+
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
             <header className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-10">
@@ -119,8 +161,8 @@ const HelpView: React.FC = () => {
                         <AccordionItem
                             id="getting-started"
                             title="Getting Started: The Basics"
-                            isOpen={activeSection === 'getting-started'}
-                            onToggle={() => setActiveSection(activeSection === 'getting-started' ? null : 'getting-started')}
+                            isOpen={isSectionOpen('getting-started')}
+                            onToggle={() => handleSectionToggle('getting-started')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -146,8 +188,8 @@ const HelpView: React.FC = () => {
                         <AccordionItem
                             id="aloa-tips"
                             title="Mastering {assistantName} (AI Assistant)"
-                            isOpen={activeSection === 'aloa-tips'}
-                            onToggle={() => setActiveSection(activeSection === 'aloa-tips' ? null : 'aloa-tips')}
+                            isOpen={isSectionOpen('aloa-tips')}
+                            onToggle={() => handleSectionToggle('aloa-tips')}
                         >
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg">
@@ -205,8 +247,8 @@ const HelpView: React.FC = () => {
                         <AccordionItem
                             id="admin-guide"
                             title="Admin Guide & Settings"
-                            isOpen={activeSection === 'admin-guide'}
-                            onToggle={() => setActiveSection(activeSection === 'admin-guide' ? null : 'admin-guide')}
+                            isOpen={isSectionOpen('admin-guide')}
+                            onToggle={() => handleSectionToggle('admin-guide')}
                         >
                             <div className="space-y-6">
                                 <p className="italic text-slate-500">This section is relevant for users with the 'Admin' role.</p>
@@ -246,8 +288,8 @@ const HelpView: React.FC = () => {
                                     <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
                                 </div>
                             }
-                            isOpen={activeSection === 'research-guide'}
-                            onToggle={() => setActiveSection(activeSection === 'research-guide' ? null : 'research-guide')}
+                            isOpen={isSectionOpen('research-guide')}
+                            onToggle={() => handleSectionToggle('research-guide')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -272,8 +314,8 @@ const HelpView: React.FC = () => {
                         <AccordionItem
                             id="aldia-analysis"
                             title="ALDIA Document Analysis"
-                            isOpen={activeSection === 'aldia-analysis'}
-                            onToggle={() => setActiveSection(activeSection === 'aldia-analysis' ? null : 'aldia-analysis')}
+                            isOpen={isSectionOpen('aldia-analysis')}
+                            onToggle={() => handleSectionToggle('aldia-analysis')}
                         >
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
@@ -315,8 +357,8 @@ const HelpView: React.FC = () => {
                         {!isProperty && <AccordionItem
                             id="litigation-tracking"
                             title="Litigation Tracking"
-                            isOpen={activeSection === 'litigation-tracking'}
-                            onToggle={() => setActiveSection(activeSection === 'litigation-tracking' ? null : 'litigation-tracking')}
+                            isOpen={isSectionOpen('litigation-tracking')}
+                            onToggle={() => handleSectionToggle('litigation-tracking')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -357,8 +399,8 @@ const HelpView: React.FC = () => {
                         <AccordionItem
                             id="property-management"
                             title="Property Management"
-                            isOpen={activeSection === 'property-management'}
-                            onToggle={() => setActiveSection(activeSection === 'property-management' ? null : 'property-management')}
+                            isOpen={isSectionOpen('property-management')}
+                            onToggle={() => handleSectionToggle('property-management')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -469,8 +511,8 @@ const HelpView: React.FC = () => {
                                     <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
                                 </div>
                             }
-                            isOpen={activeSection === 'draftpro-editor'}
-                            onToggle={() => setActiveSection(activeSection === 'draftpro-editor' ? null : 'draftpro-editor')}
+                            isOpen={isSectionOpen('draftpro-editor')}
+                            onToggle={() => handleSectionToggle('draftpro-editor')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -515,8 +557,8 @@ const HelpView: React.FC = () => {
                                     <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider">New</span>
                                 </div>
                             }
-                            isOpen={activeSection === 'enterprise-jurisdiction'}
-                            onToggle={() => setActiveSection(activeSection === 'enterprise-jurisdiction' ? null : 'enterprise-jurisdiction')}
+                            isOpen={isSectionOpen('enterprise-jurisdiction')}
+                            onToggle={() => handleSectionToggle('enterprise-jurisdiction')}
                         >
                             <div className="space-y-6">
                                 <div>
@@ -534,11 +576,20 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{assistantName} Hints & Checklists</h4>
-                                    <p className="text-sm">During intake, ${assistantName} will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
+                                    <p className="text-sm">During intake, {assistantName} will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
                                 </div>
                             </div>
                         </AccordionItem>}
                     </Accordion>
+
+                    {/* No results message when search returns nothing */}
+                    {hasSearch && visibleSections.length === 0 && (
+                        <div className="text-center py-12 text-slate-400 dark:text-zinc-500">
+                            <SearchIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm font-medium">No articles found for "{searchQuery}"</p>
+                            <p className="text-xs mt-1">Try different keywords or ask {assistantName} directly.</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

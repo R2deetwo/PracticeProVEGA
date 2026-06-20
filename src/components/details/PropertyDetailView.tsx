@@ -1853,7 +1853,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             <div className={`w-1.5 h-1.5 rounded-full ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
                                                             <div>
                                                                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.description || entry.type}</p>
-                                                                <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString()}</p>
+                                                                <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString("en-GB")}</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right">

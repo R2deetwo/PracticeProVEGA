@@ -67,7 +67,7 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
     };
 
     const formatDate = (isoString: string) => {
-        return new Date(isoString).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return new Date(isoString).toLocaleDateString("en-GB", { month: 'short', day: 'numeric' });
     };
 
     if (reminder && !reminder.dismissed) {

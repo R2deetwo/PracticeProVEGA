@@ -115,7 +115,7 @@ const AccountRecoverySettings: React.FC = () => {
                                         <div><strong>Email:</strong> {user.email}</div>
                                         <div><strong>Token ID:</strong> <span className="font-mono text-[10px]">{user.tokenIdentifier}</span></div>
                                         <div><strong>Firm ID:</strong> {user.firmId || <span className="text-red-400">None</span>}</div>
-                                        <div><strong>Created:</strong> {new Date(user._creationTime).toLocaleDateString()}</div>
+                                        <div><strong>Created:</strong> {new Date(user._creationTime).toLocaleDateString("en-GB")}</div>
                                     </div>
                                 </div>
                                 <div className="flex sm:flex-col gap-2 justify-end">

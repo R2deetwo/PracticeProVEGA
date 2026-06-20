@@ -274,7 +274,7 @@ const ClientPortalLogin: React.FC = () => {
                                             ? `Welcome, ${invite.inviteeName}. Your email has been pre-filled.`
                                             : 'Your email has been pre-filled from the invitation.'}
                                         {invite.expiresAt && (
-                                            <span> This invite expires {new Date(invite.expiresAt).toLocaleDateString()}.</span>
+                                            <span> This invite expires {new Date(invite.expiresAt).toLocaleDateString("en-GB")}.</span>
                                         )}
                                     </p>
                                 </div>

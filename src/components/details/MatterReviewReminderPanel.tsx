@@ -21,7 +21,7 @@ function addDays(date: Date, days: number): Date {
 
 function formatDate(isoString: string): string {
     const d = new Date(isoString);
-    return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString("en-GB", { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function getDaysUntil(isoString: string): number {
