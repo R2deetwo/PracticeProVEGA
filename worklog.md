@@ -1778,3 +1778,30 @@ Stage Summary:
 - Practitioner inbox now has full ticketing workflow (Received → In Progress → Addressed → Closed) without leaving the chat
 - Admin settings is tidier with collapsible service type config
 - Properties and Matters pages now have consistent select-all styling
+
+---
+Task ID: portal-simplify-financials-notifications
+Agent: main (Super Z)
+Task: User reported many issues: redundant icons above recent activity, recent activity being retractable (wants simple), tab icons too small, font size inconsistency, theme changing with admin, Legal/Property portal naming, missing service charge/MV/electricity tabs, no financials in portal, notifications not appearing in header bell, email notifications not working.
+
+Work Log:
+- Removed redundant 4-icon Quick Service Grid above Recent Activity — the tab bar already provides navigation to those sections, so the duplicate grid was clutter.
+- Simplified Recent Activity to a plain island card (no drag handle, no collapse toggle, no chevron). Just a header with count badge + New Request button + the activity list. Removed activityCollapsed state entirely.
+- Made tab icons bigger: w-5 h-5 (was w-4 h-4) with increased padding (py-3.5, px-3) and gap (gap-2 sm:gap-2.5) for better tap targets.
+- Portal theme isolation: portal users now ONLY see standard light or standard dark — never the admin's custom themes (midnight, oled, neon-cyber, etc.). Uses a separate localStorage key (practicepro_portal_theme) so preferences are independent. isDark computed only from theme === 'dark'. Applied to both ClientDashboard and TenantPortal.
+- Added Financials tab to Client Portal: summary cards (Outstanding total, Paid to date) + invoice list with status badges (Paid/Unpaid/Overdue/Sent/Draft) + color-coded icons + Naira formatting. Uses existing getClientInvoices query.
+- Fixed notification system root cause: portal mutations (createMaintenanceTicket, createClientServiceRequest, sendPortalMessage) created records but never created notifications for admins. Added notifyFirmAdmins() helper that creates in-app notifications for all admin-team users AND schedules email if enabled. Wired into all three portal-inbound mutations.
+- Added 4 new notification types: portal_new_message, portal_maintenance_ticket, portal_service_request, portal_payment_proof. All default to enabled. Visible in Settings → Notifications → Portal category.
+- Added sendAdminNotificationEmail internal action with branded email template.
+- Updated NotificationSettings UI to include the new portal inbound notification types.
+- Font-size control now shows on md+ screens (was hidden on sm).
+- Tenant portal: service charge, minimum vend, and electricity vending data already shown in the LedgerTab (no new tab needed).
+- TypeScript: clean. Vite build: succeeds. Convex compiles: succeeds.
+- Committed (d4b5f9b) and pushed. CI auto-deploys.
+
+Stage Summary:
+- Portal dashboard is now simple: hero card + recent activity island. No redundant icons, no retractable panes.
+- Tab icons are bigger and more tappable.
+- Portal users have their own theme preference (light/dark only) independent of admin.
+- Client Portal now has a Financials tab showing invoices and payment history.
+- Notification bell will now populate when portal users submit tickets/requests/messages — admins get both in-app notifications and emails (per their notification preferences).
