@@ -68,6 +68,64 @@ const CHANNEL_LABELS: Record<string, string> = {
     portal: 'Portal',
 };
 
+// ── Conversation type detection ───────────────────────────────────────────
+// Inspects a conversation's lastMessagePreview (or any message preview) to
+// determine what KIND of conversation this is. Used for color-coded badges
+// in the inbox list so practitioners can scan and prioritise at a glance.
+//
+// The prefix emojis are set by the backend when a ticket/request is created:
+//   🔧 = maintenance ticket (Atrium resident portal)
+//   📋 = service request (Vega client portal)
+//   ✅ = admin resolution/update reply
+// Falls back to "portal" (regular 2-way chat) for everything else.
+type ConversationType = 'maintenance' | 'service_request' | 'portal' | 'admin_reply';
+
+const CONVERSATION_TYPE_STYLES: Record<ConversationType, { badge: string; dot: string; label: string }> = {
+    maintenance: {
+        // Amber — matches the maintenance ticket theme used in the portal
+        badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+        dot: 'bg-amber-500',
+        label: 'Ticket',
+    },
+    service_request: {
+        // Red — high-priority signal that a client needs something
+        badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+        dot: 'bg-rose-500',
+        label: 'Request',
+    },
+    admin_reply: {
+        // Blue — admin's outgoing reply
+        badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+        dot: 'bg-blue-500',
+        label: 'Replied',
+    },
+    portal: {
+        // Emerald — default portal message
+        badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+        dot: 'bg-emerald-500',
+        label: 'Portal',
+    },
+};
+
+function detectConversationType(conv: any): ConversationType {
+    const preview: string = conv?.lastMessagePreview || '';
+    if (preview.startsWith('🔧')) return 'maintenance';
+    if (preview.startsWith('📋')) return 'service_request';
+    if (preview.startsWith('✅')) return 'admin_reply';
+    return 'portal';
+}
+
+// Determine the role label to show next to a conversation — helps the
+// practitioner tell at a glance whether they're talking to a resident or
+// a client. Particularly important for unified (Komplete) firms that
+// serve both audiences from one inbox.
+function getRoleLabel(conv: any): string {
+    const role: string = conv?.participantRole || '';
+    if (role === 'Client') return 'Client';
+    if (role === 'Tenant') return 'Resident';
+    return 'Portal User';
+}
+
 // ══════════════════════════════════════════════════════════════════════════
 // ChatWindow — Internal team chat conversation view (unchanged core logic)
 // ══════════════════════════════════════════════════════════════════════════
@@ -314,7 +372,7 @@ const MessagesView: React.FC = () => {
     const { currentUser } = useAuth();
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast } = useUI();
-    const { isProperty, isLegal } = useProduct();
+    const { isProperty, isLegal, isUnified } = useProduct();
     const { confirm, ConfirmDialog } = useConfirm();
 
     if (!currentUser) return null;
@@ -886,7 +944,7 @@ const MessagesView: React.FC = () => {
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
                             <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {isProperty ? "Residents' Messages" : 'Client Messages'}
+                                    {isUnified ? 'All Conversations' : isProperty ? "Residents' Messages" : 'Client Messages'}
                                 </h3>
                                 <div className="flex items-center gap-1.5">
                                     {/* TASK 15: Mark all inbound messages as read (clears badge) */}
@@ -936,25 +994,59 @@ const MessagesView: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
+<div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {isInboxLoading ? (
                                     <div className="p-3">
                                         <ListItemSkeleton count={6} />
                                     </div>
-                                ) : isProperty ? (
-                                    /* ── ATRIUM: Resident inbound + portal messages ── */
-                                    atriumInbound.length === 0 && portalMessages.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-                                            <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                                <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                ) : (() => {
+                                    // ─── UNIFIED INBOX LIST ────────────────────────────────────
+                                    // Previously this branch was split into two halves:
+                                    //   isProperty  → show residents' inbound + resident conversations
+                                    //   !isProperty → show client conversations only
+                                    // That broke for Komplete (unified) firms where BOTH isProperty
+                                    // AND isLegal are true — client conversations were filtered out
+                                    // because the property branch excluded participantRole === 'Client'.
+                                    //
+                                    // Now we always show ALL portal conversations regardless of role.
+                                    // WhatsApp/Email inbound messages are shown only when the firm
+                                    // has property management (they come from the Atrium inbox).
+                                    // Internal client messages (legacy matter-scoped messages) are
+                                    // shown only when the firm has legal practice.
+                                    //
+                                    // Each conversation gets a color-coded badge based on its type:
+                                    //   🔧 → amber "Ticket" (maintenance)
+                                    //   📋 → red   "Request" (client service request)
+                                    //   ✅ → blue  "Replied" (admin's last reply)
+                                    //   (default) → emerald "Portal"
+
+                                    const hasAnyMessages =
+                                        atriumInbound.length > 0 ||
+                                        (portalConversations as any[]).length > 0 ||
+                                        clientMessages.length > 0;
+
+                                    if (!hasAnyMessages) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+                                                <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
+                                                    <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                                </div>
+                                                <p className="text-sm text-slate-400">No messages yet</p>
+                                                <p className="text-xs text-slate-300 mt-1">
+                                                    {isUnified
+                                                        ? 'WhatsApp, email, and portal messages from clients and residents will appear here.'
+                                                        : isProperty
+                                                        ? "WhatsApp, email, and portal messages from residents will appear here."
+                                                        : 'Messages from your clients on their matters will appear here.'}
+                                                </p>
                                             </div>
-                                            <p className="text-sm text-slate-400">No resident messages yet</p>
-                                            <p className="text-xs text-slate-300 mt-1">WhatsApp, email, and portal messages from residents will appear here</p>
-                                        </div>
-                                    ) : (
+                                        );
+                                    }
+
+                                    return (
                                         <>
-                                            {/* Inbound WhatsApp/Email messages */}
-                                            {(atriumInbound as any[]).map((msg: any) => (
+                                            {/* ── Inbound WhatsApp/Email messages (Atrium/Komplete only) ── */}
+                                            {isProperty && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
                                                     onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id }); }}
@@ -980,139 +1072,92 @@ const MessagesView: React.FC = () => {
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                 </div>
                                             ))}
-                                            {/* Portal conversations (Residents only — clients shown in Vega mode) */}
-                                            {(portalConversations as any[]).filter((c: any) => c.participantRole !== 'Client').map((conv: any) => {
+
+                                            {/* ── ALL portal conversations (clients AND residents) ── */}
+                                            {(portalConversations as any[]).map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
+                                                const convType = detectConversationType(conv);
+                                                const typeStyle = CONVERSATION_TYPE_STYLES[convType];
+                                                const roleLabel = getRoleLabel(conv);
+                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'conversation';
+                                                // Active-row tint + left accent bar follow the conversation type
+                                                const activeTint = convType === 'service_request'
+                                                    ? 'bg-rose-50 dark:bg-rose-900/20 border-l-rose-500'
+                                                    : convType === 'maintenance'
+                                                    ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
+                                                    : convType === 'admin_reply'
+                                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
+                                                    : 'bg-emerald-50 dark:bg-emerald-900/20 border-l-emerald-500';
                                                 return (
-                                                <div
-                                                    key={conv._id}
-                                                    onClick={() => {
-                                                        setSelectedInboxId(convId);
-                                                        setSelectedInboxType('conversation');
-                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
-                                                    }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === convId && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
-                                                >
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <div className="flex items-center gap-2">
-                                                            {/* TASK 15: Multi-select checkbox */}
-                                                            <button
-                                                                onClick={(e) => toggleConvSelection(convId, e)}
-                                                                className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                                                                    isSelected
-                                                                        ? 'bg-rose-600 border-rose-600'
-                                                                        : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'
-                                                                }`}
-                                                                title={isSelected ? 'Deselect' : 'Select for bulk delete'}
-                                                            >
-                                                                {isSelected && (
-                                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                                    </svg>
-                                                                )}
-                                                            </button>
-                                                            {(conv.unreadByAdmin || 0) > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
-                                                            {(conv.unreadByAdmin || 0) === 0 && conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-                                                            <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                {conv.participantName || 'Portal User'}
+                                                    <div
+                                                        key={conv._id}
+                                                        onClick={() => {
+                                                            setSelectedInboxId(convId);
+                                                            setSelectedInboxType('conversation');
+                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                        }}
+                                                        className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                {/* Multi-select checkbox (only relevant in bulk-delete mode) */}
+                                                                <button
+                                                                    onClick={(e) => toggleConvSelection(convId, e)}
+                                                                    className={`flex-shrink-0 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                                                                        isSelected
+                                                                            ? 'bg-rose-600 border-rose-600'
+                                                                            : 'border-slate-300 dark:border-zinc-600 hover:border-rose-500'
+                                                                    }`}
+                                                                    title={isSelected ? 'Deselect' : 'Select for bulk delete'}
+                                                                >
+                                                                    {isSelected && (
+                                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                                        </svg>
+                                                                    )}
+                                                                </button>
+                                                                {/* Unread dot — color matches the conversation type */}
+                                                                {(conv.unreadByAdmin || 0) > 0
+                                                                    ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
+                                                                    : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
+                                                                <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                    {conv.participantName || 'Portal User'}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                                                {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                             </span>
                                                         </div>
-                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                                            {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                                        </span>
+                                                        <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
+                                                            {/* Primary type badge — color-coded by conversation kind */}
+                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
+                                                                {typeStyle.label}
+                                                            </span>
+                                                            {/* Role chip — only show for unified firms where the
+                                                                inbox mixes clients and residents. */}
+                                                            {isUnified && (
+                                                                <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${
+                                                                    roleLabel === 'Client'
+                                                                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                                                                        : 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                                                                }`}>
+                                                                    {roleLabel}
+                                                                </span>
+                                                            )}
+                                                            {(conv.unreadByAdmin || 0) > 1 && (
+                                                                <span className={`px-1.5 py-0.5 rounded-full text-white font-bold ${typeStyle.dot}`}>
+                                                                    {conv.unreadByAdmin}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
-                                                        <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
-                                                            Portal
-                                                        </span>
-                                                        {conv.lastMessageBy === 'admin' && (
-                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30">
-                                                                Replied
-                                                            </span>
-                                                        )}
-                                                        {(conv.unreadByAdmin || 0) > 1 && (
-                                                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
-                                                                {conv.unreadByAdmin}
-                                                            </span>
-                                                        )}
-                                                        {/* Visual marker when the latest message in this
-                                                            conversation is a service request / maintenance ticket */}
-                                                        {conv.lastMessagePreview?.startsWith('🔧') && (
-                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30">
-                                                                Ticket
-                                                            </span>
-                                                        )}
-                                                        {conv.lastMessagePreview?.startsWith('📋') && (
-                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-violet-700 bg-violet-100 dark:text-violet-400 dark:bg-violet-900/30">
-                                                                Request
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
-                                                </div>
                                                 );
                                             })}
-                                        </>
-                                    )
-                                ) : (
-                                    /* ── VEGA: Client conversations + portal messages ── */
-                                    clientMessages.length === 0 && (portalConversations as any[]).filter((c: any) => c.participantRole === 'Client').length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-                                            <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
-                                                <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                                            </div>
-                                            <p className="text-sm text-slate-400">No client messages yet</p>
-                                            <p className="text-xs text-slate-300 mt-1">Messages from your clients on their matters will appear here</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {/* Client portal conversations (Vega) */}
-                                            {(portalConversations as any[]).filter((c: any) => c.participantRole === 'Client').map((conv: any) => (
-                                                <div
-                                                    key={conv._id}
-                                                    onClick={() => {
-                                                        setSelectedInboxId(String(conv._id));
-                                                        setSelectedInboxType('conversation');
-                                                        if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: String(conv._id) });
-                                                    }}
-                                                    className={`p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${selectedInboxId === String(conv._id) && selectedInboxType === 'conversation' ? 'bg-emerald-50 dark:bg-emerald-900/20 border-l-2 border-l-emerald-500' : ''}`}
-                                                >
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <div className="flex items-center gap-2">
-                                                            {(conv.unreadByAdmin || 0) > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />}
-                                                            {(conv.unreadByAdmin || 0) === 0 && conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />}
-                                                            <span className={`text-sm truncate max-w-[160px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                {conv.participantName || 'Client'}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">
-                                                            {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
-                                                        <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
-                                                            Portal
-                                                        </span>
-                                                        {conv.matterId && (
-                                                            <span className="text-slate-500 dark:text-zinc-400 truncate">Matter</span>
-                                                        )}
-                                                        {conv.lastMessagePreview?.startsWith('📋') && (
-                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-violet-700 bg-violet-100 dark:text-violet-400 dark:bg-violet-900/30">
-                                                                Request
-                                                            </span>
-                                                        )}
-                                                        {conv.lastMessagePreview?.startsWith('🔧') && (
-                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30">
-                                                                Ticket
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
-                                                </div>
-                                            ))}
-                                            {/* Internal client messages from matter context */}
-                                            {clientMessages
+
+                                            {/* ── Internal client messages (legacy matter-scoped messages, Vega only) ── */}
+                                            {!isProperty && clientMessages
                                                 .filter((m: any) => !m.isRead)
                                                 .map((msg: any) => (
                                                     <div
@@ -1128,8 +1173,8 @@ const MessagesView: React.FC = () => {
                                                     </div>
                                                 ))}
                                         </>
-                                    )
-                                )}
+                                    );
+                                })()}
                             </div>
                         </div>
 
@@ -1148,10 +1193,24 @@ const MessagesView: React.FC = () => {
                                             </div>
                                             <div>
                                                 <h3 className="font-bold text-slate-900 dark:text-white text-sm">{selectedInboundMsg.senderName || selectedInboundMsg.senderContact}</h3>
-                                                <div className="flex items-center gap-1.5 text-[10px]">
+                                                <div className="flex items-center gap-1.5 text-[10px] flex-wrap">
                                                     <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${CHANNEL_COLORS[selectedInboundMsg.channel]}`}>
                                                         {CHANNEL_LABELS[selectedInboundMsg.channel] || selectedInboundMsg.channel}
                                                     </span>
+                                                    {/* Show conversation type badge in the thread header too —
+                                                        gives the practitioner immediate context about what kind
+                                                        of conversation they're responding to. */}
+                                                    {selectedInboxType === 'conversation' && (() => {
+                                                        const conv = (portalConversations as any[]).find((c: any) => String(c._id) === selectedInboxId);
+                                                        if (!conv) return null;
+                                                        const convType = detectConversationType(conv);
+                                                        const typeStyle = CONVERSATION_TYPE_STYLES[convType];
+                                                        return (
+                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
+                                                                {typeStyle.label}
+                                                            </span>
+                                                        );
+                                                    })()}
                                                     <span className="text-slate-400">{selectedInboundMsg.senderContact}</span>
                                                 </div>
                                             </div>
@@ -1416,7 +1475,7 @@ const MessagesView: React.FC = () => {
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                     </div>
                                     <p className="text-base font-medium text-slate-500 dark:text-zinc-400">
-                                        {isProperty ? 'Select a resident message to respond' : 'Select a client message to view'}
+                                        {isUnified ? 'Select a conversation to respond' : isProperty ? 'Select a resident message to respond' : 'Select a client message to view'}
                                     </p>
                                     <p className="text-xs text-slate-400 mt-1">
                                         {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}

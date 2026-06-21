@@ -28,6 +28,7 @@ import {
 } from '../../constants';
 import { Receipt as ReceiptIcon } from 'lucide-react';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
@@ -1300,41 +1301,19 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
         <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Report New Issue</h4>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
             {requestTypes === undefined ? (
-              <div className="grid grid-cols-2 gap-2">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="h-14 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
-                ))}
-              </div>
+              <>
+                <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
+                <div className="h-12 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
+              </>
             ) : requestTypes && requestTypes.length > 0 ? (
-              <div className="grid grid-cols-2 gap-2">
-                {requestTypes.map((t: any) => {
-                  const isSelected = selectedTypeKey === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => setSelectedTypeKey(t.key)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
-                        isSelected
-                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500/20'
-                          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-emerald-300 dark:hover:border-emerald-700'
-                      }`}
-                    >
-                      <span className="text-lg flex-shrink-0">{t.icon || '📋'}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-zinc-200'}`}>
-                          {t.label}
-                        </p>
-                        {t.description && (
-                          <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{t.description}</p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+              <ServiceTypePicker
+                options={requestTypes as any}
+                selectedKey={selectedTypeKey}
+                onChange={setSelectedTypeKey}
+                label="Request Type"
+                placeholder="Select a request type"
+              />
             ) : (
               <p className="text-xs text-slate-400">No request types configured. Please contact your property manager.</p>
             )}

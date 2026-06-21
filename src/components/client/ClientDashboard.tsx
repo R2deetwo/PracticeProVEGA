@@ -16,6 +16,7 @@ import {
 } from '../../constants';
 import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
+import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -531,11 +532,11 @@ const ClientDashboard: React.FC = () => {
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Activity</h3>
                     <button
-                        onClick={() => openModal('newLead', null, { name: currentUser.name, email: currentUser.email, isClientRequest: true })}
+                        onClick={() => handleTabChange('requests')}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
                     >
                         <PlusIcon className="w-3.5 h-3.5" />
-                        Request Service
+                        New Request
                     </button>
                 </div>
 
@@ -1214,41 +1215,19 @@ const ClientDashboard: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Submit a New Request</h3>
                     <div className="space-y-3">
                         <div>
-                            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
                             {clientRequestTypes === undefined ? (
-                                <div className="grid grid-cols-2 gap-2">
-                                    {[1, 2, 3, 4].map(i => (
-                                        <div key={i} className="h-14 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
-                                    ))}
-                                </div>
+                                <>
+                                    <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
+                                    <div className="h-12 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
+                                </>
                             ) : clientRequestTypes && clientRequestTypes.length > 0 ? (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                    {clientRequestTypes.map((t: any) => {
-                                        const isSelected = selectedRequestTypeKey === t.key;
-                                        return (
-                                            <button
-                                                key={t.key}
-                                                type="button"
-                                                onClick={() => setSelectedRequestTypeKey(t.key)}
-                                                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
-                                                    isSelected
-                                                        ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500/20'
-                                                        : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-emerald-300 dark:hover:border-emerald-700'
-                                                }`}
-                                            >
-                                                <span className="text-lg flex-shrink-0">{t.icon || '📋'}</span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-zinc-200'}`}>
-                                                        {t.label}
-                                                    </p>
-                                                    {t.description && (
-                                                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{t.description}</p>
-                                                    )}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                <ServiceTypePicker
+                                    options={clientRequestTypes as any}
+                                    selectedKey={selectedRequestTypeKey}
+                                    onChange={setSelectedRequestTypeKey}
+                                    label="Request Type"
+                                    placeholder="Select a request type"
+                                />
                             ) : (
                                 <p className="text-xs text-slate-400">No request types configured.</p>
                             )}
@@ -1404,11 +1383,11 @@ const ClientDashboard: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <button
-                            onClick={() => openModal('newLead', null, { name: currentUser.name, email: currentUser.email, isClientRequest: true })}
+                            onClick={() => handleTabChange('requests')}
                             className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 text-sm transition-colors shadow-sm"
                         >
                             <PlusIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">Request Service</span>
+                            <span className="hidden sm:inline">New Request</span>
                         </button>
                         {/* Theme Toggle — clearly visible */}
                         <button
