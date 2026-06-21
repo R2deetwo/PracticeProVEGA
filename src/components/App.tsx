@@ -466,7 +466,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
             <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
                 {currentUser && !isPortalUser && <Header />}
-                <main className="flex-1 relative h-full overflow-hidden pb-0 md:pb-0 pb-14">
+                <main className="flex-1 relative overflow-hidden md:h-full h-[calc(100%-3.5rem)] md:pb-0">
                     {currentUser ? (
                         <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>

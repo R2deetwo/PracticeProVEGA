@@ -390,6 +390,78 @@ export const cancelClientServiceRequest = mutation({
   },
 });
 
+/**
+ * assignTicketToTeamMember — Delegates a maintenance ticket or service
+ * request to a specific team member. Posts a portal_message to the
+ * linked conversation so the portal user is notified that their request
+ * has been assigned.
+ */
+export const assignTicketToTeamMember = mutation({
+  args: {
+    requestKind: v.union(v.literal("maintenance"), v.literal("client_service")),
+    requestId: v.string(),
+    assignedToUserId: v.string(),
+    assignedToName: v.optional(v.string()),
+    assignedBy: v.string(),
+    firmId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const table = args.requestKind === "maintenance" ? "maintenance_tickets" : "client_service_requests";
+    const record: any = await ctx.db.get(args.requestId as any);
+    if (!record) throw new Error("Ticket/request not found");
+
+    await ctx.db.patch(args.requestId as any, {
+      assignedTo: args.assignedToUserId,
+      status: record.status === "open" ? "in_progress" : record.status,
+      updatedAt: now,
+    } as any);
+
+    // Post a message to the linked conversation
+    if (record.conversationId) {
+      try {
+        const messageContent = `👤 This ${args.requestKind === "maintenance" ? "maintenance ticket" : "service request"} has been assigned to ${args.assignedToName || "a team member"} and is now being processed.`;
+        await ctx.db.insert("portal_messages", {
+          firmId: args.firmId,
+          conversationId: record.conversationId,
+          senderId: args.assignedBy,
+          senderName: "Admin",
+          senderRole: "Admin",
+          subject: `Assigned: ${record.subject}`,
+          content: messageContent,
+          attachments: [],
+          attachmentNames: [],
+          propertyId: record.propertyId,
+          unitId: record.unitId,
+          matterId: record.matterId,
+          status: "read",
+          isRead: false,
+          linkedTicketId: args.requestKind === "maintenance" ? args.requestId : undefined,
+          linkedRequestId: args.requestKind === "client_service" ? args.requestId : undefined,
+          requestTypeKey: record.requestTypeKey,
+          requestTypeLabel: record.requestTypeLabel || record.category,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const conv: any = await ctx.db.get(record.conversationId as any);
+        if (conv) {
+          await ctx.db.patch(conv._id, {
+            lastMessageAt: now,
+            lastMessagePreview: `👤 Assigned to ${args.assignedToName || "team member"}`.substring(0, 80),
+            lastMessageBy: "admin",
+            unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
+            updatedAt: now,
+          });
+        }
+      } catch (err) {
+        console.warn("[assignTicketToTeamMember] conversation message failed:", (err as any)?.message);
+      }
+    }
+
+    return { success: true };
+  },
+});
+
 // ─── Service Request Types (admin-configurable catalog) ──────────────────
 // Each firm defines its own menu of request types shown in the portal
 // (e.g., "Plumbing", "Electrical", "Document Review", "Meeting Request").

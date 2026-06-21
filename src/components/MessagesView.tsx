@@ -463,12 +463,6 @@ const MessagesView: React.FC = () => {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     // ── Conversation type filters ─────────────────────────────────────────
-    // Lets the practitioner filter the All Conversations list by type:
-    //   - Requests (red)     — client service requests
-    //   - Tickets (amber)    — maintenance tickets
-    //   - Replied (blue)     — admin has replied
-    //   - Portal (emerald)   — regular 2-way portal messages
-    // All filters default to ON. Unchecking one hides that type.
     const [typeFilters, setTypeFilters] = useState<{
         request: boolean;
         ticket: boolean;
@@ -476,16 +470,32 @@ const MessagesView: React.FC = () => {
         portal: boolean;
     }>({ request: true, ticket: true, replied: true, portal: true });
 
+    // Role filter: All / Client / Resident
+    const [roleFilter, setRoleFilter] = useState<'all' | 'Client' | 'Tenant'>('all');
+
+    // Search query for filtering by name/subject
+    const [conversationSearch, setConversationSearch] = useState('');
+
     const filteredPortalConversations = useMemo(() => {
         return (portalConversations as any[]).filter((conv: any) => {
+            // Type filter
             const convType = detectConversationType(conv);
             if (convType === 'service_request' && !typeFilters.request) return false;
             if (convType === 'maintenance' && !typeFilters.ticket) return false;
             if (convType === 'admin_reply' && !typeFilters.replied) return false;
             if (convType === 'portal' && !typeFilters.portal) return false;
+            // Role filter
+            if (roleFilter !== 'all' && conv.participantRole !== roleFilter) return false;
+            // Search filter
+            if (conversationSearch.trim()) {
+                const q = conversationSearch.toLowerCase();
+                const name = (conv.participantName || '').toLowerCase();
+                const preview = (conv.lastMessagePreview || '').toLowerCase();
+                if (!name.includes(q) && !preview.includes(q)) return false;
+            }
             return true;
         });
-    }, [portalConversations, typeFilters]);
+    }, [portalConversations, typeFilters, roleFilter, conversationSearch]);
 
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
@@ -562,10 +572,9 @@ const MessagesView: React.FC = () => {
     const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
 
     // ── Ticketing: status update mutations ──
-    // Used by the TicketStatusBar component to advance a ticket/request
-    // through its lifecycle: open → in_progress → resolved → closed.
     const updateTicketStatus = useMutation(api.portals.updateMaintenanceTicketStatus);
     const updateRequestStatus = useMutation(api.portals.updateClientServiceRequestStatus);
+    const assignTicketMutation = useMutation(api.portals.assignTicketToTeamMember);
 
     // Find the linked ticket/request for the currently-selected conversation.
     // We scan the conversation's messages for one with linkedTicketId or
@@ -607,15 +616,20 @@ const MessagesView: React.FC = () => {
     const handleAdvanceTicket = async (newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
         if (!linkedTicketInfo) return;
         try {
+            const resolution = (newStatus === 'resolved' || newStatus === 'closed')
+                ? `Status updated to ${newStatus === 'resolved' ? 'Addressed' : 'Closed'}.`
+                : undefined;
             if (linkedTicketInfo.kind === 'maintenance') {
                 await updateTicketStatus({
                     ticketId: linkedTicketInfo.id as any,
                     status: newStatus,
+                    resolution,
                 });
             } else {
                 await updateRequestStatus({
                     requestId: linkedTicketInfo.id as any,
                     status: newStatus,
+                    resolution,
                 });
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
@@ -628,6 +642,31 @@ const MessagesView: React.FC = () => {
             setLinkedTicketRecord(rec);
         } catch (err: any) {
             addToast(err.message || 'Failed to update status.', { type: 'error' });
+        }
+    };
+
+    // ── Delegate ticket to a team member ───────────────────────────────
+    const handleAssignTicket = async (userId: string, userName: string) => {
+        if (!linkedTicketInfo || !firmId || !currentUser?.id) return;
+        try {
+            await assignTicketMutation({
+                requestKind: linkedTicketInfo.kind,
+                requestId: linkedTicketInfo.id,
+                assignedToUserId: userId,
+                assignedToName: userName,
+                assignedBy: currentUser.id,
+                firmId,
+            });
+            addToast(`Ticket assigned to ${userName}. Portal user has been notified.`, { type: 'success' });
+            // Refresh the linked record
+            const queryFn = linkedTicketInfo.kind === 'maintenance'
+                ? api.portals.getTicketById
+                : api.portals.getServiceRequestById;
+            const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
+            const rec = await convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any);
+            setLinkedTicketRecord(rec);
+        } catch (err: any) {
+            addToast(err.message || 'Failed to assign ticket.', { type: 'error' });
         }
     };
 
@@ -1108,6 +1147,45 @@ const MessagesView: React.FC = () => {
                                     ))}
                                 </div>
                             )}
+                            {/* ── Role filter + search bar ───────────────────────────
+                                Additional filters for narrowing conversations by
+                                participant role (Client/Resident) and free-text search. */}
+                            {(portalConversations as any[]).length > 0 && selectedConvIds.size === 0 && (
+                                <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center gap-2">
+                                    {/* Role filter pills */}
+                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                        {(['all', 'Client', 'Tenant'] as const).map(role => (
+                                            <button
+                                                key={role}
+                                                onClick={() => setRoleFilter(role)}
+                                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                                                    roleFilter === role
+                                                        ? 'bg-primary-600 text-white'
+                                                        : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                {role === 'all' ? 'All' : role === 'Client' ? 'Clients' : 'Residents'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {/* Search input */}
+                                    <input
+                                        type="text"
+                                        value={conversationSearch}
+                                        onChange={e => setConversationSearch(e.target.value)}
+                                        placeholder="Search conversations..."
+                                        className="flex-1 min-w-0 px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-1 focus:ring-primary-500/30 focus:border-primary-400"
+                                    />
+                                    {conversationSearch && (
+                                        <button
+                                            onClick={() => setConversationSearch('')}
+                                            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 flex-shrink-0"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {isInboxLoading ? (
                                     <div className="p-3">
@@ -1534,48 +1612,85 @@ const MessagesView: React.FC = () => {
                                     {/* Ticket Status Bar — shown when this conversation is
                                         linked to a maintenance ticket or client service
                                         request. Lets the practitioner advance the ticket
-                                        through its lifecycle without leaving the chat. */}
+                                        through its lifecycle AND delegate to team members. */}
                                     {linkedTicketInfo && linkedTicketRecord && (
                                         <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2.5">
-                                            <div className="max-w-2xl mx-auto flex items-center justify-between gap-3 flex-wrap">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                        linkedTicketInfo.kind === 'maintenance'
-                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                            : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
-                                                    }`}>
-                                                        {linkedTicketInfo.kind === 'maintenance' ? '🔧 Ticket' : '📋 Request'}
-                                                    </span>
-                                                    {linkedTicketInfo.requestTypeLabel && (
-                                                        <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
-                                                            {linkedTicketInfo.requestTypeLabel}
+                                            <div className="max-w-2xl mx-auto space-y-2">
+                                                {/* Row 1: ticket type + status buttons */}
+                                                <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                            linkedTicketInfo.kind === 'maintenance'
+                                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                                : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                                                        }`}>
+                                                            {linkedTicketInfo.kind === 'maintenance' ? '🔧 Ticket' : '📋 Request'}
                                                         </span>
+                                                        {linkedTicketInfo.requestTypeLabel && (
+                                                            <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
+                                                                {linkedTicketInfo.requestTypeLabel}
+                                                            </span>
+                                                        )}
+                                                        {linkedTicketRecord.status === 'cancelled' && (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                Cancelled
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {linkedTicketRecord.status !== 'cancelled' && (
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            {([
+                                                                { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
+                                                                { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
+                                                                { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
+                                                                { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
+                                                            ] as const).map(stage => {
+                                                                const isCurrent = linkedTicketRecord.status === stage.value;
+                                                                return (
+                                                                    <button
+                                                                        key={stage.value}
+                                                                        onClick={() => handleAdvanceTicket(stage.value)}
+                                                                        disabled={isCurrent}
+                                                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                                                                            isCurrent
+                                                                                ? `${stage.activeClass} cursor-default`
+                                                                                : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
+                                                                        }`}
+                                                                    >
+                                                                        {stage.label}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1 flex-shrink-0">
-                                                    {([
-                                                        { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
-                                                        { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
-                                                        { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
-                                                        { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
-                                                    ] as const).map(stage => {
-                                                        const isCurrent = linkedTicketRecord.status === stage.value;
-                                                        return (
-                                                            <button
-                                                                key={stage.value}
-                                                                onClick={() => handleAdvanceTicket(stage.value)}
-                                                                disabled={isCurrent}
-                                                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                                                                    isCurrent
-                                                                        ? `${stage.activeClass} cursor-default`
-                                                                        : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
-                                                                }`}
-                                                            >
-                                                                {stage.label}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                                {/* Row 2: delegation dropdown + assigned-to display */}
+                                                {linkedTicketRecord.status !== 'cancelled' && (
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign to:</span>
+                                                        {linkedTicketRecord.assignedTo && (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                                                                👤 {coreState.users?.find((u: any) => u.id === linkedTicketRecord.assignedTo)?.name || 'Assigned'}
+                                                            </span>
+                                                        )}
+                                                        <select
+                                                            value={linkedTicketRecord.assignedTo || ''}
+                                                            onChange={(e) => {
+                                                                const user = coreState.users?.find((u: any) => u.id === e.target.value);
+                                                                if (user) handleAssignTicket(user.id, user.name || 'Team Member');
+                                                            }}
+                                                            className="text-[10px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/30"
+                                                        >
+                                                            <option value="">Unassigned</option>
+                                                            {coreState.users
+                                                                ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
+                                                                .map((u: any) => (
+                                                                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                                                ))
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -1583,6 +1698,38 @@ const MessagesView: React.FC = () => {
                                     {/* Reply Input */}
                                     <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
                                         <div className="max-w-2xl mx-auto">
+                                            {/* Quick reply chips — for linked tickets, let the admin
+                                                send a brief status-update message with one tap. */}
+                                            {linkedTicketInfo && selectedInboundMsg?._inboxType === 'conversation' && (
+                                                <div className="flex gap-1.5 mb-2 flex-wrap">
+                                                    {[
+                                                        { label: '✅ Acknowledged', msg: 'Thank you for your request. We have received it and will get back to you shortly.' },
+                                                        { label: '🔄 In Progress', msg: 'Your request is now being processed. We will update you once it is resolved.' },
+                                                        { label: '✓ Resolved', msg: 'Your request has been addressed. Please let us know if you need anything else.' },
+                                                    ].map(chip => (
+                                                        <button
+                                                            key={chip.label}
+                                                            onClick={async () => {
+                                                                try {
+                                                                    await sendAdminReply({
+                                                                        conversationId: selectedInboxId!,
+                                                                        firmId,
+                                                                        adminId: currentUser?.id || '',
+                                                                        adminName: currentUser?.name || 'Admin',
+                                                                        content: chip.msg,
+                                                                    });
+                                                                    addToast('Quick reply sent.', { type: 'success' });
+                                                                } catch (err: any) {
+                                                                    addToast(err.message || 'Failed to send.', { type: 'error' });
+                                                                }
+                                                            }}
+                                                            className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                                        >
+                                                            {chip.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                             {/* Pending file attachments for admin reply */}
                                             {adminAttachments.length > 0 && (
                                                 <div className="flex gap-2 flex-wrap mb-2">

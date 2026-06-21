@@ -235,19 +235,19 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const handleMarkNotificationsRead = React.useCallback(async (ids: string[]) => {
         if (!ids || ids.length === 0) return;
         try {
-            await markNotificationsMutation({ ids });
+            await markNotificationsMutation({ ids, userEmail: currentUser?.email });
         } catch (err: any) {
             console.warn('[handleMarkNotificationsRead] Failed:', err?.message);
         }
-    }, [markNotificationsMutation]);
+    }, [markNotificationsMutation, currentUser?.email]);
 
     const handleClearAllNotifications = React.useCallback(async () => {
         try {
-            await clearAllNotificationsMutation({});
+            await clearAllNotificationsMutation({ userEmail: currentUser?.email });
         } catch (err: any) {
             console.warn('[handleClearAllNotifications] Failed:', err?.message);
         }
-    }, [clearAllNotificationsMutation]);
+    }, [clearAllNotificationsMutation, currentUser?.email]);
     
     const refreshData = React.useCallback(async () => {
         addToast("Refreshing workspace data...", { type: 'info' });
