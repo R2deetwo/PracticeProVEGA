@@ -1884,3 +1884,22 @@ Stage Summary:
 - T&C doesn't clutter the portal by default
 - Financials is now functional with payment notification flow
 - Ingest button removed from Matters
+
+---
+Task ID: cancel-tickets-notifications-unit-indicators-nav
+Agent: main (Super Z)
+Task: User reported: (1) portal users can't cancel tickets, (2) notification badges don't clear after reading or mark all as read, (3) need visual indicators on units with open tickets + 24hr stale warning, (4) bottom nav is cropping content and should be slimmer.
+
+Work Log:
+- Added cancel ticket feature: backend mutations (cancelMaintenanceTicket, cancelClientServiceRequest) that set status to 'cancelled', store cancellationNote + cancelledAt, and post a portal_message to notify the admin. Schema updated with 'cancelled' status + cancellationNote + cancelledAt fields. UI: Cancel button on each open ticket/request in both portals, expands to show textarea + confirm buttons. Cancelled tickets show reason note in italic red.
+- FIXED notification badges not clearing: root cause was handleMarkNotificationsRead was a STUB in DataProvider — it didn't exist. Added markNotificationsAsRead + clearAllNotifications backend mutations. Wired them into DataProvider's contextActions. Now 'Mark all read' actually sets isRead=true via Convex mutation and badges clear in real-time.
+- Added unit ticket indicators: units with open maintenance tickets show a badge on the unit card in PropertyDetailView. Badge is amber for open tickets, red if any ticket is STALE (>24h in same status). Shows count + '⚠ Stale' warning. Clicking navigates to Conversations. Backend: getMaintenanceTicketsByProperty query with isStale flag computed server-side.
+- Fixed bottom nav: made it slimmer (h-16→h-14, icons w-6→w-5), added pb-14 to main content area on mobile, added pb-16 to scrollable list containers in MatterList + PropertyManagerView so last items aren't hidden behind nav.
+- TypeScript: clean. Vite build: succeeds. Convex compiles: succeeds.
+- Committed (f81f0d9) and pushed. CI auto-deploys.
+
+Stage Summary:
+- Portal users can cancel their own tickets with a reason note
+- Notification badges now clear properly when messages are read or 'Mark all read' is clicked
+- Units with open tickets show visual indicators (amber/red badge with stale warning)
+- Bottom nav is slimmer and no longer crops content
