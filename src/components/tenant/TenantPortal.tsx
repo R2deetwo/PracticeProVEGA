@@ -26,7 +26,7 @@ import {
   MailIcon,
   BellIcon,
 } from '../../constants';
-import { Receipt as ReceiptIcon } from 'lucide-react';
+import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon } from 'lucide-react';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
@@ -100,7 +100,7 @@ const formatDate = (ts: number) => {
 };
 
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
-type TabId = 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents';
+type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
@@ -126,8 +126,8 @@ const TenantPortal: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '');
-    if (['notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents'].includes(hash)) return hash as TabId;
-    return 'notices';
+    if (['dashboard', 'notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents'].includes(hash)) return hash as TabId;
+    return 'dashboard';
   });
 
   // Repair mutation for fixing missing firmId on portal user records
@@ -359,6 +359,7 @@ const TenantPortal: React.FC = () => {
   }, [portalConversations, unresolvedInboundMsgs]);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
@@ -394,84 +395,44 @@ const TenantPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Header — sticky on mobile so sign-out is always accessible */}
-      <div className="flex-shrink-0 sticky top-0 z-20 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 sm:px-6 py-3 sm:py-5">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0">
-              <OfficeBuildingIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-base sm:text-xl font-bold text-slate-900 dark:text-white truncate">Residents' Portal</h1>
-              {tenantInfo === undefined ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-4 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
-                </div>
-              ) : (
-                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate">
-                  Welcome, {tenantInfo?.tenantName || currentUser.name || currentUser.email}
-                  {tenantInfo?.primaryUnitName && (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium"> — Unit {tenantInfo.primaryUnitName}</span>
-                  )}
-                </p>
-              )}
-            </div>
+      {/* Header — minimalist, sticky. Emulates the reference design's
+          clean top bar: greeting on the left, utility icons on the right. */}
+      <div className="flex-shrink-0 sticky top-0 z-20 border-b border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+              {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
+            </p>
+            <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
+              {tenantInfo?.tenantName || currentUser.name?.split(' ')[0] || 'Resident'}
+            </h1>
           </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-            {/* Theme Toggle — clearly visible */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 sm:p-2.5 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-soft border border-slate-100 dark:border-zinc-700"
+              className="p-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
               aria-label="Toggle theme"
             >
               {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
-            {/* Font-size control — portal user's own preference,
-                independent of the admin's font size. */}
+            {/* Font-size control */}
             <PortalFontSizeControl className="hidden md:inline-flex" />
-            {/* Sign Out — always visible and tappable for portal users */}
+            {/* Sign Out */}
             <button
               onClick={() => logout()}
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500 border border-rose-200 dark:border-rose-800/50 hover:border-rose-600 dark:hover:border-rose-500 rounded-lg transition-colors active:scale-95"
+              className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+              title="Sign out"
+              aria-label="Sign out"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
               <span className="hidden sm:inline">Sign Out</span>
             </button>
           </div>
         </div>
-        {/* Prominent Unit/Property Info — always visible when available */}
-        {(() => {
-          const unitName = tenantInfo?.primaryUnitName || tenantInfo?.primaryUnitId;
-          const propName = tenantInfo?.primaryPropertyName;
-          const propAddr = tenantInfo?.primaryPropertyAddress;
-          // Avoid showing property name if it's identical to the address
-          const displayPropName = propName && propName !== propAddr ? propName : null;
-          const hasInfo = unitName || displayPropName || propAddr;
-          if (!hasInfo) return null;
-          return (
-            <div className="mt-3 flex items-center gap-2 flex-wrap">
-              {unitName && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 text-emerald-700 dark:text-emerald-300 text-sm font-bold">
-                  <OfficeBuildingIcon className="w-3.5 h-3.5" />
-                  Unit {unitName}
-                </span>
-              )}
-              {displayPropName && (
-                <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
-                  {displayPropName}
-                </span>
-              )}
-              {propAddr && (
-                <span className="text-xs text-slate-400 dark:text-zinc-500">
-                  {unitName || displayPropName ? '— ' : ''}{propAddr}
-                </span>
-              )}
-            </div>
-          );
-        })()}
       </div>
 
       {/* Tab Bar */}
@@ -546,6 +507,7 @@ const TenantPortal: React.FC = () => {
           </div>
         ) : (
           <>
+            {activeTab === 'dashboard' && <TabErrorBoundary tabName="Dashboard"><DashboardTab tenantInfo={tenantInfo} onNavigate={handleTabChange} /></TabErrorBoundary>}
             {activeTab === 'notices' && <TabErrorBoundary tabName="Notices"><NoticesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'ledger' && <TabErrorBoundary tabName="Ledger"><LedgerTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} /></TabErrorBoundary>}
             {activeTab === 'receipts' && <TabErrorBoundary tabName="Receipts"><ReceiptsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
@@ -608,6 +570,141 @@ class TabErrorBoundary extends React.Component<
 
 // ─── Shared Tenant Info Hook Helper ──────────────────────────────────────────
 // All sub-tabs receive tenantInfo from the parent to avoid duplicate queries
+
+// ─── Dashboard Tab (card-based overview, emulates reference design) ──────────
+// Professional card layout: hero card (identity + property) → outstanding
+// balance card → quick services grid (pay rent, service charge, electricity,
+// internet, maintenance, messages) → recent notices preview.
+//
+// "Services" here are NOT just requests — they're actionable tiles for
+// anything the resident can DO: pay rent, pay service charge, buy electricity,
+// pay internet, report maintenance, send a message.
+const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void }> = ({ tenantInfo, onNavigate }) => {
+  const { currentUser } = useAuth();
+  const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+  // Derive outstanding balance from tenantInfo (if available)
+  const outstandingBalance = tenantInfo?.outstandingBalance || 0;
+  const hasOutstanding = outstandingBalance > 0;
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'R';
+    return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  };
+
+  // Quick services — actionable tiles. These are the things a resident
+  // would commonly want to do, NOT just request submission.
+  const services: { icon: React.ReactNode; label: string; tab: TabId; color: string }[] = [
+    { icon: <NairaSymbol className="w-5 h-5 inline" />, label: 'Pay Rent', tab: 'payments', color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
+    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' },
+    { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' },
+    { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger', color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' },
+    { icon: <WrenchIcon className="w-5 h-5" />, label: 'Maintenance', tab: 'maintenance', color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400' },
+    { icon: <ChatIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages', color: 'bg-sky-50 dark:bg-sky-900/20 text-sky-600 dark:text-sky-400' },
+    { icon: <DownloadIcon className="w-5 h-5" />, label: 'Receipts', tab: 'receipts', color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400' },
+    { icon: <DocumentIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents', color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400' },
+  ];
+
+  return (
+    <div className="space-y-5 pb-8">
+      {/* ─── Hero Card (brand-primary green) ────────────────────────── */}
+      <div className="bg-brand-primary text-white rounded-premium p-5 shadow-premium">
+        <div className="flex items-start justify-between mb-4">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
+              Residents' Portal
+            </p>
+            <h2 className="text-xl font-black tracking-tight truncate">
+              {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
+            </h2>
+            {tenantInfo?.primaryPropertyName && (
+              <p className="text-[11px] text-white/50 mt-0.5 truncate">
+                {tenantInfo?.primaryUnitName ? `Unit ${tenantInfo.primaryUnitName} · ` : ''}
+                {tenantInfo.primaryPropertyName}
+              </p>
+            )}
+          </div>
+          <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-bold">
+              {getInitials(tenantInfo?.tenantName || currentUser?.name)}
+            </span>
+          </div>
+        </div>
+        {/* Property / Unit badges */}
+        {tenantInfo?.primaryPropertyAddress && (
+          <div className="flex items-center gap-2 pt-3 border-t border-white/15">
+            <OfficeBuildingIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
+            <p className="text-[11px] text-white/70 truncate">
+              {tenantInfo.primaryPropertyAddress}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Outstanding Balance Card (light mint) ──────────────────── */}
+      <button
+        onClick={() => onNavigate('ledger')}
+        className="w-full text-left bg-emerald-50 dark:bg-emerald-900/15 rounded-2xl p-5 shadow-soft active:scale-[0.98] transition-transform"
+      >
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-widest">
+              Outstanding Balance
+            </p>
+            <p className={`text-2xl font-black mt-1 ${hasOutstanding ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-300'}`}>
+              {formatNaira(outstandingBalance)}
+            </p>
+            <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60 mt-1">
+              {hasOutstanding ? 'Tap to view breakdown' : 'All caught up'}
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold flex-shrink-0">
+            <ReceiptIcon className="w-3.5 h-3.5" />
+            Ledger
+          </div>
+        </div>
+      </button>
+
+      {/* ─── Quick Services Grid ────────────────────────────────────── */}
+      <div>
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Quick Services</h3>
+        <div className="grid grid-cols-4 gap-3">
+          {services.map(service => (
+            <button
+              key={service.label}
+              onClick={() => onNavigate(service.tab)}
+              className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color}`}>
+                {service.icon}
+              </div>
+              <span className="text-[10px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
+                {service.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── Recent Notices Preview ─────────────────────────────────── */}
+      <button
+        onClick={() => onNavigate('notices')}
+        className="w-full text-left bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft active:scale-[0.98] transition-transform"
+      >
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BellIcon className="w-4 h-4 text-amber-500" />
+            Notices
+          </h3>
+          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">View All →</span>
+        </div>
+        <p className="text-xs text-slate-500 dark:text-zinc-400">
+          Tap to see notices from your property manager
+        </p>
+      </button>
+    </div>
+  );
+};
 
 // ─── Notice Board Tab ────────────────────────────────────────────────────────
 const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {

@@ -534,69 +534,134 @@ const ClientDashboard: React.FC = () => {
         }
     };
 
-    // ── Render: Overview Tab (Premium Layout) ───────────────────────────
-    // Architecture: Hero Card → Recent Activity island.
-    // The tab bar at the top already provides navigation to Matters/Documents/
-    // Messages/Requests/Financials — no need to duplicate those icons here.
+    // ── Render: Overview Tab (Premium Card-Based Layout) ────────────────
+    // Architecture: Hero Card → Financial Summary Card → Quick Services Grid → Recent Activity.
+    // Emulates the professional card-based design the user referenced:
+    //   - Hero card: brand-primary green, shows identity + key stats
+    //   - Financial card: light mint, shows outstanding balance + CTA
+    //   - Quick Services: actionable tiles (not just requests — includes
+    //     pay invoice, documents, messages, new request)
+    //   - Recent Activity: simple feed below
+    const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    const totalOutstanding = (clientInvoices || []).filter((inv: any) =>
+        inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent'
+    ).reduce((sum: number, inv: any) => sum + (inv.totalAmount || inv.amount || 0), 0);
+
     const renderOverview = () => (
-        <div className="space-y-6">
-            {/* ─── Hero Card (full-width, brand-colored) ─────────────────── */}
-            <div className="bg-brand-primary text-white rounded-premium p-6 mx-0 sm:mx-4 shadow-premium">
-                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
-                    Client Portal
-                </p>
-                <h2 className="text-2xl font-black tracking-tight mb-3">
-                    Welcome, {currentUser.name?.split(' ')[0] || 'Client'}
-                </h2>
-                <div className="flex items-center gap-6">
+        <div className="space-y-5 px-4 sm:px-6 pb-8">
+            {/* ─── Hero Card (brand-primary green, identity + stats) ────── */}
+            <div className="bg-brand-primary text-white rounded-premium p-5 shadow-premium">
+                <div className="flex items-start justify-between mb-4">
                     <div>
-                        <p className="text-3xl font-black">{activeMattersCount}</p>
-                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">
-                            Active Matters
+                        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
+                            Client Portal
                         </p>
+                        <h2 className="text-xl font-black tracking-tight">
+                            {currentUser.name?.split(' ')[0] || 'Client'}
+                        </h2>
+                        {currentUser.email && (
+                            <p className="text-[11px] text-white/50 mt-0.5 truncate max-w-[200px]">
+                                {currentUser.email}
+                            </p>
+                        )}
                     </div>
-                    <div className="w-px h-10 bg-white/20" />
-                    <div>
-                        <p className="text-3xl font-black">{pendingDocsCount}</p>
-                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">Pending Docs</p>
+                    <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-bold">
+                            {getInitials(currentUser.name || 'C')}
+                        </span>
                     </div>
-                    <div className="w-px h-10 bg-white/20" />
-                    <div>
-                        <p className={`text-3xl font-black ${outstandingInvoicesCount > 0 ? 'text-amber-200' : ''}`}>
+                </div>
+                {/* Stats row — clean dividers, big numbers */}
+                <div className="flex items-center gap-4 pt-3 border-t border-white/15">
+                    <div className="flex-1">
+                        <p className="text-2xl font-black">{activeMattersCount}</p>
+                        <p className="text-[9px] text-white/60 uppercase tracking-wide font-medium">Matters</p>
+                    </div>
+                    <div className="w-px h-8 bg-white/15" />
+                    <div className="flex-1">
+                        <p className="text-2xl font-black">{pendingDocsCount}</p>
+                        <p className="text-[9px] text-white/60 uppercase tracking-wide font-medium">Docs</p>
+                    </div>
+                    <div className="w-px h-8 bg-white/15" />
+                    <div className="flex-1">
+                        <p className={`text-2xl font-black ${outstandingInvoicesCount > 0 ? 'text-amber-200' : ''}`}>
                             {outstandingInvoicesCount}
                         </p>
-                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">Invoices Due</p>
+                        <p className="text-[9px] text-white/60 uppercase tracking-wide font-medium">Invoices</p>
                     </div>
                 </div>
             </div>
 
-            {/* ─── Recent Activity (simple island, NOT retractable) ────────
-                The previous "bottom sheet" with drag handle + collapse toggle
-                was overengineered and confusing. This is just a normal card
-                that populates as activity is logged. Simplicity wins. */}
-            <div className="bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft mx-0 sm:mx-4">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        Recent Activity
-                        {clientActivity && clientActivity.length > 0 && (
-                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
-                                {clientActivity.length}
+            {/* ─── Financial Summary Card (light mint, outstanding balance) ── */}
+            <button
+                onClick={() => handleTabChange('financials')}
+                className="w-full text-left bg-emerald-50 dark:bg-emerald-900/15 rounded-2xl p-5 shadow-soft active:scale-[0.98] transition-transform"
+            >
+                <div className="flex items-start justify-between mb-3">
+                    <div>
+                        <p className="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-widest">
+                            Outstanding Balance
+                        </p>
+                        <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300 mt-1">
+                            {formatNaira(totalOutstanding)}
+                        </p>
+                        <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60 mt-1">
+                            {outstandingInvoicesCount > 0
+                                ? `${outstandingInvoicesCount} invoice${outstandingInvoicesCount > 1 ? 's' : ''} pending`
+                                : 'All caught up'}
+                        </p>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold">
+                        <Receipt className="w-3.5 h-3.5" />
+                        View
+                    </div>
+                </div>
+            </button>
+
+            {/* ─── Quick Services Grid (actionable tiles) ──────────────────
+                Services are NOT just requests — they're any actionable thing
+                the portal user can do: pay an invoice, view documents, send
+                a message, submit a new request, etc. */}
+            <div>
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Quick Services</h3>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                    {[
+                        { icon: <ClipboardListIcon className="w-5 h-5" />, label: 'New Request', tab: 'requests' as PortalTab, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' },
+                        { icon: <Receipt className="w-5 h-5" />, label: 'Pay Invoice', tab: 'financials' as PortalTab, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' },
+                        { icon: <LargeFolderIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as PortalTab, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' },
+                        { icon: <ChatAltIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as PortalTab, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
+                    ].map(service => (
+                        <button
+                            key={service.label}
+                            onClick={() => handleTabChange(service.tab)}
+                            className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
+                        >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color}`}>
+                                {service.icon}
+                            </div>
+                            <span className="text-[10px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
+                                {service.label}
                             </span>
-                        )}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* ─── Recent Activity (simple island feed) ─────────────────── */}
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        Recent Activity
                     </h3>
-                    <button
-                        onClick={() => handleTabChange('requests')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
-                    >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                        New Request
-                    </button>
+                    {clientActivity && clientActivity.length > 0 && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-full">
+                            {clientActivity.length}
+                        </span>
+                    )}
                 </div>
 
-                {/* Loading state: skeleton ONLY shows when args are ready AND
-                    the query is still pending. If the contact lookup returned
-                    null (no contact record), the downstream queries are skipped
-                    and we show the empty state directly — no stuck skeleton. */}
                 {clientActivityLoading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
@@ -610,71 +675,41 @@ const ClientDashboard: React.FC = () => {
                         ))}
                     </div>
                 ) : !clientActivityResolved ? (
-                    <div className="text-center py-8">
-                        <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
-                            <ClockIcon className="w-6 h-6" />
-                        </div>
-                        <p className="text-sm text-slate-400 dark:text-zinc-500">Loading your portal data...</p>
+                    <div className="text-center py-6">
+                        <ClockIcon className="w-6 h-6 text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 dark:text-zinc-500">Loading...</p>
                     </div>
                 ) : !clientActivity || clientActivity.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
-                            <ClockIcon className="w-6 h-6" />
-                        </div>
-                        <p className="text-sm text-slate-400 dark:text-zinc-500">No recent activity yet</p>
+                    <div className="text-center py-6">
+                        <ClockIcon className="w-6 h-6 text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400 dark:text-zinc-500">No recent activity</p>
                     </div>
                 ) : (
                     <div className="space-y-1">
-                        {clientActivity.slice(0, 8).map((activity: any) => {
-                            // Color-code each activity by its action type so the
-                            // portal user can scan and prioritise at a glance.
+                        {clientActivity.slice(0, 6).map((activity: any) => {
                             const actionText: string = (activity.action || '').toLowerCase();
                             const targetType: string = (activity.targetType || '').toLowerCase();
-                            let badgeStyle = 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300';
-                            let badgeLabel = 'Update';
                             let dotColor = 'bg-slate-400';
-                            if (actionText.includes('upload') || actionText.includes('share') || targetType === 'document') {
-                                badgeStyle = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-                                badgeLabel = 'Document';
-                                dotColor = 'bg-blue-500';
-                            } else if (actionText.includes('message') || actionText.includes('reply') || targetType === 'message') {
-                                badgeStyle = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-                                badgeLabel = 'Message';
-                                dotColor = 'bg-emerald-500';
-                            } else if (actionText.includes('create') || actionText.includes('open') || targetType === 'matter') {
-                                badgeStyle = 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400';
-                                badgeLabel = 'Matter';
-                                dotColor = 'bg-violet-500';
-                            } else if (actionText.includes('invoice') || actionText.includes('payment') || targetType === 'invoice') {
-                                badgeStyle = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-                                badgeLabel = 'Billing';
-                                dotColor = 'bg-amber-500';
-                            } else if (actionText.includes('resolve') || actionText.includes('close') || actionText.includes('complete')) {
-                                badgeStyle = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
-                                badgeLabel = 'Resolved';
-                                dotColor = 'bg-emerald-500';
-                            }
+                            if (actionText.includes('upload') || actionText.includes('share') || targetType === 'document') dotColor = 'bg-blue-500';
+                            else if (actionText.includes('message') || actionText.includes('reply')) dotColor = 'bg-emerald-500';
+                            else if (actionText.includes('create') || actionText.includes('open') || targetType === 'matter') dotColor = 'bg-violet-500';
+                            else if (actionText.includes('invoice') || actionText.includes('payment')) dotColor = 'bg-amber-500';
                             return (
-                                <div key={String(activity._id)} className="flex items-start gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                <div key={String(activity._id)} className="flex items-start gap-3 py-2">
                                     <div className="relative flex-shrink-0 mt-0.5">
-                                        <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center">
-                                            <span className="text-[10px] font-bold text-brand-primary">
+                                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-700 flex items-center justify-center">
+                                            <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400">
                                                 {getInitials(activity.userName)}
                                             </span>
                                         </div>
-                                        <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotColor} border-2 border-white dark:border-zinc-800`} />
+                                        <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${dotColor} border-2 border-white dark:border-zinc-800`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${badgeStyle}`}>
-                                                {badgeLabel}
-                                            </span>
-                                        </div>
-                                        <p className="text-sm text-slate-800 dark:text-zinc-200 leading-snug">
+                                        <p className="text-sm text-slate-700 dark:text-zinc-300 leading-snug">
                                             <span className="font-semibold">{activity.userName}</span>{' '}
                                             {activity.action}
                                             {activity.targetName && (
-                                                <> &middot; <span className="text-brand-primary">{activity.targetName}</span></>
+                                                <span className="text-slate-500 dark:text-zinc-400"> · {activity.targetName}</span>
                                             )}
                                         </p>
                                         <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
@@ -1613,44 +1648,39 @@ const ClientDashboard: React.FC = () => {
                     </button>
                 </div>
             )}
-            {/* Header — sticky on mobile so sign-out is always accessible */}
-            <div className="mb-4 sticky top-0 z-20 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl py-3 sm:py-4 px-4 shadow-soft border-b border-slate-100 dark:border-zinc-800/50">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
+            {/* Header — minimalist, sticky. Emulates the reference design's
+                clean top bar: greeting on the left, utility icons on the right.
+                No redundant "Welcome" text since the hero card already greets. */}
+            <div className="sticky top-0 z-20 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl py-3 px-4 border-b border-slate-100 dark:border-zinc-800/50">
+                <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white truncate">
-                            Welcome, {currentUser.name?.split(' ')[0] || 'Client'}
-                        </h1>
-                        <p className="text-sm text-slate-500 dark:text-zinc-400 mt-1">
-                            Your legal matters portal &mdash; stay informed and connected
+                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+                            {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
                         </p>
+                        <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                            {currentUser.name?.split(' ')[0] || 'Client'}
+                        </h1>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                        <button
-                            onClick={() => handleTabChange('requests')}
-                            className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 text-sm transition-colors shadow-sm"
-                        >
-                            <PlusIcon className="w-4 h-4" />
-                            <span className="hidden sm:inline">New Request</span>
-                        </button>
-                        {/* Theme Toggle — clearly visible */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {/* Theme Toggle */}
                         <button
                             onClick={toggleTheme}
-                            className="p-2 sm:p-2.5 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-soft border border-slate-100 dark:border-zinc-700"
+                            className="p-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
                             aria-label="Toggle theme"
                         >
                             {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
                         </button>
-                        {/* Font-size control — portal user's own preference,
-                            independent of the admin's font size. Persisted
-                            to localStorage on this device. */}
+                        {/* Font-size control */}
                         <PortalFontSizeControl className="hidden md:inline-flex" />
-                        {/* Sign Out — always visible and tappable for portal users */}
+                        {/* Sign Out */}
                         <button
                             onClick={() => logout()}
-                            className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-white hover:bg-rose-600 dark:hover:bg-rose-500 border border-rose-200 dark:border-rose-800/50 hover:border-rose-600 dark:hover:border-rose-500 rounded-lg transition-colors active:scale-95"
+                            className="p-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                            title="Sign out"
+                            aria-label="Sign out"
                         >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
                             </svg>
                             <span className="hidden sm:inline">Sign Out</span>
