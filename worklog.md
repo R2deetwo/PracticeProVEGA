@@ -1684,3 +1684,27 @@ Stage Summary:
 - Both portals (resident maintenance + client service requests) now follow the same pattern.
 - Practitioner can reply to a ticket by responding in the conversation; status updates with a resolution auto-post a reply message back to the portal user.
 - Next steps: monitor GitHub Actions deploy. Once Convex is live, test end-to-end: portal user submits a request → practitioner sees it in inbox → practitioner replies → portal user sees the reply.
+
+---
+Task ID: settings-redesign
+Agent: main (Super Z)
+Task: User reported the Settings page looked awkward at large sizes, with truncation and poor scaling. Asked for a marked improvement in layout/navigation, especially on mobile/portrait (web + APK), while keeping the style consistent with the rest of the app.
+
+Work Log:
+- Analyzed the screenshot with VLM: identified truncation ("WORKSP" instead of "WORKSPACE"), cramped horizontal tab bar, overlapping visual elements, and inconsistent spacing at large sizes.
+- Audited the existing SettingsView.tsx (357 lines): found the nav was a single horizontal-scrolling flex container on mobile that awkwardly mixed section labels ("Account", "Workspace", "System") with nav items in the same row.
+- Redesigned as follows:
+  - Mobile/portrait: hamburger button in header opens a slide-in drawer from the left (85% width, max-w-xs). Drawer has dimmed backdrop, smooth slideInLeft animation, full height, body scroll lock, Escape key support. Each nav item shows label + description on two lines. Header shows the ACTIVE section name (e.g. "Portal Access") instead of generic "Settings" — more contextual on small screens.
+  - Desktop (lg+): sticky sidebar (w-72 / xl:w-80) with grouped sections. Each nav item has a tinted icon container (8x8 rounded-lg) so all icons have consistent visual weight regardless of stroke width. Active state: emerald tint background + accent bar on the right + shadow-soft elevation. Hover: subtle slate tint with smooth color transition.
+  - Extracted SidebarContents component so the nav structure is defined once and shared between desktop sidebar and mobile drawer — no duplication.
+  - Added "All settings" back-link at top of content on mobile for quick re-navigation.
+  - Section headers ("Account", "Practice"/"Workspace", "System") with subtle uppercase styling.
+- TypeScript: clean (no new errors).
+- Vite production build: succeeds.
+- Committed (078a3b4) and pushed to main. CI auto-deploys Convex + builds APK.
+
+Stage Summary:
+- Replaced cramped horizontal scrolling tabs with a modern mobile-first navigation pattern (drawer on mobile, sticky sidebar on desktop).
+- Both layouts share the same grouped structure (Account / Practice / System) so muscle memory transfers between mobile and desktop.
+- Active state uses soft emerald tint + accent bar (no harsh borders) — consistent with the rest of the app's design language.
+- Each nav item now has a description line so users can scan settings faster.
