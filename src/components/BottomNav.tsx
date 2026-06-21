@@ -74,12 +74,12 @@ const NavItem: React.FC<{
                 onClick(e);
             }}
             data-tour-id={`nav-${view}`}
-            className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-2 pb-1 h-16 transition-colors duration-200 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'}`}
+            className={`active-press touch-target relative flex flex-col items-center justify-center flex-1 pt-1.5 pb-1 h-14 transition-colors duration-200 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-500 dark:text-zinc-400'}`}
             aria-current={isActive ? 'page' : undefined}
             aria-label={text}
         >
             <div className="relative">
-                {React.cloneElement(icon, { className: 'w-6 h-6 mb-1' })}
+                {React.cloneElement(icon, { className: 'w-5 h-5 mb-0.5' })}
                 {badgeCount !== undefined && badgeCount > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10">
                         {badgeCount > 9 ? '9+' : badgeCount}

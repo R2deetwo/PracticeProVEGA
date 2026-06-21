@@ -1151,10 +1151,12 @@ export default defineSchema({
     requestTypeLabel: v.string(),           // human label snapshot
     subject: v.string(),
     description: v.string(),
-    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed"), v.literal("cancelled")),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
     assignedTo: v.optional(v.string()),     // userId of staff assigned
     resolution: v.optional(v.string()),
+    cancellationNote: v.optional(v.string()), // reason the portal user cancelled
+    cancelledAt: v.optional(v.number()),
     conversationId: v.optional(v.string()), // links to portal_conversations
     attachments: v.optional(v.array(v.string())),
     createdAt: v.number(),
@@ -1180,10 +1182,12 @@ export default defineSchema({
     // category for backward compat with tickets created before this field.
     requestTypeKey: v.optional(v.string()),
     requestTypeLabel: v.optional(v.string()),
-    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed"), v.literal("cancelled")),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
     assignedTo: v.optional(v.string()),     // userId of staff assigned
     resolution: v.optional(v.string()),
+    cancellationNote: v.optional(v.string()), // reason the portal user cancelled
+    cancelledAt: v.optional(v.number()),
     conversationId: v.optional(v.string()), // links to portal_conversations (NEW)
     images: v.optional(v.array(v.string())), // storageIds for attached images
     createdAt: v.number(),

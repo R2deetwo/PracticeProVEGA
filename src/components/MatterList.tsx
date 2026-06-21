@@ -425,7 +425,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                     />
                 </div>
             ) : (
-                <div className="flex-grow overflow-y-auto custom-scrollbar p-2">
+                <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
                     {/* Select all row — styled to match the Properties page's
                         custom checkbox for visual consistency across list views. */}
                     {filteredMatters.length > 0 && (

@@ -447,7 +447,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                         <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredProperties.length} Total Properties</span>
                     </div>
 
-                    <div className="flex-grow overflow-y-auto custom-scrollbar p-2">
+                    <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
                         {filteredProperties.length > 0 ? (
                             filteredProperties.map(item => (
                                 <PropertyListItem

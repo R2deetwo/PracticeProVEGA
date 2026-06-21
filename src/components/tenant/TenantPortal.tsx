@@ -1254,8 +1254,37 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
 
   // Mutation for creating a ticket
   const createTicket = useMutation(api.portals.createMaintenanceTicket);
+  const cancelTicket = useMutation(api.portals.cancelMaintenanceTicket);
   // Get upload URL mutation
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+
+  // Cancel ticket state
+  const [cancellingTicketId, setCancellingTicketId] = useState<string | null>(null);
+  const [cancelNote, setCancelNote] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelTicket = async (ticketId: string) => {
+    if (!cancelNote.trim()) {
+      addToast('Please enter a reason for cancelling.', { type: 'info' });
+      return;
+    }
+    if (!currentUser?.id) return;
+    setIsCancelling(true);
+    try {
+      await cancelTicket({
+        ticketId: ticketId as any,
+        cancellationNote: cancelNote.trim(),
+        cancelledBy: currentUser.id,
+      });
+      addToast('Ticket cancelled. Your property manager has been notified.', { type: 'success' });
+      setCancellingTicketId(null);
+      setCancelNote('');
+    } catch (err: any) {
+      addToast(err.message || 'Failed to cancel ticket.', { type: 'error' });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Use tenantInfo to resolve property and unit IDs
   // This is the KEY FIX: we no longer use coreState (which is empty for portal users)
@@ -1379,11 +1408,12 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
       in_progress: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', label: 'In Progress' },
       resolved: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', label: 'Resolved' },
       closed: { bg: 'bg-slate-100 dark:bg-zinc-700', text: 'text-slate-600 dark:text-zinc-400', label: 'Closed' },
+      cancelled: { bg: 'bg-rose-50 dark:bg-rose-900/20', text: 'text-rose-600 dark:text-rose-400', label: 'Cancelled' },
     };
     const c = config[status] || config.open;
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
-        {status === 'resolved' || status === 'closed' ? <CheckIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
+        {status === 'resolved' || status === 'closed' ? <CheckIcon className="w-3 h-3" /> : status === 'cancelled' ? <XCircleIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
         {c.label}
       </span>
     );
@@ -1523,32 +1553,94 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
             const typeMeta = (requestTypes as any[] | undefined)?.find((rt: any) => rt.key === t.requestTypeKey);
             const iconChar = typeMeta?.icon || '🔧';
             const typeLabel = t.requestTypeLabel || (t.category ? t.category.charAt(0).toUpperCase() + t.category.slice(1) : 'Maintenance');
+            const canCancel = t.status === 'open' || t.status === 'in_progress';
+            const isCancellingThis = cancellingTicketId === String(t._id);
             return (
             <div
               key={t._id}
-              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-row items-start sm:items-center justify-between gap-3"
+              className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0 ${
-                  t.status === 'resolved' || t.status === 'closed'
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                    : t.status === 'in_progress'
-                    ? 'bg-blue-50 dark:bg-blue-900/20'
-                    : 'bg-amber-50 dark:bg-amber-900/20'
-                }`}>
-                  {iconChar}
+              <div className="p-4 flex flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0 ${
+                    t.status === 'resolved' || t.status === 'closed'
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                      : t.status === 'cancelled'
+                      ? 'bg-rose-50 dark:bg-rose-900/20'
+                      : t.status === 'in_progress'
+                      ? 'bg-blue-50 dark:bg-blue-900/20'
+                      : 'bg-amber-50 dark:bg-amber-900/20'
+                  }`}>
+                    {iconChar}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400">
+                      <span className="font-medium text-slate-600 dark:text-zinc-300">{typeLabel}</span>
+                      {' · '}
+                      {formatDate(t.createdAt)}
+                      {t.images?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.images.length}</span>}
+                    </p>
+                    {t.cancellationNote && (
+                      <p className="text-[11px] text-rose-500 dark:text-rose-400 mt-1 italic">
+                        Cancelled: {t.cancellationNote}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
-                  <p className="text-xs text-slate-500 dark:text-zinc-400">
-                    <span className="font-medium text-slate-600 dark:text-zinc-300">{typeLabel}</span>
-                    {' · '}
-                    {formatDate(t.createdAt)}
-                    {t.images?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.images.length}</span>}
-                  </p>
-                </div>
+                <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
               </div>
-              <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
+              {/* Cancel button for open/in_progress tickets */}
+              {canCancel && (
+                <div className="px-4 pb-3">
+                  <button
+                    onClick={() => {
+                      setCancellingTicketId(isCancellingThis ? null : String(t._id));
+                      setCancelNote('');
+                    }}
+                    className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    {isCancellingThis ? 'Hide' : 'Cancel Ticket'}
+                  </button>
+                </div>
+              )}
+              {/* Cancel confirmation panel */}
+              {canCancel && isCancellingThis && (
+                <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-zinc-700 space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">
+                    Reason for cancellation
+                  </label>
+                  <textarea
+                    value={cancelNote}
+                    onChange={e => setCancelNote(e.target.value)}
+                    placeholder="e.g., Issue was resolved another way, no longer needed..."
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-rose-500 focus:border-transparent resize-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setCancellingTicketId(null); setCancelNote(''); }}
+                      className="flex-1 px-3 py-2 text-xs font-bold text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-700 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                    >
+                      Keep Ticket
+                    </button>
+                    <button
+                      onClick={() => handleCancelTicket(String(t._id))}
+                      disabled={isCancelling || !cancelNote.trim()}
+                      className="flex-1 px-3 py-2 text-xs font-bold text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-1.5"
+                    >
+                      {isCancelling ? (
+                        <>
+                          <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Cancelling...
+                        </>
+                      ) : (
+                        'Confirm Cancel'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
             );
           })}

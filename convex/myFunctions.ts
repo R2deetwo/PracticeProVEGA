@@ -2276,6 +2276,71 @@ export const updateItem = mutation({
 
 
 /**
+ * markNotificationsAsRead — Marks one or more notifications as read by
+ * setting isRead=true on each. Accepts an array of notification IDs
+ * (which can be either Convex _id strings or legacy custom UUIDs).
+ *
+ * This is the mutation that powers the "Mark all read" button in the
+ * header notification panel. Without it, the button did nothing.
+ */
+export const markNotificationsAsRead = mutation({
+  args: { ids: v.array(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { firmId } = await requireFirmUser(ctx, args.userEmail);
+    const now = new Date().toISOString();
+    let updated = 0;
+
+    for (const id of args.ids) {
+      try {
+        // Try as Convex _id first
+        let doc: any = null;
+        try { doc = await ctx.db.get(id as any); } catch {}
+        if (doc && doc.firmId === firmId) {
+          await ctx.db.patch(id as any, { isRead: true, updatedAt: now } as any);
+          updated++;
+          continue;
+        }
+        // Fallback: search by custom id field (legacy UUID)
+        if (!doc) {
+          const legacy = await ctx.db
+            .query("notifications")
+            .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+            .filter((q: any) => q.eq(q.field("id"), id))
+            .first();
+          if (legacy) {
+            await ctx.db.patch(legacy._id, { isRead: true, updatedAt: now } as any);
+            updated++;
+          }
+        }
+      } catch (err) {
+        console.warn(`[markNotificationsAsRead] Failed for id ${id}:`, (err as any)?.message);
+      }
+    }
+    return { success: true, updated };
+  },
+});
+
+/**
+ * clearAllNotifications — Deletes ALL notifications for the current firm/user.
+ * Powers the "Clear all" button in the header notification panel.
+ */
+export const clearAllNotifications = mutation({
+  args: { userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { firmId, user } = await requireFirmUser(ctx, args.userEmail);
+    const all = await ctx.db
+      .query("notifications")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .collect();
+    for (const n of all) {
+      try { await ctx.db.delete(n._id); } catch {}
+    }
+    return { success: true, deleted: all.length };
+  },
+});
+
+/**
  * deleteItem (ROBUST VERSION)
  * Handles both Convex Internal IDs and Custom UUIDs (Legacy).
  * Strategy A → B → C cascade ensures deletion succeeds regardless of ID format.

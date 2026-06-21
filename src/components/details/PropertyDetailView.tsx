@@ -240,6 +240,27 @@ const PropertyDetailViewContent: React.FC = () => {
     const hasMultipleUnits = allUnits.length > 1 || ((property as any)?.units?.length > 0);
     const isDisputed = property?.category === 'Disputed Property';
 
+    // ── Maintenance tickets for this property ──────────────────────────
+    // Fetches all maintenance tickets linked to this property (or its
+    // parent property if viewing a unit). Used to show visual indicators
+    // on units that have open tickets, and to flag tickets that have been
+    // sitting in the same status for >24 hours (stale).
+    const parentPropertyId = (property as any)?.id || (property as any)?._id || propertyId || '';
+    const ticketsForProperty = useQuery(
+        api.portals.getMaintenanceTicketsByProperty,
+        parentPropertyId ? { propertyId: String(parentPropertyId) } : 'skip'
+    );
+    // Group tickets by unitId for quick lookup
+    const ticketsByUnit = React.useMemo(() => {
+        const map: Record<string, any[]> = {};
+        for (const t of (ticketsForProperty || [])) {
+            const key = String((t as any).unitId || t.unitId || '_property_level');
+            if (!map[key]) map[key] = [];
+            map[key].push(t);
+        }
+        return map;
+    }, [ticketsForProperty]);
+
     // STRICT LINKING LOGIC:
     // 1. Must match the unit-specific property ID in specialtyData.
     // 2. Matter must not be Archived.
@@ -1214,6 +1235,43 @@ const PropertyDetailViewContent: React.FC = () => {
 
                                                             {/* Statutory Timeline Milestone */}
                                                             {renderTermMilestone()}
+
+                                                            {/* ── Maintenance Ticket Indicator ──────────────────────────
+                                                                Shows a badge if this unit has open maintenance tickets.
+                                                                Turns amber/red if any ticket is stale (>24h in same status). */}
+                                                            {(() => {
+                                                                const unitTickets = ticketsByUnit[String(unit.id)] || [];
+                                                                const openTickets = unitTickets.filter((t: any) => t.status === 'open' || t.status === 'in_progress');
+                                                                if (openTickets.length === 0) return null;
+                                                                const hasStale = openTickets.some((t: any) => t.isStale);
+                                                                return (
+                                                                    <div
+                                                                        className={`flex items-center gap-1.5 mt-1 px-2 py-1 rounded-lg cursor-pointer ${
+                                                                            hasStale
+                                                                                ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40'
+                                                                                : 'bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30'
+                                                                        }`}
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            navigateTo('messaging' as any);
+                                                                        }}
+                                                                        title={hasStale
+                                                                            ? `${openTickets.length} open ticket(s) — one or more has been pending for >24 hours. Tap to view in Conversations.`
+                                                                            : `${openTickets.length} open ticket(s). Tap to view in Conversations.`
+                                                                        }
+                                                                    >
+                                                                        <Wrench className={`w-3 h-3 ${hasStale ? 'text-rose-500' : 'text-amber-500'}`} />
+                                                                        <span className={`text-[9px] font-black uppercase tracking-wide ${hasStale ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                                            {openTickets.length} Open Ticket{openTickets.length > 1 ? 's' : ''}
+                                                                        </span>
+                                                                        {hasStale && (
+                                                                            <span className="text-[9px] font-bold text-rose-500 dark:text-rose-400 ml-1">
+                                                                                ⚠ Stale
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
 
                                                             {/* Lease end — compact */}
                                                             {d.leaseEnd && (

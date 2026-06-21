@@ -224,6 +224,30 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, []);
 
     const handleDismissNotification = React.useCallback(async (id: string) => baseActions.deleteItem('notifications', id), [baseActions]);
+
+    // ── Notification mark-as-read ──────────────────────────────────────
+    // Calls the Convex mutation to set isRead=true on each notification.
+    // Without this, the "Mark all read" button did nothing — the handler
+    // was a stub. Now it actually clears the unread badges.
+    const markNotificationsMutation = useMutation(api.myFunctions.markNotificationsAsRead);
+    const clearAllNotificationsMutation = useMutation(api.myFunctions.clearAllNotifications);
+
+    const handleMarkNotificationsRead = React.useCallback(async (ids: string[]) => {
+        if (!ids || ids.length === 0) return;
+        try {
+            await markNotificationsMutation({ ids });
+        } catch (err: any) {
+            console.warn('[handleMarkNotificationsRead] Failed:', err?.message);
+        }
+    }, [markNotificationsMutation]);
+
+    const handleClearAllNotifications = React.useCallback(async () => {
+        try {
+            await clearAllNotificationsMutation({});
+        } catch (err: any) {
+            console.warn('[handleClearAllNotifications] Failed:', err?.message);
+        }
+    }, [clearAllNotificationsMutation]);
     
     const refreshData = React.useCallback(async () => {
         addToast("Refreshing workspace data...", { type: 'info' });
@@ -294,6 +318,8 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         ...researchHooks,
         ...commsHooks,
         handleDismissNotification,
+        handleMarkNotificationsRead,
+        handleClearAllNotifications,
         handlePurgeData,
         switchDemoProduct,
         refreshData,
@@ -332,8 +358,10 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         taskHooks, 
         researchHooks, 
         commsHooks, 
-        handleDismissNotification, 
-        handlePurgeData, 
+        handleDismissNotification,
+        handleMarkNotificationsRead,
+        handleClearAllNotifications,
+        handlePurgeData,
         switchDemoProduct,
         refreshData,
         forceSync,

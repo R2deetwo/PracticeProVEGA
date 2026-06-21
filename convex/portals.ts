@@ -257,6 +257,139 @@ export const updateMaintenanceTicketStatus = mutation({
   },
 });
 
+/**
+ * cancelMaintenanceTicket — Allows a portal user (tenant) to cancel their
+ * own maintenance ticket. Sets status to "cancelled" + stores the reason.
+ * Posts a portal_message to the linked conversation so the admin is notified.
+ */
+export const cancelMaintenanceTicket = mutation({
+  args: {
+    ticketId: v.id("maintenance_tickets"),
+    cancellationNote: v.string(),
+    cancelledBy: v.string(), // userId
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const ticket: any = await ctx.db.get(args.ticketId);
+    if (!ticket) throw new Error("Ticket not found");
+    // Only the ticket's original submitter can cancel it
+    if (ticket.tenantId && ticket.tenantId !== args.cancelledBy) {
+      throw new Error("Only the original submitter can cancel this ticket");
+    }
+    await ctx.db.patch(args.ticketId, {
+      status: "cancelled",
+      cancellationNote: args.cancellationNote,
+      cancelledAt: now,
+      updatedAt: now,
+    });
+
+    // Post a message to the linked conversation so the admin sees the cancellation
+    if (ticket.conversationId) {
+      try {
+        await ctx.db.insert("portal_messages", {
+          firmId: ticket.firmId,
+          conversationId: ticket.conversationId,
+          senderId: args.cancelledBy,
+          senderName: ticket.tenantName || "Resident",
+          senderRole: "Tenant",
+          subject: `Cancelled: ${ticket.subject}`,
+          content: `🔧 This maintenance ticket has been cancelled.\n\nReason: ${args.cancellationNote}`,
+          attachments: [],
+          attachmentNames: [],
+          propertyId: ticket.propertyId,
+          unitId: ticket.unitId,
+          status: "unread",
+          isRead: false,
+          linkedTicketId: String(args.ticketId),
+          requestTypeKey: ticket.requestTypeKey,
+          requestTypeLabel: ticket.requestTypeLabel || ticket.category,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const conv: any = await ctx.db.get(ticket.conversationId as any);
+        if (conv) {
+          await ctx.db.patch(conv._id, {
+            lastMessageAt: now,
+            lastMessagePreview: `🚫 Cancelled: ${ticket.subject}`.substring(0, 80),
+            lastMessageBy: "participant",
+            unreadByAdmin: (conv.unreadByAdmin || 0) + 1,
+            updatedAt: now,
+          });
+        }
+      } catch (err) {
+        console.warn("[cancelMaintenanceTicket] conversation message failed:", (err as any)?.message);
+      }
+    }
+
+    return { success: true };
+  },
+});
+
+/**
+ * cancelClientServiceRequest — Allows a portal user (client) to cancel their
+ * own service request. Sets status to "cancelled" + stores the reason.
+ * Posts a portal_message to the linked conversation so the admin is notified.
+ */
+export const cancelClientServiceRequest = mutation({
+  args: {
+    requestId: v.id("client_service_requests"),
+    cancellationNote: v.string(),
+    cancelledBy: v.string(), // userId
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const req: any = await ctx.db.get(args.requestId);
+    if (!req) throw new Error("Service request not found");
+    if (req.clientId && req.clientId !== args.cancelledBy) {
+      throw new Error("Only the original submitter can cancel this request");
+    }
+    await ctx.db.patch(args.requestId, {
+      status: "cancelled",
+      cancellationNote: args.cancellationNote,
+      cancelledAt: now,
+      updatedAt: now,
+    });
+
+    if (req.conversationId) {
+      try {
+        await ctx.db.insert("portal_messages", {
+          firmId: req.firmId,
+          conversationId: req.conversationId,
+          senderId: args.cancelledBy,
+          senderName: req.clientName || "Client",
+          senderRole: "Client",
+          subject: `Cancelled: ${req.subject}`,
+          content: `📋 This service request has been cancelled.\n\nReason: ${args.cancellationNote}`,
+          attachments: [],
+          attachmentNames: [],
+          matterId: req.matterId,
+          status: "unread",
+          isRead: false,
+          linkedRequestId: String(args.requestId),
+          requestTypeKey: req.requestTypeKey,
+          requestTypeLabel: req.requestTypeLabel,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const conv: any = await ctx.db.get(req.conversationId as any);
+        if (conv) {
+          await ctx.db.patch(conv._id, {
+            lastMessageAt: now,
+            lastMessagePreview: `🚫 Cancelled: ${req.subject}`.substring(0, 80),
+            lastMessageBy: "participant",
+            unreadByAdmin: (conv.unreadByAdmin || 0) + 1,
+            updatedAt: now,
+          });
+        }
+      } catch (err) {
+        console.warn("[cancelClientServiceRequest] conversation message failed:", (err as any)?.message);
+      }
+    }
+
+    return { success: true };
+  },
+});
+
 // ─── Service Request Types (admin-configurable catalog) ──────────────────
 // Each firm defines its own menu of request types shown in the portal
 // (e.g., "Plumbing", "Electrical", "Document Review", "Meeting Request").
@@ -723,6 +856,37 @@ export const getServiceRequestsByFirm = query({
       maintenanceTickets: tickets,
       clientServiceRequests: clientRequests,
     };
+  },
+});
+
+/**
+ * getMaintenanceTicketsByProperty — Returns all maintenance tickets for a
+ * specific property, including a `isStale` flag (true if the ticket has
+ * been in its current status for >24 hours without progressing).
+ *
+ * Used by the PropertyDetailView to show visual indicators on units that
+ * have open tickets, and to flag tickets that have been sitting too long.
+ */
+export const getMaintenanceTicketsByProperty = query({
+  args: { propertyId: v.string() },
+  handler: async (ctx, args) => {
+    const tickets = await ctx.db
+      .query("maintenance_tickets")
+      .withIndex("by_property", (q) => q.eq("propertyId", args.propertyId))
+      .order("desc")
+      .collect();
+
+    const now = Date.now();
+    const STALE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    return tickets.map((t: any) => ({
+      ...t,
+      // A ticket is "stale" if it's been in its current status for >24h
+      // AND it's not yet resolved/closed/cancelled.
+      isStale: (t.status === 'open' || t.status === 'in_progress') &&
+               (now - (t.updatedAt || t.createdAt || 0)) > STALE_THRESHOLD_MS,
+      ageMs: now - (t.createdAt || 0),
+    }));
   },
 });
 
