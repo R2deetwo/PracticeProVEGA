@@ -56,20 +56,22 @@ const StageBadge: React.FC<{ stage: string }> = ({ stage }) => {
     );
 };
 
-// ─── Summary Card ───────────────────────────────────────────────────────
+// ─── Summary Card (Premium) ────────────────────────────────────────────
+// Redesigned: borderless, soft shadow, tinted icon background, larger
+// rounding (rounded-2xl). Matches the premium portal aesthetic.
 const SummaryCard: React.FC<{
     icon: React.ReactNode;
     label: string;
     value: number | string;
     accent?: string;
-}> = ({ icon, label, value, accent = 'text-emerald-600 dark:text-emerald-400' }) => (
-    <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-50 dark:bg-emerald-900/20 ${accent}`}>
+}> = ({ icon, label, value, accent = 'text-brand-primary' }) => (
+    <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 bg-brand-primary/10 ${accent}`}>
             {icon}
         </div>
         <div>
             <p className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-zinc-400 mt-0.5">{label}</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 dark:text-zinc-500 mt-0.5 font-medium uppercase tracking-wide">{label}</p>
         </div>
     </div>
 );
@@ -430,123 +432,126 @@ const ClientDashboard: React.FC = () => {
         }
     };
 
-    // ── Render: Overview Tab ─────────────────────────────────────────────
+    // ── Render: Overview Tab (Premium Layout) ───────────────────────────
+    // Architecture: Hero Card → Quick Service Grid → Bottom Sheet with activity
     const renderOverview = () => (
-        <div className="space-y-6">
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <SummaryCard
-                    icon={<MattersIcon className="w-5 h-5" />}
-                    label="Active Matters"
-                    value={clientMattersResult === undefined ? '—' : activeMattersCount}
-                />
-                <SummaryCard
-                    icon={<DocumentIcon className="w-5 h-5" />}
-                    label="Pending Documents"
-                    value={clientDocs === undefined ? '—' : pendingDocsCount}
-                />
-                <SummaryCard
-                    icon={<Receipt className="w-5 h-5" />}
-                    label="Outstanding Invoices"
-                    value={clientInvoices === undefined ? '—' : outstandingInvoicesCount}
-                    accent={clientInvoices !== undefined && outstandingInvoicesCount > 0 ? 'text-amber-600 dark:text-amber-400' : undefined}
-                />
+        <div className="space-y-0">
+            {/* ─── Hero Card (full-width, brand-colored) ─────────────────── */}
+            <div className="bg-brand-primary text-white rounded-premium p-6 mx-0 sm:mx-4 shadow-premium">
+                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
+                    {isProperty ? 'Property Portal' : 'Legal Portal'}
+                </p>
+                <h2 className="text-2xl font-black tracking-tight mb-3">
+                    Welcome, {currentUser.name?.split(' ')[0] || 'Client'}
+                </h2>
+                <div className="flex items-center gap-6">
+                    <div>
+                        <p className="text-3xl font-black">{activeMattersCount}</p>
+                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">
+                            {isProperty ? 'Active Properties' : 'Active Matters'}
+                        </p>
+                    </div>
+                    <div className="w-px h-10 bg-white/20" />
+                    <div>
+                        <p className="text-3xl font-black">{pendingDocsCount}</p>
+                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">Pending Docs</p>
+                    </div>
+                    <div className="w-px h-10 bg-white/20" />
+                    <div>
+                        <p className={`text-3xl font-black ${outstandingInvoicesCount > 0 ? 'text-amber-200' : ''}`}>
+                            {outstandingInvoicesCount}
+                        </p>
+                        <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">Invoices Due</p>
+                    </div>
+                </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-700">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
-                </div>
-                <div className="divide-y divide-slate-100 dark:divide-zinc-700 max-h-96 overflow-y-auto">
-                    {clientActivity === undefined ? (
-                        <div className="px-6 py-8 text-center">
-                            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                            <p className="mt-2 text-sm text-slate-500">Loading activity...</p>
+            {/* ─── Quick Service Grid (3-col, tinted icons) ──────────────── */}
+            <div className="grid grid-cols-3 gap-3 px-0 sm:px-4 mt-6">
+                {[
+                    { icon: <ScalesIcon className="w-5 h-5" />, label: 'Matters', tab: 'matters' as PortalTab, count: clientMatters.length },
+                    { icon: <LargeFolderIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as PortalTab, count: sharedDocsCount },
+                    { icon: <ChatAltIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as PortalTab, count: unreadMessagesCount },
+                ].map(service => (
+                    <button
+                        key={service.label}
+                        onClick={() => handleTabChange(service.tab)}
+                        className="flex flex-col items-center group active:scale-95 transition-transform"
+                    >
+                        <div className="w-14 h-14 bg-brand-primary/10 rounded-icon flex items-center justify-center text-brand-primary relative">
+                            {service.icon}
+                            {service.count > 0 && (
+                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                                    {service.count > 9 ? '9+' : service.count}
+                                </span>
+                            )}
                         </div>
-                    ) : clientActivity.length === 0 ? (
-                        <EmptyState
-                            icon={<ClockIcon className="w-6 h-6" />}
-                            title="No Recent Activity"
-                            description="Activity related to your matters will appear here."
-                        />
-                    ) : (
-                        clientActivity.slice(0, 5).map((activity: any) => (
-                            <div key={String(activity._id)} className="px-6 py-3 flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                        <span className="mt-2 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
+                            {service.label}
+                        </span>
+                    </button>
+                ))}
+            </div>
+
+            {/* ─── Bottom Sheet (Recent Activity) ────────────────────────── */}
+            <div className="bg-white dark:bg-zinc-800 rounded-t-[32px] mt-8 p-6 min-h-[40vh] shadow-premium">
+                <div className="w-10 h-1 bg-slate-200 dark:bg-zinc-600 rounded-full mx-auto mb-6" />
+
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+                    <button
+                        onClick={() => openModal('newLead', null, { name: currentUser.name, email: currentUser.email, isClientRequest: true })}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
+                    >
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        Request Service
+                    </button>
+                </div>
+
+                {clientActivity === undefined ? (
+                    <div className="space-y-3">
+                        {[1, 2, 3].map(i => (
+                            <div key={i} className="flex items-start gap-3 animate-pulse">
+                                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-zinc-700" />
+                                <div className="flex-1 space-y-2">
+                                    <div className="h-3 bg-slate-100 dark:bg-zinc-700 rounded w-3/4" />
+                                    <div className="h-2 bg-slate-100 dark:bg-zinc-700 rounded w-1/3" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : clientActivity.length === 0 ? (
+                    <div className="text-center py-8">
+                        <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
+                            <ClockIcon className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm text-slate-400 dark:text-zinc-500">No recent activity yet</p>
+                    </div>
+                ) : (
+                    <div className="space-y-1">
+                        {clientActivity.slice(0, 8).map((activity: any) => (
+                            <div key={String(activity._id)} className="flex items-start gap-3 py-2.5">
+                                <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span className="text-[10px] font-bold text-brand-primary">
                                         {getInitials(activity.userName)}
                                     </span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-slate-800 dark:text-zinc-200">
+                                    <p className="text-sm text-slate-800 dark:text-zinc-200 leading-snug">
                                         <span className="font-semibold">{activity.userName}</span>{' '}
                                         {activity.action}
                                         {activity.targetName && (
-                                            <> &middot; <span className="text-emerald-600 dark:text-emerald-400">{activity.targetName}</span></>
+                                            <> &middot; <span className="text-brand-primary">{activity.targetName}</span></>
                                         )}
                                     </p>
-                                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">
+                                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
                                         {activity.timestamp ? timeAgo(activity.timestamp) : ''}
                                     </p>
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
-            </div>
-
-            {/* Quick Links */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <button
-                    onClick={() => handleTabChange('matters')}
-                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <ScalesIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200">View Matters</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
+                        ))}
                     </div>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2">
-                        {clientMatters.length} matter{clientMatters.length !== 1 ? 's' : ''} in your portfolio
-                    </p>
-                </button>
-
-                <button
-                    onClick={() => handleTabChange('documents')}
-                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <LargeFolderIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200">Documents</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                    </div>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2">
-                        {sharedDocsCount} document{sharedDocsCount !== 1 ? 's' : ''} shared with you
-                    </p>
-                </button>
-
-                <button
-                    onClick={() => handleTabChange('messages')}
-                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 text-left hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <ChatAltIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                            <span className="font-semibold text-slate-800 dark:text-zinc-200">Messages</span>
-                        </div>
-                        <ChevronRightIcon className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                    </div>
-                    <p className="text-sm text-slate-500 dark:text-zinc-400 mt-2">
-                        {unreadMessagesCount > 0
-                            ? `${unreadMessagesCount} unread message${unreadMessagesCount !== 1 ? 's' : ''}`
-                            : 'No unread messages'}
-                    </p>
-                </button>
+                )}
             </div>
         </div>
     );
@@ -595,7 +600,7 @@ const ClientDashboard: React.FC = () => {
                         <div
                             key={matter.id}
                             onClick={() => navigateTo('matterDetail', matter.id)}
-                            className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5 cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all group"
+                            className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-5 cursor-pointer hover:shadow-premium transition-all transition-all group"
                         >
                             {/* Header */}
                             <div className="flex items-start justify-between gap-4">
@@ -794,7 +799,7 @@ const ClientDashboard: React.FC = () => {
                             {consents.map((consent: any) => (
                                 <div
                                     key={String(consent._id)}
-                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                                    className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                                 >
                                     <div className="flex items-center gap-3 min-w-0">
                                         <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center flex-shrink-0">
@@ -865,7 +870,7 @@ const ClientDashboard: React.FC = () => {
                             {docs.map((doc: any) => (
                                 <div
                                     key={String(doc._id)}
-                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
+                                    className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
                                 >
                                     <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                                         <div className="w-10 h-10 rounded-lg bg-slate-50 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
@@ -1047,7 +1052,7 @@ const ClientDashboard: React.FC = () => {
                             return (
                                 <div
                                     key={String(msg._id)}
-                                    className={`bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 ${
+                                    className={`bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 ${
                                         !msg.isRead && !isCurrentUser ? 'border-l-4 border-l-emerald-400' : ''
                                     }`}
                                 >
@@ -1101,7 +1106,7 @@ const ClientDashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-full">
+        <div className="min-h-[100dvh] bg-brand-surface dark:bg-zinc-950 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* Impersonation Banner — shown when admin is viewing as this client.
                 Uses isImpersonating (synchronous) rather than originalUser (async query)
                 so the banner — and the "Return to Admin" button — is always visible
@@ -1124,7 +1129,7 @@ const ClientDashboard: React.FC = () => {
                 </div>
             )}
             {/* Header — sticky on mobile so sign-out is always accessible */}
-            <div className="mb-6 sticky top-0 z-20 bg-white dark:bg-zinc-900 py-2 sm:py-0">
+            <div className="mb-4 sticky top-0 z-20 bg-brand-surface/90 dark:bg-zinc-950/90 backdrop-blur-md py-3 sm:py-4 px-1">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
                     <div className="min-w-0">
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white truncate">
@@ -1165,7 +1170,7 @@ const ClientDashboard: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="mb-6 border-b border-slate-200 dark:border-zinc-700 overflow-x-auto">
+            <div className="mb-6 overflow-x-auto no-scrollbar">
                 <nav className="-mb-px flex space-x-0 sm:space-x-1 md:space-x-4">
                     <TabButton
                         label="Overview"
