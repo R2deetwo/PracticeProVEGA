@@ -2238,6 +2238,51 @@ export const selfHealClientContactLink = mutation({
 });
 
 /**
+ * registerForPushNotifications — Called from the mobile app when the user
+ * grants notification permission. Sets pushNotificationEnabled=true on the
+ * user record so the backend knows to send push (and skip email) for this
+ * user. This is the "smart delivery" switch: push OR email, not both.
+ */
+export const registerForPushNotifications = mutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    try {
+      await ctx.db.patch(args.userId as any, {
+        pushNotificationEnabled: true,
+        pushNotificationRegisteredAt: now,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      return { success: true };
+    } catch (err: any) {
+      console.warn("[registerForPushNotifications] Failed:", err?.message);
+      return { success: false, error: err?.message };
+    }
+  },
+});
+
+/**
+ * unregisterFromPushNotifications — Called when the user revokes
+ * notification permission or uninstalls the app. Clears the flag so
+ * the backend falls back to email delivery.
+ */
+export const unregisterFromPushNotifications = mutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      await ctx.db.patch(args.userId as any, {
+        pushNotificationEnabled: false,
+        pushNotificationRegisteredAt: undefined,
+        updatedAt: new Date().toISOString(),
+      } as any);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err?.message };
+    }
+  },
+});
+
+/**
  * repairPortalUserFirmId — Repairs a portal user whose firmId is missing.
  * Called from the frontend when the portal detects it can't resolve a firmId.
  * Looks up the firm via invite records and user record, then patches the user.
@@ -4742,15 +4787,21 @@ async function notifyFirmAdmins(
     }
   }
 
-  // 3. Schedule an email notification to each admin (if enabled for this type)
-  //    We check the firm's notification_preferences to see if this type is on.
-  //    The email scheduler runs asynchronously — we don't await it.
+  // 3. Schedule an email notification — BUT only if the primary admin hasn't
+  //    registered for push notifications. Smart delivery: push OR email, not both.
+  //    If the admin has the mobile app installed with notifications enabled, they'll
+  //    get a push notification instead (the frontend polls for new notifications and
+  //    triggers a local notification). No need to spam their inbox too.
   try {
     const emailEnabled = await isEmailNotificationEnabled(ctx, args.firmId, args.type);
     if (emailEnabled) {
       // Find the firm's primary admin email (first Admin user)
       const primaryAdmin = admins.find((u: any) => u.role === "Admin") || admins[0];
-      if (primaryAdmin?.email) {
+      // SMART DELIVERY: skip email if the admin has push notifications enabled.
+      // The frontend will detect the new in-app notification (created in step 2)
+      // and show a local notification on their phone.
+      const hasPushEnabled = primaryAdmin && (primaryAdmin as any).pushNotificationEnabled === true;
+      if (primaryAdmin?.email && !hasPushEnabled) {
         ctx.scheduler.runAfter(0, internal.portals.sendAdminNotificationEmail, {
           firmId: args.firmId,
           toEmail: primaryAdmin.email,

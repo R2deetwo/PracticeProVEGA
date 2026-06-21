@@ -9,6 +9,8 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useConvex } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
 import { OfficeBuildingIcon, Logo } from '../constants';
@@ -500,6 +502,7 @@ export const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout } = useAuth();
+    const convex = useConvex();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo } = useUI();
     const { light } = useHapticFeedback();
     const { matterState } = useMatterState();
@@ -668,6 +671,35 @@ export const App: React.FC = () => {
             return () => clearTimeout(t);
         }
     }, [isLoadingSession, hasSavedSession]);
+
+    // ── Push Notification Registration ──────────────────────────────────
+    // When the user is authenticated AND on a native platform (Android APK),
+    // request notification permission and register for push notifications.
+    // This sets pushNotificationEnabled=true on the user record so the
+    // backend sends push (and skips email) for this user — smart delivery.
+    useEffect(() => {
+        if (!currentUser?.id || isLoadingSession) return;
+        if (!isNativePlatform()) return; // only on native app
+        // Only register once per session — avoid repeated permission prompts
+        if (sessionStorage.getItem('practicepro_push_registered_this_session')) return;
+
+        import('../utils/notifications').then(async ({ registerForNotifications }) => {
+            const registered = await registerForNotifications();
+            if (registered) {
+                sessionStorage.setItem('practicepro_push_registered_this_session', '1');
+                // Tell the backend this user has push enabled (smart delivery)
+                try {
+                    await convex.mutation(api.portals.registerForPushNotifications, {
+                        userId: currentUser.id,
+                    });
+                    console.log('[App] Push notifications registered for user', currentUser.id);
+                } catch (err) {
+                    console.warn('[App] Push registration backend call failed:', err);
+                }
+            }
+        }).catch(() => {/* non-blocking */});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id, isLoadingSession, convex]);
 
     // TASK 16: Update document title + URL query param to show which product
     // the user is in. This gives clear architecture — looking at the browser

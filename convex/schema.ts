@@ -86,6 +86,13 @@ export default defineSchema({
     // (e.g. /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac)
     // NOT used for authentication — just for routing/identification/bookmarkability.
     portalAccessToken: nullableString,
+    // ─── Push Notification Registration ───────────────────────────────
+    // When true, the user has the mobile app installed AND has granted
+    // notification permission. The backend uses this to decide whether
+    // to send a push notification (and skip the email) or send an email
+    // (and skip the push). Smart delivery: push OR email, not both.
+    pushNotificationEnabled: nullableBoolean,
+    pushNotificationRegisteredAt: nullableNumber,
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,

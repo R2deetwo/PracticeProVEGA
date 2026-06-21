@@ -481,6 +481,19 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link'] }) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, type: options?.type || 'info', link: options?.link }]);
+        // Haptic feedback matching the toast type — gives the user a
+        // physical confirmation that something happened. Success = happy
+        // rising taps, error = strong buzz, warning = cautionary pattern.
+        try {
+            const type = options?.type || 'info';
+            if (type === 'success') {
+                import('../utils/haptics').then(m => m.haptics.success());
+            } else if (type === 'error') {
+                import('../utils/haptics').then(m => m.haptics.error());
+            } else if (type === 'warning' || type === 'info') {
+                import('../utils/haptics').then(m => m.haptics.light());
+            }
+        } catch {}
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
         }, 5000);

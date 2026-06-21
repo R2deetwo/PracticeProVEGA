@@ -187,6 +187,9 @@ const ClientDashboard: React.FC = () => {
     const handleTabChange = (tab: PortalTab) => {
         setActiveTab(tab);
         window.location.hash = tab;
+        // Haptic feedback on tab change — light tap so the user feels
+        // the navigation without being annoying.
+        try { import('../../utils/haptics').then(m => m.haptics.light()); } catch {}
     };
     const [docFilter, setDocFilter] = useState<string>('all');
     // Terms & Consents collapse state — portal user can hide the T&C section

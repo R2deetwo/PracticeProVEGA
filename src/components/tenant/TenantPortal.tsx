@@ -140,6 +140,8 @@ const TenantPortal: React.FC = () => {
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab);
     window.location.hash = tab;
+    // Haptic feedback on tab change
+    try { import('../../utils/haptics').then(m => m.haptics.light()); } catch {}
   };
 
   // Resolve tenant info once at the top level — all sub-tabs can use it

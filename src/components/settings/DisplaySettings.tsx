@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Theme, FontSize, User } from '../../types';
 import { SunIcon, MoonIcon, FontSizeIcon, DesktopComputerIcon, ZapIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { haptics } from '../../utils/haptics';
+import { notificationManager } from '../../utils/notifications';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md p-6 ${className || ''}`}>
@@ -49,6 +51,8 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
     const { fontSize, setFontSize } = useUI();
     const { currentUser, updateCurrentUser } = useAuth();
     const { updateItem } = useDataActions();
+    // Re-render trigger for haptics/sound toggles (they read from localStorage)
+    const [hapticsToggle, setHapticsToggle] = useState(0);
 
     const handleToggleFlashes = () => {
         if (!currentUser) return;
@@ -134,6 +138,40 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                             />
                         </div>
                     </div>
+                </div>
+            </SettingsCard>
+
+            {/* ─── Haptics & Sounds ────────────────────────────────────────
+                Mobile-only settings for haptic feedback (vibration on button
+                taps) and notification sounds. These are no-ops on web. */}
+            <SettingsCard title="Haptics & Sounds" className={className}>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+                    Customise physical feedback and sounds on your mobile device.
+                    These settings only apply when using the PracticePro mobile app.
+                </p>
+                <div className="space-y-4">
+                    <Toggle
+                        label="Haptic Feedback"
+                        description="Vibrate lightly when you tap buttons, change tabs, or submit forms. Helps the app feel responsive."
+                        isChecked={haptics.isEnabled()}
+                        onToggle={() => {
+                            const newVal = !haptics.isEnabled();
+                            haptics.setEnabled(newVal);
+                            if (newVal) haptics.light(); // test tap
+                            // Force re-render
+                            setHapticsToggle(v => v + 1);
+                        }}
+                    />
+                    <Toggle
+                        label="Notification Sounds"
+                        description="Play a sound when you receive a new notification. Disable for silent operation."
+                        isChecked={notificationManager.isSoundEnabled()}
+                        onToggle={() => {
+                            const newVal = !notificationManager.isSoundEnabled();
+                            notificationManager.setSoundEnabled(newVal);
+                            setHapticsToggle(v => v + 1);
+                        }}
+                    />
                 </div>
             </SettingsCard>
         </>

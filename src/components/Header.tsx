@@ -115,6 +115,7 @@ const Header: React.FC = React.memo(() => {
             if (!seenIdsRef.current.has(n.id)) {
                 seenIdsRef.current.add(n.id);
                 if (!n.isRead) {
+                    // In-app toast (always shown)
                     addToast(n.message, {
                         type: n.type === 'success' ? 'success' : 'info',
                         link: n.link ? {
@@ -122,6 +123,18 @@ const Header: React.FC = React.memo(() => {
                             onClick: () => navigateTo(n.link?.view as any, n.link?.id, n.link?.context)
                         } : undefined
                     });
+                    // Native push notification (mobile only) — shows in the
+                    // phone's notification shade if the app is backgrounded.
+                    // Also triggers haptic feedback + sound via the notification manager.
+                    try {
+                        import('../utils/notifications').then(({ showLocalNotification }) => {
+                            showLocalNotification({
+                                title: n.title || 'PracticePro',
+                                body: n.message || 'You have a new notification',
+                                extraData: n.link,
+                            });
+                        });
+                    } catch {}
                 }
             }
         });
