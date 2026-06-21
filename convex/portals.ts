@@ -502,7 +502,7 @@ export const resendPortalInvite = action({
     const channel = existing.channel || "email";
 
     let emailResult: any = { success: true, simulated: true };
-    if (channel === "email" || channel === "both") {
+    if ((channel === "email" || channel === "both") && existing.inviteeEmail) {
       try {
       const htmlBody = `<!DOCTYPE html>
 <html lang="en" style="margin:0;padding:0;">
@@ -593,12 +593,18 @@ export const resendPortalInvite = action({
       }
     }
 
+    // Determine what was actually sent vs skipped
+    const emailSkipped = !existing.inviteeEmail && (channel === "email" || channel === "both");
+    const waSkipped = !existing.inviteePhone && (channel === "whatsapp" || channel === "both");
+
     return {
       token: newToken,
-      emailSent: emailResult.success && !emailResult.simulated,
+      emailSent: emailResult.success && !emailResult.simulated && !emailSkipped,
       emailSimulated: emailResult.simulated || false,
-      whatsappSent: waResult.success && !waResult.simulated,
+      emailSkipped,
+      whatsappSent: waResult.success && !waResult.simulated && !waSkipped,
       whatsappSimulated: waResult.simulated || false,
+      whatsappSkipped: waSkipped,
     };
   },
 });

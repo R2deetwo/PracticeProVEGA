@@ -305,7 +305,7 @@ const HubHero: React.FC<{
     useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
 
     return (
-        <section className={`relative overflow-hidden min-h-screen flex flex-col transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-gradient-to-b from-slate-50 to-white'}`}>
+        <section className={`relative overflow-hidden min-h-[100dvh] flex flex-col transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-gradient-to-b from-slate-50 to-white'}`}>
             {/* Ambient mesh */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
                 <div className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-400/8'}`} />
@@ -716,7 +716,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     });
 
     return (
-    <section id="pricing" className="bg-white dark:bg-slate-950 min-h-screen pt-24 pb-24 px-6 transition-colors duration-500">
+    <section id="pricing" className="bg-white dark:bg-slate-950 min-h-[100dvh] pt-24 pb-24 px-6 transition-colors duration-500">
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <div className="text-center mb-16">
@@ -1025,7 +1025,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     return (
         <div
             ref={scrollRef}
-            className="h-screen w-full overflow-y-auto bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-500 scroll-smooth"
+            className="h-[100dvh] w-full overflow-y-auto bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-500 scroll-smooth"
             style={{ scrollbarGutter: 'stable' }}
         >
             <NavBar

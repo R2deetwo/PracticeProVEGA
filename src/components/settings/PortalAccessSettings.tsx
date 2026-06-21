@@ -26,6 +26,7 @@ import { usePropertyGroups, PropertyGroup } from '../../hooks/usePropertyGroups'
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
+import { translateError } from '../../utils/errorTranslator';
 import {
   ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
@@ -970,11 +971,18 @@ export const PortalAccessSettings: React.FC = () => {
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
       else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
+      else if ((result as any).emailSkipped) parts.push('email skipped (no email address on file)');
       if (result.whatsappSent) parts.push('WhatsApp delivered');
       else if (result.whatsappSimulated) parts.push('WhatsApp simulated');
-      addToast(`Invitation resent — ${parts.join(', ') || 'refreshed'}`, { type: 'success' });
+      else if ((result as any).whatsappSkipped) parts.push('WhatsApp skipped (no phone number on file)');
+
+      if (parts.length === 0) {
+        addToast('Invitation link refreshed, but no contact info found. Add an email or phone number to the contact and try again.', { type: 'warning', duration: 6000 });
+      } else {
+        addToast(`Invitation resent — ${parts.join(', ')}.`, { type: 'success' });
+      }
     } catch (err: any) {
-      addToast(err.message || 'Failed to resend invitation.', { type: 'error' });
+      addToast(translateError(err, 'resend invitation'), { type: 'error' });
     } finally {
       setResendingId(null);
     }

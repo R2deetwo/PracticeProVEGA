@@ -230,7 +230,7 @@ const TenantPortalLogin: React.FC = () => {
     const pwStrength = getPasswordStrength(newPassword);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
+        <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
             {/* Ambient glow */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
 

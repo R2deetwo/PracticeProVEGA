@@ -781,6 +781,22 @@ html.font-size-lg .line-clamp-2 {
   }
 }
 
+/* ─── Safari iOS viewport fix ────────────────────────────────────────────
+ * Safari on iOS has a well-known bug where 100vh includes the address bar,
+ * making pages too tall and clipping content at the bottom. The fix is to
+ * use 100dvh (dynamic viewport height) which adjusts as the toolbar
+ * shows/hides. We also set -webkit-fill-available as a fallback for
+ * older Safari versions that don't support dvh.
+ */
+@supports (-webkit-touch-callout: none) {
+  .min-h-\[100dvh\] {
+    min-height: -webkit-fill-available;
+  }
+  .h-\[100dvh\] {
+    height: -webkit-fill-available;
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * PHASE 1: MOBILE SHELL — Safe Areas, Touch Targets, Active States
  * ═══════════════════════════════════════════════════════════════════════════

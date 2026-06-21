@@ -231,7 +231,7 @@ const SetupPassword: React.FC = () => {
         const msg = messages[invalidReason] || messages.not_found;
 
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
+            <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] bg-rose-500/10 pointer-events-none" />
                 <div className="relative z-10 flex-shrink-0">
                     <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
@@ -274,7 +274,7 @@ const SetupPassword: React.FC = () => {
     // ─── Loading screen ───────────────────────────────────────────────────
     if (step === 'loading') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
+            <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex items-center justify-center">
                 <div className="text-center">
                     <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
                     <p className="text-sm text-slate-400">Verifying your invitation…</p>
@@ -286,7 +286,7 @@ const SetupPassword: React.FC = () => {
     // ─── Success screen ───────────────────────────────────────────────────
     if (step === 'success') {
         return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto">
+            <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] bg-emerald-500/10 pointer-events-none" />
                 <div className="relative z-10 flex-shrink-0">
                     <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
@@ -331,8 +331,16 @@ const SetupPassword: React.FC = () => {
     }
 
     // ─── Main form ────────────────────────────────────────────────────────
+    // CRITICAL: On Safari iOS, min-h-screen + flex-col WITHOUT overflow-y-auto
+    // causes the page to be clipped — the user can't scroll to see the password
+    // fields at the bottom. Added overflow-y-auto and -webkit-overflow-scrolling
+    // for smooth scrolling on iOS. Also changed from min-h-screen to min-h-[100dvh]
+    // which accounts for Safari's dynamic toolbar (100vh is too tall on iOS).
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden">
+        <div
+            className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+        >
             {/* Ambient glow */}
             <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] ${glowClass} pointer-events-none`} />
 
