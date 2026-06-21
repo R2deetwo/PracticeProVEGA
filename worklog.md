@@ -1638,3 +1638,49 @@ Stage Summary:
   useConfirm hook from Task 10 for confirmations).
 - Frontend-only — Vercel auto-deploys.
 - Ready for commit and push to main.
+
+---
+Task ID: portal-service-request-wiring
+Agent: main (Super Z)
+Task: Deep-dive audit and fix of portal-to-app wiring. User reported that maintenance/service requests submitted from the portal said "received" but never appeared anywhere in the practitioner app — no notifications, no messages, no ticket list. Also requested admin-configurable request types and a unified resident conversations view.
+
+Work Log:
+- Audited the existing data flow: maintenance_tickets were inserted into DB but the practitioner side had NO query/view to surface them. Portal conversations existed separately but tickets were never linked to them.
+- Schema changes (convex/schema.ts):
+  - Added `service_request_types` table (admin-configurable catalog per firm per portal)
+  - Added `client_service_requests` table (Vega equivalent of maintenance_tickets)
+  - Added `linkedTicketId`, `linkedRequestId`, `requestTypeKey`, `requestTypeLabel` to `portal_messages`
+  - Added `conversationId`, `requestTypeKey`, `requestTypeLabel` to `maintenance_tickets`
+  - Added indexes for bi-directional lookup (by_linked_ticket, by_linked_request, by_conversation)
+- Backend mutations (convex/portals.ts):
+  - Modified `createMaintenanceTicket` to ALSO create a portal_message in the resident's conversation thread (THE critical fix — surfaces ticket in practitioner inbox)
+  - Modified `updateMaintenanceTicketStatus` to post a reply message to the conversation when admin resolves
+  - Added `getServiceRequestTypes` query (returns active types, with sensible defaults if firm hasn't configured any)
+  - Added `getAllServiceRequestTypes` query (includes inactive — for admin UI)
+  - Added `seedDefaultServiceRequestTypes` mutation (one-time bulk seed)
+  - Added `createServiceRequestType`, `updateServiceRequestType`, `deleteServiceRequestType`
+  - Added `createClientServiceRequest` mutation (mirrors maintenance ticket flow for legal portal)
+  - Added `getClientServiceRequestsByClient`, `getClientServiceRequestsByFirm`
+  - Added `updateClientServiceRequestStatus` (posts reply to conversation on resolve)
+  - Added `getServiceRequestsByFirm` unified query
+  - Added `respondToServiceRequest` unified admin response mutation
+- Frontend changes:
+  - TenantPortal MaintenanceTab: replaced hardcoded 4-option select with visual 2-col grid driven by admin-configured types (with icons, descriptions). Updated ticket cards to show the type label + icon.
+  - ClientDashboard: added new "Requests" tab with type grid + submission form + request history. The "Request Service" button in the header now jumps to this tab instead of opening a generic lead-capture modal.
+  - MessagesView: ticket/request messages now show a 🔧/📋 badge in the conversation list preview and in the message header so practitioners can immediately see the context.
+  - PortalAccessSettings: new ServiceRequestTypesConfig section lets the admin add/edit/disable/delete custom request types per portal, with a "Seed & Edit" CTA for first-time setup.
+- Created new file: src/components/settings/ServiceRequestTypesConfig.tsx (self-contained admin UI)
+- Default catalogs:
+  - Resident: plumbing, electrical, structural, hvac, appliance, pest_control, cleaning, security, access, billing_query, other
+  - Client: doc_review, meeting, case_update, billing_inquiry, new_instruction, document_request, complaint, other
+- TypeScript: clean (no new errors)
+- Vite production build: succeeds
+- Convex dev compile: succeeds (schema validated, all functions ready)
+- Committed (414403e) and pushed to main. GitHub Actions auto-deploys Convex + builds APK.
+
+Stage Summary:
+- Root cause fixed: service requests now create a portal_message in the resident/client's conversation thread, which surfaces in the practitioner's unified inbox with a distinctive badge. Nothing falls through cracks.
+- Admin can configure custom request types per portal (Settings → Portal Access → Service Request Types section).
+- Both portals (resident maintenance + client service requests) now follow the same pattern.
+- Practitioner can reply to a ticket by responding in the conversation; status updates with a resolution auto-post a reply message back to the portal user.
+- Next steps: monitor GitHub Actions deploy. Once Convex is live, test end-to-end: portal user submits a request → practitioner sees it in inbox → practitioner replies → portal user sees the reply.
