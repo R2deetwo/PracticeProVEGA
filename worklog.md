@@ -1930,3 +1930,18 @@ Stage Summary:
 - Admin can reply with free text OR quick-reply chips
 - Status changes auto-notify the portal user
 - Conversations can be filtered by type, role, and search
+
+---
+Task ID: cancel-crash-compose-clients-billing-fonts-theme
+Agent: main (Super Z)
+Task: User reported: cancel request crashes with "something went wrong", compose only sends to tenants not clients, billing shows all same price, font size inconsistency (medium smaller than small), long-press theme toggle should go to appearance tab, portal users listed as admin, settings reorganization needed, link tickets to tasks, scalable portal access list.
+
+Work Log:
+- FIXED CANCEL CRASH: root cause was XIcon used in getRequestStatusBadge for 'cancelled' status but NOT imported. React tried to render <XIcon> (undefined) → ErrorBoundary → "something went wrong". Added XIcon to imports.
+- FIXED COMPOSE: ComposeModal now includes client contacts as recipients (not just residents). Any contact with email/phone appears in the recipient list.
+- FIXED BILLING: for Komplete (unified) firms, all three tier cards showed the same price. Now shows a single Komplete card instead of three identical ones.
+- FIXED FONT SIZE: font-size-md had no explicit CSS rules, so !important overrides from font-size-sm could persist. Added explicit 'font-size: inherit !important' for font-size-md.
+- FIXED THEME LONG-PRESS: added id='theme-preference' to the theme section, and ProfileSettings now accepts initialSubTab prop so long-press auto-switches to the Appearance sub-tab.
+- Noted for next pass: portal users listed as admin, settings reorganization, link tickets to tasks, scalable portal access list.
+- TypeScript: clean. Vite build: succeeds.
+- Committed (f63abbc) and pushed. CI auto-deploys.
