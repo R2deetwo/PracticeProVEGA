@@ -164,6 +164,7 @@ const InviteForm: React.FC<{
   onCancel: () => void;
 }> = ({ firmId, inviterId, portalType, onSent, onCancel }) => {
   const { addToast } = useUI();
+  const convex = useConvex();
   const sendInvite = useAction(api.portals.createPortalInvite);
   const { coreState } = useCoreState();
   const { matterState } = useMatterState();
@@ -239,6 +240,33 @@ const InviteForm: React.FC<{
       addToast('Please enter a phone number for WhatsApp delivery', { type: 'error' });
       return;
     }
+
+    // ─── SECURITY FIREWALL: Pre-flight email conflict check ────────────
+    // Before creating any invitation, check if the email is already
+    // registered as an internal staff member (Admin/Lawyer/Paralegal).
+    // If so, BLOCK the invitation entirely — this prevents cross-portal
+    // session contamination where a portal link could grant admin access.
+    if (email.trim()) {
+      try {
+        const conflictCheck = await convex.query(api.portalSecurity.checkEmailForPortalConflict, {
+          email: email.trim().toLowerCase(),
+          firmId,
+        });
+        if (conflictCheck.hasConflict) {
+          addToast(
+            `Security: This email is already registered as ${conflictCheck.role === 'Admin' ? 'an administrator' : 'a ' + conflictCheck.role.toLowerCase()} account (${conflictCheck.name}). Portal access cannot be granted to internal staff. Please use a different email address.`,
+            { type: 'error', duration: 8000 }
+          );
+          setIsSending(false);
+          return;
+        }
+      } catch (e) {
+        // If the check fails, proceed — the backend setupPortalPassword
+        // has its own defense-in-depth check that will catch it.
+        console.warn('[PortalAccess] Pre-flight email check failed:', e);
+      }
+    }
+
     setIsSending(true);
     try {
       // Add a timeout wrapper to prevent infinite spinning if the action hangs

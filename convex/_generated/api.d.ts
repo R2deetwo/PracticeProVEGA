@@ -30,6 +30,7 @@ import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as migrations from "../migrations.js";
 import type * as myFunctions from "../myFunctions.js";
 import type * as portals from "../portals.js";
+import type * as portalSecurity from "../portalSecurity.js";
 import type * as proactive from "../proactive.js";
 import type * as productPermissions from "../productPermissions.js";
 import type * as retainerBilling from "../retainerBilling.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   myFunctions: typeof myFunctions;
   portals: typeof portals;
+  portalSecurity: typeof portalSecurity;
   proactive: typeof proactive;
   productPermissions: typeof productPermissions;
   retainerBilling: typeof retainerBilling;
