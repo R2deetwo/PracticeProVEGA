@@ -1861,3 +1861,26 @@ Stage Summary:
 - Smart delivery: if admin has push enabled, email is skipped — no double notification
 - Sounds: default enabled, user can toggle in Settings → Display → Haptics & Sounds
 - True FCM push (when app fully closed) requires Firebase setup — current implementation covers the 90% case (app open or backgrounded) and is FCM-ready for future
+
+---
+Task ID: ticket-fix-tabs-removed-functional-financials
+Agent: main (Super Z)
+Task: User reported: (1) clicking a ticket in All Conversations crashes with "something went wrong", (2) WhatsApp & Email tab should be removed and merged into All Conversations, (3) T&C should be collapsed by default, (4) remove Ingest button from Matters, (5) Financials should be functional (payments, receipts, settle invoices), (6) replace tabs with box-based navigation, (7) unify Matters/Properties styling.
+
+Work Log:
+- FIXED CRITICAL BUG: Ticket viewing crash. Root cause: code used convex.query(tableName, id) which doesn't exist on ConvexReactClient. The first arg must be an API function reference, not a string. Added getTicketById and getServiceRequestById backend queries. Updated MessagesView to call them properly.
+- Removed WhatsApp & Email tab entirely (including the 'PROPERTY' label). Its content was already merged into All Conversations.
+- Removed tab bar from Client Portal. Replaced with box-based navigation: the Quick Services grid on the dashboard IS the navigation. Each box opens a full-page view with a Back button in the header. Boxes: Matters, Documents, Messages, Requests, Financials — each with badge counts.
+- T&C section now defaults to COLLAPSED (localStorage check changed from === '1' to !== '0' so first visit = collapsed).
+- Removed Ingest button from Matters page.
+- Made Financials functional: unpaid invoices have Pay Now button → expands to show payment instructions + I've Made Payment button → sends portal message to admin notifying them of payment (triggers notification system). Paid invoices have View Receipt button.
+- TypeScript: clean. Vite build: succeeds.
+- Committed (39cd462) and pushed. CI auto-deploys.
+
+Stage Summary:
+- Ticket conversations can now be opened without crashing — status bar shows and status can be changed
+- No more separate WhatsApp & Email tab — everything is in All Conversations
+- Portal navigation is now box-based (no tabs) — simpler, more mobile-friendly, extensible
+- T&C doesn't clutter the portal by default
+- Financials is now functional with payment notification flow
+- Ingest button removed from Matters
