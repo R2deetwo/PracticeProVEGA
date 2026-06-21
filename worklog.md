@@ -1805,3 +1805,33 @@ Stage Summary:
 - Portal users have their own theme preference (light/dark only) independent of admin.
 - Client Portal now has a Financials tab showing invoices and payment history.
 - Notification bell will now populate when portal users submit tickets/requests/messages — admins get both in-app notifications and emails (per their notification preferences).
+
+---
+Task ID: portal-card-based-dashboard
+Agent: main (Super Z)
+Task: User provided a reference design screenshot showing a professional card-based portal layout (estate card, wallet balance card, quick services grid). Asked to emulate that style for portal users. Emphasized that 'services' are not just requests — they include paying service charge, electricity, internet, etc.
+
+Work Log:
+- Analyzed reference design with VLM: identified card-based layout with hero card (dark green), financial summary card (light mint), quick services grid, minimalist header with greeting.
+- Redesigned Client Portal overview (ClientDashboard):
+  - Hero card: brand-primary green, shows Client Portal label + user name + email + avatar + stats row (Matters/Docs/Invoices) with clean dividers
+  - Financial summary card: light mint background, Outstanding Balance in Naira, tappable to Financials tab, View CTA button
+  - Quick Services grid (4-col): New Request, Pay Invoice, Documents, Messages — each with tinted icon container
+  - Recent Activity: simplified feed below
+  - Header: minimalist greeting (Good Morning/Afternoon/Evening) + name, compact icon buttons for theme/font/sign-out
+- Redesigned Tenant Portal (TenantPortal):
+  - Added new 'Dashboard' tab (Home icon) as default landing page
+  - Hero card: Residents' Portal label + tenant name + unit/property + address
+  - Outstanding balance card: tappable to Ledger
+  - Quick Services grid (8 tiles): Pay Rent, Service Charge, Electricity, Internet, Maintenance, Messages, Receipts, Documents
+  - 'Services' = actionable tiles (NOT just requests) — pay rent, pay service charge, buy electricity, pay internet, report maintenance, send message
+  - Notices preview card at bottom
+  - Header: same minimalist greeting pattern
+- TypeScript: clean. Vite build: succeeds.
+- Committed (1b4f56e) and pushed. CI auto-deploys.
+
+Stage Summary:
+- Both portals now have a professional, card-based dashboard matching the reference design
+- Services are actionable tiles (pay rent, service charge, electricity, internet, etc.) not just request submission
+- Consistent header pattern across both portals: greeting + name + utility icons
+- Financial visibility is prominent via the Outstanding Balance card
