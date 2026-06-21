@@ -1708,3 +1708,39 @@ Stage Summary:
 - Both layouts share the same grouped structure (Account / Practice / System) so muscle memory transfers between mobile and desktop.
 - Active state uses soft emerald tint + accent bar (no harsh borders) — consistent with the rest of the app's design language.
 - Each nav item now has a description line so users can scan settings faster.
+
+---
+Task ID: messages-unified-inbox-and-picker
+Agent: main (Super Z)
+Task: User reported that a client service request submitted from the portal said "delivered" + showed 1 open ticket on the client side, but on the admin side the inbox showed "1 conversation" in the badge yet the conversation list was empty. Also requested: (a) remove the redundant "Request Service" modal button since we now have a Requests tab, (b) replace the type-picker grid with a dropdown/rolodex-style picker (iOS/Android native feel), (c) color-code conversations by type with red for requests, (d) make the messages page work perfectly and neatly.
+
+Work Log:
+- Root cause analysis of the messaging bug: On Komplete (unified) firms, isProperty=true AND isLegal=true. The inbox view branched on isProperty — when true, it filtered out participantRole === 'Client' conversations. So client service requests (which create Client conversations) were invisible to any firm with property management enabled. The badge count included them (unreadByAdmin was incremented on the conversation record), but the list filter excluded them.
+- Fixed by replacing the isProperty branch with a unified inbox that shows ALL portal conversations regardless of participantRole. WhatsApp/Email inbound messages still only show for property firms (they come from Atrium inbox), and legacy matter-scoped client messages only show for legal firms — but portal conversations are now always visible.
+- Added color-coded conversation type badges:
+  - Red 'Request' for client service requests (linkedRequestId, prefix 📋)
+  - Amber 'Ticket' for maintenance tickets (linkedTicketId, prefix 🔧)
+  - Blue 'Replied' for admin's last reply (prefix ✅)
+  - Emerald 'Portal' for regular 2-way portal messages
+- For unified firms, added a role chip ('Client' / 'Resident') next to each conversation.
+- Thread header now also shows the type badge so context is preserved when reading the conversation.
+- Active-row tint + left accent bar follow the conversation type color (e.g., red tint for service requests, amber for tickets).
+- Updated header text to say 'All Conversations' for unified firms instead of misleading 'Residents\' Messages'.
+- Updated empty-state copy to adapt to firm type.
+- Removed redundant 'Request Service' buttons that opened the legacy New Lead modal. Both the header button and the Recent Activity section button now jump directly to the Requests tab.
+- Built new cross-platform ServiceTypePicker component (src/components/portal/ServiceTypePicker.tsx):
+  - Mobile: bottom-sheet slides up from the bottom (Material 3 style, native feel on iOS and Android)
+  - Desktop (sm+): dropdown menu positioned below the trigger button
+  - Trigger button shows the currently-selected option with icon + label + description
+  - Body scroll locked while open; Escape closes; backdrop tap closes
+  - Each option shows icon, label, and description
+- Used the new picker in BOTH the Client Portal Requests tab AND the Tenant Portal Maintenance tab, replacing the 2-column grid that took up too much vertical space.
+- TypeScript: clean (no new errors).
+- Vite production build: succeeds.
+- Committed (daef6da) and pushed to main. CI auto-deploys.
+
+Stage Summary:
+- The critical messaging bug is fixed: client service requests now appear in the practitioner's inbox for ALL firm types (legal, property, unified).
+- Conversations are color-coded by type so practitioners can scan and prioritise at a glance.
+- The redundant "Request Service" modal is gone — clients use the Requests tab directly.
+- The new ServiceTypePicker gives a native-feeling picker experience on both iOS and Android (bottom sheet) and desktop (dropdown).
