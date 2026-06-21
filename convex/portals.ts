@@ -180,6 +180,30 @@ export const getMaintenanceTicketsByFirm = query({
   },
 });
 
+/**
+ * getTicketById — Fetches a single maintenance ticket by its _id.
+ * Used by the MessagesView to display the ticket status bar when a
+ * linked ticket conversation is opened.
+ */
+export const getTicketById = query({
+  args: { ticketId: v.id("maintenance_tickets") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.ticketId);
+  },
+});
+
+/**
+ * getServiceRequestById — Fetches a single client service request by its _id.
+ * Used by the MessagesView to display the ticket status bar when a
+ * linked service request conversation is opened.
+ */
+export const getServiceRequestById = query({
+  args: { requestId: v.id("client_service_requests") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.requestId);
+  },
+});
+
 export const updateMaintenanceTicketStatus = mutation({
   args: {
     ticketId: v.id("maintenance_tickets"),

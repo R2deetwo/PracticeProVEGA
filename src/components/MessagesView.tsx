@@ -585,17 +585,20 @@ const MessagesView: React.FC = () => {
         } as { kind: 'maintenance' | 'client_service'; id: string; requestTypeLabel?: string; requestTypeKey?: string };
     }, [selectedInboxType, selectedInboxId, conversationMessages]);
 
-    // Fetch the linked ticket/request to get its current status. We use a
-    // direct Convex query (via useConvex) because we don't have a dedicated
-    // query for "get ticket by id" — and we don't want to add one just for
-    // this. The convex.query() call is promise-based; we store the result
-    // in state and refresh whenever the linkedTicketInfo changes.
+    // Fetch the linked ticket/request to get its current status. We use
+    // the dedicated getTicketById / getServiceRequestById queries via the
+    // convex client. The previous code used convex.query(tableName, id)
+    // which doesn't exist on the ConvexReactClient — that was the cause
+    // of the "something went wrong" error when clicking a ticket.
     const [linkedTicketRecord, setLinkedTicketRecord] = useState<any>(null);
     useEffect(() => {
         if (!linkedTicketInfo?.id) { setLinkedTicketRecord(null); return; }
         let cancelled = false;
-        const table = linkedTicketInfo.kind === 'maintenance' ? 'maintenance_tickets' : 'client_service_requests';
-        convex.query(table as any, linkedTicketInfo.id as any)
+        const queryFn = linkedTicketInfo.kind === 'maintenance'
+            ? api.portals.getTicketById
+            : api.portals.getServiceRequestById;
+        const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
+        convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any)
             .then((rec: any) => { if (!cancelled) setLinkedTicketRecord(rec); })
             .catch(() => { if (!cancelled) setLinkedTicketRecord(null); });
         return () => { cancelled = true; };
@@ -617,8 +620,11 @@ const MessagesView: React.FC = () => {
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
             // Refresh the linked record
-            const table = linkedTicketInfo.kind === 'maintenance' ? 'maintenance_tickets' : 'client_service_requests';
-            const rec = await convex.query(table as any, linkedTicketInfo.id as any);
+            const queryFn = linkedTicketInfo.kind === 'maintenance'
+                ? api.portals.getTicketById
+                : api.portals.getServiceRequestById;
+            const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
+            const rec = await convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any);
             setLinkedTicketRecord(rec);
         } catch (err: any) {
             addToast(err.message || 'Failed to update status.', { type: 'error' });
@@ -995,32 +1001,11 @@ const MessagesView: React.FC = () => {
                         )}
                     </button>
 
-                    {/* WhatsApp & Email Tab (was "Communications") — AtriumInbox
-                        Handles external-channel communications: WhatsApp rent
-                        reminders, email demand notices, inbound tenant replies
-                        via WhatsApp, and the full audit/print trail.
-                        Renamed from "Communications" to eliminate conceptual
-                        overlap with "Conversations" (which is portal-based chat).
-                        Only shown for property/unified firms. */}
-                    {(isProperty || isUnified) && (
-                    <button
-                        onClick={() => setActiveTab('communications')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
-                            activeTab === 'communications'
-                                ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                        }`}
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
-                        </svg>
-                        <span className="hidden sm:inline">WhatsApp & Email</span>
-                        <span className="sm:hidden">Chats</span>
-                        <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                            Property
-                        </span>
-                    </button>
-                    )}
+                    {/* WhatsApp & Email tab REMOVED — its content (AtriumInbox)
+                        has been merged into the Conversations tab. The inbound
+                        WhatsApp/Email messages now appear inline in the All
+                        Conversations list alongside portal messages. No more
+                        separate tab needed. */}
                 </div>
             </div>
 
@@ -1932,14 +1917,11 @@ const MessagesView: React.FC = () => {
                 )}
 
                 {/* ═══ COMMUNICATIONS TAB ═══ */}
-                {/* AtriumInbox — WhatsApp/Email automations + audit trail.
-                    Moved here from the Revenue Engine so all messaging lives
-                    in one unified hub. Only shown for property/unified firms. */}
-                {activeTab === 'communications' && (isProperty || isUnified) && (
-                    <div className="w-full h-full overflow-y-auto">
-                        <AtriumInbox />
-                    </div>
-                )}
+                {/* WhatsApp & Email tab content removed — merged into
+                    All Conversations. The AtriumInbox (audit trail, scheduled
+                    messages, etc.) is still accessible via the Scheduled tab
+                    and the Conversations inbox now shows inbound WhatsApp/Email
+                    messages inline. */}
             </div>
             {ConfirmDialog}
         </div>

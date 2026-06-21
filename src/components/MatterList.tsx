@@ -323,14 +323,10 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                             </button>
                         </div>
 
-                        {/* NOTE: The standalone "Export to CSV" download button that was here
-                            (next to the Ingest button) has been removed per UI simplification
-                            — it was redundant with the bulk-export action in the selection bar.
-                            Keeping the Ingest + New buttons only for a cleaner action row. */}
-
-                        <button onClick={() => openModal('matterIngestion')} className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold">
-                            <CloudArrowUpIcon className="w-4 h-4" /> Ingest
-                        </button>
+                        {/* Ingest button REMOVED per user request — the New
+                            button is sufficient for creating matters. The
+                            ingestion wizard is still accessible via the
+                            modal system if needed elsewhere. */}
                         <button id="new-matter-button" onClick={() => openModal('newMatter')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-xs font-bold">
                             <PlusIcon className="w-4 h-4" /> New
                         </button>

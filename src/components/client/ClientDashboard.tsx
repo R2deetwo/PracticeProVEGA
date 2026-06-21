@@ -196,7 +196,9 @@ const ClientDashboard: React.FC = () => {
     // so it's not imposing. The acceptance record is still retained for
     // compliance; this just hides the visual reminder.
     const [tcCollapsed, setTcCollapsed] = useState<boolean>(() => {
-        try { return localStorage.getItem('practicepro_tc_collapsed') === '1'; } catch { return false; }
+        // Default to COLLAPSED so the T&C doesn't clutter the portal on
+        // first visit. The user can expand it if they want to review.
+        try { return localStorage.getItem('practicepro_tc_collapsed') !== '0'; } catch { return true; }
     });
     useEffect(() => {
         try { localStorage.setItem('practicepro_tc_collapsed', tcCollapsed ? '1' : '0'); } catch {}
@@ -621,28 +623,36 @@ const ClientDashboard: React.FC = () => {
                 </div>
             </button>
 
-            {/* ─── Quick Services Grid (actionable tiles) ──────────────────
-                Services are NOT just requests — they're any actionable thing
-                the portal user can do: pay an invoice, view documents, send
-                a message, submit a new request, etc. */}
+            {/* ─── Quick Services Grid (the main navigation) ──────────────
+                This IS the navigation — no more tab bar. Each box opens a
+                full-page view with a Back button. The grid is extensible:
+                admin can add new service boxes in the future (e.g., "Pay
+                Service Charge", "Buy Electricity", etc.) via the
+                ServiceRequestTypesConfig system. */}
             <div>
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Quick Services</h3>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Services</h3>
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                     {[
-                        { icon: <ClipboardListIcon className="w-5 h-5" />, label: 'New Request', tab: 'requests' as PortalTab, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400' },
-                        { icon: <Receipt className="w-5 h-5" />, label: 'Pay Invoice', tab: 'financials' as PortalTab, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' },
-                        { icon: <LargeFolderIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as PortalTab, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' },
-                        { icon: <ChatAltIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as PortalTab, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
+                        { icon: <ScalesIcon className="w-5 h-5" />, label: 'Matters', tab: 'matters' as PortalTab, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400', badge: clientMatters.length },
+                        { icon: <LargeFolderIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as PortalTab, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400', badge: sharedDocsCount },
+                        { icon: <ChatAltIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as PortalTab, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400', badge: unreadMessagesCount },
+                        { icon: <ClipboardListIcon className="w-5 h-5" />, label: 'Requests', tab: 'requests' as PortalTab, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400', badge: openRequestsCount },
+                        { icon: <Receipt className="w-5 h-5" />, label: 'Financials', tab: 'financials' as PortalTab, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', badge: outstandingInvoicesCount },
                     ].map(service => (
                         <button
                             key={service.label}
                             onClick={() => handleTabChange(service.tab)}
-                            className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform"
+                            className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-soft active:scale-95 transition-transform relative"
                         >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color}`}>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color} relative`}>
                                 {service.icon}
+                                {service.badge !== undefined && service.badge > 0 && (
+                                    <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1">
+                                        {service.badge > 9 ? '9+' : service.badge}
+                                    </span>
+                                )}
                             </div>
                             <span className="text-[10px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
                                 {service.label}
@@ -1289,6 +1299,13 @@ const ClientDashboard: React.FC = () => {
     // Local component state for the request submission form. We declare it
     // here at the top level of ClientDashboard so the form survives re-renders.
     const [requestSubject, setRequestSubject] = useState('');
+
+    // ── Financials: payment panel state ────────────────────────────────
+    // Tracks which invoice's payment instructions panel is expanded.
+    // When the user taps "Pay Now", the panel slides open showing bank
+    // details + an "I've Paid" button that notifies the admin.
+    const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+    const [isMarkingPaid, setIsMarkingPaid] = useState(false);
     const [requestDescription, setRequestDescription] = useState('');
     const [selectedRequestTypeKey, setSelectedRequestTypeKey] = useState<string>('doc_review');
     const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
@@ -1297,6 +1314,35 @@ const ClientDashboard: React.FC = () => {
         if (!clientRequestTypes || clientRequestTypes.length === 0) return null;
         return clientRequestTypes.find((t: any) => t.key === selectedRequestTypeKey) || clientRequestTypes[0];
     }, [clientRequestTypes, selectedRequestTypeKey]);
+
+    // ── Financials: handle "I've Paid" ─────────────────────────────────
+    // Sends a portal message to the admin notifying them that the client
+    // has made payment for a specific invoice. The admin can then confirm
+    // receipt and mark the invoice as Paid.
+    const handleMarkInvoicePaid = async (inv: any) => {
+        if (!effectiveFirmId || !currentUser?.id) return;
+        setIsMarkingPaid(true);
+        try {
+            const invoiceLabel = inv.invoiceNumber || inv.title || `Invoice ${String(inv._id || inv.id).slice(-6)}`;
+            const amount = inv.totalAmount || inv.amount || 0;
+            await sendPortalMessage({
+                firmId: effectiveFirmId,
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                senderEmail: currentUser.email,
+                senderRole: 'Client',
+                subject: `Payment Notification: ${invoiceLabel}`,
+                content: `I have made payment of ${formatNairaStatic(amount)} for invoice "${invoiceLabel}". Please confirm receipt and update the invoice status.\n\nInvoice details:\n- Amount: ${formatNairaStatic(amount)}\n- Due date: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}\n- Status: ${inv.status}\n\nThank you.`,
+            });
+            addToast('Payment notification sent. Your legal team will confirm receipt shortly.', { type: 'success' });
+            setExpandedInvoiceId(null);
+        } catch (err: any) {
+            addToast(err.message || 'Failed to send payment notification.', { type: 'error' });
+        } finally {
+            setIsMarkingPaid(false);
+        }
+    };
+    const formatNairaStatic = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
     const handleSubmitRequest = async () => {
         if (!requestSubject.trim() || !requestDescription.trim()) {
@@ -1544,6 +1590,13 @@ const ClientDashboard: React.FC = () => {
                 {/* Invoice List */}
                 <div>
                     <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Invoices</h3>
+                    {/* Payment info banner — shown when there are outstanding invoices */}
+                    {invoices.length > 0 && totalOutstanding > 0 && (
+                        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-300">
+                            <p className="font-bold mb-1">How to Pay</p>
+                            <p>Tap "Pay Now" on any outstanding invoice below to view payment instructions. After making payment, tap "I've Paid" to notify your legal team for confirmation.</p>
+                        </div>
+                    )}
                     {isLoading ? (
                         <div className="space-y-2">
                             {[1, 2, 3].map(i => (
@@ -1570,45 +1623,106 @@ const ClientDashboard: React.FC = () => {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {invoices.map((inv: any) => (
-                                <div
-                                    key={String(inv._id || inv.id)}
-                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex items-center justify-between gap-3"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                            inv.status === 'Paid'
-                                                ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                                                : inv.status === 'Overdue'
-                                                ? 'bg-rose-50 dark:bg-rose-900/20'
-                                                : 'bg-amber-50 dark:bg-amber-900/20'
-                                        }`}>
-                                            <Receipt className={`w-5 h-5 ${
-                                                inv.status === 'Paid'
-                                                    ? 'text-emerald-600 dark:text-emerald-400'
-                                                    : inv.status === 'Overdue'
-                                                    ? 'text-rose-600 dark:text-rose-400'
-                                                    : 'text-amber-600 dark:text-amber-400'
-                                            }`} />
+                            {invoices.map((inv: any) => {
+                                const invId = String(inv._id || inv.id);
+                                const isUnpaid = inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent';
+                                const isExpanded = expandedInvoiceId === invId;
+                                return (
+                                    <div key={invId} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                                        <div className="p-4 flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                                    inv.status === 'Paid'
+                                                        ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                                                        : inv.status === 'Overdue'
+                                                        ? 'bg-rose-50 dark:bg-rose-900/20'
+                                                        : 'bg-amber-50 dark:bg-amber-900/20'
+                                                }`}>
+                                                    <Receipt className={`w-5 h-5 ${
+                                                        inv.status === 'Paid'
+                                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                                            : inv.status === 'Overdue'
+                                                            ? 'text-rose-600 dark:text-rose-400'
+                                                            : 'text-amber-600 dark:text-amber-400'
+                                                    }`} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+                                                        {inv.invoiceNumber || inv.title || 'Invoice'}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                        {inv.issueDate ? new Date(inv.issueDate).toLocaleDateString() : ''}
+                                                        {inv.dueDate && ` · Due ${new Date(inv.dueDate).toLocaleDateString()}`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                                <p className="font-bold text-sm text-slate-800 dark:text-zinc-200">
+                                                    {formatNaira(inv.totalAmount || inv.amount || 0)}
+                                                </p>
+                                                {getStatusBadge(inv.status)}
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
-                                                {inv.invoiceNumber || inv.title || 'Invoice'}
-                                            </p>
-                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                                {inv.issueDate ? new Date(inv.issueDate).toLocaleDateString() : ''}
-                                                {inv.dueDate && ` · Due ${new Date(inv.dueDate).toLocaleDateString()}`}
-                                            </p>
-                                        </div>
+                                        {/* Action buttons for unpaid invoices */}
+                                        {isUnpaid && (
+                                            <div className="px-4 pb-3 flex gap-2">
+                                                <button
+                                                    onClick={() => setExpandedInvoiceId(isExpanded ? null : invId)}
+                                                    className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
+                                                >
+                                                    {isExpanded ? 'Hide Instructions' : 'Pay Now'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {/* Expandable payment instructions panel */}
+                                        {isUnpaid && isExpanded && (
+                                            <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-zinc-700 space-y-3">
+                                                <div className="bg-slate-50 dark:bg-zinc-700/30 rounded-lg p-3 text-xs space-y-2">
+                                                    <p className="font-bold text-slate-700 dark:text-zinc-300">Payment Instructions</p>
+                                                    <p className="text-slate-600 dark:text-zinc-400">
+                                                        Please transfer {formatNaira(inv.totalAmount || inv.amount || 0)} to your legal team's bank account. Contact them directly if you need their bank details.
+                                                    </p>
+                                                    <p className="text-slate-500 dark:text-zinc-500 text-[11px]">
+                                                        Reference: {inv.invoiceNumber || inv.title || 'Invoice'}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleMarkInvoicePaid(inv)}
+                                                    disabled={isMarkingPaid}
+                                                    className="w-full px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                                                >
+                                                    {isMarkingPaid ? (
+                                                        <>
+                                                            <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            Sending...
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <CheckCircleIcon className="w-4 h-4" />
+                                                            I've Made Payment
+                                                        </>
+                                                    )}
+                                                </button>
+                                                <p className="text-[10px] text-slate-400 dark:text-zinc-500 text-center">
+                                                    This notifies your legal team to confirm receipt
+                                                </p>
+                                            </div>
+                                        )}
+                                        {/* Receipt button for paid invoices */}
+                                        {inv.status === 'Paid' && (
+                                            <div className="px-4 pb-3">
+                                                <button
+                                                    onClick={() => addToast('Receipt download coming soon. Contact your legal team for a copy.', { type: 'info' })}
+                                                    className="w-full px-3 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors inline-flex items-center justify-center gap-2"
+                                                >
+                                                    <Receipt className="w-3.5 h-3.5" />
+                                                    View Receipt
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                        <p className="font-bold text-sm text-slate-800 dark:text-zinc-200">
-                                            {formatNaira(inv.totalAmount || inv.amount || 0)}
-                                        </p>
-                                        {getStatusBadge(inv.status)}
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
@@ -1651,18 +1765,39 @@ const ClientDashboard: React.FC = () => {
                     </button>
                 </div>
             )}
-            {/* Header — minimalist, sticky. Emulates the reference design's
-                clean top bar: greeting on the left, utility icons on the right.
-                No redundant "Welcome" text since the hero card already greets. */}
+            {/* Header — minimalist, sticky. When viewing the dashboard, shows
+                greeting + utility icons. When viewing a service (Matters, Documents,
+                etc.), shows a Back button + the service name. No tab bar —
+                navigation is via the Quick Services grid on the dashboard. */}
             <div className="sticky top-0 z-20 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-xl py-3 px-4 border-b border-slate-100 dark:border-zinc-800/50">
                 <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
-                            {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
-                        </p>
-                        <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
-                            {currentUser.name?.split(' ')[0] || 'Client'}
-                        </h1>
+                    <div className="flex items-center gap-3 min-w-0">
+                        {/* Back button — shown when viewing a service (not dashboard) */}
+                        {activeTab !== 'overview' && (
+                            <button
+                                onClick={() => handleTabChange('overview')}
+                                className="p-2 -ml-2 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex-shrink-0"
+                                aria-label="Back to dashboard"
+                            >
+                                <ChevronRightIcon className="w-5 h-5 rotate-180" />
+                            </button>
+                        )}
+                        <div className="min-w-0">
+                            {activeTab === 'overview' ? (
+                                <>
+                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+                                        {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
+                                    </p>
+                                    <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
+                                        {currentUser.name?.split(' ')[0] || 'Client'}
+                                    </h1>
+                                </>
+                            ) : (
+                                <h1 className="text-base font-bold text-slate-900 dark:text-white truncate capitalize">
+                                    {activeTab === 'requests' ? 'Service Requests' : activeTab}
+                                </h1>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {/* Theme Toggle */}
@@ -1692,58 +1827,11 @@ const ClientDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="mb-6 overflow-x-auto no-scrollbar">
-                <nav className="-mb-px flex space-x-0 sm:space-x-1 md:space-x-4">
-                    <TabButton
-                        label="Overview"
-                        tab="overview"
-                        active={activeTab}
-                        onClick={() => handleTabChange('overview')}
-                        icon={<ScalesIcon className="w-5 h-5" />}
-                    />
-                    <TabButton
-                        label="Matters"
-                        tab="matters"
-                        active={activeTab}
-                        onClick={() => handleTabChange('matters')}
-                        icon={<MattersIcon className="w-5 h-5" />}
-                        badge={clientMatters.length}
-                    />
-                    <TabButton
-                        label="Documents"
-                        tab="documents"
-                        active={activeTab}
-                        onClick={() => handleTabChange('documents')}
-                        icon={<DocumentIcon className="w-5 h-5" />}
-                        badge={sharedDocsCount}
-                    />
-                    <TabButton
-                        label="Messages"
-                        tab="messages"
-                        active={activeTab}
-                        onClick={() => handleTabChange('messages')}
-                        icon={<ChatAltIcon className="w-5 h-5" />}
-                        badge={unreadMessagesCount}
-                    />
-                    <TabButton
-                        label="Requests"
-                        tab="requests"
-                        active={activeTab}
-                        onClick={() => handleTabChange('requests')}
-                        icon={<ClipboardListIcon className="w-5 h-5" />}
-                        badge={openRequestsCount}
-                    />
-                    <TabButton
-                        label="Financials"
-                        tab="financials"
-                        active={activeTab}
-                        onClick={() => handleTabChange('financials')}
-                        icon={<Receipt className="w-5 h-5" />}
-                        badge={outstandingInvoicesCount}
-                    />
-                </nav>
-            </div>
+            {/* Tab bar REMOVED — navigation is now via the Quick Services grid
+                on the dashboard overview. Each box navigates to a full-page view.
+                A Back button in the header returns to the dashboard. This is
+                simpler, more mobile-friendly, and extensible (admin can add
+                new service boxes in the future). */}
 
             {/* Tab Content */}
             {renderTabContent()}
