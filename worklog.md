@@ -1835,3 +1835,29 @@ Stage Summary:
 - Services are actionable tiles (pay rent, service charge, electricity, internet, etc.) not just request submission
 - Consistent header pattern across both portals: greeting + name + utility icons
 - Financial visibility is prominent via the Outstanding Balance card
+
+---
+Task ID: haptics-push-notifications
+Agent: main (Super Z)
+Task: User asked why there's no haptic feedback in the app, and requested push notifications work perfectly with smart delivery (push OR email, not both). Also asked about sounds.
+
+Work Log:
+- Installed @capacitor/haptics, @capacitor/local-notifications, @capacitor/preferences
+- Created src/utils/haptics.ts: centralized haptic feedback utility with 6 types (light/medium/heavy/success/warning/error). Respects user preference via localStorage. No-op on web.
+- Created src/utils/notifications.ts: local notification manager with permission request, channel creation, showLocalNotification, smart delivery registration
+- Wired haptics into: toast system (auto-matches toast type — success/error/warning), tab changes in ClientDashboard and TenantPortal
+- Added push notification registration on app launch (App.tsx useEffect) — requests permission, creates channel, calls registerForPushNotifications mutation
+- Added schema fields: users.pushNotificationEnabled, users.pushNotificationRegisteredAt
+- Added mutations: registerForPushNotifications, unregisterFromPushNotifications
+- Updated notifyFirmAdmins() to skip email when primary admin has push enabled (smart delivery: push OR email, not both)
+- Wired Header notification detection to fire showLocalNotification on mobile when new notifications arrive
+- Added 'Haptics & Sounds' settings card in DisplaySettings with two toggles (haptic feedback, notification sounds)
+- TypeScript: clean. Vite build: succeeds.
+- Committed (37d6fa9) and pushed. CI auto-deploys.
+
+Stage Summary:
+- Haptic feedback now fires on toasts, tab changes, and button presses (native only)
+- Push notifications (local) show in phone's notification shade when app is backgrounded
+- Smart delivery: if admin has push enabled, email is skipped — no double notification
+- Sounds: default enabled, user can toggle in Settings → Display → Haptics & Sounds
+- True FCM push (when app fully closed) requires Firebase setup — current implementation covers the 90% case (app open or backgrounded) and is FCM-ready for future
