@@ -1118,10 +1118,18 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
 
   const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<'plumbing' | 'electrical' | 'structural' | 'other'>('other');
+  // Selected admin-configured request type (key). Falls back to "other".
+  const [selectedTypeKey, setSelectedTypeKey] = useState<string>('other');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch admin-configured service request types (with sensible defaults
+  // returned by the backend if the firm hasn't configured any yet).
+  const requestTypes = useQuery(
+    api.portals.getServiceRequestTypes,
+    firmId ? { firmId, portalType: 'resident' as const } : 'skip'
+  );
 
   // Fetch tickets from Convex
   const tickets = useQuery(
@@ -1138,6 +1146,22 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
   // This is the KEY FIX: we no longer use coreState (which is empty for portal users)
   const propertyId = tenantInfo?.primaryPropertyId;
   const unitId = tenantInfo?.primaryUnitId;
+
+  // Derive the selected type's full metadata (label, icon, defaultPriority)
+  const selectedType = useMemo(() => {
+    if (!requestTypes || requestTypes.length === 0) return null;
+    return requestTypes.find((t: any) => t.key === selectedTypeKey) || requestTypes[0];
+  }, [requestTypes, selectedTypeKey]);
+
+  // Map a request type key back to one of the legacy `category` literals.
+  // The schema still requires one of plumbing/electrical/structural/other —
+  // we use this as a fallback for tickets created without a custom type.
+  const mapKeyToLegacyCategory = (key: string): 'plumbing' | 'electrical' | 'structural' | 'other' => {
+    if (key === 'plumbing') return 'plumbing';
+    if (key === 'electrical') return 'electrical';
+    if (key === 'structural') return 'structural';
+    return 'other';
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1201,6 +1225,12 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
         }
       }
 
+      // Resolve the type metadata for the backend — pass both the new
+      // requestTypeKey/Label AND a legacy `category` literal so older
+      // practitioner UI that filters by `category` still works.
+      const typeLabel = selectedType?.label || selectedTypeKey;
+      const legacyCategory = mapKeyToLegacyCategory(selectedTypeKey);
+
       await createTicket({
         firmId,
         propertyId,
@@ -1209,13 +1239,15 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
         tenantName: currentUser?.name || undefined,
         subject: subject.trim(),
         description: description.trim(),
-        category,
+        category: legacyCategory,
+        requestTypeKey: selectedTypeKey,
+        requestTypeLabel: typeLabel,
         attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
       });
       addToast('Maintenance ticket submitted successfully. Your property manager has been notified.', { type: 'success' });
       setSubject('');
       setDescription('');
-      setCategory('other');
+      setSelectedTypeKey('other');
       setPendingFiles([]);
     } catch (err: any) {
       addToast(err.message || 'Failed to submit ticket. Please try again.', { type: 'error' });
@@ -1268,17 +1300,44 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
         <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Report New Issue</h4>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Category</label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value as any)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-            >
-              <option value="plumbing">Plumbing</option>
-              <option value="electrical">Electrical</option>
-              <option value="structural">Structural / Roof</option>
-              <option value="other">Other</option>
-            </select>
+            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
+            {requestTypes === undefined ? (
+              <div className="grid grid-cols-2 gap-2">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-14 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
+                ))}
+              </div>
+            ) : requestTypes && requestTypes.length > 0 ? (
+              <div className="grid grid-cols-2 gap-2">
+                {requestTypes.map((t: any) => {
+                  const isSelected = selectedTypeKey === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setSelectedTypeKey(t.key)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-left transition-all ${
+                        isSelected
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 ring-2 ring-emerald-500/20'
+                          : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-emerald-300 dark:hover:border-emerald-700'
+                      }`}
+                    >
+                      <span className="text-lg flex-shrink-0">{t.icon || '📋'}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-bold truncate ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-zinc-200'}`}>
+                          {t.label}
+                        </p>
+                        {t.description && (
+                          <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{t.description}</p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">No request types configured. Please contact your property manager.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Subject</label>
@@ -1366,40 +1425,40 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
         </div>
       ) : tickets && tickets.length > 0 ? (
         <div className="space-y-2">
-          {tickets.map((t: any) => (
+          {tickets.map((t: any) => {
+            // Look up the icon for this ticket's request type
+            const typeMeta = (requestTypes as any[] | undefined)?.find((rt: any) => rt.key === t.requestTypeKey);
+            const iconChar = typeMeta?.icon || '🔧';
+            const typeLabel = t.requestTypeLabel || (t.category ? t.category.charAt(0).toUpperCase() + t.category.slice(1) : 'Maintenance');
+            return (
             <div
               key={t._id}
               className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex flex-row items-start sm:items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0 ${
                   t.status === 'resolved' || t.status === 'closed'
                     ? 'bg-emerald-50 dark:bg-emerald-900/20'
                     : t.status === 'in_progress'
                     ? 'bg-blue-50 dark:bg-blue-900/20'
                     : 'bg-amber-50 dark:bg-amber-900/20'
                 }`}>
-                  <WrenchIcon className={`w-4 h-4 ${
-                    t.status === 'resolved' || t.status === 'closed'
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : t.status === 'in_progress'
-                      ? 'text-blue-600 dark:text-blue-400'
-                      : 'text-amber-600 dark:text-amber-400'
-                  }`} />
+                  {iconChar}
                 </div>
                 <div className="min-w-0">
                   <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">{t.subject}</p>
                   <p className="text-xs text-slate-500 dark:text-zinc-400">
-                    {t.category && <span className="capitalize">{t.category}</span>}
-                    {t.category && ' · '}
+                    <span className="font-medium text-slate-600 dark:text-zinc-300">{typeLabel}</span>
+                    {' · '}
                     {formatDate(t.createdAt)}
-                    {t.attachments?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.attachments.length}</span>}
+                    {t.images?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.images.length}</span>}
                   </p>
                 </div>
               </div>
               <div className="flex-shrink-0">{getStatusBadge(t.status)}</div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">

@@ -27,6 +27,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
+import { ServiceRequestTypesConfig } from './ServiceRequestTypesConfig';
 import {
   ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
@@ -1202,6 +1203,10 @@ export const PortalAccessSettings: React.FC = () => {
           </div>
         </div>
 
+        {/* Service Request Types — admin-configurable catalog for both portals */}
+        {showResidentPortal && <ServiceRequestTypesConfig portalType="resident" />}
+        {showClientPortal && <ServiceRequestTypesConfig portalType="client" />}
+
         {/* Client Portal Section — primary for Komplete/lawyers */}
         <div className="bg-violet-50/30 dark:bg-violet-900/5 rounded-2xl border border-violet-100 dark:border-violet-900/20 p-4 sm:p-6">
           <PortalSection
@@ -1321,6 +1326,9 @@ export const PortalAccessSettings: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Service Request Types — admin-configurable catalog */}
+      <ServiceRequestTypesConfig portalType={singlePortalType} />
 
       <PortalSection
         portalType={singlePortalType}

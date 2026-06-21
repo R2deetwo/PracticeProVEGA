@@ -1022,7 +1022,7 @@ const MessagesView: React.FC = () => {
                                                             {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1">
+                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
                                                         <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
                                                             Portal
                                                         </span>
@@ -1034,6 +1034,18 @@ const MessagesView: React.FC = () => {
                                                         {(conv.unreadByAdmin || 0) > 1 && (
                                                             <span className="px-1.5 py-0.5 rounded-full bg-emerald-500 text-white font-bold">
                                                                 {conv.unreadByAdmin}
+                                                            </span>
+                                                        )}
+                                                        {/* Visual marker when the latest message in this
+                                                            conversation is a service request / maintenance ticket */}
+                                                        {conv.lastMessagePreview?.startsWith('🔧') && (
+                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30">
+                                                                Ticket
+                                                            </span>
+                                                        )}
+                                                        {conv.lastMessagePreview?.startsWith('📋') && (
+                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-violet-700 bg-violet-100 dark:text-violet-400 dark:bg-violet-900/30">
+                                                                Request
                                                             </span>
                                                         )}
                                                     </div>
@@ -1078,12 +1090,22 @@ const MessagesView: React.FC = () => {
                                                             {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1">
+                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
                                                         <span className="px-1.5 py-0.5 rounded uppercase font-bold text-emerald-500 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/30">
                                                             Portal
                                                         </span>
                                                         {conv.matterId && (
                                                             <span className="text-slate-500 dark:text-zinc-400 truncate">Matter</span>
+                                                        )}
+                                                        {conv.lastMessagePreview?.startsWith('📋') && (
+                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-violet-700 bg-violet-100 dark:text-violet-400 dark:bg-violet-900/30">
+                                                                Request
+                                                            </span>
+                                                        )}
+                                                        {conv.lastMessagePreview?.startsWith('🔧') && (
+                                                            <span className="px-1.5 py-0.5 rounded uppercase font-bold text-amber-700 bg-amber-100 dark:text-amber-400 dark:bg-amber-900/30">
+                                                                Ticket
+                                                            </span>
                                                         )}
                                                     </div>
                                                     <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{conv.lastMessagePreview}</p>
@@ -1184,10 +1206,26 @@ const MessagesView: React.FC = () => {
                                                                     : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm'
                                                                 }`}>
                                                                     <div className={`flex items-center justify-between mb-2 pb-2 ${isAdmin ? 'border-primary-500' : 'border-slate-100 dark:border-zinc-700'} border-b`}>
-                                                                        <span className={`text-[10px] font-bold uppercase tracking-widest ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
-                                                                            {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-2">
+                                                                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
+                                                                                {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
+                                                                            </span>
+                                                                            {/* Service Request / Maintenance Ticket badge —
+                                                                                shows when this message is the originating
+                                                                                submission of a ticket/request. Helps the
+                                                                                practitioner understand the context at a glance. */}
+                                                                            {msg.linkedTicketId && (
+                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                                    🔧 {msg.requestTypeLabel || 'Maintenance Ticket'}
+                                                                                </span>
+                                                                            )}
+                                                                            {msg.linkedRequestId && (
+                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
+                                                                                    📋 {msg.requestTypeLabel || 'Service Request'}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 flex-shrink-0">
                                                                             <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                                 {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
                                                                             </span>

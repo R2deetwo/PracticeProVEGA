@@ -25,13 +25,21 @@ export const createMaintenanceTicket = mutation({
     subject: v.string(),
     description: v.string(),
     category: v.union(v.literal("plumbing"), v.literal("electrical"), v.literal("structural"), v.literal("other")),
+    // NEW: admin-configured type key (from service_request_types). If absent,
+    // we fall back to the legacy `category` field for backward compat.
+    requestTypeKey: v.optional(v.string()),
+    requestTypeLabel: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())), // Convex storage IDs for images/PDFs
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    const { attachments, ...rest } = args;
-    return await ctx.db.insert("maintenance_tickets", {
+    const { attachments, requestTypeKey, requestTypeLabel, ...rest } = args;
+
+    // 1. Insert the maintenance ticket
+    const ticketId = await ctx.db.insert("maintenance_tickets", {
       ...rest,
+      requestTypeKey: requestTypeKey ?? undefined,
+      requestTypeLabel: requestTypeLabel ?? undefined,
       // Schema uses 'images' field, not 'attachments' — map accordingly
       images: attachments ?? [],
       status: "open",
@@ -39,6 +47,75 @@ export const createMaintenanceTicket = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // 2. CRITICAL WIRING — also create a portal_message in the resident's
+    //    conversation thread so the practitioner sees it in their unified
+    //    inbox. Without this, tickets would disappear into the database and
+    //    the practitioner would never know a request was submitted.
+    let conversationId: string | undefined;
+    if (args.tenantId) {
+      try {
+        const conversation = await getOrCreateConversation(ctx, {
+          firmId: args.firmId,
+          participantId: args.tenantId,
+          participantName: args.tenantName,
+          participantRole: "Tenant",
+          propertyId: args.propertyId,
+          unitId: args.unitId,
+        });
+        conversationId = String(conversation._id);
+
+        const typeLabel = requestTypeLabel || args.category;
+        const messageContent = [
+          `🔧 New maintenance request — ${typeLabel}`,
+          ``,
+          `Subject: ${args.subject}`,
+          ``,
+          `Description:`,
+          args.description,
+        ].join('\n');
+
+        await ctx.db.insert("portal_messages", {
+          firmId: args.firmId,
+          conversationId,
+          senderId: args.tenantId,
+          senderName: args.tenantName,
+          senderRole: "Tenant",
+          subject: `Maintenance Request: ${args.subject}`,
+          content: messageContent,
+          attachments: attachments ?? [],
+          attachmentNames: [],
+          propertyId: args.propertyId,
+          unitId: args.unitId,
+          status: "unread",
+          isRead: false,
+          linkedTicketId: String(ticketId),
+          requestTypeKey: requestTypeKey ?? undefined,
+          requestTypeLabel: requestTypeLabel ?? typeLabel,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Update conversation metadata — bump unread + last message preview
+        const existingUnread = (conversation as any).unreadByAdmin || 0;
+        await ctx.db.patch(conversation._id, {
+          lastMessageAt: now,
+          lastMessagePreview: `🔧 Maintenance: ${args.subject}`.substring(0, 80),
+          lastMessageBy: "participant",
+          unreadByAdmin: existingUnread + 1,
+          updatedAt: now,
+        });
+
+        // Link the conversation back to the ticket for bi-directional lookup
+        await ctx.db.patch(ticketId, { conversationId });
+      } catch (err) {
+        // We don't want to fail the ticket creation if conversation wiring
+        // fails — the ticket itself is the source of truth. Log and move on.
+        console.error("[createMaintenanceTicket] conversation wiring failed:", err);
+      }
+    }
+
+    return ticketId;
   },
 });
 
@@ -95,6 +172,544 @@ export const updateMaintenanceTicketStatus = mutation({
   handler: async (ctx, args) => {
     const { ticketId, ...updates } = args;
     await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
+
+    // If admin posted a resolution + the ticket has a linked conversation,
+    // also post a portal_message reply so the resident gets notified in-thread.
+    if (updates.resolution) {
+      const ticket: any = await ctx.db.get(ticketId);
+      if (ticket?.conversationId) {
+        const now = Date.now();
+        await ctx.db.insert("portal_messages", {
+          firmId: ticket.firmId,
+          conversationId: ticket.conversationId,
+          senderId: updates.assignedTo || "admin",
+          senderName: "Property Manager",
+          senderRole: "Admin",
+          subject: `Update: ${ticket.subject}`,
+          content: `Your maintenance request status is now "${updates.status}".\n\nResolution: ${updates.resolution}`,
+          attachments: [],
+          attachmentNames: [],
+          propertyId: ticket.propertyId,
+          unitId: ticket.unitId,
+          status: "read",
+          isRead: false,
+          linkedTicketId: String(ticketId),
+          requestTypeKey: ticket.requestTypeKey,
+          requestTypeLabel: ticket.requestTypeLabel || ticket.category,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const conv: any = await ctx.db.get(ticket.conversationId as any);
+        if (conv) {
+          await ctx.db.patch(conv._id, {
+            lastMessageAt: now,
+            lastMessagePreview: `✅ Update: ${ticket.subject}`.substring(0, 80),
+            lastMessageBy: "admin",
+            unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+  },
+});
+
+// ─── Service Request Types (admin-configurable catalog) ──────────────────
+// Each firm defines its own menu of request types shown in the portal
+// (e.g., "Plumbing", "Electrical", "Document Review", "Meeting Request").
+
+const DEFAULT_RESIDENT_TYPES = [
+  { key: "plumbing",      label: "Plumbing",             category: "maintenance",     icon: "🔧", defaultPriority: "medium" },
+  { key: "electrical",    label: "Electrical",           category: "maintenance",     icon: "⚡", defaultPriority: "medium" },
+  { key: "structural",    label: "Structural / Roof",    category: "maintenance",     icon: "🏗️", defaultPriority: "medium" },
+  { key: "hvac",          label: "AC / Cooling",         category: "maintenance",     icon: "❄️", defaultPriority: "medium" },
+  { key: "appliance",     label: "Appliance Repair",     category: "maintenance",     icon: "🔌", defaultPriority: "low" },
+  { key: "pest_control",  label: "Pest Control",         category: "maintenance",     icon: "🐜", defaultPriority: "low" },
+  { key: "cleaning",      label: "Cleaning",             category: "maintenance",     icon: "🧹", defaultPriority: "low" },
+  { key: "security",      label: "Security / Locks",     category: "maintenance",     icon: "🔐", defaultPriority: "high" },
+  { key: "access",        label: "Access / Keys",        category: "administrative",  icon: "🔑", defaultPriority: "medium" },
+  { key: "billing_query", label: "Billing Inquiry",      category: "billing",         icon: "💳", defaultPriority: "medium" },
+  { key: "other",         label: "Other",                category: "other",           icon: "📝", defaultPriority: "low" },
+];
+
+const DEFAULT_CLIENT_TYPES = [
+  { key: "doc_review",         label: "Document Review",         category: "legal",          icon: "📄", defaultPriority: "medium" },
+  { key: "meeting",            label: "Schedule a Meeting",      category: "administrative", icon: "📅", defaultPriority: "medium" },
+  { key: "case_update",        label: "Case Status Update",      category: "legal",          icon: "⚖️", defaultPriority: "low"    },
+  { key: "billing_inquiry",    label: "Billing Inquiry",         category: "billing",        icon: "💳", defaultPriority: "medium" },
+  { key: "new_instruction",    label: "New Instruction",         category: "legal",          icon: "📌", defaultPriority: "high"   },
+  { key: "document_request",   label: "Request Document Copy",   category: "administrative", icon: "📋", defaultPriority: "low"    },
+  { key: "complaint",          label: "Complaint / Feedback",    category: "other",          icon: "💬", defaultPriority: "medium" },
+  { key: "other",              label: "Other",                   category: "other",          icon: "📝", defaultPriority: "low"    },
+];
+
+/**
+ * getServiceRequestTypes — Returns the firm's active service request types
+ * for a given portal. If the firm has not configured any types yet, seeds
+ * the defaults on first call so the portal is never empty.
+ */
+export const getServiceRequestTypes = query({
+  args: {
+    firmId: v.string(),
+    portalType: v.union(v.literal("resident"), v.literal("client")),
+  },
+  handler: async (ctx, args) => {
+    const types = await ctx.db
+      .query("service_request_types")
+      .withIndex("by_firm_portal", (q) =>
+        q.eq("firmId", args.firmId).eq("portalType", args.portalType)
+      )
+      .collect();
+
+    // First-time fallback: return defaults so the portal works immediately.
+    // We don't write here (queries must be pure) — the admin UI will persist
+    // them on first edit, or the createMaintenanceTicket path can seed them.
+    if (types.length === 0) {
+      const defaults = args.portalType === "resident" ? DEFAULT_RESIDENT_TYPES : DEFAULT_CLIENT_TYPES;
+      return defaults.map((t, i) => ({
+        _id: `default_${t.key}`,
+        firmId: args.firmId,
+        portalType: args.portalType,
+        key: t.key,
+        label: t.label,
+        category: t.category,
+        icon: t.icon,
+        defaultPriority: t.defaultPriority,
+        isActive: true,
+        sortOrder: i,
+        isDefault: true,
+      }));
+    }
+
+    return types
+      .filter((t: any) => t.isActive)
+      .sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+});
+
+/**
+ * getAllServiceRequestTypes — Like getServiceRequestTypes but includes
+ * INACTIVE types too. Used by the admin config UI so the admin can see
+ * and re-enable disabled types.
+ */
+export const getAllServiceRequestTypes = query({
+  args: {
+    firmId: v.string(),
+    portalType: v.union(v.literal("resident"), v.literal("client")),
+  },
+  handler: async (ctx, args) => {
+    const types = await ctx.db
+      .query("service_request_types")
+      .withIndex("by_firm_portal", (q) =>
+        q.eq("firmId", args.firmId).eq("portalType", args.portalType)
+      )
+      .collect();
+
+    if (types.length === 0) {
+      const defaults = args.portalType === "resident" ? DEFAULT_RESIDENT_TYPES : DEFAULT_CLIENT_TYPES;
+      return defaults.map((t, i) => ({
+        _id: `default_${t.key}`,
+        firmId: args.firmId,
+        portalType: args.portalType,
+        key: t.key,
+        label: t.label,
+        category: t.category,
+        icon: t.icon,
+        defaultPriority: t.defaultPriority,
+        isActive: true,
+        sortOrder: i,
+        isDefault: true,
+      }));
+    }
+
+    return types.sort((a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  },
+});
+
+/**
+ * seedDefaultServiceRequestTypes — One-time seeding mutation. Called by the
+ * admin UI when the admin opens the Service Request Types config for the
+ * first time. Inserts the default catalog so the admin has a starting point
+ * to edit/disable/reorder.
+ */
+export const seedDefaultServiceRequestTypes = mutation({
+  args: {
+    firmId: v.string(),
+    portalType: v.union(v.literal("resident"), v.literal("client")),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("service_request_types")
+      .withIndex("by_firm_portal", (q) =>
+        q.eq("firmId", args.firmId).eq("portalType", args.portalType)
+      )
+      .first();
+    if (existing) return; // already seeded
+
+    const defaults = args.portalType === "resident" ? DEFAULT_RESIDENT_TYPES : DEFAULT_CLIENT_TYPES;
+    const now = Date.now();
+    for (let i = 0; i < defaults.length; i++) {
+      const t = defaults[i];
+      await ctx.db.insert("service_request_types", {
+        firmId: args.firmId,
+        portalType: args.portalType,
+        key: t.key,
+        label: t.label,
+        category: t.category,
+        icon: t.icon,
+        defaultPriority: t.defaultPriority as any,
+        isActive: true,
+        sortOrder: i,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
+export const createServiceRequestType = mutation({
+  args: {
+    firmId: v.string(),
+    portalType: v.union(v.literal("resident"), v.literal("client")),
+    key: v.string(),
+    label: v.string(),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    defaultPriority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    icon: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    // Compute next sortOrder
+    const existing = await ctx.db
+      .query("service_request_types")
+      .withIndex("by_firm_portal", (q) =>
+        q.eq("firmId", args.firmId).eq("portalType", args.portalType)
+      )
+      .collect();
+    const sortOrder = existing.length;
+    return await ctx.db.insert("service_request_types", {
+      firmId: args.firmId,
+      portalType: args.portalType,
+      key: args.key,
+      label: args.label,
+      description: args.description,
+      category: args.category,
+      defaultPriority: args.defaultPriority,
+      icon: args.icon,
+      isActive: true,
+      sortOrder,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const updateServiceRequestType = mutation({
+  args: {
+    typeId: v.id("service_request_types"),
+    label: v.optional(v.string()),
+    description: v.optional(v.string()),
+    category: v.optional(v.string()),
+    defaultPriority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    icon: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
+    sortOrder: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { typeId, ...updates } = args;
+    // Strip undefined values so we don't accidentally overwrite with undefined
+    const cleanUpdates: any = { updatedAt: Date.now() };
+    for (const [k, v] of Object.entries(updates)) {
+      if (v !== undefined) cleanUpdates[k] = v;
+    }
+    await ctx.db.patch(typeId, cleanUpdates);
+  },
+});
+
+export const deleteServiceRequestType = mutation({
+  args: { typeId: v.id("service_request_types") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.typeId);
+  },
+});
+
+// ─── Client Service Requests (Vega / legal portal) ───────────────────────
+
+export const createClientServiceRequest = mutation({
+  args: {
+    firmId: v.string(),
+    clientId: v.optional(v.string()),
+    clientName: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
+    matterId: v.optional(v.string()),
+    requestTypeKey: v.string(),
+    requestTypeLabel: v.string(),
+    subject: v.string(),
+    description: v.string(),
+    attachments: v.optional(v.array(v.string())),
+    attachmentNames: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+
+    // 1. Insert the client_service_requests row
+    const requestId = await ctx.db.insert("client_service_requests", {
+      firmId: args.firmId,
+      clientId: args.clientId,
+      clientName: args.clientName,
+      clientEmail: args.clientEmail,
+      matterId: args.matterId,
+      requestTypeKey: args.requestTypeKey,
+      requestTypeLabel: args.requestTypeLabel,
+      subject: args.subject,
+      description: args.description,
+      status: "open",
+      priority: "medium",
+      attachments: args.attachments ?? [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // 2. CRITICAL WIRING — also create a portal_message in the client's
+    //    conversation so the practitioner sees it in their unified inbox.
+    if (args.clientId) {
+      try {
+        const conversation = await getOrCreateConversation(ctx, {
+          firmId: args.firmId,
+          participantId: args.clientId,
+          participantName: args.clientName,
+          participantEmail: args.clientEmail,
+          participantRole: "Client",
+          matterId: args.matterId,
+        });
+        const conversationId = String(conversation._id);
+
+        const messageContent = [
+          `📋 New service request — ${args.requestTypeLabel}`,
+          ``,
+          `Subject: ${args.subject}`,
+          ``,
+          `Details:`,
+          args.description,
+        ].join('\n');
+
+        await ctx.db.insert("portal_messages", {
+          firmId: args.firmId,
+          conversationId,
+          senderId: args.clientId,
+          senderName: args.clientName,
+          senderEmail: args.clientEmail,
+          senderRole: "Client",
+          subject: `Service Request: ${args.subject}`,
+          content: messageContent,
+          attachments: args.attachments ?? [],
+          attachmentNames: args.attachmentNames ?? [],
+          matterId: args.matterId,
+          status: "unread",
+          isRead: false,
+          linkedRequestId: String(requestId),
+          requestTypeKey: args.requestTypeKey,
+          requestTypeLabel: args.requestTypeLabel,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        const existingUnread = (conversation as any).unreadByAdmin || 0;
+        await ctx.db.patch(conversation._id, {
+          lastMessageAt: now,
+          lastMessagePreview: `📋 ${args.requestTypeLabel}: ${args.subject}`.substring(0, 80),
+          lastMessageBy: "participant",
+          unreadByAdmin: existingUnread + 1,
+          updatedAt: now,
+        });
+
+        // Link the conversation back to the request
+        await ctx.db.patch(requestId, { conversationId });
+      } catch (err) {
+        console.error("[createClientServiceRequest] conversation wiring failed:", err);
+      }
+    }
+
+    return requestId;
+  },
+});
+
+export const getClientServiceRequestsByClient = query({
+  args: { clientId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("client_service_requests")
+      .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const getClientServiceRequestsByFirm = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("client_service_requests")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const updateClientServiceRequestStatus = mutation({
+  args: {
+    requestId: v.id("client_service_requests"),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    resolution: v.optional(v.string()),
+    assignedTo: v.optional(v.string()),
+    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+  },
+  handler: async (ctx, args) => {
+    const { requestId, ...updates } = args;
+    await ctx.db.patch(requestId, { ...updates, updatedAt: Date.now() });
+
+    // Mirror the maintenance-ticket pattern: post a reply message to the
+    // linked conversation if admin provided a resolution.
+    if (updates.resolution) {
+      const req: any = await ctx.db.get(requestId);
+      if (req?.conversationId) {
+        const now = Date.now();
+        await ctx.db.insert("portal_messages", {
+          firmId: req.firmId,
+          conversationId: req.conversationId,
+          senderId: updates.assignedTo || "admin",
+          senderName: "Legal Team",
+          senderRole: "Admin",
+          subject: `Update: ${req.subject}`,
+          content: `Your service request status is now "${updates.status}".\n\nResolution: ${updates.resolution}`,
+          attachments: [],
+          attachmentNames: [],
+          matterId: req.matterId,
+          status: "read",
+          isRead: false,
+          linkedRequestId: String(requestId),
+          requestTypeKey: req.requestTypeKey,
+          requestTypeLabel: req.requestTypeLabel,
+          createdAt: now,
+          updatedAt: now,
+        });
+        const conv: any = await ctx.db.get(req.conversationId as any);
+        if (conv) {
+          await ctx.db.patch(conv._id, {
+            lastMessageAt: now,
+            lastMessagePreview: `✅ Update: ${req.subject}`.substring(0, 80),
+            lastMessageBy: "admin",
+            unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
+            updatedAt: now,
+          });
+        }
+      }
+    }
+  },
+});
+
+/**
+ * getServiceRequestsByFirm — Unified query that returns ALL open service
+ * requests (both maintenance tickets AND client service requests) for a firm.
+ * Used by the practitioner's unified inbox to surface pending tickets that
+ * haven't yet been linked to a conversation (legacy data + safety net).
+ */
+export const getServiceRequestsByFirm = query({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const [tickets, clientRequests] = await Promise.all([
+      ctx.db
+        .query("maintenance_tickets")
+        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+        .order("desc")
+        .collect(),
+      ctx.db
+        .query("client_service_requests")
+        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+        .order("desc")
+        .collect(),
+    ]);
+
+    return {
+      maintenanceTickets: tickets,
+      clientServiceRequests: clientRequests,
+    };
+  },
+});
+
+/**
+ * respondToServiceRequest — Unified admin response mutation. Admin can update
+ * a ticket/request's status AND optionally send a reply message to the portal
+ * user in one call. Routes to the correct underlying mutation based on
+ * `requestKind`.
+ */
+export const respondToServiceRequest = mutation({
+  args: {
+    requestKind: v.union(v.literal("maintenance"), v.literal("client_service")),
+    requestId: v.string(),
+    firmId: v.string(),
+    adminId: v.string(),
+    adminName: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    resolution: v.optional(v.string()),
+    replyMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const record: any = await ctx.db.get(args.requestId as any);
+    if (!record) throw new Error("Service request not found");
+
+    // Update the request record
+    await ctx.db.patch(args.requestId as any, {
+      status: args.status,
+      priority: args.priority ?? record.priority,
+      resolution: args.resolution ?? record.resolution,
+      assignedTo: args.adminId,
+      updatedAt: now,
+    } as any);
+
+    // Post a reply message to the linked conversation (if any)
+    const conversationId = record.conversationId;
+    if (conversationId && (args.replyMessage || args.resolution)) {
+      const replyText = args.replyMessage || `Status updated to "${args.status}". ${args.resolution ? `Resolution: ${args.resolution}` : ''}`;
+      await ctx.db.insert("portal_messages", {
+        firmId: args.firmId,
+        conversationId,
+        senderId: args.adminId,
+        senderName: args.adminName || "Admin",
+        senderRole: "Admin",
+        subject: `Update: ${record.subject}`,
+        content: replyText,
+        attachments: [],
+        attachmentNames: [],
+        propertyId: record.propertyId,
+        unitId: record.unitId,
+        matterId: record.matterId,
+        status: "read",
+        isRead: false,
+        linkedTicketId: args.requestKind === "maintenance" ? args.requestId : undefined,
+        linkedRequestId: args.requestKind === "client_service" ? args.requestId : undefined,
+        requestTypeKey: record.requestTypeKey,
+        requestTypeLabel: record.requestTypeLabel || record.category,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const conv: any = await ctx.db.get(conversationId as any);
+      if (conv) {
+        await ctx.db.patch(conv._id, {
+          lastMessageAt: now,
+          lastMessagePreview: `✅ ${replyText.substring(0, 70)}`,
+          lastMessageBy: "admin",
+          unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
+          updatedAt: now,
+        });
+      }
+    }
+
+    return { ok: true };
   },
 });
 

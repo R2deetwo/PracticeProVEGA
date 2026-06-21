@@ -1106,6 +1106,60 @@ export default defineSchema({
     .index("by_createdAt", ["createdAt"])
     .index("by_email", ["email"]),
 
+  // ─── Service Request Types (admin-configurable catalog) ────────────────
+  // Each firm defines its own menu of request types shown in the portal
+  // (e.g., "Plumbing", "Electrical", "Document Review", "Meeting Request").
+  // Portal users pick from this list when submitting a service request.
+  // Falls back to a sensible default set if no firm-specific types exist.
+  service_request_types: defineTable({
+    firmId: v.string(),
+    portalType: v.union(v.literal("resident"), v.literal("client")),
+    key: v.string(),                        // stable identifier (slug), e.g. "plumbing"
+    label: v.string(),                      // human label, e.g. "Plumbing"
+    description: v.optional(v.string()),    // helper text shown under the label
+    category: v.optional(v.string()),       // broad bucket: "maintenance" | "legal" | "administrative" | "billing" | "other"
+    defaultPriority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    icon: v.optional(v.string()),           // optional emoji or icon name for display
+    isActive: v.boolean(),                  // admin can disable without deleting
+    sortOrder: v.optional(v.number()),      // lower numbers appear first
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_portal", ["firmId", "portalType"])
+    .index("by_firm_active", ["firmId", "isActive"]),
+
+  // ─── Client Service Requests (Vega / legal portal) ─────────────────────
+  // The client-portal equivalent of maintenance_tickets. A client submits a
+  // request ("Document Review", "Meeting Request", "Billing Inquiry", etc.),
+  // and a portal_message is created in their conversation so the practitioner
+  // sees it in the unified inbox.
+  client_service_requests: defineTable({
+    firmId: v.string(),
+    clientId: v.optional(v.string()),       // userId of the client who submitted
+    clientName: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
+    matterId: v.optional(v.string()),       // optional matter context
+    requestTypeKey: v.string(),             // key from service_request_types
+    requestTypeLabel: v.string(),           // human label snapshot
+    subject: v.string(),
+    description: v.string(),
+    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
+    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
+    assignedTo: v.optional(v.string()),     // userId of staff assigned
+    resolution: v.optional(v.string()),
+    conversationId: v.optional(v.string()), // links to portal_conversations
+    attachments: v.optional(v.array(v.string())),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_client", ["clientId"])
+    .index("by_status", ["status"])
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_firm_client", ["firmId", "clientId"])
+    .index("by_conversation", ["conversationId"]),
+
   maintenance_tickets: defineTable({
     firmId: v.string(),
     propertyId: v.string(),
@@ -1115,10 +1169,15 @@ export default defineSchema({
     subject: v.string(),
     description: v.string(),
     category: v.union(v.literal("plumbing"), v.literal("electrical"), v.literal("structural"), v.literal("other")),
+    // Admin-configured type (from service_request_types). Falls back to
+    // category for backward compat with tickets created before this field.
+    requestTypeKey: v.optional(v.string()),
+    requestTypeLabel: v.optional(v.string()),
     status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
     priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
     assignedTo: v.optional(v.string()),     // userId of staff assigned
     resolution: v.optional(v.string()),
+    conversationId: v.optional(v.string()), // links to portal_conversations (NEW)
     images: v.optional(v.array(v.string())), // storageIds for attached images
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1127,7 +1186,8 @@ export default defineSchema({
     .index("by_property", ["propertyId"])
     .index("by_tenant", ["tenantId"])
     .index("by_status", ["status"])
-    .index("by_firm_status", ["firmId", "status"]),
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_conversation", ["conversationId"]),
 
   portal_invites: defineTable({
     firmId: v.string(),
@@ -1228,6 +1288,15 @@ export default defineSchema({
     isDeleted: v.optional(v.boolean()), // soft-delete — message hidden for sender but preserved for admin
     deletedBy: nullableString,          // ID of the user who deleted the message
     deletedAt: nullableNumber,          // timestamp when the message was deleted
+    // ─── Service Request Wiring ─────────────────────────────────────────
+    // When a portal user submits a maintenance ticket or a client service
+    // request, a portal_message is created in their conversation thread with
+    // linkedTicketId set. This way, the request surfaces in the practitioner's
+    // unified inbox alongside normal messages — nothing falls through cracks.
+    linkedTicketId: nullableString,         // _id of maintenance_tickets row (Atrium)
+    linkedRequestId: nullableString,        // _id of client_service_requests row (Vega)
+    requestTypeKey: nullableString,         // key of the service_request_types entry chosen
+    requestTypeLabel: nullableString,       // human label snapshot (e.g. "Plumbing", "Document Review")
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1235,7 +1304,9 @@ export default defineSchema({
     .index("by_sender", ["senderId"])
     .index("by_firm_status", ["firmId", "status"])
     .index("by_conversation", ["conversationId"])
-    .index("by_firm_matter", ["firmId", "matterId"]),
+    .index("by_firm_matter", ["firmId", "matterId"])
+    .index("by_linked_ticket", ["linkedTicketId"])
+    .index("by_linked_request", ["linkedRequestId"]),
 
   // ─── Payment Proofs ───────────────────────────────────────────────
   // Payment proof submissions from tenants (receipts, stubs, transfer slips).
