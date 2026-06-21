@@ -145,6 +145,17 @@ const ClientDashboard: React.FC = () => {
     const { handleSendClientMessage } = useDataActions();
     const { isProperty } = useProduct();
 
+    // ─── Force light mode for portal users ──────────────────────────────
+    // Portal users should always see light mode for maximum readability.
+    // The theme toggle is still available if they want to switch.
+    React.useEffect(() => {
+        // Only force light on first load — don't override user's explicit choice
+        const hasUserSetTheme = localStorage.getItem('practicepro_theme');
+        if (!hasUserSetTheme) {
+            setTheme('light');
+        }
+    }, [setTheme]);
+
     // Repair mutation for fixing missing firmId on portal user records
     const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
     const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
@@ -232,7 +243,7 @@ const ClientDashboard: React.FC = () => {
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
     // Use the Convex-queried matters (not matterState which is empty for portal users)
-    const clientMattersLoading = clientMattersResult === undefined;
+    const clientMattersLoading = clientMattersResult === undefined && !!effectiveFirmId;
     const clientMatters = (clientMattersResult || []) as any[];
 
     // ── Access Control (after all hooks) ─────────────────────────────────
@@ -508,7 +519,10 @@ const ClientDashboard: React.FC = () => {
                     </button>
                 </div>
 
-                {clientActivity === undefined ? (
+                {/* Loading state: show skeleton ONLY for the first 3 seconds.
+                    After that, if still undefined (query skipped because firmId
+                    isn't resolved), show empty state instead of infinite skeleton. */}
+                {clientActivity === undefined && effectiveFirmId ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="flex items-start gap-3 animate-pulse">
@@ -520,7 +534,14 @@ const ClientDashboard: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                ) : clientActivity.length === 0 ? (
+                ) : clientActivity === undefined && !effectiveFirmId ? (
+                    <div className="text-center py-8">
+                        <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
+                            <ClockIcon className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm text-slate-400 dark:text-zinc-500">Loading your portal data...</p>
+                    </div>
+                ) : !clientActivity || clientActivity.length === 0 ? (
                     <div className="text-center py-8">
                         <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
                             <ClockIcon className="w-6 h-6" />
@@ -662,7 +683,7 @@ const ClientDashboard: React.FC = () => {
 
     // ── Render: Documents Tab ────────────────────────────────────────────
     const renderDocuments = () => {
-        const isLoading = clientDocs === undefined;
+        const isLoading = clientDocs === undefined && effectiveFirmId;
         const docs = filteredDocs || [];
         const consents = clientConsentRecords || [];
 
@@ -939,7 +960,7 @@ const ClientDashboard: React.FC = () => {
 
     // ── Render: Messages Tab ─────────────────────────────────────────────
     const renderMessages = () => {
-        const isLoading = clientMessages === undefined;
+        const isLoading = clientMessages === undefined && effectiveFirmId;
         const messages = clientMessages || [];
 
         return (
@@ -1106,7 +1127,7 @@ const ClientDashboard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-brand-surface dark:bg-zinc-950 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="min-h-[100dvh] bg-slate-50 dark:bg-zinc-950 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
             {/* Impersonation Banner — shown when admin is viewing as this client.
                 Uses isImpersonating (synchronous) rather than originalUser (async query)
                 so the banner — and the "Return to Admin" button — is always visible
@@ -1129,7 +1150,7 @@ const ClientDashboard: React.FC = () => {
                 </div>
             )}
             {/* Header — sticky on mobile so sign-out is always accessible */}
-            <div className="mb-4 sticky top-0 z-20 bg-brand-surface/90 dark:bg-zinc-950/90 backdrop-blur-md py-3 sm:py-4 px-1">
+            <div className="mb-4 sticky top-0 z-20 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl py-3 sm:py-4 px-4 shadow-soft border-b border-slate-100 dark:border-zinc-800/50">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2">
                     <div className="min-w-0">
                         <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-900 dark:text-white truncate">
@@ -1147,13 +1168,14 @@ const ClientDashboard: React.FC = () => {
                             <PlusIcon className="w-4 h-4" />
                             <span className="hidden sm:inline">Request Service</span>
                         </button>
-                        {/* Theme Toggle */}
+                        {/* Theme Toggle — clearly visible */}
                         <button
                             onClick={toggleTheme}
-                            className="p-1.5 sm:p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                            className="p-2 sm:p-2.5 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-soft border border-slate-100 dark:border-zinc-700"
                             title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                            aria-label="Toggle theme"
                         >
-                            {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+                            {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
                         </button>
                         {/* Sign Out — always visible and tappable for portal users */}
                         <button

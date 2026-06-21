@@ -105,6 +105,15 @@ const TenantPortal: React.FC = () => {
   const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
+
+  // ─── Force light mode for portal users on first load ──────────────
+  React.useEffect(() => {
+    const hasUserSetTheme = localStorage.getItem('practicepro_theme');
+    if (!hasUserSetTheme) {
+      setTheme('light');
+    }
+  }, [setTheme]);
+
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '');
     if (['notices', 'ledger', 'receipts', 'maintenance', 'messages', 'payments', 'documents'].includes(hash)) return hash as TabId;
@@ -237,7 +246,7 @@ const TenantPortal: React.FC = () => {
   // mutation that searches multiple sources to find and restore the firmId.
   if (!effectiveFirmId && firmResolution !== undefined) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950 p-6">
+      <div className="flex items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-zinc-950 p-6">
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mb-4">
             <ExclamationTriangleIcon className="w-8 h-8 text-rose-500" />
@@ -396,13 +405,14 @@ const TenantPortal: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-            {/* Theme Toggle */}
+            {/* Theme Toggle — clearly visible */}
             <button
               onClick={toggleTheme}
-              className="p-1.5 sm:p-2 rounded-lg text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-soft border border-slate-100 dark:border-zinc-700"
               title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label="Toggle theme"
             >
-              {isDark ? <SunIcon className="w-4 h-4" /> : <MoonIcon className="w-4 h-4" />}
+              {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
             {/* Sign Out — always visible and tappable for portal users */}
             <button
