@@ -377,6 +377,9 @@ export const createServiceRequestType = mutation({
     category: v.optional(v.string()),
     defaultPriority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
     icon: v.optional(v.string()),
+    // When true (default), auto-creates a notice board entry highlighting
+    // the new service type to portal users. Set to false to skip.
+    announceToPortal: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -388,7 +391,7 @@ export const createServiceRequestType = mutation({
       )
       .collect();
     const sortOrder = existing.length;
-    return await ctx.db.insert("service_request_types", {
+    const typeId = await ctx.db.insert("service_request_types", {
       firmId: args.firmId,
       portalType: args.portalType,
       key: args.key,
@@ -402,6 +405,32 @@ export const createServiceRequestType = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Auto-create a notice board entry so portal users are gently notified
+    // that a new service type is available. The notice is pinned for 7 days
+    // so it surfaces at the top of the portal's notice board.
+    if (args.announceToPortal !== false) {
+      try {
+        const portalLabel = args.portalType === "resident" ? "Residents' Portal" : "Client Portal";
+        await ctx.db.insert("portal_notices", {
+          firmId: args.firmId,
+          authorId: "system",
+          authorName: "PracticePro",
+          title: `New service available: ${args.label}`,
+          body: `A new request type "${args.label}" has been added to the ${portalLabel}. You can now submit requests of this type from your portal.${args.description ? `\n\n${args.description}` : ''}`,
+          priority: "normal",
+          isPinned: true,
+          status: "active",
+          expiresAt: now + 7 * 24 * 60 * 60 * 1000, // 7 days
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (e) {
+        console.warn("[createServiceRequestType] Notice board announcement failed:", (e as any)?.message);
+      }
+    }
+
+    return typeId;
   },
 });
 
@@ -807,6 +836,27 @@ export const createPortalInvite = action({
       expiresAt,
     });
 
+    // 1.25. For CLIENT invites, auto-create (or update) a contact record AND
+    // link them to the specified matter (relatedId = matterId for clients).
+    // Without this, the invitee wouldn't appear in the admin's Contacts list,
+    // and even after accepting the invite they couldn't see their matters
+    // because no contact record would exist to link their userId to.
+    if (args.portalType === "client") {
+      try {
+        await ctx.runMutation(api.portals.ensureContactForClientInvite, {
+          firmId: args.firmId,
+          inviteeEmail: args.inviteeEmail,
+          inviteeName: resolvedInviteeName,
+          inviteePhone: args.inviteePhone,
+          matterId: args.relatedId, // relatedId IS the matterId for client invites
+        });
+      } catch (e) {
+        // Non-blocking: the invite is still created. The admin can manually
+        // create the contact later if needed.
+        console.warn("[createPortalInvite] Contact auto-create failed:", (e as any)?.message);
+      }
+    }
+
     // 1.5. Write tenant details back to the unit/property record immediately
     // This ensures the unit has the tenant's name, email, and phone even before
     // they accept the invite and set their password. Without this, getTenantInfo
@@ -1084,6 +1134,174 @@ export const insertInviteRecord = mutation({
       createdAt: now,
       updatedAt: now,
     });
+  },
+});
+
+/**
+ * ensureContactForClientInvite — Internal mutation that auto-creates (or
+ * updates) a contact record for a client portal invitee AND links them to
+ * the specified matter.
+ *
+ * Why this exists:
+ *   Previously, when an admin invited a client to the portal and selected
+ *   a matter to link, the invite was created but NO contact record was.
+ *   That meant:
+ *     1. The portal user couldn't see their matters (getClientContactByUserId
+ *        returns null because no contact has their userId).
+ *     2. The matter wasn't actually linked to them (matter.clientId stays null).
+ *     3. The admin couldn't find the invitee in their Contacts list.
+ *
+ *   Now, when createPortalInvite runs for a CLIENT invite with a relatedId
+ *   (matterId), this mutation:
+ *     1. Looks for an existing contact by email (case-insensitive).
+ *     2. If found, patches it with the invitee's name/phone if missing.
+ *     3. If not found, inserts a new contact record.
+ *     4. If a matterId was provided, links the contact to that matter by
+ *        setting matter.clientId AND adding the matter to contact.matterIds.
+ *
+ *   The contact's `userId` field is NOT set here — it's set later when the
+ *   invitee accepts the invite and creates their portal user account (see
+ *   setupPortalPassword → linkPortalUserToContact).
+ */
+export const ensureContactForClientInvite = mutation({
+  args: {
+    firmId: v.string(),
+    inviteeEmail: v.optional(v.string()),
+    inviteeName: v.optional(v.string()),
+    inviteePhone: v.optional(v.string()),
+    matterId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const email = (args.inviteeEmail || "").toLowerCase().trim();
+    if (!email && !args.inviteeName) {
+      return { contactId: null, created: false, reason: "no identifier" };
+    }
+
+    // 1. Look for an existing contact by email (case-insensitive) or name
+    const allContacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    let contact = email
+      ? allContacts.find((c: any) =>
+          (c.email || "").toLowerCase() === email
+        )
+      : null;
+
+    if (!contact && args.inviteeName) {
+      contact = allContacts.find((c: any) =>
+        (c.name || "").toLowerCase() === args.inviteeName!.toLowerCase()
+      ) || null;
+    }
+
+    const now = new Date().toISOString();
+
+    if (contact) {
+      // 2a. Patch the existing contact with any missing info
+      const patch: any = { updatedAt: now };
+      if (!contact.name && args.inviteeName) patch.name = args.inviteeName;
+      if (!contact.email && email) patch.email = email;
+      if (!contact.phone && args.inviteePhone) patch.phone = args.inviteePhone;
+      await ctx.db.patch(contact._id, patch);
+    } else {
+      // 2b. Create a new contact record
+      const newContactId = await ctx.db.insert("contacts", {
+        firmId: args.firmId,
+        name: args.inviteeName || email,
+        email: email || undefined,
+        phone: args.inviteePhone || undefined,
+        contactType: "Client",
+        category: "Client",
+        matterIds: args.matterId ? [args.matterId] : [],
+        createdAt: now,
+        updatedAt: now,
+      });
+      contact = await ctx.db.get(newContactId);
+    }
+
+    if (!contact) {
+      return { contactId: null, created: false, reason: "contact resolution failed" };
+    }
+
+    // 3. Link the contact to the matter (if a matterId was provided)
+    if (args.matterId) {
+      try {
+        const matter: any = await ctx.db.get(args.matterId as any);
+        if (matter) {
+          // Set matter.clientId so the matter shows up in the portal user's
+          // matters list (getClientMattersByUserId filters by clientId).
+          if (!matter.clientId || String(matter.clientId) !== String(contact._id)) {
+            await ctx.db.patch(args.matterId as any, {
+              clientId: String(contact._id),
+              updatedAt: now,
+            } as any);
+          }
+          // Also add the matter to the contact's matterIds array (dedup)
+          const existingMatterIds: string[] = (contact as any).matterIds || [];
+          if (!existingMatterIds.includes(args.matterId)) {
+            const updatedMatterIds = [...existingMatterIds, args.matterId];
+            await ctx.db.patch(contact._id, {
+              matterIds: updatedMatterIds,
+              updatedAt: now,
+            } as any);
+          }
+        }
+      } catch (e) {
+        console.warn("[ensureContactForClientInvite] Matter linking failed:", (e as any)?.message);
+      }
+    }
+
+    return {
+      contactId: String(contact._id),
+      created: !contact,
+      matterLinked: !!args.matterId,
+    };
+  },
+});
+
+/**
+ * linkPortalUserToContact — Called when a portal user accepts their invite
+ * and creates their user account. Patches the contact record's `userId`
+ * field so getClientContactByUserId can find it.
+ *
+ * Without this, the contact exists but the portal user can't see their
+ * matters because the contact has no userId linkage.
+ */
+export const linkPortalUserToContact = mutation({
+  args: {
+    firmId: v.string(),
+    userId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const email = (args.email || "").toLowerCase().trim();
+    const allContacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Find by email first, then by name
+    let contact = email
+      ? allContacts.find((c: any) => (c.email || "").toLowerCase() === email)
+      : null;
+    if (!contact && args.name) {
+      contact = allContacts.find((c: any) =>
+        (c.name || "").toLowerCase() === args.name!.toLowerCase()
+      ) || null;
+    }
+
+    if (!contact) return { contactId: null, linked: false };
+
+    // Patch the userId onto the contact if it's not already set
+    if (!(contact as any).userId || (contact as any).userId !== args.userId) {
+      await ctx.db.patch(contact._id, {
+        userId: args.userId,
+        updatedAt: new Date().toISOString(),
+      } as any);
+    }
+    return { contactId: String(contact._id), linked: true };
   },
 });
 
@@ -1912,7 +2130,75 @@ export const setupPortalPassword = action({
       },
     });
 
+    // 4.5. For CLIENT invites, link the portal user to their contact record.
+    // This patches the contact's `userId` field so getClientContactByUserId
+    // can find it — without this, the portal user can't see their matters
+    // even though the contact + matter linkage was created at invite time.
+    if (invite.portalType === "client" && portalUserDocId) {
+      try {
+        await ctx.runMutation(api.portals.linkPortalUserToContact, {
+          firmId: invite.firmId,
+          userId: portalUserDocId,
+          email,
+          name: args.name || invite.inviteeName || undefined,
+        });
+      } catch (e) {
+        // Non-blocking — the user can still log in. The admin can manually
+        // link the contact later if needed.
+        console.warn("[setupPortalPassword] Contact linking failed:", (e as any)?.message);
+      }
+    }
+
     return { success: true, email };
+  },
+});
+
+/**
+ * selfHealClientContactLink — Called from the Client Portal on first load
+ * when the contact lookup returns null. Patches the contact's `userId`
+ * field using the current user's email/name, so the portal can find the
+ * contact and show the user's matters.
+ *
+ * This is a back-fill for users who accepted invites BEFORE the
+ * linkPortalUserToContact step was added to setupPortalPassword. It's
+ * safe to call repeatedly — it's a no-op if the contact is already linked.
+ */
+export const selfHealClientContactLink = mutation({
+  args: {
+    firmId: v.string(),
+    userId: v.string(),
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const email = (args.email || "").toLowerCase().trim();
+    if (!email && !args.name) return { contactId: null, linked: false };
+
+    const allContacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+
+    // Find by email first, then by name
+    let contact = email
+      ? allContacts.find((c: any) => (c.email || "").toLowerCase() === email)
+      : null;
+    if (!contact && args.name) {
+      contact = allContacts.find((c: any) =>
+        (c.name || "").toLowerCase() === args.name!.toLowerCase()
+      ) || null;
+    }
+
+    if (!contact) return { contactId: null, linked: false };
+
+    // Patch the userId if missing or stale
+    if (!(contact as any).userId || (contact as any).userId !== args.userId) {
+      await ctx.db.patch(contact._id, {
+        userId: args.userId,
+        updatedAt: new Date().toISOString(),
+      } as any);
+    }
+    return { contactId: String(contact._id), linked: true };
   },
 });
 

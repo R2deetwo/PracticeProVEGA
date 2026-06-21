@@ -17,6 +17,7 @@ import {
 import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
+import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const SunIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -172,6 +173,24 @@ const ClientDashboard: React.FC = () => {
         window.location.hash = tab;
     };
     const [docFilter, setDocFilter] = useState<string>('all');
+    // Recent Activity collapse state — persisted to localStorage so the
+    // portal user's preference survives page reloads. The drag-handle-style
+    // affordance at the top of the bottom sheet is now a real toggle.
+    const [activityCollapsed, setActivityCollapsed] = useState<boolean>(() => {
+        try { return localStorage.getItem('practicepro_activity_collapsed') === '1'; } catch { return false; }
+    });
+    useEffect(() => {
+        try { localStorage.setItem('practicepro_activity_collapsed', activityCollapsed ? '1' : '0'); } catch {}
+    }, [activityCollapsed]);
+    // Terms & Consents collapse state — portal user can hide the T&C section
+    // so it's not imposing. The acceptance record is still retained for
+    // compliance; this just hides the visual reminder.
+    const [tcCollapsed, setTcCollapsed] = useState<boolean>(() => {
+        try { return localStorage.getItem('practicepro_tc_collapsed') === '1'; } catch { return false; }
+    });
+    useEffect(() => {
+        try { localStorage.setItem('practicepro_tc_collapsed', tcCollapsed ? '1' : '0'); } catch {}
+    }, [tcCollapsed]);
     const [messageText, setMessageText] = useState('');
     const [selectedMatterForMessage, setSelectedMatterForMessage] = useState<string>('');
     const [isComposing, setIsComposing] = useState(false);
@@ -206,6 +225,28 @@ const ClientDashboard: React.FC = () => {
             : 'skip'
     );
 
+    // 1b. Self-heal: if the contact lookup returned null AND the user has an
+    // email/name, try to link their userId to an existing contact record.
+    // This back-fills users who accepted invites BEFORE the contact-linking
+    // step was added to setupPortalPassword. Safe to call repeatedly —
+    // it's a no-op if the contact is already linked or doesn't exist.
+    const selfHealContactLink = useMutation(api.portals.selfHealClientContactLink);
+    useEffect(() => {
+        if (
+            clientContactResult === null && // lookup completed, no contact found
+            currentUser?.id &&
+            effectiveFirmId &&
+            (currentUser.email || currentUser.name)
+        ) {
+            selfHealContactLink({
+                firmId: effectiveFirmId,
+                userId: currentUser.id,
+                email: currentUser.email || undefined,
+                name: currentUser.name || undefined,
+            }).catch(() => {/* non-blocking */});
+        }
+    }, [clientContactResult, currentUser?.id, currentUser?.email, currentUser?.name, effectiveFirmId, selfHealContactLink]);
+
     // 2. Get the client's matters directly from Convex
     const clientMattersResult = useQuery(
         api.portals.getClientMattersByUserId,
@@ -230,6 +271,24 @@ const ClientDashboard: React.FC = () => {
         api.portals.getClientConsentRecords,
         currentUser?.email ? { email: currentUser.email } : 'skip'
     );
+
+    // ── Loading-state helpers ────────────────────────────────────────────────
+    // A portal query is "still loading" ONLY when:
+    //   1. Its args are ready (clientContactId + effectiveFirmId resolved), AND
+    //   2. The query itself is still pending (=== undefined).
+    // If the args are NOT ready (e.g. contact lookup returned null), the query
+    // is skipped and returns undefined — but that's NOT a loading state. The
+    // contact may simply not exist yet. In that case we show an empty state,
+    // never a stuck skeleton. This was the root cause of the "stuck skeleton"
+    // bug: when clientContactResult === null, every downstream query was
+    // skipped (returned undefined), and the old check `=== undefined && effectiveFirmId`
+    // showed skeleton forever.
+    const portalArgsReady = !!(clientContactId && effectiveFirmId);
+    const clientContactResolved = clientContactResult !== undefined;
+    const clientDocsLoading = clientDocs === undefined && portalArgsReady;
+    const clientActivityLoading = clientActivity === undefined && portalArgsReady;
+    const clientActivityResolved = clientActivity !== undefined || !portalArgsReady;
+    const clientMessagesLoading = clientMessages === undefined && portalArgsReady;
     // Conversation-based portal messages (new system)
     const portalConversations = useQuery(
         api.portals.getPortalConversationsByParticipant,
@@ -470,7 +529,7 @@ const ClientDashboard: React.FC = () => {
             {/* ─── Hero Card (full-width, brand-colored) ─────────────────── */}
             <div className="bg-brand-primary text-white rounded-premium p-6 mx-0 sm:mx-4 shadow-premium">
                 <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
-                    {isProperty ? 'Property Portal' : 'Legal Portal'}
+                    Client Portal
                 </p>
                 <h2 className="text-2xl font-black tracking-tight mb-3">
                     Welcome, {currentUser.name?.split(' ')[0] || 'Client'}
@@ -479,7 +538,7 @@ const ClientDashboard: React.FC = () => {
                     <div>
                         <p className="text-3xl font-black">{activeMattersCount}</p>
                         <p className="text-[10px] text-white/60 uppercase tracking-wide font-medium">
-                            {isProperty ? 'Active Properties' : 'Active Matters'}
+                            Active Matters
                         </p>
                     </div>
                     <div className="w-px h-10 bg-white/20" />
@@ -526,24 +585,62 @@ const ClientDashboard: React.FC = () => {
             </div>
 
             {/* ─── Bottom Sheet (Recent Activity) ────────────────────────── */}
-            <div className="bg-white dark:bg-zinc-800 rounded-t-[32px] mt-8 p-6 min-h-[40vh] shadow-premium">
-                <div className="w-10 h-1 bg-slate-200 dark:bg-zinc-600 rounded-full mx-auto mb-6" />
+            <div className="bg-white dark:bg-zinc-800 rounded-t-[32px] mt-8 p-6 shadow-premium transition-all">
+                {/* Drag-handle-style affordance is now a real collapse toggle.
+                    Click anywhere on the header to expand/collapse. */}
+                <button
+                    onClick={() => setActivityCollapsed(c => !c)}
+                    className="w-full flex flex-col items-center group cursor-pointer"
+                    aria-label={activityCollapsed ? 'Expand recent activity' : 'Collapse recent activity'}
+                    aria-expanded={!activityCollapsed}
+                >
+                    <div className={`w-10 h-1 bg-slate-200 dark:bg-zinc-600 rounded-full mb-3 transition-all group-hover:bg-slate-300 dark:group-hover:bg-zinc-500 ${activityCollapsed ? 'opacity-50' : ''}`} />
+                    <div className="w-full flex items-center justify-between">
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            Recent Activity
+                            {!activityCollapsed && clientActivity && clientActivity.length > 0 && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                                    {clientActivity.length}
+                                </span>
+                            )}
+                        </h3>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleTabChange('requests'); }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
+                            >
+                                <PlusIcon className="w-3.5 h-3.5" />
+                                New Request
+                            </button>
+                            {/* Collapse chevron — flips 180deg when collapsed */}
+                            <svg
+                                className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${activityCollapsed ? 'rotate-180' : ''}`}
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                            >
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </div>
+                    </div>
+                </button>
 
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+                {/* Collapsed state — show a one-line summary so the user knows
+                    there's content to expand into, instead of just empty space. */}
+                {activityCollapsed ? (
                     <button
-                        onClick={() => handleTabChange('requests')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
+                        onClick={() => setActivityCollapsed(false)}
+                        className="w-full text-left mt-3 text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors"
                     >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                        New Request
+                        {clientActivity && clientActivity.length > 0
+                            ? `${clientActivity.length} recent ${clientActivity.length === 1 ? 'item' : 'items'} — tap to expand`
+                            : 'Tap to expand'}
                     </button>
-                </div>
-
-                {/* Loading state: show skeleton ONLY for the first 3 seconds.
-                    After that, if still undefined (query skipped because firmId
-                    isn't resolved), show empty state instead of infinite skeleton. */}
-                {clientActivity === undefined && effectiveFirmId ? (
+                ) : (
+                <>
+                {/* Loading state: skeleton ONLY shows when args are ready AND
+                    the query is still pending. If the contact lookup returned
+                    null (no contact record), the downstream queries are skipped
+                    and we show the empty state directly — no stuck skeleton. */}
+                {clientActivityLoading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
                             <div key={i} className="flex items-start gap-3 animate-pulse">
@@ -555,7 +652,7 @@ const ClientDashboard: React.FC = () => {
                             </div>
                         ))}
                     </div>
-                ) : clientActivity === undefined && !effectiveFirmId ? (
+                ) : !clientActivityResolved ? (
                     <div className="text-center py-8">
                         <div className="w-12 h-12 mx-auto bg-slate-50 dark:bg-zinc-700 rounded-full flex items-center justify-center mb-3 text-slate-300 dark:text-zinc-500">
                             <ClockIcon className="w-6 h-6" />
@@ -571,28 +668,71 @@ const ClientDashboard: React.FC = () => {
                     </div>
                 ) : (
                     <div className="space-y-1">
-                        {clientActivity.slice(0, 8).map((activity: any) => (
-                            <div key={String(activity._id)} className="flex items-start gap-3 py-2.5">
-                                <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <span className="text-[10px] font-bold text-brand-primary">
-                                        {getInitials(activity.userName)}
-                                    </span>
+                        {clientActivity.slice(0, 8).map((activity: any) => {
+                            // Color-code each activity by its action type so the
+                            // portal user can scan and prioritise at a glance.
+                            // Uses the action/targetType text to infer category.
+                            const actionText: string = (activity.action || '').toLowerCase();
+                            const targetType: string = (activity.targetType || '').toLowerCase();
+                            let badgeStyle = 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300';
+                            let badgeLabel = 'Update';
+                            let dotColor = 'bg-slate-400';
+                            if (actionText.includes('upload') || actionText.includes('share') || targetType === 'document') {
+                                badgeStyle = 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+                                badgeLabel = 'Document';
+                                dotColor = 'bg-blue-500';
+                            } else if (actionText.includes('message') || actionText.includes('reply') || targetType === 'message') {
+                                badgeStyle = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+                                badgeLabel = 'Message';
+                                dotColor = 'bg-emerald-500';
+                            } else if (actionText.includes('create') || actionText.includes('open') || targetType === 'matter') {
+                                badgeStyle = 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400';
+                                badgeLabel = 'Matter';
+                                dotColor = 'bg-violet-500';
+                            } else if (actionText.includes('invoice') || actionText.includes('payment') || targetType === 'invoice') {
+                                badgeStyle = 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+                                badgeLabel = 'Billing';
+                                dotColor = 'bg-amber-500';
+                            } else if (actionText.includes('resolve') || actionText.includes('close') || actionText.includes('complete')) {
+                                badgeStyle = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+                                badgeLabel = 'Resolved';
+                                dotColor = 'bg-emerald-500';
+                            }
+                            return (
+                                <div key={String(activity._id)} className="flex items-start gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                    <div className="relative flex-shrink-0 mt-0.5">
+                                        <div className="w-9 h-9 rounded-full bg-brand-primary/10 flex items-center justify-center">
+                                            <span className="text-[10px] font-bold text-brand-primary">
+                                                {getInitials(activity.userName)}
+                                            </span>
+                                        </div>
+                                        {/* Colored dot — matches the badge color so the
+                                            user can see the category without reading. */}
+                                        <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotColor} border-2 border-white dark:border-zinc-800`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${badgeStyle}`}>
+                                                {badgeLabel}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-800 dark:text-zinc-200 leading-snug">
+                                            <span className="font-semibold">{activity.userName}</span>{' '}
+                                            {activity.action}
+                                            {activity.targetName && (
+                                                <> &middot; <span className="text-brand-primary">{activity.targetName}</span></>
+                                            )}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                            {activity.timestamp ? timeAgo(activity.timestamp) : ''}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-slate-800 dark:text-zinc-200 leading-snug">
-                                        <span className="font-semibold">{activity.userName}</span>{' '}
-                                        {activity.action}
-                                        {activity.targetName && (
-                                            <> &middot; <span className="text-brand-primary">{activity.targetName}</span></>
-                                        )}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
-                                        {activity.timestamp ? timeAgo(activity.timestamp) : ''}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
+                )}
+                </>
                 )}
             </div>
         </div>
@@ -704,7 +844,7 @@ const ClientDashboard: React.FC = () => {
 
     // ── Render: Documents Tab ────────────────────────────────────────────
     const renderDocuments = () => {
-        const isLoading = clientDocs === undefined && effectiveFirmId;
+        const isLoading = clientDocsLoading;
         const docs = filteredDocs || [];
         const consents = clientConsentRecords || [];
 
@@ -831,52 +971,70 @@ const ClientDashboard: React.FC = () => {
                 {/* ─── Terms & Consents Section ───────────────────────────── */}
                 {consents.length > 0 && (
                     <div>
-                        <div className="flex items-center gap-2 mb-3">
-                            <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+                        <button
+                            onClick={() => setTcCollapsed(c => !c)}
+                            className="w-full flex items-center justify-between gap-2 mb-3 group"
+                            aria-label={tcCollapsed ? 'Expand terms & consents' : 'Collapse terms & consents'}
+                            aria-expanded={!tcCollapsed}
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+                                </svg>
+                                <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Terms & Consents</h3>
+                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                                    {consents.length} accepted
+                                </span>
+                            </div>
+                            <svg
+                                className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${tcCollapsed ? 'rotate-180' : ''}`}
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                            >
+                                <polyline points="6 9 12 15 18 9" />
                             </svg>
-                            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Terms & Consents</h3>
-                        </div>
-                        <div className="space-y-2">
-                            {consents.map((consent: any) => (
-                                <div
-                                    key={String(consent._id)}
-                                    className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center flex-shrink-0">
-                                            <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
-                                            </svg>
+                        </button>
+                        {!tcCollapsed && (
+                            <div className="space-y-2">
+                                {consents.map((consent: any) => (
+                                    <div
+                                        key={String(consent._id)}
+                                        className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-lg bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center flex-shrink-0">
+                                                <svg className="w-5 h-5 text-violet-600 dark:text-violet-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+                                                </svg>
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
+                                                    {consent.portalType === 'client' ? 'Client Portal Terms & Conditions' : "Residents' Portal Terms & Conditions"}
+                                                </p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                    Accepted on {consent.termsAcceptedAt
+                                                        ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                                        : 'N/A'}
+                                                </p>
+                                                <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
+                                                    <CheckCircleIcon className="w-3 h-3" /> Accepted
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200">
-                                                {consent.portalType === 'client' ? 'Client Portal Terms & Conditions' : "Residents' Portal Terms & Conditions"}
-                                            </p>
-                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
-                                                Accepted on {consent.termsAcceptedAt
-                                                    ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-                                                    : 'N/A'}
-                                            </p>
-                                            <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                                                <CheckCircleIcon className="w-3 h-3" /> Accepted
-                                            </span>
+                                        <div className="flex gap-2 flex-shrink-0 pl-12 sm:pl-0">
+                                            <button
+                                                onClick={() => handlePrintConsent(consent)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+                                            >
+                                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
+                                                </svg>
+                                                Print
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 flex-shrink-0 pl-12 sm:pl-0">
-                                        <button
-                                            onClick={() => handlePrintConsent(consent)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 rounded-lg text-xs font-bold hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
-                                        >
-                                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
-                                            </svg>
-                                            Print
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -981,7 +1139,7 @@ const ClientDashboard: React.FC = () => {
 
     // ── Render: Messages Tab ─────────────────────────────────────────────
     const renderMessages = () => {
-        const isLoading = clientMessages === undefined && effectiveFirmId;
+        const isLoading = clientMessagesLoading;
         const messages = clientMessages || [];
 
         return (
@@ -1398,6 +1556,10 @@ const ClientDashboard: React.FC = () => {
                         >
                             {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
                         </button>
+                        {/* Font-size control — portal user's own preference,
+                            independent of the admin's font size. Persisted
+                            to localStorage on this device. */}
+                        <PortalFontSizeControl className="hidden sm:inline-flex" />
                         {/* Sign Out — always visible and tappable for portal users */}
                         <button
                             onClick={() => logout()}

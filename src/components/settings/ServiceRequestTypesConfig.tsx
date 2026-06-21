@@ -431,9 +431,15 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   const deleteType = useMutation(api.portals.deleteServiceRequestType);
   const seedDefaults = useMutation(api.portals.seedDefaultServiceRequestTypes);
   const [isSeeding, setIsSeeding] = useState(false);
+  // Collapsed by default — the summary line shows the count + active types.
+  // Expanding reveals the full management UI (edit/hide/delete/add).
+  // This keeps the Settings page tidy instead of showing a long list of rows.
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const hasPersistedTypes = (allTypes || []).some((t: any) => !t.isDefault);
   const hasOnlyDefaults = !hasPersistedTypes && (allTypes || []).length > 0;
+  const activeCount = (allTypes || []).filter((t: any) => t.isActive !== false).length;
+  const totalCount = (allTypes || []).length;
 
   const handleSeed = async () => {
     setIsSeeding(true);
@@ -460,7 +466,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   const handleDelete = async (typeId: string) => {
     try {
       await deleteType({ typeId: typeId as any });
-      addToast('Request type deleted.', { type: 'success' });
+      addToast('Request type deleted. (Portal users will no longer see it.)', { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to delete.', { type: 'error' });
       throw err;
@@ -471,64 +477,99 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
   const portalIcon = portalType === 'resident' ? '🏠' : '⚖️';
 
   return (
-    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
-      <div className="flex items-start justify-between mb-4 gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <span className="text-2xl flex-shrink-0">{portalIcon}</span>
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+      {/* Summary header — always visible. Click to expand/collapse. */}
+      <button
+        onClick={() => setIsExpanded(e => !e)}
+        className="w-full flex items-center justify-between gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+        aria-expanded={isExpanded}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xl flex-shrink-0">{portalIcon}</span>
           <div className="min-w-0">
             <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">
               {portalLabel} Portal — Service Request Types
             </h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
-              Choose what {portalLabel.toLowerCase()}s can pick from when submitting a request. Each option creates a ticket
-              that surfaces in your Conversations inbox — nothing falls through the cracks.
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
+              {totalCount === 0
+                ? 'No types configured yet'
+                : `${activeCount} active of ${totalCount} total — tap to manage`}
             </p>
           </div>
         </div>
-      </div>
-
-      {hasOnlyDefaults && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-xs text-amber-800 dark:text-amber-300 font-medium flex-1 min-w-[200px]">
-            These are sensible defaults. Click "Seed & Edit" to persist them and start customizing.
-          </p>
-          <button
-            onClick={handleSeed}
-            disabled={isSeeding}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
-          >
-            {isSeeding ? (
-              <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <ArrowPathIcon className="w-3.5 h-3.5" />
+        {/* Quick preview chips — show first 3 active types */}
+        {!isExpanded && totalCount > 0 && (
+          <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
+            {(allTypes || []).filter((t: any) => t.isActive !== false).slice(0, 3).map((t: any) => (
+              <span key={t._id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+                <span>{t.icon || '📋'}</span>
+                {t.label}
+              </span>
+            ))}
+            {activeCount > 3 && (
+              <span className="text-[10px] text-slate-400">+{activeCount - 3} more</span>
             )}
-            Seed &amp; Edit
-          </button>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {(allTypes || []).map((t: any) => (
-          <TypeRow
-            key={t._id}
-            type={t}
-            portalType={portalType}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-          />
-        ))}
-        {allTypes && allTypes.length === 0 && (
-          <p className="text-xs text-slate-400 text-center py-4">No request types yet.</p>
+          </div>
         )}
-      </div>
+        <svg
+          className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
 
-      {hasPersistedTypes && (
-        <div className="mt-4">
-          <NewTypeForm
-            portalType={portalType}
-            firmId={firmId}
-            onCreated={() => {/* Convex query auto-refreshes */}}
-          />
+      {/* Expanded management UI */}
+      {isExpanded && (
+        <div className="border-t border-slate-200 dark:border-zinc-800 p-4 space-y-3">
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Choose what {portalLabel.toLowerCase()}s can pick from when submitting a request. Each option creates a ticket
+            that surfaces in your Conversations inbox. Adding a new type automatically posts a pinned notice to the portal's
+            notice board so {portalLabel.toLowerCase()}s are gently notified.
+          </p>
+
+          {hasOnlyDefaults && (
+            <div className="px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-xs text-amber-800 dark:text-amber-300 font-medium flex-1 min-w-[200px]">
+                These are sensible defaults. Click "Seed & Edit" to persist them and start customizing.
+              </p>
+              <button
+                onClick={handleSeed}
+                disabled={isSeeding}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {isSeeding ? (
+                  <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <ArrowPathIcon className="w-3.5 h-3.5" />
+                )}
+                Seed &amp; Edit
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {(allTypes || []).map((t: any) => (
+              <TypeRow
+                key={t._id}
+                type={t}
+                portalType={portalType}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+              />
+            ))}
+            {allTypes && allTypes.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">No request types yet.</p>
+            )}
+          </div>
+
+          {hasPersistedTypes && (
+            <NewTypeForm
+              portalType={portalType}
+              firmId={firmId}
+              onCreated={() => {/* Convex query auto-refreshes */}}
+            />
+          )}
         </div>
       )}
     </div>

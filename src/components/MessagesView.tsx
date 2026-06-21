@@ -462,6 +462,31 @@ const MessagesView: React.FC = () => {
     const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
+    // ── Conversation type filters ─────────────────────────────────────────
+    // Lets the practitioner filter the All Conversations list by type:
+    //   - Requests (red)     — client service requests
+    //   - Tickets (amber)    — maintenance tickets
+    //   - Replied (blue)     — admin has replied
+    //   - Portal (emerald)   — regular 2-way portal messages
+    // All filters default to ON. Unchecking one hides that type.
+    const [typeFilters, setTypeFilters] = useState<{
+        request: boolean;
+        ticket: boolean;
+        replied: boolean;
+        portal: boolean;
+    }>({ request: true, ticket: true, replied: true, portal: true });
+
+    const filteredPortalConversations = useMemo(() => {
+        return (portalConversations as any[]).filter((conv: any) => {
+            const convType = detectConversationType(conv);
+            if (convType === 'service_request' && !typeFilters.request) return false;
+            if (convType === 'maintenance' && !typeFilters.ticket) return false;
+            if (convType === 'admin_reply' && !typeFilters.replied) return false;
+            if (convType === 'portal' && !typeFilters.portal) return false;
+            return true;
+        });
+    }, [portalConversations, typeFilters]);
+
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
         api.portals.getConversationMessages,
@@ -535,6 +560,70 @@ const MessagesView: React.FC = () => {
     const sendAdminReply = useMutation(api.portals.sendAdminReply);
     const markPortalRead = useMutation(api.portals.markPortalMessageRead);
     const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
+
+    // ── Ticketing: status update mutations ──
+    // Used by the TicketStatusBar component to advance a ticket/request
+    // through its lifecycle: open → in_progress → resolved → closed.
+    const updateTicketStatus = useMutation(api.portals.updateMaintenanceTicketStatus);
+    const updateRequestStatus = useMutation(api.portals.updateClientServiceRequestStatus);
+
+    // Find the linked ticket/request for the currently-selected conversation.
+    // We scan the conversation's messages for one with linkedTicketId or
+    // linkedRequestId — the first such message tells us what ticket this
+    // conversation is about.
+    const linkedTicketInfo = useMemo(() => {
+        if (selectedInboxType !== 'conversation' || !selectedInboxId) return null;
+        const msgs = (conversationMessages as any[]) || [];
+        // Find the FIRST (originating) message with a linked ticket/request
+        const originating = msgs.find((m: any) => m.linkedTicketId || m.linkedRequestId);
+        if (!originating) return null;
+        return {
+            kind: originating.linkedTicketId ? 'maintenance' : 'client_service',
+            id: originating.linkedTicketId || originating.linkedRequestId,
+            requestTypeLabel: originating.requestTypeLabel,
+            requestTypeKey: originating.requestTypeKey,
+        } as { kind: 'maintenance' | 'client_service'; id: string; requestTypeLabel?: string; requestTypeKey?: string };
+    }, [selectedInboxType, selectedInboxId, conversationMessages]);
+
+    // Fetch the linked ticket/request to get its current status. We use a
+    // direct Convex query (via useConvex) because we don't have a dedicated
+    // query for "get ticket by id" — and we don't want to add one just for
+    // this. The convex.query() call is promise-based; we store the result
+    // in state and refresh whenever the linkedTicketInfo changes.
+    const [linkedTicketRecord, setLinkedTicketRecord] = useState<any>(null);
+    useEffect(() => {
+        if (!linkedTicketInfo?.id) { setLinkedTicketRecord(null); return; }
+        let cancelled = false;
+        const table = linkedTicketInfo.kind === 'maintenance' ? 'maintenance_tickets' : 'client_service_requests';
+        convex.query(table as any, linkedTicketInfo.id as any)
+            .then((rec: any) => { if (!cancelled) setLinkedTicketRecord(rec); })
+            .catch(() => { if (!cancelled) setLinkedTicketRecord(null); });
+        return () => { cancelled = true; };
+    }, [linkedTicketInfo, convex]);
+
+    const handleAdvanceTicket = async (newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
+        if (!linkedTicketInfo) return;
+        try {
+            if (linkedTicketInfo.kind === 'maintenance') {
+                await updateTicketStatus({
+                    ticketId: linkedTicketInfo.id as any,
+                    status: newStatus,
+                });
+            } else {
+                await updateRequestStatus({
+                    requestId: linkedTicketInfo.id as any,
+                    status: newStatus,
+                });
+            }
+            addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
+            // Refresh the linked record
+            const table = linkedTicketInfo.kind === 'maintenance' ? 'maintenance_tickets' : 'client_service_requests';
+            const rec = await convex.query(table as any, linkedTicketInfo.id as any);
+            setLinkedTicketRecord(rec);
+        } catch (err: any) {
+            addToast(err.message || 'Failed to update status.', { type: 'error' });
+        }
+    };
 
     // ── Team Chat: filtered conversations (existing logic) ──
     const filteredConversations = useMemo(() => {
@@ -994,6 +1083,46 @@ const MessagesView: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+                            {/* ── Type filter checkboxes ─────────────────────────────────
+                                Lets the practitioner filter conversations by type. Each
+                                checkbox is color-coded to match the conversation badge.
+                                Only shown when there are conversations to filter. */}
+                            {(portalConversations as any[]).length > 0 && selectedConvIds.size === 0 && (
+                                <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 flex items-center gap-3 flex-wrap">
+                                    {([
+                                        { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
+                                        { key: 'ticket'  as const, label: 'Tickets',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
+                                        { key: 'replied' as const, label: 'Replied',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
+                                        { key: 'portal'  as const, label: 'Portal',    style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-400' },
+                                    ]).map(f => (
+                                        <label
+                                            key={f.key}
+                                            className="inline-flex items-center gap-1.5 cursor-pointer select-none"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={typeFilters[f.key]}
+                                                onChange={(e) => setTypeFilters(prev => ({ ...prev, [f.key]: e.target.checked }))}
+                                                className="sr-only"
+                                            />
+                                            <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
+                                                typeFilters[f.key]
+                                                    ? `${f.dot} border-transparent`
+                                                    : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900'
+                                            }`}>
+                                                {typeFilters[f.key] && (
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </span>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
+                                                {f.label}
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
 <div className="flex-1 overflow-y-auto custom-scrollbar">
                                 {isInboxLoading ? (
                                     <div className="p-3">
@@ -1025,6 +1154,13 @@ const MessagesView: React.FC = () => {
                                         (portalConversations as any[]).length > 0 ||
                                         clientMessages.length > 0;
 
+                                    // If filters have hidden everything but messages DO exist,
+                                    // show a "no matches" state instead of the generic empty state.
+                                    const hasFilteredMessages =
+                                        atriumInbound.length > 0 ||
+                                        filteredPortalConversations.length > 0 ||
+                                        clientMessages.length > 0;
+
                                     if (!hasAnyMessages) {
                                         return (
                                             <div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -1032,13 +1168,25 @@ const MessagesView: React.FC = () => {
                                                     <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                 </div>
                                                 <p className="text-sm text-slate-400">No messages yet</p>
-                                                <p className="text-xs text-slate-300 mt-1">
-                                                    {isUnified
-                                                        ? 'WhatsApp, email, and portal messages from clients and residents will appear here.'
-                                                        : isProperty
-                                                        ? "WhatsApp, email, and portal messages from residents will appear here."
-                                                        : 'Messages from your clients on their matters will appear here.'}
-                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    if (!hasFilteredMessages) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center py-12 text-center px-6">
+                                                <div className="w-12 h-12 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-3">
+                                                    <svg className="w-6 h-6 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                                                    </svg>
+                                                </div>
+                                                <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">No conversations match your filters</p>
+                                                <button
+                                                    onClick={() => setTypeFilters({ request: true, ticket: true, replied: true, portal: true })}
+                                                    className="mt-3 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                                                >
+                                                    Show all
+                                                </button>
                                             </div>
                                         );
                                     }
@@ -1073,8 +1221,9 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                             ))}
 
-                                            {/* ── ALL portal conversations (clients AND residents) ── */}
-                                            {(portalConversations as any[]).map((conv: any) => {
+                                            {/* ── ALL portal conversations (clients AND residents) ──
+                                                Filtered by the type checkboxes in the inbox header. */}
+                                            {filteredPortalConversations.map((conv: any) => {
                                                 const convId = String(conv._id);
                                                 const isSelected = selectedConvIds.has(convId);
                                                 const convType = detectConversationType(conv);
@@ -1396,6 +1545,55 @@ const MessagesView: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Ticket Status Bar — shown when this conversation is
+                                        linked to a maintenance ticket or client service
+                                        request. Lets the practitioner advance the ticket
+                                        through its lifecycle without leaving the chat. */}
+                                    {linkedTicketInfo && linkedTicketRecord && (
+                                        <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2.5">
+                                            <div className="max-w-2xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                        linkedTicketInfo.kind === 'maintenance'
+                                                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                            : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                                                    }`}>
+                                                        {linkedTicketInfo.kind === 'maintenance' ? '🔧 Ticket' : '📋 Request'}
+                                                    </span>
+                                                    {linkedTicketInfo.requestTypeLabel && (
+                                                        <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
+                                                            {linkedTicketInfo.requestTypeLabel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                    {([
+                                                        { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
+                                                        { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
+                                                        { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
+                                                        { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
+                                                    ] as const).map(stage => {
+                                                        const isCurrent = linkedTicketRecord.status === stage.value;
+                                                        return (
+                                                            <button
+                                                                key={stage.value}
+                                                                onClick={() => handleAdvanceTicket(stage.value)}
+                                                                disabled={isCurrent}
+                                                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                                                                    isCurrent
+                                                                        ? `${stage.activeClass} cursor-default`
+                                                                        : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
+                                                                }`}
+                                                            >
+                                                                {stage.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Reply Input */}
                                     <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">

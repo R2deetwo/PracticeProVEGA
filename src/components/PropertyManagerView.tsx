@@ -428,21 +428,23 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                         </div>
                     )}
 
-                    {/* Compact List Header with Select All */}
+                    {/* Compact List Header with Select All — unified styling
+                        with the Matters list (w-5 h-5 checkbox, same font weights). */}
                     <div className="bg-slate-50 dark:bg-zinc-900/50 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-                        <div 
+                        <div
                             onClick={() => {
                                 if (selectedIds.size === filteredProperties.length) setSelectedIds(new Set());
                                 else setSelectedIds(new Set(filteredProperties.map(p => p.property.id)));
                             }}
                             className="flex items-center gap-2 cursor-pointer group"
                         >
-                            <div className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center ${selectedIds.size === filteredProperties.length && filteredProperties.length > 0 ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
-                                {selectedIds.size === filteredProperties.length && filteredProperties.length > 0 && <svg className="w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${selectedIds.size === filteredProperties.length && filteredProperties.length > 0 ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
+                                {selectedIds.size === filteredProperties.length && filteredProperties.length > 0 && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                                {selectedIds.size > 0 && selectedIds.size < filteredProperties.length && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
                             </div>
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
+                            <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
                         </div>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase">{filteredProperties.length}</span>
+                        <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredProperties.length} Total Properties</span>
                     </div>
 
                     <div className="flex-grow overflow-y-auto custom-scrollbar p-2">

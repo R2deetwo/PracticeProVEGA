@@ -29,6 +29,7 @@ import {
 import { Receipt as ReceiptIcon } from 'lucide-react';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
+import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
 const ReceiptIconLocal: React.FC<{ className?: string }> = ({ className }) => (
@@ -415,6 +416,9 @@ const TenantPortal: React.FC = () => {
             >
               {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
             </button>
+            {/* Font-size control — portal user's own preference,
+                independent of the admin's font size. */}
+            <PortalFontSizeControl className="hidden sm:inline-flex" />
             {/* Sign Out — always visible and tappable for portal users */}
             <button
               onClick={() => logout()}
