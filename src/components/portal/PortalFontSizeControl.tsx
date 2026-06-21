@@ -46,10 +46,11 @@ function readStoredScale(): number {
 function applyScale(scale: number) {
     if (typeof document === 'undefined') return;
     document.documentElement.style.setProperty('--portal-font-scale', String(scale));
-    // Also set the root font-size so rem-based sizing scales with the user's
-    // preference. We use a CSS variable so we don't fight with Tailwind's
-    // base styles — Tailwind's preflight sets html { font-size: 16px }, but
-    // our override wins because it's more specific (inline style).
+    // Set the root font-size so rem-based sizing scales with the user's
+    // preference. Tailwind's text-xs/text-sm/text-base/etc. all use rem,
+    // so they scale automatically. Explicit pixel sizes (text-[10px]) are
+    // intentionally fixed for badges/labels and don't scale — that's
+    // acceptable because they're decorative, not body text.
     document.documentElement.style.fontSize = `${16 * scale}px`;
 }
 

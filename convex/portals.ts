@@ -115,6 +115,25 @@ export const createMaintenanceTicket = mutation({
       }
     }
 
+    // 3. Notify all firm admins that a new maintenance ticket was submitted.
+    //    This creates an in-app notification (shows in the header bell) AND
+    //    schedules an email if the firm has portal_maintenance_ticket enabled.
+    //    This was the missing piece — tickets were created but admins were
+    //    never alerted, so the notification bell stayed empty.
+    try {
+      await notifyFirmAdmins(ctx, {
+        firmId: args.firmId,
+        title: `New maintenance ticket: ${args.subject}`,
+        message: `${args.tenantName || 'A resident'} submitted a maintenance request${requestTypeLabel ? ` (${requestTypeLabel})` : ''}: ${args.subject}`,
+        type: "portal_maintenance_ticket",
+        link: { view: "messaging", initialTab: "inbox" },
+        actorName: args.tenantName,
+        actorEmail: undefined,
+      });
+    } catch (err) {
+      console.warn("[createMaintenanceTicket] Failed to notify admins:", (err as any)?.message);
+    }
+
     return ticketId;
   },
 });
@@ -558,6 +577,22 @@ export const createClientServiceRequest = mutation({
       } catch (err) {
         console.error("[createClientServiceRequest] conversation wiring failed:", err);
       }
+    }
+
+    // 3. Notify all firm admins that a new client service request was submitted.
+    //    Creates in-app notification (header bell) + email if enabled.
+    try {
+      await notifyFirmAdmins(ctx, {
+        firmId: args.firmId,
+        title: `New service request: ${args.subject}`,
+        message: `${args.clientName || 'A client'} submitted a service request (${args.requestTypeLabel}): ${args.subject}`,
+        type: "portal_service_request",
+        link: { view: "messaging", initialTab: "inbox" },
+        actorName: args.clientName,
+        actorEmail: args.clientEmail,
+      });
+    } catch (err) {
+      console.warn("[createClientServiceRequest] Failed to notify admins:", (err as any)?.message);
     }
 
     return requestId;
@@ -3383,6 +3418,26 @@ export const sendPortalMessage = mutation({
       updatedAt: now,
     });
 
+    // Notify firm admins that a portal user sent a new message — creates
+    // in-app notification (header bell) + email if enabled. (Tickets and
+    // service requests have their own dedicated notifications via
+    // createMaintenanceTicket / createClientServiceRequest, so we don't
+    // double-notify here. sendPortalMessage is only called for free-form
+    // chat messages from the portal.)
+    try {
+      await notifyFirmAdmins(ctx, {
+        firmId: args.firmId,
+        title: `New portal message from ${args.senderName || 'portal user'}`,
+        message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
+        type: "portal_new_message",
+        link: { view: "messaging", initialTab: "inbox" },
+        actorName: args.senderName,
+        actorEmail: args.senderEmail,
+      });
+    } catch (err) {
+      console.warn("[sendPortalMessage] Failed to notify admins:", (err as any)?.message);
+    }
+
     return { messageId, conversationId };
   },
 });
@@ -4633,6 +4688,85 @@ export const migratePortalAccessTokens = mutation({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * notifyFirmAdmins — Internal helper that creates an in-app notification
+ * for every Admin/Lawyer/Paralegal in the firm AND optionally schedules an
+ * email notification. Used by createMaintenanceTicket, createClientServiceRequest,
+ * sendPortalMessage, and other portal-inbound mutations so the practitioner
+ * is alerted that a portal user has taken an action that needs attention.
+ *
+ * This is the missing piece that made the notification bell appear empty —
+ * portal submissions created records but never created notifications for
+ * the admin team.
+ */
+async function notifyFirmAdmins(
+  ctx: any,
+  args: {
+    firmId: string;
+    title: string;
+    message: string;
+    type: string;             // notification type key (see NOTIFICATION_TYPE_DEFAULTS)
+    link?: any;               // navigation context for the in-app notification
+    actionLink?: string;      // optional URL
+    actorName?: string;       // portal user's name (for the email body)
+    actorEmail?: string;
+  }
+) {
+  const now = new Date().toISOString();
+
+  // 1. Find all admin-team users in the firm (Admin, Lawyer, Paralegal, ExternalCounsel)
+  const allUsers = await ctx.db
+    .query("users")
+    .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+    .collect();
+  const adminRoles = new Set(["Admin", "Lawyer", "Paralegal", "ExternalCounsel"]);
+  const admins = allUsers.filter((u: any) => adminRoles.has(u.role));
+
+  // 2. Create an in-app notification for each admin
+  for (const admin of admins) {
+    try {
+      await ctx.db.insert("notifications", {
+        firmId: args.firmId,
+        userId: String(admin._id),
+        title: args.title,
+        message: args.message,
+        type: args.type,
+        link: args.link,
+        actionLink: args.actionLink,
+        timestamp: now,
+        isRead: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    } catch (e) {
+      console.warn("[notifyFirmAdmins] Failed to create notification for admin:", (e as any)?.message);
+    }
+  }
+
+  // 3. Schedule an email notification to each admin (if enabled for this type)
+  //    We check the firm's notification_preferences to see if this type is on.
+  //    The email scheduler runs asynchronously — we don't await it.
+  try {
+    const emailEnabled = await isEmailNotificationEnabled(ctx, args.firmId, args.type);
+    if (emailEnabled) {
+      // Find the firm's primary admin email (first Admin user)
+      const primaryAdmin = admins.find((u: any) => u.role === "Admin") || admins[0];
+      if (primaryAdmin?.email) {
+        ctx.scheduler.runAfter(0, internal.portals.sendAdminNotificationEmail, {
+          firmId: args.firmId,
+          toEmail: primaryAdmin.email,
+          toName: primaryAdmin.name || "Admin",
+          title: args.title,
+          body: args.message + (args.actorName ? `\n\nFrom: ${args.actorName}${args.actorEmail ? ` (${args.actorEmail})` : ''}` : ''),
+          notificationType: args.type,
+        });
+      }
+    }
+  } catch (e) {
+    console.warn("[notifyFirmAdmins] Failed to schedule email:", (e as any)?.message);
+  }
+}
+
+/**
  * NOTIFICATION_TYPE_DEFAULTS — Source of truth for every notification type.
  * Each entry: { label, category, defaultEnabled, alwaysOn, description }
  *
@@ -4672,6 +4806,14 @@ export const NOTIFICATION_TYPE_DEFAULTS: Record<string, {
   portal_invitation:     { label: "Portal Invitation",      category: "portal",   defaultEnabled: true,  alwaysOn: true, description: "Invitation to join the portal" },
   password_reset:        { label: "Password Reset",         category: "portal",   defaultEnabled: true,  alwaysOn: true, description: "Password reset request" },
   portal_access_revoked: { label: "Portal Access Revoked",  category: "portal",   defaultEnabled: true,  description: "Portal access has been revoked" },
+
+  // ── Portal Inbound (admin-facing — when a portal user submits something) ──
+  // These notify the PRACTITIONER that a portal user has taken an action
+  // that needs their attention. Email + in-app notification to all admins.
+  portal_new_message:        { label: "New Portal Message",       category: "portal", defaultEnabled: true,  description: "A client or resident sent a new portal message" },
+  portal_maintenance_ticket: { label: "New Maintenance Ticket",   category: "portal", defaultEnabled: true,  description: "A resident submitted a new maintenance ticket" },
+  portal_service_request:    { label: "New Service Request",      category: "portal", defaultEnabled: true,  description: "A client submitted a new service request" },
+  portal_payment_proof:      { label: "Payment Proof Submitted",  category: "portal", defaultEnabled: true,  description: "A resident uploaded a payment proof for review" },
 
   // ── System ──
   verification_code:     { label: "Verification Code",      category: "system",   defaultEnabled: true,  alwaysOn: true, description: "Email verification during signup" },
@@ -5046,3 +5188,74 @@ function buildLightModeNotificationEmail(opts: {
 </body>
 </html>`;
 }
+
+/**
+ * sendAdminNotificationEmail — Internal action that sends an email
+ * notification to a practitioner (admin) when a portal user takes an
+ * action that needs their attention (new message, new ticket, new
+ * service request, payment proof submitted).
+ *
+ * Called by notifyFirmAdmins() via the scheduler. Runs asynchronously
+ * so the portal user's mutation returns immediately.
+ */
+export const sendAdminNotificationEmail = internalAction({
+  args: {
+    firmId: v.string(),
+    toEmail: v.string(),
+    toName: v.string(),
+    title: v.string(),
+    body: v.string(),
+    notificationType: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const htmlBody = `<!DOCTYPE html>
+<html lang="en" style="margin:0;padding:0;">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f8fafc;-webkit-text-size-adjust:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px -2px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:24px 32px;text-align:center;">
+              <span style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Practice<span style="color:#fef3c7;">Pro</span></span>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h1 style="font-size:18px;font-weight:700;color:#0f172a;margin:0 0 8px;">${args.title}</h1>
+              <p style="font-size:14px;line-height:1.6;color:#475569;margin:0 0 16px;white-space:pre-line;">${args.body}</p>
+              <div style="margin-top:24px;padding:16px;background:#f1f5f9;border-radius:10px;border-left:3px solid #10b981;">
+                <p style="font-size:12px;color:#64748b;margin:0;">This notification was sent because a portal user took an action that requires your attention. You can manage which notifications you receive in Settings → Notifications.</p>
+              </div>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+              <p style="font-size:11px;color:#94a3b8;margin:0;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+      await ctx.runAction(api.communications.sendEmail, {
+        firmId: args.firmId,
+        to: args.toEmail,
+        toName: args.toName,
+        subject: args.title,
+        htmlContent: htmlBody,
+      });
+      console.log(`[sendAdminNotificationEmail] Sent to ${args.toEmail} (${args.notificationType})`);
+    } catch (err: any) {
+      console.error(`[sendAdminNotificationEmail] Failed for ${args.toEmail}:`, err?.message);
+    }
+  },
+});

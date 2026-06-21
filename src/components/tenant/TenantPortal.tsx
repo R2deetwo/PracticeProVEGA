@@ -108,13 +108,21 @@ const TenantPortal: React.FC = () => {
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
 
-  // ─── Force light mode for portal users on first load ──────────────
+  // ─── Portal theme isolation ──────────────────────────────────────────
+  // Portal users ONLY ever see standard light or standard dark — never
+  // the admin's custom themes (midnight, oled, neon-cyber, etc.).
+  // Separate localStorage key so portal preference is independent of admin.
+  const PORTAL_THEME_KEY = 'practicepro_portal_theme';
   React.useEffect(() => {
-    const hasUserSetTheme = localStorage.getItem('practicepro_theme');
-    if (!hasUserSetTheme) {
+    const portalTheme = localStorage.getItem(PORTAL_THEME_KEY) as 'light' | 'dark' | null;
+    if (portalTheme === 'light' || portalTheme === 'dark') {
+      if (theme !== portalTheme) setTheme(portalTheme);
+    } else {
       setTheme('light');
+      try { localStorage.setItem(PORTAL_THEME_KEY, 'light'); } catch {}
     }
-  }, [setTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const hash = window.location.hash.replace('#', '');
@@ -229,12 +237,15 @@ const TenantPortal: React.FC = () => {
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
   }, []);
-  const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-    theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-    (theme === 'system' && systemIsDark);
+  // Portal users only see standard light or standard dark. Compute isDark
+  // based ONLY on the two standard themes so a leaked admin theme is
+  // treated as light (not as some broken custom theme).
+  const isDark = theme === 'dark';
 
   const toggleTheme = () => {
-    setTheme(isDark ? 'light' : 'dark');
+    const newTheme = isDark ? 'light' : 'dark';
+    setTheme(newTheme);
+    try { localStorage.setItem('practicepro_portal_theme', newTheme); } catch {}
   };
 
   // ── CONDITIONAL RETURNS (after all hooks) ────────────────────────────────
@@ -418,7 +429,7 @@ const TenantPortal: React.FC = () => {
             </button>
             {/* Font-size control — portal user's own preference,
                 independent of the admin's font size. */}
-            <PortalFontSizeControl className="hidden sm:inline-flex" />
+            <PortalFontSizeControl className="hidden md:inline-flex" />
             {/* Sign Out — always visible and tappable for portal users */}
             <button
               onClick={() => logout()}

@@ -79,7 +79,7 @@ const SummaryCard: React.FC<{
 );
 
 // ─── Tab Button ─────────────────────────────────────────────────────────
-type PortalTab = 'overview' | 'matters' | 'documents' | 'messages' | 'requests';
+type PortalTab = 'overview' | 'matters' | 'documents' | 'messages' | 'requests' | 'financials';
 
 const TabButton: React.FC<{
     label: string;
@@ -91,13 +91,15 @@ const TabButton: React.FC<{
 }> = ({ label, tab, active, onClick, icon, badge }) => (
     <button
         onClick={onClick}
-        className={`flex items-center gap-1.5 sm:gap-2 whitespace-nowrap py-3 px-2 sm:px-4 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
+        className={`flex items-center gap-2 sm:gap-2.5 whitespace-nowrap py-3.5 px-3 sm:px-4 border-b-2 font-semibold text-xs sm:text-sm transition-colors ${
             active === tab
                 ? 'border-emerald-500 text-emerald-700 dark:text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
         }`}
     >
-        <span className="w-4 h-4">{icon}</span>
+        {/* Icon — larger than before (w-5 h-5) so it's easier to tap and
+            more visually balanced against the label text. */}
+        <span className="w-5 h-5 flex-shrink-0">{icon}</span>
         <span className="hidden sm:inline">{label}</span>
         {badge !== undefined && badge > 0 && (
             <span className="ml-0.5 sm:ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
@@ -147,16 +149,30 @@ const ClientDashboard: React.FC = () => {
     const { handleSendClientMessage } = useDataActions();
     const { isProperty } = useProduct();
 
-    // ─── Force light mode for portal users ──────────────────────────────
-    // Portal users should always see light mode for maximum readability.
-    // The theme toggle is still available if they want to switch.
+    // ─── Portal theme isolation ──────────────────────────────────────────
+    // Portal users should ONLY ever see standard light or standard dark —
+    // never the admin's custom themes (midnight, oled, neon-cyber, etc.).
+    // Those admin themes are designed for the practitioner dashboard and
+    // look broken in the portal's simpler layout.
+    //
+    // We use a SEPARATE localStorage key (practicepro_portal_theme) so the
+    // portal user's preference is independent of the admin's theme. If the
+    // admin's theme leaks in (e.g. user was logged in as admin then switched
+    // to portal), we override it to the portal user's last-known preference
+    // or default to light.
+    const PORTAL_THEME_KEY = 'practicepro_portal_theme';
     React.useEffect(() => {
-        // Only force light on first load — don't override user's explicit choice
-        const hasUserSetTheme = localStorage.getItem('practicepro_theme');
-        if (!hasUserSetTheme) {
+        const portalTheme = localStorage.getItem(PORTAL_THEME_KEY) as 'light' | 'dark' | null;
+        if (portalTheme === 'light' || portalTheme === 'dark') {
+            // Apply the portal user's saved preference
+            if (theme !== portalTheme) setTheme(portalTheme);
+        } else {
+            // First visit — default to light, save the preference
             setTheme('light');
+            try { localStorage.setItem(PORTAL_THEME_KEY, 'light'); } catch {}
         }
-    }, [setTheme]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Repair mutation for fixing missing firmId on portal user records
     const repairFirmId = useMutation(api.portals.repairPortalUserFirmId);
@@ -165,7 +181,7 @@ const ClientDashboard: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<PortalTab>(() => {
         const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
-        if (['overview', 'matters', 'documents', 'messages', 'requests'].includes(hash)) return hash as PortalTab;
+        if (['overview', 'matters', 'documents', 'messages', 'requests', 'financials'].includes(hash)) return hash as PortalTab;
         return 'overview';
     });
     const handleTabChange = (tab: PortalTab) => {
@@ -173,15 +189,6 @@ const ClientDashboard: React.FC = () => {
         window.location.hash = tab;
     };
     const [docFilter, setDocFilter] = useState<string>('all');
-    // Recent Activity collapse state — persisted to localStorage so the
-    // portal user's preference survives page reloads. The drag-handle-style
-    // affordance at the top of the bottom sheet is now a real toggle.
-    const [activityCollapsed, setActivityCollapsed] = useState<boolean>(() => {
-        try { return localStorage.getItem('practicepro_activity_collapsed') === '1'; } catch { return false; }
-    });
-    useEffect(() => {
-        try { localStorage.setItem('practicepro_activity_collapsed', activityCollapsed ? '1' : '0'); } catch {}
-    }, [activityCollapsed]);
     // Terms & Consents collapse state — portal user can hide the T&C section
     // so it's not imposing. The acceptance record is still retained for
     // compliance; this just hides the visual reminder.
@@ -198,12 +205,17 @@ const ClientDashboard: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Portal users only ever see standard light or standard dark — never
+    // the admin's custom themes. We compute isDark based ONLY on the two
+    // standard themes so a leaked admin theme is treated as light.
+    const isDark = theme === 'dark';
 
     const toggleTheme = () => {
-        setTheme(isDark ? 'light' : 'dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        setTheme(newTheme);
+        // Persist to the portal-specific key so the admin's theme setting
+        // is never affected by the portal user's choice (and vice versa).
+        try { localStorage.setItem('practicepro_portal_theme', newTheme); } catch {}
     };
 
     // ── Data Derivation via direct Convex queries ──────────────────────────
@@ -523,9 +535,11 @@ const ClientDashboard: React.FC = () => {
     };
 
     // ── Render: Overview Tab (Premium Layout) ───────────────────────────
-    // Architecture: Hero Card → Quick Service Grid → Bottom Sheet with activity
+    // Architecture: Hero Card → Recent Activity island.
+    // The tab bar at the top already provides navigation to Matters/Documents/
+    // Messages/Requests/Financials — no need to duplicate those icons here.
     const renderOverview = () => (
-        <div className="space-y-0">
+        <div className="space-y-6">
             {/* ─── Hero Card (full-width, brand-colored) ─────────────────── */}
             <div className="bg-brand-primary text-white rounded-premium p-6 mx-0 sm:mx-4 shadow-premium">
                 <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
@@ -556,86 +570,29 @@ const ClientDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* ─── Quick Service Grid (3-col, tinted icons) ──────────────── */}
-            <div className="grid grid-cols-4 gap-3 px-0 sm:px-4 mt-6">
-                {[
-                    { icon: <ScalesIcon className="w-5 h-5" />, label: 'Matters', tab: 'matters' as PortalTab, count: clientMatters.length },
-                    { icon: <LargeFolderIcon className="w-5 h-5" />, label: 'Documents', tab: 'documents' as PortalTab, count: sharedDocsCount },
-                    { icon: <ChatAltIcon className="w-5 h-5" />, label: 'Messages', tab: 'messages' as PortalTab, count: unreadMessagesCount },
-                    { icon: <ClipboardListIcon className="w-5 h-5" />, label: 'Requests', tab: 'requests' as PortalTab, count: openRequestsCount },
-                ].map(service => (
+            {/* ─── Recent Activity (simple island, NOT retractable) ────────
+                The previous "bottom sheet" with drag handle + collapse toggle
+                was overengineered and confusing. This is just a normal card
+                that populates as activity is logged. Simplicity wins. */}
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl p-5 shadow-soft mx-0 sm:mx-4">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        Recent Activity
+                        {clientActivity && clientActivity.length > 0 && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                                {clientActivity.length}
+                            </span>
+                        )}
+                    </h3>
                     <button
-                        key={service.label}
-                        onClick={() => handleTabChange(service.tab)}
-                        className="flex flex-col items-center group active:scale-95 transition-transform"
+                        onClick={() => handleTabChange('requests')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
                     >
-                        <div className="w-14 h-14 bg-brand-primary/10 rounded-icon flex items-center justify-center text-brand-primary relative">
-                            {service.icon}
-                            {service.count > 0 && (
-                                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-sm">
-                                    {service.count > 9 ? '9+' : service.count}
-                                </span>
-                            )}
-                        </div>
-                        <span className="mt-2 text-[11px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
-                            {service.label}
-                        </span>
+                        <PlusIcon className="w-3.5 h-3.5" />
+                        New Request
                     </button>
-                ))}
-            </div>
+                </div>
 
-            {/* ─── Bottom Sheet (Recent Activity) ────────────────────────── */}
-            <div className="bg-white dark:bg-zinc-800 rounded-t-[32px] mt-8 p-6 shadow-premium transition-all">
-                {/* Drag-handle-style affordance is now a real collapse toggle.
-                    Click anywhere on the header to expand/collapse. */}
-                <button
-                    onClick={() => setActivityCollapsed(c => !c)}
-                    className="w-full flex flex-col items-center group cursor-pointer"
-                    aria-label={activityCollapsed ? 'Expand recent activity' : 'Collapse recent activity'}
-                    aria-expanded={!activityCollapsed}
-                >
-                    <div className={`w-10 h-1 bg-slate-200 dark:bg-zinc-600 rounded-full mb-3 transition-all group-hover:bg-slate-300 dark:group-hover:bg-zinc-500 ${activityCollapsed ? 'opacity-50' : ''}`} />
-                    <div className="w-full flex items-center justify-between">
-                        <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            Recent Activity
-                            {!activityCollapsed && clientActivity && clientActivity.length > 0 && (
-                                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
-                                    {clientActivity.length}
-                                </span>
-                            )}
-                        </h3>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleTabChange('requests'); }}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-primary/10 text-brand-primary rounded-lg text-xs font-bold hover:bg-brand-primary/20 transition-colors"
-                            >
-                                <PlusIcon className="w-3.5 h-3.5" />
-                                New Request
-                            </button>
-                            {/* Collapse chevron — flips 180deg when collapsed */}
-                            <svg
-                                className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-transform duration-200 ${activityCollapsed ? 'rotate-180' : ''}`}
-                                viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
-                            >
-                                <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                        </div>
-                    </div>
-                </button>
-
-                {/* Collapsed state — show a one-line summary so the user knows
-                    there's content to expand into, instead of just empty space. */}
-                {activityCollapsed ? (
-                    <button
-                        onClick={() => setActivityCollapsed(false)}
-                        className="w-full text-left mt-3 text-xs text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors"
-                    >
-                        {clientActivity && clientActivity.length > 0
-                            ? `${clientActivity.length} recent ${clientActivity.length === 1 ? 'item' : 'items'} — tap to expand`
-                            : 'Tap to expand'}
-                    </button>
-                ) : (
-                <>
                 {/* Loading state: skeleton ONLY shows when args are ready AND
                     the query is still pending. If the contact lookup returned
                     null (no contact record), the downstream queries are skipped
@@ -671,7 +628,6 @@ const ClientDashboard: React.FC = () => {
                         {clientActivity.slice(0, 8).map((activity: any) => {
                             // Color-code each activity by its action type so the
                             // portal user can scan and prioritise at a glance.
-                            // Uses the action/targetType text to infer category.
                             const actionText: string = (activity.action || '').toLowerCase();
                             const targetType: string = (activity.targetType || '').toLowerCase();
                             let badgeStyle = 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300';
@@ -706,8 +662,6 @@ const ClientDashboard: React.FC = () => {
                                                 {getInitials(activity.userName)}
                                             </span>
                                         </div>
-                                        {/* Colored dot — matches the badge color so the
-                                            user can see the category without reading. */}
                                         <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${dotColor} border-2 border-white dark:border-zinc-800`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -731,8 +685,6 @@ const ClientDashboard: React.FC = () => {
                             );
                         })}
                     </div>
-                )}
-                </>
                 )}
             </div>
         </div>
@@ -1494,6 +1446,138 @@ const ClientDashboard: React.FC = () => {
         );
     };
 
+    // ── Render: Financials Tab ──────────────────────────────────────────
+    // Shows the client's invoices and payment history. This was a huge
+    // missed opportunity — clients had no visibility into their billing.
+    const renderFinancials = () => {
+        const isLoading = clientInvoices === undefined && portalArgsReady;
+        const invoices = (clientInvoices || []) as any[];
+
+        // Summary stats
+        const totalOutstanding = invoices
+            .filter(inv => inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent')
+            .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
+        const totalPaid = invoices
+            .filter(inv => inv.status === 'Paid')
+            .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
+        const formatNaira = (n: number) => `₦${(n || 0).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+
+        const getStatusBadge = (status: string) => {
+            const config: Record<string, { bg: string; text: string }> = {
+                Paid:     { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400' },
+                Unpaid:   { bg: 'bg-amber-50 dark:bg-amber-900/20',     text: 'text-amber-600 dark:text-amber-400' },
+                Overdue:  { bg: 'bg-rose-50 dark:bg-rose-900/20',       text: 'text-rose-600 dark:text-rose-400' },
+                Sent:     { bg: 'bg-blue-50 dark:bg-blue-900/20',       text: 'text-blue-600 dark:text-blue-400' },
+                Draft:    { bg: 'bg-slate-100 dark:bg-zinc-700',        text: 'text-slate-600 dark:text-zinc-400' },
+            };
+            const c = config[status] || config.Draft;
+            return (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+                    {status}
+                </span>
+            );
+        };
+
+        return (
+            <div className="px-4 sm:px-6 pb-12 space-y-6">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Financials</h2>
+                    <p className="text-sm text-slate-500 dark:text-zinc-400">
+                        Your invoices and payment history.
+                    </p>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-soft">
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Outstanding</p>
+                        <p className={`text-xl font-black mt-1 ${totalOutstanding > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                            {formatNaira(totalOutstanding)}
+                        </p>
+                    </div>
+                    <div className="bg-white dark:bg-zinc-800 rounded-2xl p-4 shadow-soft">
+                        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Paid to Date</p>
+                        <p className="text-xl font-black mt-1 text-emerald-600 dark:text-emerald-400">
+                            {formatNaira(totalPaid)}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Invoice List */}
+                <div>
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-3">Invoices</h3>
+                    {isLoading ? (
+                        <div className="space-y-2">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-zinc-700" />
+                                        <div className="flex-1 space-y-2">
+                                            <div className="h-4 bg-slate-100 dark:bg-zinc-700 rounded w-3/4" />
+                                            <div className="h-3 bg-slate-100 dark:bg-zinc-700 rounded w-1/2" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : invoices.length === 0 ? (
+                        <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-8 text-center">
+                            <div className="w-12 h-12 mx-auto rounded-xl bg-slate-100 dark:bg-zinc-700 flex items-center justify-center mb-3">
+                                <Receipt className="w-6 h-6 text-slate-400 dark:text-zinc-500" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1">No invoices yet</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                Your invoices will appear here once your legal team issues them.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {invoices.map((inv: any) => (
+                                <div
+                                    key={String(inv._id || inv.id)}
+                                    className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 flex items-center justify-between gap-3"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                            inv.status === 'Paid'
+                                                ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                                                : inv.status === 'Overdue'
+                                                ? 'bg-rose-50 dark:bg-rose-900/20'
+                                                : 'bg-amber-50 dark:bg-amber-900/20'
+                                        }`}>
+                                            <Receipt className={`w-5 h-5 ${
+                                                inv.status === 'Paid'
+                                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                                    : inv.status === 'Overdue'
+                                                    ? 'text-rose-600 dark:text-rose-400'
+                                                    : 'text-amber-600 dark:text-amber-400'
+                                            }`} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-sm text-slate-800 dark:text-zinc-200 truncate">
+                                                {inv.invoiceNumber || inv.title || 'Invoice'}
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                                                {inv.issueDate ? new Date(inv.issueDate).toLocaleDateString() : ''}
+                                                {inv.dueDate && ` · Due ${new Date(inv.dueDate).toLocaleDateString()}`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                        <p className="font-bold text-sm text-slate-800 dark:text-zinc-200">
+                                            {formatNaira(inv.totalAmount || inv.amount || 0)}
+                                        </p>
+                                        {getStatusBadge(inv.status)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     // ── Main Render ──────────────────────────────────────────────────────
     const renderTabContent = () => {
         switch (activeTab) {
@@ -1502,6 +1586,7 @@ const ClientDashboard: React.FC = () => {
             case 'documents': return renderDocuments();
             case 'messages': return renderMessages();
             case 'requests': return renderRequests();
+            case 'financials': return renderFinancials();
         }
     };
 
@@ -1559,7 +1644,7 @@ const ClientDashboard: React.FC = () => {
                         {/* Font-size control — portal user's own preference,
                             independent of the admin's font size. Persisted
                             to localStorage on this device. */}
-                        <PortalFontSizeControl className="hidden sm:inline-flex" />
+                        <PortalFontSizeControl className="hidden md:inline-flex" />
                         {/* Sign Out — always visible and tappable for portal users */}
                         <button
                             onClick={() => logout()}
@@ -1582,14 +1667,14 @@ const ClientDashboard: React.FC = () => {
                         tab="overview"
                         active={activeTab}
                         onClick={() => handleTabChange('overview')}
-                        icon={<ScalesIcon className="w-4 h-4" />}
+                        icon={<ScalesIcon className="w-5 h-5" />}
                     />
                     <TabButton
                         label="Matters"
                         tab="matters"
                         active={activeTab}
                         onClick={() => handleTabChange('matters')}
-                        icon={<MattersIcon className="w-4 h-4" />}
+                        icon={<MattersIcon className="w-5 h-5" />}
                         badge={clientMatters.length}
                     />
                     <TabButton
@@ -1597,7 +1682,7 @@ const ClientDashboard: React.FC = () => {
                         tab="documents"
                         active={activeTab}
                         onClick={() => handleTabChange('documents')}
-                        icon={<DocumentIcon className="w-4 h-4" />}
+                        icon={<DocumentIcon className="w-5 h-5" />}
                         badge={sharedDocsCount}
                     />
                     <TabButton
@@ -1605,7 +1690,7 @@ const ClientDashboard: React.FC = () => {
                         tab="messages"
                         active={activeTab}
                         onClick={() => handleTabChange('messages')}
-                        icon={<ChatAltIcon className="w-4 h-4" />}
+                        icon={<ChatAltIcon className="w-5 h-5" />}
                         badge={unreadMessagesCount}
                     />
                     <TabButton
@@ -1613,8 +1698,16 @@ const ClientDashboard: React.FC = () => {
                         tab="requests"
                         active={activeTab}
                         onClick={() => handleTabChange('requests')}
-                        icon={<ClipboardListIcon className="w-4 h-4" />}
+                        icon={<ClipboardListIcon className="w-5 h-5" />}
                         badge={openRequestsCount}
+                    />
+                    <TabButton
+                        label="Financials"
+                        tab="financials"
+                        active={activeTab}
+                        onClick={() => handleTabChange('financials')}
+                        icon={<Receipt className="w-5 h-5" />}
+                        badge={outstandingInvoicesCount}
                     />
                 </nav>
             </div>

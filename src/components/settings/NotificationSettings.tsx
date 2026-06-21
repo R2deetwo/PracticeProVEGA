@@ -132,6 +132,12 @@ export const NotificationSettings: React.FC = () => {
       { key: 'portal_invitation', label: 'Portal Invitation', description: 'Invitation to join the portal', defaultEnabled: true, alwaysOn: true },
       { key: 'password_reset', label: 'Password Reset', description: 'Password reset request', defaultEnabled: true, alwaysOn: true },
       { key: 'portal_access_revoked', label: 'Portal Access Revoked', description: 'Portal access has been revoked', defaultEnabled: true },
+      // ── Portal Inbound (admin-facing) ──
+      // These notify the PRACTITIONER when a portal user submits something.
+      { key: 'portal_new_message', label: 'New Portal Message', description: 'A client or resident sent a new portal message', defaultEnabled: true },
+      { key: 'portal_maintenance_ticket', label: 'New Maintenance Ticket', description: 'A resident submitted a new maintenance ticket', defaultEnabled: true },
+      { key: 'portal_service_request', label: 'New Service Request', description: 'A client submitted a new service request', defaultEnabled: true },
+      { key: 'portal_payment_proof', label: 'Payment Proof Submitted', description: 'A resident uploaded a payment proof for review', defaultEnabled: true },
     ],
     system: [
       { key: 'verification_code', label: 'Verification Code', description: 'Email verification during signup', defaultEnabled: true, alwaysOn: true },
