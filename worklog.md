@@ -1744,3 +1744,37 @@ Stage Summary:
 - Conversations are color-coded by type so practitioners can scan and prioritise at a glance.
 - The redundant "Request Service" modal is gone — clients use the Requests tab directly.
 - The new ServiceTypePicker gives a native-feeling picker experience on both iOS and Android (bottom sheet) and desktop (dropdown).
+
+---
+Task ID: portal-comprehensive-fixes
+Agent: main (Super Z)
+Task: User reported many issues: stuck skeletons in portal tabs, property terminology in client portal, recent activity can't close, font size tied to admin, service types long list, matter linking not working, contacts not created, properties/matters styling differences, T&C too imposing, no ticketing stages, no conversation filters, settings uniformity.
+
+Work Log:
+- Fixed skeleton loading bug root cause: when clientContactResult was null, downstream queries were skipped (returned undefined), and the old check '=== undefined && effectiveFirmId' showed skeleton forever. Added portalArgsReady tracking so skeletons only show when args are ready AND query is pending.
+- Fixed property terminology in client portal: hero card now always says 'Client Portal' / 'Active Matters' regardless of firm type (was showing 'Property Portal' on unified firms).
+- Made Recent Activity section actually collapsible: drag-handle is now a real toggle button, state persists to localStorage, collapsed shows summary line, chevron icon flips 180°.
+- Added color-coded badges to recent activity items: Blue (Document), Emerald (Message), Violet (Matter), Amber (Billing), Emerald (Resolved), Slate (Update) — with matching colored dots on avatars.
+- Fixed matter linking on portal invite end-to-end:
+  - Added ensureContactForClientInvite mutation: creates/updates contact + sets matter.clientId + adds matter to contact.matterIds
+  - Added linkPortalUserToContact mutation: patches contact.userId after invite acceptance
+  - Added selfHealClientContactLink mutation: back-fills users who accepted before the fix
+  - Wired all three into createPortalInvite, setupPortalPassword, and ClientDashboard
+- Added PortalFontSizeControl component: discrete A−/A+ pill in portal headers, range 85%-125%, persisted to localStorage, applies via document root font-size
+- Made T&C section dismissible: collapse toggle with chevron + count badge, persists to localStorage
+- Built ticketing system stages: Ticket Status Bar above reply input with 4 stages (Received → In Progress → Addressed → Closed), each color-coded, advances via existing updateMaintenanceTicketStatus/updateClientServiceRequestStatus mutations
+- Added conversation filter checkboxes: color-coded (Requests/Tickets/Replied/Portal), all default ON, 'No conversations match' empty state with 'Show all' button
+- Made ServiceRequestTypesConfig compact: collapsed summary header with count + first 3 active type chips, click to expand full management UI
+- createServiceRequestType now auto-creates a pinned 7-day notice board entry announcing the new service to portal users
+- Unified Properties and Matters select-all rows: both use w-5 h-5 custom div checkbox, matching font weights/tracking, indeterminate dash state, 'N Total Properties/Matters' on right
+- TypeScript: clean (no new errors)
+- Vite production build: succeeds
+- Convex backend compiles: succeeds
+- Committed (2bd2453) and pushed to main. CI auto-deploys.
+
+Stage Summary:
+- All reported issues addressed in a single comprehensive commit
+- Portal now works properly: skeletons don't get stuck, contact/matter linking is automatic, ticketing has proper stages, conversations can be filtered, font size is per-user, T&C is dismissible, recent activity is color-coded and collapsible
+- Practitioner inbox now has full ticketing workflow (Received → In Progress → Addressed → Closed) without leaving the chat
+- Admin settings is tidier with collapsible service type config
+- Properties and Matters pages now have consistent select-all styling
