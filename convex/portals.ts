@@ -480,8 +480,16 @@ export const resendPortalInvite = action({
   args: {
     inviteId: v.id("portal_invites"),
   },
-  handler: async (ctx, args) => {
-    const existing = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
+  handler: async (ctx, args): Promise<{
+    token: string;
+    emailSent: boolean;
+    emailSimulated: boolean;
+    emailSkipped: boolean;
+    whatsappSent: boolean;
+    whatsappSimulated: boolean;
+    whatsappSkipped: boolean;
+  }> => {
+    const existing: any = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
     if (!existing) throw new Error("Invitation not found");
     if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
 
