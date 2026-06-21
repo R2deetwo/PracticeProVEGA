@@ -236,7 +236,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const { groups: propertyGroups, flatUnits } = usePropertyGroups(coreState.properties || []);
 
   // Convert UnitOptions to SelectableRecipients (only those with tenants)
-  const selectableRecipients = useMemo(() =>
+  const tenantRecipients = useMemo(() =>
     flatUnits.filter(u => u.tenantName).map(u => ({
       id: u.id,
       label: u.label,
@@ -251,6 +251,33 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       cautionDeposit: u.cautionDeposit,
     })),
     [flatUnits]
+  );
+
+  // Also include client contacts (for legal/unified firms) — allows
+  // composing messages to clients, not just residents.
+  const clientRecipients = useMemo(() =>
+    (coreState.contacts || [])
+      .filter((c: any) => c.email || c.phone)
+      .map((c: any) => ({
+        id: c.id || c._id,
+        label: c.name || c.email || 'Client',
+        tenantName: c.name,
+        tenantPhone: c.phone,
+        tenantEmail: c.email,
+        rentAmount: 0,
+        propertyAddress: '',
+        serviceCharge: 0,
+        legalFee: 0,
+        agencyFee: 0,
+        cautionDeposit: 0,
+      })),
+    [coreState.contacts]
+  );
+
+  // Combine tenant + client recipients
+  const selectableRecipients = useMemo(() =>
+    [...tenantRecipients, ...clientRecipients],
+    [tenantRecipients, clientRecipients]
   );
 
   const tenantedRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);

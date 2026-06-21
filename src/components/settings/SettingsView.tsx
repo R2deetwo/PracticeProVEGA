@@ -83,7 +83,7 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'contact-category-management': { main: 'templates', sub: 'contacts' },
     'document-category-management': { main: 'templates', sub: 'documents_folders' },
     'display-settings': { main: 'profile' },
-    'theme-preference': { main: 'profile' },
+    'theme-preference': { main: 'profile' }, // Long-press theme toggle target
     'notification-settings': { main: 'profile' },
     'automation-settings': { main: 'templates', sub: 'automations' },
     'help-and-support': { main: 'help' },
@@ -482,7 +482,7 @@ export const SettingsView: React.FC = () => {
         );
 
         switch (activeTab) {
-            case 'profile': return <ProfileSettings {...props} theme={props.theme} setTheme={props.setTheme} />;
+            case 'profile': return <ProfileSettings {...props} theme={props.theme} setTheme={props.setTheme} initialSubTab={settingsTargetId === 'theme-preference' || settingsTargetId === 'display-settings' ? 'appearance' : undefined} />;
             case 'firm': return <FirmSettings {...props} onEnableDevMode={props.onEnableDevMode} />;
             case 'subscription':
                 return isDemo

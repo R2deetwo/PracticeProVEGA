@@ -529,6 +529,23 @@ html.font-size-sm button {
 html.font-size-md {
   --text-scale: 1; /* 16px — default, no change */
 }
+/* Explicitly reset all text elements to their inherited size when medium
+   is selected. This ensures that switching from sm → md properly clears
+   the !important overrides from the sm rules. Without this, some elements
+   could retain the smaller size. */
+html.font-size-md p,
+html.font-size-md span,
+html.font-size-md h1, html.font-size-md h2, html.font-size-md h3,
+html.font-size-md h4, html.font-size-md h5, html.font-size-md h6,
+html.font-size-md label,
+html.font-size-md li,
+html.font-size-md a,
+html.font-size-md td,
+html.font-size-md th,
+html.font-size-md button {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
 
 html.font-size-lg {
   --text-scale: 1.125; /* 18px equivalent */

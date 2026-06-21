@@ -69,12 +69,12 @@ interface ProfileSettingsProps {
     setTheme: (theme: Theme) => void;
 }
 
-const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdateUser, theme, setTheme }) => {
+const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'general' | 'appearance' }> = ({ currentUser, onUpdateUser, theme, setTheme, initialSubTab }) => {
     const { addToast, fontSize, setFontSize } = useUI();
     const { updateCurrentUser } = useAuth();
     const { isLegal, isProperty } = useProduct();
     const [userName, setUserName] = useState(currentUser.name);
-    const [activeSubTab, setActiveSubTab] = useState<'general' | 'appearance'>('general');
+    const [activeSubTab, setActiveSubTab] = useState<'general' | 'appearance'>(initialSubTab || 'general');
 
     // API Key State
     const [standards, setStandards] = useState(currentUser.professionalStandards || {
@@ -260,6 +260,9 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ currentUser, onUpdate
             ) : (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <SettingsCard title="Theme & Visuals" id="display-settings">
+                        {/* Also add theme-preference ID so long-press theme toggle
+                            can scroll to this section. */}
+                        <div id="theme-preference" />
                         <div className="space-y-6">
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-3">Theme System Preference</label>

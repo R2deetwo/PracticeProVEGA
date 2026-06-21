@@ -584,7 +584,27 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
             {/* Billing Widget */}
             <BillingCalculator users={activeFirmUsers} currentPlan={firmDetails.subscriptionPlan || SubscriptionPlan.Core} isAnnual={isAnnual} viewAsMonthlyCost={viewAsMonthlyCost} simulationCount={simulationCount} setSimulationCount={setSimulationCount} selectedModalities={selectedModalities.length > 0 ? selectedModalities : (firmDetails.firmSpecialties || [])} />
 
-            {/* Standard Plan Cards — Core / Growth / Pro from tiers.ts */}
+            {/* Standard Plan Cards — Core / Growth / Pro from tiers.ts.
+                For Komplete (unified) firms, all three tiers are the same
+                (KOMPLETE_TIER), so we show a single card instead of three
+                identical ones. */}
+            {productMode === 'unified' ? (
+                <div className="grid grid-cols-1 gap-6 max-w-md mx-auto">
+                    <PlanCard
+                        plan={SubscriptionPlan.Komplete}
+                        currentPlan={normalizedCurrent}
+                        price={formatSettingsPrice(tiers.Core, isAnnual, viewAsMonthlyCost)}
+                        description={TIER_SETTINGS_COPY.Core.description}
+                        userLimit={TIER_SETTINGS_COPY.Core.userLimit}
+                        viewAsMonthlyCost={viewAsMonthlyCost}
+                        isAnnual={isAnnual}
+                        features={tiers.Core.features}
+                        isPopular={true}
+                        isKomplete={true}
+                        onSelect={() => processUpgrade(SubscriptionPlan.Komplete, isAnnual ? (tiers.Core.annualPrice ?? 0) : (tiers.Core.monthlyPrice ?? 0))}
+                    />
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {DISPLAY_TIER_IDS.map((tierId) => {
                     const tier = tiers[tierId];
@@ -610,6 +630,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     );
                 })}
             </div>
+            )}
 
             {firmDetails.subscriptionPlan === SubscriptionPlan.Enterprise && (
                 <p className="text-center text-sm text-slate-500 dark:text-zinc-400 py-4 border-t border-slate-200 dark:border-zinc-700">

@@ -12,7 +12,7 @@ import {
     ChatAltIcon, ClockIcon, CheckCircleIcon,
     UploadIcon, SendIcon, ScalesIcon,
     ExclamationTriangleIcon, EyeIcon, ChevronRightIcon,
-    LargeFolderIcon, UserCircleIcon, ClipboardListIcon
+    LargeFolderIcon, UserCircleIcon, ClipboardListIcon, XIcon
 } from '../../constants';
 import { Receipt } from 'lucide-react';
 import { timeAgo, getInitials } from '../../utils/colorUtils';
