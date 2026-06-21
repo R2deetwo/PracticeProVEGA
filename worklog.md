@@ -1903,3 +1903,30 @@ Stage Summary:
 - Notification badges now clear properly when messages are read or 'Mark all read' is clicked
 - Units with open tickets show visual indicators (amber/red badge with stale warning)
 - Bottom nav is slimmer and no longer crops content
+
+---
+Task ID: comprehensive-ticketing-workflow-filters-delegation
+Agent: main (Super Z)
+Task: User reported previous fixes (bottom nav cropping, notification clearing) were not working. Also requested: per-ticket status workflow, conversation filters (type/client/resident/request type), delegation to team members, admin reply capability, auto-notify on status change.
+
+Work Log:
+- FIXED bottom nav cropping for real: previous fix (pb-14 on main) didn't work because main had overflow-hidden + h-full. New fix uses h-[calc(100%-3.5rem)] on mobile to subtract nav height, md:h-full on desktop.
+- FIXED notification clearing: previous commit added mutations but didn't pass userEmail to requireFirmUser, causing it to fail silently. Now passes currentUser?.email.
+- Per-ticket status: each conversation's linked ticket has its own status bar fetched individually via getTicketById/getServiceRequestById. No confusion about which ticket is being changed.
+- Delegation: added 'Assign to:' dropdown in ticket status bar. Lists team members. Assigning sets ticket.assignedTo, auto-advances to in_progress, posts portal_message to notify the portal user. Backend: assignTicketToTeamMember mutation.
+- Auto-notify on status change: handleAdvanceTicket now passes resolution message. Backend already posts reply to conversation when resolution is set. Portal user gets: 'Your maintenance request status is now Addressed. Resolution: ...'
+- Quick reply chips: ✅ Acknowledged, 🔄 In Progress, ✓ Resolved — one-tap status update messages above the reply input.
+- Cancelled status handling: ticket status bar shows 'Cancelled' badge, hides status/delegation controls.
+- Role filter pills: All / Clients / Residents.
+- Search bar: free-text search across names + message previews.
+- TypeScript: clean. Vite build: succeeds. Convex compiles: succeeds.
+- Committed (4a3668a) and pushed. CI auto-deploys Convex + builds APK.
+
+Stage Summary:
+- Bottom nav no longer crops content (height calc fix)
+- Notification badges clear properly (userEmail fix)
+- Each ticket has independent status workflow
+- Admin can delegate tickets to team members (portal user is notified)
+- Admin can reply with free text OR quick-reply chips
+- Status changes auto-notify the portal user
+- Conversations can be filtered by type, role, and search
