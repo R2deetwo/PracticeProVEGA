@@ -7,6 +7,7 @@ import { isNativePlatform } from '../../utils/capacitor';
 import { EyeIcon, EyeOffIcon, SparklesIcon, MailIcon, ShieldCheckIcon, WarningIcon, ZapIcon } from '../../constants';
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { biometricAuth } from '../../utils/biometric';
 
 interface LoginProps {
     onSwitchToSignup: () => void;
@@ -36,8 +37,40 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     const [password, setPassword] = React.useState('');
     const [showPassword, setShowPassword] = React.useState(false);
     const [showNewPassword, setShowNewPassword] = React.useState(false); // #2
-    const [rememberMe, setRememberMe] = React.useState(false); // Default to false for better security
+    const [rememberMe, setRememberMe] = React.useState(true); // Default to true — users expect to stay logged in
     const [isLoading, setIsLoading] = React.useState(false);
+    // Biometric unlock state
+    const [showBiometric, setShowBiometric] = React.useState(false);
+    const [biometricChecking, setBiometricChecking] = React.useState(false);
+
+    // Check if biometric unlock is available + registered on mount
+    React.useEffect(() => {
+        const check = async () => {
+            if (isNativePlatform() && biometricAuth.isRegistered()) {
+                const available = await biometricAuth.isAvailable();
+                if (available) setShowBiometric(true);
+            }
+        };
+        check();
+    }, []);
+
+    const handleBiometricUnlock = async () => {
+        setBiometricChecking(true);
+        try {
+            const result = await biometricAuth.authenticate();
+            if (result.success && result.email) {
+                // Biometric verified — restore session from localStorage
+                // The session was already saved during the original login
+                // with rememberMe=true. We just need to trigger a page reload
+                // so getInitialToken() picks up the stored session.
+                window.location.reload();
+            }
+        } catch {
+            // Silently fail — user can fall back to password
+        } finally {
+            setBiometricChecking(false);
+        }
+    };
     const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
     const [isLocked, setIsLocked] = React.useState(false);
     const [requiresMfa, setRequiresMfa] = React.useState(false);
@@ -105,6 +138,21 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                 addToast("Welcome back!", { type: 'success' });
                 setIsSessionLocked(false);
                 closeModal();
+                // After successful login with rememberMe, offer biometric
+                // registration on native platforms (if not already registered)
+                if (rememberMe && isNativePlatform() && !biometricAuth.isRegistered()) {
+                    setTimeout(async () => {
+                        try {
+                            const available = await biometricAuth.isAvailable();
+                            if (available) {
+                                const registered = await biometricAuth.register(email.toLowerCase().trim());
+                                if (registered) {
+                                    addToast('Biometric unlock enabled. Next time, tap "Unlock with Biometrics".', { type: 'success' });
+                                }
+                            }
+                        } catch {}
+                    }, 1500);
+                }
             } else if (result.requiresMfa) {
                 setRequiresMfa(true);
                 setIsLoading(false);
@@ -365,7 +413,6 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                                         onChange={e => setRememberMe(e.target.checked)}
                                     />
                                     Remember me
-                                    {!rememberMe && <span className="text-xs text-slate-400">(session only)</span>}
                                 </label>
                                 <button
                                     type="button"
@@ -376,6 +423,33 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                                     {sendingReset ? <><div className="w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div> Sending...</> : 'Forgot password?'}
                                 </button>
                             </div>
+
+                            {/* Biometric Unlock — shown when the user has
+                                previously registered for biometric auth on
+                                this device. Lets them skip typing password. */}
+                            {showBiometric && !requiresMfa && (
+                                <button
+                                    type="button"
+                                    onClick={handleBiometricUnlock}
+                                    disabled={biometricChecking || isLoading}
+                                    className="w-full px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 rounded-lg font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {biometricChecking ? (
+                                        <><div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> Authenticating...</>
+                                    ) : (
+                                        <><svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 11c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3z"/><path d="M12 14c-3.31 0-6 2.69-6 6v1h12v-1c0-3.31-2.69-6-6-6z"/><path d="M9 2l1.5 2M15 2l-1.5 2"/></svg> Unlock with Biometrics</>
+                                    )}
+                                </button>
+                            )}
+
+                            {/* Divider between biometric and password */}
+                            {showBiometric && !requiresMfa && (
+                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                    <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
+                                    or sign in with password
+                                    <div className="flex-1 h-px bg-slate-200 dark:bg-zinc-700" />
+                                </div>
+                            )}
 
                             <button
                                 type="submit"
