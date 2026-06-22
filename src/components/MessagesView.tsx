@@ -576,95 +576,107 @@ const MessagesView: React.FC = () => {
     const updateRequestStatus = useMutation(api.portals.updateClientServiceRequestStatus);
     const assignTicketMutation = useMutation(api.portals.assignTicketToTeamMember);
 
-    // Find the linked ticket/request for the currently-selected conversation.
-    // We scan the conversation's messages for one with linkedTicketId or
-    // linkedRequestId — the first such message tells us what ticket this
-    // conversation is about.
-    const linkedTicketInfo = useMemo(() => {
-        if (selectedInboxType !== 'conversation' || !selectedInboxId) return null;
+    // Find ALL linked tickets/requests in the currently-selected conversation.
+    // Each message with linkedTicketId or linkedRequestId represents a separate
+    // ticket/request. We collect them all so we can show a status bar for EACH
+    // one individually — the user explicitly asked for per-ticket control.
+    const linkedTickets = useMemo(() => {
+        if (selectedInboxType !== 'conversation' || !selectedInboxId) return [];
         const msgs = (conversationMessages as any[]) || [];
-        // Find the FIRST (originating) message with a linked ticket/request
-        const originating = msgs.find((m: any) => m.linkedTicketId || m.linkedRequestId);
-        if (!originating) return null;
-        return {
-            kind: originating.linkedTicketId ? 'maintenance' : 'client_service',
-            id: originating.linkedTicketId || originating.linkedRequestId,
-            requestTypeLabel: originating.requestTypeLabel,
-            requestTypeKey: originating.requestTypeKey,
-        } as { kind: 'maintenance' | 'client_service'; id: string; requestTypeLabel?: string; requestTypeKey?: string };
+        const seen = new Set<string>();
+        const tickets: { kind: 'maintenance' | 'client_service'; id: string; requestTypeLabel?: string; requestTypeKey?: string }[] = [];
+        for (const m of msgs) {
+            const ticketId = m.linkedTicketId || m.linkedRequestId;
+            if (ticketId && !seen.has(String(ticketId))) {
+                seen.add(String(ticketId));
+                tickets.push({
+                    kind: m.linkedTicketId ? 'maintenance' : 'client_service',
+                    id: String(ticketId),
+                    requestTypeLabel: m.requestTypeLabel,
+                    requestTypeKey: m.requestTypeKey,
+                });
+            }
+        }
+        return tickets;
     }, [selectedInboxType, selectedInboxId, conversationMessages]);
 
-    // Fetch the linked ticket/request to get its current status. We use
-    // the dedicated getTicketById / getServiceRequestById queries via the
-    // convex client. The previous code used convex.query(tableName, id)
-    // which doesn't exist on the ConvexReactClient — that was the cause
-    // of the "something went wrong" error when clicking a ticket.
-    const [linkedTicketRecord, setLinkedTicketRecord] = useState<any>(null);
+    // Fetch ALL linked tickets/requests to get their current statuses.
+    // We fetch each one individually via the convex client and store them
+    // in a map keyed by ticket ID.
+    const [linkedTicketRecords, setLinkedTicketRecords] = useState<Record<string, any>>({});
     useEffect(() => {
-        if (!linkedTicketInfo?.id) { setLinkedTicketRecord(null); return; }
+        if (linkedTickets.length === 0) { setLinkedTicketRecords({}); return; }
         let cancelled = false;
-        const queryFn = linkedTicketInfo.kind === 'maintenance'
+        const fetchAll = async () => {
+            const records: Record<string, any> = {};
+            for (const t of linkedTickets) {
+                try {
+                    const queryFn = t.kind === 'maintenance'
+                        ? api.portals.getTicketById
+                        : api.portals.getServiceRequestById;
+                    const argKey = t.kind === 'maintenance' ? 'ticketId' : 'requestId';
+                    const rec = await convex.query(queryFn, { [argKey]: t.id } as any);
+                    records[t.id] = rec;
+                } catch {
+                    records[t.id] = null;
+                }
+            }
+            if (!cancelled) setLinkedTicketRecords(records);
+        };
+        fetchAll();
+        return () => { cancelled = true; };
+    }, [linkedTickets, convex]);
+
+    const refreshTicketRecord = async (ticketInfo: { kind: string; id: string }) => {
+        const queryFn = ticketInfo.kind === 'maintenance'
             ? api.portals.getTicketById
             : api.portals.getServiceRequestById;
-        const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
-        convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any)
-            .then((rec: any) => { if (!cancelled) setLinkedTicketRecord(rec); })
-            .catch(() => { if (!cancelled) setLinkedTicketRecord(null); });
-        return () => { cancelled = true; };
-    }, [linkedTicketInfo, convex]);
+        const argKey = ticketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
+        try {
+            const rec = await convex.query(queryFn, { [argKey]: ticketInfo.id } as any);
+            setLinkedTicketRecords(prev => ({ ...prev, [ticketInfo.id]: rec }));
+        } catch {}
+    };
 
-    const handleAdvanceTicket = async (newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
-        if (!linkedTicketInfo) return;
+    const handleAdvanceTicket = async (ticketInfo: { kind: 'maintenance' | 'client_service'; id: string }, newStatus: 'open' | 'in_progress' | 'resolved' | 'closed') => {
         try {
             const resolution = (newStatus === 'resolved' || newStatus === 'closed')
                 ? `Status updated to ${newStatus === 'resolved' ? 'Addressed' : 'Closed'}.`
                 : undefined;
-            if (linkedTicketInfo.kind === 'maintenance') {
+            if (ticketInfo.kind === 'maintenance') {
                 await updateTicketStatus({
-                    ticketId: linkedTicketInfo.id as any,
+                    ticketId: ticketInfo.id as any,
                     status: newStatus,
                     resolution,
                 });
             } else {
                 await updateRequestStatus({
-                    requestId: linkedTicketInfo.id as any,
+                    requestId: ticketInfo.id as any,
                     status: newStatus,
                     resolution,
                 });
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
-            // Refresh the linked record
-            const queryFn = linkedTicketInfo.kind === 'maintenance'
-                ? api.portals.getTicketById
-                : api.portals.getServiceRequestById;
-            const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
-            const rec = await convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any);
-            setLinkedTicketRecord(rec);
+            await refreshTicketRecord(ticketInfo);
         } catch (err: any) {
             addToast(err.message || 'Failed to update status.', { type: 'error' });
         }
     };
 
     // ── Delegate ticket to a team member ───────────────────────────────
-    const handleAssignTicket = async (userId: string, userName: string) => {
-        if (!linkedTicketInfo || !firmId || !currentUser?.id) return;
+    const handleAssignTicket = async (ticketInfo: { kind: 'maintenance' | 'client_service'; id: string }, userId: string, userName: string) => {
+        if (!firmId || !currentUser?.id) return;
         try {
             await assignTicketMutation({
-                requestKind: linkedTicketInfo.kind,
-                requestId: linkedTicketInfo.id,
+                requestKind: ticketInfo.kind,
+                requestId: ticketInfo.id,
                 assignedToUserId: userId,
                 assignedToName: userName,
                 assignedBy: currentUser.id,
                 firmId,
             });
             addToast(`Ticket assigned to ${userName}. Portal user has been notified.`, { type: 'success' });
-            // Refresh the linked record
-            const queryFn = linkedTicketInfo.kind === 'maintenance'
-                ? api.portals.getTicketById
-                : api.portals.getServiceRequestById;
-            const argKey = linkedTicketInfo.kind === 'maintenance' ? 'ticketId' : 'requestId';
-            const rec = await convex.query(queryFn, { [argKey]: linkedTicketInfo.id } as any);
-            setLinkedTicketRecord(rec);
+            await refreshTicketRecord(ticketInfo);
         } catch (err: any) {
             addToast(err.message || 'Failed to assign ticket.', { type: 'error' });
         }
@@ -1503,19 +1515,39 @@ const MessagesView: React.FC = () => {
                                                                         </div>
                                                                     </div>
                                                                     <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
-                                                                    {/* Attachments */}
+                                                                    {/* Attachments — images render as thumbnails, files as download chips */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
-                                                                        <div className="mt-3 space-y-1.5">
+                                                                        <div className="mt-3 grid grid-cols-2 gap-2">
                                                                             {msg.attachments.map((storageId: string, idx: number) => {
                                                                                 const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
+                                                                                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
+                                                                                const convexFileUrl = `${import.meta.env.VITE_CONVEX_URL || ''}/api/storage/${storageId}`;
+                                                                                if (isImage) {
+                                                                                    return (
+                                                                                        <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 group/img">
+                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-32 object-cover group-hover/img:opacity-80 transition-opacity" />
+                                                                                            <div className={`px-2 py-1 text-[10px] truncate ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}>
+                                                                                                {fileName}
+                                                                                            </div>
+                                                                                        </a>
+                                                                                    );
+                                                                                }
                                                                                 return (
-                                                                                    <div key={storageId + idx} className={`rounded-lg flex items-center gap-2 px-3 py-2 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'}`}>
+                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-2 px-3 py-2 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80 transition-opacity`}>
                                                                                         <DocumentIcon className={`w-4 h-4 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
-                                                                                        <span className={`text-xs truncate ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
-                                                                                        <DownloadIcon className={`w-3.5 h-3.5 flex-shrink-0 ml-auto ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`} />
-                                                                                    </div>
+                                                                                        <span className={`text-xs truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
+                                                                                        <DownloadIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`} />
+                                                                                    </a>
                                                                                 );
                                                                             })}
+                                                                        </div>
+                                                                    )}
+                                                                    {/* Read receipt for admin messages */}
+                                                                    {isAdmin && (
+                                                                        <div className="flex items-center justify-end gap-1 mt-1">
+                                                                            <span className="text-[9px] text-primary-200">
+                                                                                {msg.isRead ? '✓✓ Read' : '✓ Sent'}
+                                                                            </span>
                                                                         </div>
                                                                     )}
                                                                     {/* Delete button — appears on hover. Admin can delete ANY
@@ -1609,89 +1641,100 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Ticket Status Bar — shown when this conversation is
-                                        linked to a maintenance ticket or client service
-                                        request. Lets the practitioner advance the ticket
-                                        through its lifecycle AND delegate to team members. */}
-                                    {linkedTicketInfo && linkedTicketRecord && (
-                                        <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2.5">
-                                            <div className="max-w-2xl mx-auto space-y-2">
-                                                {/* Row 1: ticket type + status buttons */}
-                                                <div className="flex items-center justify-between gap-3 flex-wrap">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                            linkedTicketInfo.kind === 'maintenance'
-                                                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                                : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
-                                                        }`}>
-                                                            {linkedTicketInfo.kind === 'maintenance' ? '🔧 Ticket' : '📋 Request'}
-                                                        </span>
-                                                        {linkedTicketInfo.requestTypeLabel && (
-                                                            <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
-                                                                {linkedTicketInfo.requestTypeLabel}
-                                                            </span>
-                                                        )}
-                                                        {linkedTicketRecord.status === 'cancelled' && (
-                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
-                                                                Cancelled
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    {linkedTicketRecord.status !== 'cancelled' && (
-                                                        <div className="flex items-center gap-1 flex-shrink-0">
-                                                            {([
-                                                                { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
-                                                                { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
-                                                                { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
-                                                                { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
-                                                            ] as const).map(stage => {
-                                                                const isCurrent = linkedTicketRecord.status === stage.value;
-                                                                return (
-                                                                    <button
-                                                                        key={stage.value}
-                                                                        onClick={() => handleAdvanceTicket(stage.value)}
-                                                                        disabled={isCurrent}
-                                                                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                                                                            isCurrent
-                                                                                ? `${stage.activeClass} cursor-default`
-                                                                                : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
-                                                                        }`}
-                                                                    >
-                                                                        {stage.label}
-                                                                    </button>
-                                                                );
-                                                            })}
+                                    {/* Ticket Status Bars — ONE PER LINKED TICKET.
+                                        Each ticket/request in this conversation gets its own
+                                        status bar with independent status controls + delegation.
+                                        This lets the admin address multiple issues individually. */}
+                                    {linkedTickets.length > 0 && (
+                                        <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2 space-y-2 max-h-[30vh] overflow-y-auto custom-scrollbar">
+                                            {linkedTickets.map((ticket, idx) => {
+                                                const record = linkedTicketRecords[ticket.id];
+                                                if (!record) return null;
+                                                return (
+                                                    <div key={ticket.id} className={`max-w-2xl mx-auto space-y-1.5 ${idx > 0 ? 'pt-2 border-t border-slate-200 dark:border-zinc-700' : ''}`}>
+                                                        {/* Row 1: ticket type + status buttons */}
+                                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                                                    ticket.kind === 'maintenance'
+                                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                                                        : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+                                                                }`}>
+                                                                    {ticket.kind === 'maintenance' ? '🔧' : '📋'} {linkedTickets.length > 1 ? `#${idx + 1}` : ''}
+                                                                </span>
+                                                                {ticket.requestTypeLabel && (
+                                                                    <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
+                                                                        {ticket.requestTypeLabel}
+                                                                    </span>
+                                                                )}
+                                                                {record.subject && (
+                                                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">
+                                                                        {record.subject}
+                                                                    </span>
+                                                                )}
+                                                                {record.status === 'cancelled' && (
+                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                        Cancelled
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {record.status !== 'cancelled' && (
+                                                                <div className="flex items-center gap-1 flex-shrink-0">
+                                                                    {([
+                                                                        { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
+                                                                        { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
+                                                                        { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
+                                                                        { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
+                                                                    ] as const).map(stage => {
+                                                                        const isCurrent = record.status === stage.value;
+                                                                        return (
+                                                                            <button
+                                                                                key={stage.value}
+                                                                                onClick={() => handleAdvanceTicket(ticket, stage.value)}
+                                                                                disabled={isCurrent}
+                                                                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
+                                                                                    isCurrent
+                                                                                        ? `${stage.activeClass} cursor-default`
+                                                                                        : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
+                                                                                }`}
+                                                                            >
+                                                                                {stage.label}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                </div>
-                                                {/* Row 2: delegation dropdown + assigned-to display */}
-                                                {linkedTicketRecord.status !== 'cancelled' && (
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign to:</span>
-                                                        {linkedTicketRecord.assignedTo && (
-                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                                                                👤 {coreState.users?.find((u: any) => u.id === linkedTicketRecord.assignedTo)?.name || 'Assigned'}
-                                                            </span>
+                                                        {/* Row 2: delegation */}
+                                                        {record.status !== 'cancelled' && (
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign:</span>
+                                                                {record.assignedTo && (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                                                                        👤 {coreState.users?.find((u: any) => u.id === record.assignedTo)?.name || 'Assigned'}
+                                                                    </span>
+                                                                )}
+                                                                <select
+                                                                    value={record.assignedTo || ''}
+                                                                    onChange={(e) => {
+                                                                        const user = coreState.users?.find((u: any) => u.id === e.target.value);
+                                                                        if (user) handleAssignTicket(ticket, user.id, user.name || 'Team Member');
+                                                                    }}
+                                                                    className="text-[10px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/30"
+                                                                >
+                                                                    <option value="">Unassigned</option>
+                                                                    {coreState.users
+                                                                        ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
+                                                                        .map((u: any) => (
+                                                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                                                        ))
+                                                                    }
+                                                                </select>
+                                                            </div>
                                                         )}
-                                                        <select
-                                                            value={linkedTicketRecord.assignedTo || ''}
-                                                            onChange={(e) => {
-                                                                const user = coreState.users?.find((u: any) => u.id === e.target.value);
-                                                                if (user) handleAssignTicket(user.id, user.name || 'Team Member');
-                                                            }}
-                                                            className="text-[10px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/30"
-                                                        >
-                                                            <option value="">Unassigned</option>
-                                                            {coreState.users
-                                                                ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
-                                                                .map((u: any) => (
-                                                                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                                                ))
-                                                            }
-                                                        </select>
                                                     </div>
-                                                )}
-                                            </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
 
@@ -1700,7 +1743,7 @@ const MessagesView: React.FC = () => {
                                         <div className="max-w-2xl mx-auto">
                                             {/* Quick reply chips — for linked tickets, let the admin
                                                 send a brief status-update message with one tap. */}
-                                            {linkedTicketInfo && selectedInboundMsg?._inboxType === 'conversation' && (
+                                            {linkedTickets.length > 0 && selectedInboundMsg?._inboxType === 'conversation' && (
                                                 <div className="flex gap-1.5 mb-2 flex-wrap">
                                                     {[
                                                         { label: '✅ Acknowledged', msg: 'Thank you for your request. We have received it and will get back to you shortly.' },

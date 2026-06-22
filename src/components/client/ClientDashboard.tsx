@@ -1314,6 +1314,9 @@ const ClientDashboard: React.FC = () => {
     const [requestDescription, setRequestDescription] = useState('');
     const [selectedRequestTypeKey, setSelectedRequestTypeKey] = useState<string>('doc_review');
     const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
+    // File attachments for service requests
+    const [requestFiles, setRequestFiles] = useState<File[]>([]);
+    const requestFileInputRef = useRef<HTMLInputElement>(null);
 
     const selectedRequestType = useMemo(() => {
         if (!clientRequestTypes || clientRequestTypes.length === 0) return null;
@@ -1386,21 +1389,46 @@ const ClientDashboard: React.FC = () => {
         setIsSubmittingRequest(true);
         try {
             const typeLabel = selectedRequestType?.label || selectedRequestTypeKey;
+
+            // Upload any attached files to Convex storage
+            let attachmentStorageIds: string[] = [];
+            let attachmentNames: string[] = [];
+            if (requestFiles.length > 0) {
+                for (const file of requestFiles) {
+                    try {
+                        const postUrl = await generateUploadUrl();
+                        const res = await fetch(postUrl, { method: 'POST', body: file });
+                        if (res.ok) {
+                            const { storageId } = await res.json();
+                            if (storageId) {
+                                attachmentStorageIds.push(storageId);
+                                attachmentNames.push(file.name);
+                            }
+                        }
+                    } catch (uploadErr) {
+                        console.warn('File upload failed:', uploadErr);
+                    }
+                }
+            }
+
             await createClientServiceRequest({
                 firmId: effectiveFirmId,
                 clientId: currentUser?.id,
                 clientName: currentUser?.name,
                 clientEmail: currentUser?.email,
-                matterId: undefined, // optional — could be linked to a specific matter
+                matterId: undefined,
                 requestTypeKey: selectedRequestTypeKey,
                 requestTypeLabel: typeLabel,
                 subject: requestSubject.trim(),
                 description: requestDescription.trim(),
+                attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
+                attachmentNames: attachmentNames.length > 0 ? attachmentNames : undefined,
             });
             addToast('Your request has been submitted. Your legal team will respond shortly.', { type: 'success' });
             setRequestSubject('');
             setRequestDescription('');
             setSelectedRequestTypeKey('doc_review');
+            setRequestFiles([]);
         } catch (err: any) {
             addToast(err.message || 'Failed to submit request. Please try again.', { type: 'error' });
         } finally {
@@ -1474,6 +1502,69 @@ const ClientDashboard: React.FC = () => {
                                 rows={4}
                                 className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
                             />
+                        </div>
+                        {/* File attachments — images and short videos */}
+                        <div>
+                            <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1">Attachments (Optional)</label>
+                            <input
+                                ref={requestFileInputRef}
+                                type="file"
+                                multiple
+                                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,application/pdf"
+                                onChange={(e) => {
+                                    const files = Array.from(e.target.files || []);
+                                    const maxSize = 25 * 1024 * 1024; // 25MB
+                                    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'application/pdf'];
+                                    const validFiles = files.filter(f => {
+                                        if (!validTypes.includes(f.type)) {
+                                            addToast(`"${f.name}" is not a supported file type. Use images, videos, or PDFs.`, { type: 'error' });
+                                            return false;
+                                        }
+                                        if (f.size > maxSize) {
+                                            addToast(`"${f.name}" exceeds 25MB limit.`, { type: 'error' });
+                                            return false;
+                                        }
+                                        return true;
+                                    });
+                                    setRequestFiles(prev => [...prev, ...validFiles]);
+                                    if (requestFileInputRef.current) requestFileInputRef.current.value = '';
+                                }}
+                                className="hidden"
+                            />
+                            <div
+                                onClick={() => requestFileInputRef.current?.click()}
+                                className="border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg p-4 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 transition-colors"
+                            >
+                                <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-500 mx-auto mb-2" />
+                                <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
+                                    Click to upload photos, videos, or PDFs
+                                </p>
+                                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                                    JPG, PNG, GIF, WebP, MP4, PDF · Max 25MB each
+                                </p>
+                            </div>
+                            {requestFiles.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                    {requestFiles.map((file, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
+                                            {file.type.startsWith('image/') ? (
+                                                <img src={URL.createObjectURL(file)} alt={file.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                            ) : file.type.startsWith('video/') ? (
+                                                <div className="w-8 h-8 rounded bg-slate-200 dark:bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-[8px] font-bold text-slate-500">VID</span>
+                                                </div>
+                                            ) : (
+                                                <DocumentIcon className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                            )}
+                                            <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
+                                            <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+                                            <button onClick={() => setRequestFiles(prev => prev.filter((_, i) => i !== idx))} className="text-rose-500 hover:text-rose-700">
+                                                <XIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         <button
                             onClick={handleSubmitRequest}
