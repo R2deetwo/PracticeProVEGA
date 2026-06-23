@@ -179,7 +179,6 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const currentUser: User | null = React.useMemo(() => {
         // DEMO MODE BYPASS — development builds only
-        // SECURITY: This bypass is disabled in production to prevent unauthorized access
         if (import.meta.env.DEV && sessionToken === 'demo@practicepro.ng') {
             const demoProduct = sessionStorage.getItem('practicepro_demo_product') || 'vega';
             const isAtrium = demoProduct === 'atrium';
@@ -198,51 +197,43 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             };
         }
 
-        // Use backend data if available
         const data = userData;
 
-        if (!data) return null;
+        if (!data) {
+            // ─── OFFLINE FALLBACK ─────────────────────────────────────────
+            // If the Convex query hasn't returned data (undefined), it could be
+            // because we're offline. If we have a cached user in localStorage,
+            // use that so the app doesn't show a blank screen. The cached user
+            // is read-only — mutations will fail offline, but at least the user
+            // can VIEW their matters, properties, tasks, etc.
+            if (sessionToken && typeof navigator !== 'undefined' && !navigator.onLine) {
+                try {
+                    const cached = localStorage.getItem('practicepro_cached_user');
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        if (parsed && parsed.token === sessionToken) {
+                            console.log('[Auth] Offline mode — using cached user data');
+                            return parsed.user;
+                        }
+                    }
+                } catch {}
+            }
+            return null;
+        }
 
-        // If not verified, effectively not logged in for the app
         if (!data.isVerified) return null;
-
-        // Defense-in-depth: A user with role="Pending" should not have an active session.
-        // This catches cases where a portal user's access was revoked via
-        // deletePortalInviteAndCleanup (which sets role="Pending" + isVerified=false)
-        // but somehow their session token is still valid.
-        //
-        // NOTE: This check applies even when impersonating — an admin must not be
-        // able to preview a revoked portal account.
         if ((data as any).role === 'Pending') return null;
 
-        // IMPERSONATION ROLE OVERRIDE
-        // When an admin is impersonating a portal user, use the override role
-        // (set by loginAsUser) instead of the target user's actual DB role.
-        // This ensures the admin sees the TenantPortal even if the target's
-        // DB role has drifted to 'Admin' or is null/undefined (data corruption,
-        // legacy migration gap, invite sent to an existing admin email).
-        //
-        // The override is only applied when originalSessionToken is set (i.e.
-        // we are actually impersonating). This prevents stale sessionStorage
-        // values from leaking into the regular user session.
         const rawRole = (data as any).role;
         const effectiveRole: string | undefined = (originalSessionToken && impersonationRoleOverride)
             ? impersonationRoleOverride
             : rawRole;
 
-        // SECURITY: Reject any user record with a missing/null/empty role.
-        // Previously this defaulted to Admin, which was a critical privilege-escalation
-        // bug — any user with a malformed record (e.g. legacy migration gap, manual
-        // DB edit) silently became an Admin. Now we treat a missing role the same as
-        // 'Pending' and refuse to authenticate them.
         if (!effectiveRole || typeof effectiveRole !== 'string' || effectiveRole.trim() === '') {
             console.warn('[Auth] Rejecting user with missing/null role:', data.email);
             return null;
         }
 
-        // SECURITY: Explicit field mapping - NEVER spread raw data.
-        // This ensures sensitive fields (password, mfaCode, verificationCode, etc.) 
-        // are never transmitted to the frontend state.
         const combined = {
             id: data._id || data.id,
             firmId: data.firmId,
@@ -260,9 +251,20 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             isMfaEnabled: data.isMfaEnabled,
             portalPresenceHidden: data.portalPresenceHidden,
             portalAccessToken: (data as any).portalAccessToken,
-            // Explicitly excluded: password, mfaCode, verificationCode, failedLoginAttempts, lockedUntil
             ...localUserOverrides
         };
+
+        // ─── Cache user for offline use ──────────────────────────────────
+        // Every time we successfully fetch the user from the backend, cache
+        // it in localStorage. When the app loads offline, we'll use this
+        // cached data instead of showing a blank screen.
+        try {
+            localStorage.setItem('practicepro_cached_user', JSON.stringify({
+                token: sessionToken,
+                user: combined,
+                cachedAt: Date.now(),
+            }));
+        } catch {}
 
         return combined;
     }, [userData, sessionToken, localUserOverrides, impersonationRoleOverride, originalSessionToken]);
@@ -620,6 +622,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             localStorage.removeItem(PORTAL_SESSION_KEY);
             sessionStorage.removeItem('practicepro_portal_type');
             localStorage.removeItem('practicepro_portal_type');
+            // Clear cached user so offline mode doesn't restore a logged-out portal user
+            localStorage.removeItem('practicepro_cached_user');
             // Do NOT clear LOCAL_STORAGE_USER_KEY — that belongs to the admin
         } else {
             // Admin logout — clear only the admin session
@@ -630,6 +634,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             localStorage.removeItem(PORTAL_SESSION_KEY);
             sessionStorage.removeItem('practicepro_portal_type');
             localStorage.removeItem('practicepro_portal_type');
+            // Clear cached user for offline mode
+            localStorage.removeItem('practicepro_cached_user');
         }
         localStorage.removeItem('practicepro_session_locked');
 
@@ -811,10 +817,21 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [sessionToken, userData, retryCount]);
 
     // Calculate final loading state
-    // We are loading if: 
+    // We are loading if:
     // 1. LocalStorage hasn't been read yet
     // 2. OR we have a token (trying to auto-login) AND data hasn't arrived yet AND we haven't timed out yet
-    const isLoading = !isStorageLoaded || (!!sessionToken && userData === undefined && sessionToken !== 'demo@practicepro.ng' && !hasTimedOut);
+    //
+    // OFFLINE FIX: If we're offline AND have a cached user, don't keep loading —
+    // the currentUser memo will return the cached user, so we should stop loading.
+    const hasOfflineCache = (() => {
+        if (!sessionToken || typeof navigator === 'undefined' || navigator.onLine) return false;
+        try {
+            const cached = localStorage.getItem('practicepro_cached_user');
+            return cached && JSON.parse(cached)?.token === sessionToken;
+        } catch { return false; }
+    })();
+
+    const isLoading = !isStorageLoaded || (!!sessionToken && userData === undefined && sessionToken !== 'demo@practicepro.ng' && !hasTimedOut && !hasOfflineCache);
 
     // Detect if the user's account has been revoked (isVerified=false + role=Pending)
     // This happens when deletePortalInviteAndCleanup resets a portal user.

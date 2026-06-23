@@ -29,6 +29,15 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+// @ts-ignore — this plugin may not be installed in all environments
+let BiometricAuth: any = null;
+try {
+    // Dynamic require so the build doesn't fail if the package isn't installed
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    BiometricAuth = require('@aparajita/capacitor-biometric-auth').BiometricAuth;
+} catch {
+    // Package not installed — biometric features will be disabled
+}
 
 const BIOMETRIC_EMAIL_KEY = 'practicepro_biometric_email';
 const BIOMETRIC_ENABLED_KEY = 'practicepro_biometric_enabled';
@@ -52,11 +61,10 @@ export function getBiometricEmail(): string | null {
 
 export async function isBiometricAvailable(): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) {
-        // On web, check for WebAuthn support
         return typeof window !== 'undefined' && 'PublicKeyCredential' in window;
     }
     try {
-        const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+        if (!BiometricAuth) return false;
         const result = await BiometricAuth.checkBiometrics();
         return result.available && result.hasEnrolledBiometrics;
     } catch {
@@ -67,7 +75,7 @@ export async function isBiometricAvailable(): Promise<boolean> {
 export async function registerBiometric(email: string): Promise<boolean> {
     if (!Capacitor.isNativePlatform()) return false;
     try {
-        const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+        if (!BiometricAuth) return false;
         const result = await BiometricAuth.authenticate({
             reason: 'Enable biometric unlock for PracticePro',
             cancelTitle: 'Cancel',
@@ -89,7 +97,7 @@ export async function authenticateWithBiometric(): Promise<{ success: boolean; e
     if (!isBiometricRegistered()) return { success: false };
 
     try {
-        const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+        if (!BiometricAuth) return { success: false };
         const result = await BiometricAuth.authenticate({
             reason: 'Unlock PracticePro',
             cancelTitle: 'Cancel',

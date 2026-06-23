@@ -461,6 +461,26 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             return;
         }
 
+        // ─── OFFLINE FALLBACK ─────────────────────────────────────────────
+        // If we're offline AND have cached app data, load it immediately so
+        // the user can view their matters, properties, tasks, etc. in
+        // read-only mode instead of seeing a blank/loading screen.
+        if (typeof navigator !== 'undefined' && !navigator.onLine && !isDataLoaded && currentUser) {
+            try {
+                const cached = localStorage.getItem('practicepro_cached_appstate');
+                if (cached) {
+                    const parsed = JSON.parse(cached);
+                    if (parsed && parsed.firmId === currentUser.firmId) {
+                        console.log('[DataProvider] Offline mode — using cached app data');
+                        setAppState(parsed.state);
+                        setIsDataLoaded(true);
+                        setIsFullyLoaded(true);
+                        return;
+                    }
+                }
+            } catch {}
+        }
+
         // Phase A: metadata arrives — unlock UI immediately
         if (firmMetadata && !isDataLoaded) {
             setAppState(prev => {
@@ -507,6 +527,23 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 return newState;
             });
             if (!isFullyLoaded) setIsFullyLoaded(true);
+
+            // ─── Cache app data for offline use ────────────────────────────
+            // After successfully loading from the backend, cache a snapshot
+            // in localStorage. When the app loads offline, we'll use this
+            // to show the user's data in read-only mode.
+            // We only cache essential arrays (not chatMessages which can be huge).
+            try {
+                const toCache = { ...appStateRef.current };
+                // Strip large/unnecessary fields to keep cache size manageable
+                delete (toCache as any).chatMessages;
+                delete (toCache as any).firmActivity;
+                localStorage.setItem('practicepro_cached_appstate', JSON.stringify({
+                    firmId: currentUser?.firmId,
+                    state: toCache,
+                    cachedAt: Date.now(),
+                }));
+            } catch {} // localStorage might be full — non-critical
         }
     }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
 
