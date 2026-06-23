@@ -1308,6 +1308,14 @@ export default defineSchema({
     linkedRequestId: nullableString,        // _id of client_service_requests row (Vega)
     requestTypeKey: nullableString,         // key of the service_request_types entry chosen
     requestTypeLabel: nullableString,       // human label snapshot (e.g. "Plumbing", "Document Review")
+    // ─── Sub-Threading ────────────────────────────────────────────────
+    // When a conversation has multiple tickets, replies to a SPECIFIC ticket
+    // get threadTicketId set (the _id of the ticket being discussed). This
+    // allows the UI to group replies under their originating ticket message,
+    // creating sub-threads within the main conversation.
+    // Messages WITHOUT threadTicketId are general conversation messages.
+    // Messages WITH threadTicketId are replies within that ticket's sub-thread.
+    threadTicketId: nullableString,         // groups replies under a specific ticket
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1317,7 +1325,8 @@ export default defineSchema({
     .index("by_conversation", ["conversationId"])
     .index("by_firm_matter", ["firmId", "matterId"])
     .index("by_linked_ticket", ["linkedTicketId"])
-    .index("by_linked_request", ["linkedRequestId"]),
+    .index("by_linked_request", ["linkedRequestId"])
+    .index("by_thread", ["threadTicketId"]),
 
   // ─── Payment Proofs ───────────────────────────────────────────────
   // Payment proof submissions from tenants (receipts, stubs, transfer slips).

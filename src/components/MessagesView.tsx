@@ -928,6 +928,12 @@ const MessagesView: React.FC = () => {
         }
     }, [atriumInbound, portalMessages, portalConversations]);
 
+    // ── Sub-thread state ──
+    // When the admin taps "Reply" on a specific ticket's inline controls,
+    // we set activeThreadTicketId so the reply is grouped under that ticket.
+    // null = general conversation reply (no sub-thread).
+    const [activeThreadTicketId, setActiveThreadTicketId] = useState<string | null>(null);
+
     // ── Inbox reply handler ──
     const handleInboxReply = async () => {
         if ((!inboxReply.trim() && adminAttachments.length === 0) || !selectedInboundMsg) return;
@@ -943,6 +949,7 @@ const MessagesView: React.FC = () => {
                     content: inboxReply.trim(),
                     attachments: adminAttachments.length > 0 ? adminAttachments.map(a => a.storageId) : undefined,
                     attachmentNames: adminAttachments.length > 0 ? adminAttachments.map(a => a.name) : undefined,
+                    threadTicketId: activeThreadTicketId || undefined,
                 });
                 addToast('Reply sent.', { type: 'success' });
                 setInboxReply('');
@@ -1630,6 +1637,46 @@ const MessagesView: React.FC = () => {
                                                                             )}
                                                                         </div>
                                                                     )}
+                                                                    {/* Sub-thread reply button — lets the admin reply
+                                                                        specifically within this ticket's sub-thread */}
+                                                                    {msgTicketInfo && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const ticketId = String(msgTicketId);
+                                                                                setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
+                                                                            }}
+                                                                            className={`mt-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                                                                activeThreadTicketId === String(msgTicketId)
+                                                                                    ? 'bg-emerald-500 text-white'
+                                                                                    : isAdmin
+                                                                                    ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
+                                                                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                                                            }`}
+                                                                        >
+                                                                            {activeThreadTicketId === String(msgTicketId) ? '✓ Replying to this ticket' : '↩ Reply to this ticket'}
+                                                                        </button>
+                                                                    )}
+                                                                    {/* Show threaded replies (messages with threadTicketId matching this ticket) */}
+                                                                    {msgTicketId && conversationMessages && (() => {
+                                                                        const threadReplies = (conversationMessages as any[]).filter(
+                                                                            (m: any) => !m.isDeleted && m.threadTicketId === String(msgTicketId) && String(m._id) !== String(msg._id)
+                                                                        );
+                                                                        if (threadReplies.length === 0) return null;
+                                                                        return (
+                                                                            <div className={`mt-1.5 ml-3 pl-2 border-l-2 ${isAdmin ? 'border-primary-400/40' : 'border-slate-300 dark:border-zinc-600'} space-y-1`}>
+                                                                                {threadReplies.map((reply: any) => {
+                                                                                    const replyIsAdmin = reply.senderRole === 'Admin';
+                                                                                    return (
+                                                                                        <div key={String(reply._id)} className={`text-[11px] leading-relaxed ${replyIsAdmin ? 'text-primary-200' : 'text-slate-600 dark:text-zinc-400'}`}>
+                                                                                            <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 200)}
+                                                                                            {reply.content && reply.content.length > 200 && '...'}
+                                                                                            <span className="text-[8px] text-slate-400 ml-1">{reply.createdAt ? new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        );
+                                                                    })()}
                                                                     {/* Read receipt */}
                                                                     {isAdmin && (
                                                                         <div className="flex items-center justify-end gap-1 mt-0.5">
@@ -1756,6 +1803,7 @@ const MessagesView: React.FC = () => {
                                                                         adminId: currentUser?.id || '',
                                                                         adminName: currentUser?.name || 'Admin',
                                                                         content: chip.msg,
+                                                                        threadTicketId: activeThreadTicketId || undefined,
                                                                     });
                                                                     addToast('Quick reply sent.', { type: 'success' });
                                                                 } catch (err: any) {
@@ -1820,7 +1868,7 @@ const MessagesView: React.FC = () => {
                                                     value={inboxReply}
                                                     onChange={(e) => setInboxReply(e.target.value)}
                                                     placeholder={selectedInboundMsg._inboxType === 'conversation'
-                                                        ? 'Reply in conversation...'
+                                                        ? (activeThreadTicketId ? 'Reply to this ticket thread...' : 'Reply in conversation...')
                                                         : selectedInboundMsg._inboxType === 'portal'
                                                         ? 'Reply to portal user...'
                                                         : `Reply via ${selectedInboundMsg.channel || 'message'}...`}

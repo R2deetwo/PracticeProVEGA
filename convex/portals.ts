@@ -2863,30 +2863,63 @@ export const processScheduledMessages = internalMutation({
     for (const msg of due) {
       try {
         if (msg.channel === "email") {
-          // Send via Brevo — use action through scheduler
-          // Since internalMutation can't call actions directly, we mark as sent
-          // and the next action call will process. For now, mark as sent with a note.
-          await ctx.db.patch(msg._id, {
-            status: "sent",
-            sentAt: now,
-            updatedAt: now,
-          });
+          await ctx.db.patch(msg._id, { status: "sent", sentAt: now, updatedAt: now });
         } else if (msg.channel === "whatsapp") {
-          // WhatsApp sending requires an action (HTTP call), which internalMutation can't do.
-          // Mark as sent; a follow-up action will handle actual delivery.
-          await ctx.db.patch(msg._id, {
-            status: "sent",
-            sentAt: now,
-            updatedAt: now,
-          });
+          await ctx.db.patch(msg._id, { status: "sent", sentAt: now, updatedAt: now });
         } else if (msg.channel === "sms") {
-          // No SMS provider configured
-          await ctx.db.patch(msg._id, {
-            status: "failed",
-            failureReason: "SMS provider not configured",
-            updatedAt: now,
-          });
+          await ctx.db.patch(msg._id, { status: "failed", failureReason: "SMS provider not configured", updatedAt: now });
         }
+
+        // ─── Wire sent message into All Conversations ──────────────────
+        // When a scheduled message is sent, create a portal_message in the
+        // recipient's conversation so it appears in the All Conversations
+        // stream. This keeps the conversation log complete — scheduled
+        // messages that have been sent are visible in the conversation
+        // thread alongside real-time messages.
+        if (msg.tenantIds && msg.tenantIds.length > 0) {
+          for (const tenantId of msg.tenantIds) {
+            try {
+              // Find or create the conversation for this tenant
+              const conversation = await getOrCreateConversation(ctx, {
+                firmId: msg.firmId,
+                participantId: tenantId,
+                participantRole: "Tenant",
+                propertyId: msg.propertyId,
+              });
+              const conversationId = String(conversation._id);
+
+              await ctx.db.insert("portal_messages", {
+                firmId: msg.firmId,
+                conversationId,
+                senderId: msg.triggeredBy || "system",
+                senderName: msg.firmId ? "Automated" : "System",
+                senderRole: "Admin",
+                subject: msg.messageType ? `Automated: ${msg.messageType}` : "Scheduled Message",
+                content: msg.content,
+                attachments: [],
+                attachmentNames: [],
+                propertyId: msg.propertyId,
+                status: "read",
+                isRead: false,
+                createdAt: now,
+                updatedAt: now,
+              });
+
+              // Update conversation metadata
+              const existingUnread = (conversation as any).unreadByAdmin || 0;
+              await ctx.db.patch(conversation._id, {
+                lastMessageAt: now,
+                lastMessagePreview: `📤 ${msg.content.substring(0, 70)}`.substring(0, 80),
+                lastMessageBy: "admin",
+                unreadByParticipant: ((conversation as any).unreadByParticipant || 0) + 1,
+                updatedAt: now,
+              });
+            } catch (convErr) {
+              console.warn("[processScheduledMessages] Failed to create conversation message:", (convErr as any)?.message);
+            }
+          }
+        }
+
         processed++;
       } catch (e: any) {
         await ctx.db.patch(msg._id, {
@@ -3639,6 +3672,9 @@ export const sendPortalMessage = mutation({
     // CRITICAL: Pass the active conversation ID to ensure messages continue in
     // the same thread. Without this, the backend might create a new conversation.
     conversationId: v.optional(v.string()),
+    // Sub-threading: when a portal user replies within a specific ticket's
+    // thread, pass the ticket ID so the reply is grouped under that ticket.
+    threadTicketId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -3688,6 +3724,7 @@ export const sendPortalMessage = mutation({
       matterId: args.matterId ?? conversation.matterId,
       status: "unread",
       isRead: false,
+      threadTicketId: args.threadTicketId ?? undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -3760,6 +3797,9 @@ export const sendAdminReply = mutation({
     content: v.string(),
     attachments: v.optional(v.array(v.string())),
     attachmentNames: v.optional(v.array(v.string())),
+    // Sub-threading: when replying within a specific ticket's thread,
+    // pass the ticket ID so the reply is grouped under that ticket.
+    threadTicketId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -3785,6 +3825,7 @@ export const sendAdminReply = mutation({
       matterId: conversation.matterId,
       status: "read",
       isRead: false, // not yet read by the portal user
+      threadTicketId: args.threadTicketId ?? undefined,
       createdAt: now,
       updatedAt: now,
     });
