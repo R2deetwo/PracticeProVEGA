@@ -1945,3 +1945,33 @@ Work Log:
 - Noted for next pass: portal users listed as admin, settings reorganization, link tickets to tasks, scalable portal access list.
 - TypeScript: clean. Vite build: succeeds.
 - Committed (f63abbc) and pushed. CI auto-deploys.
+
+---
+Task ID: 26
+Agent: Main Agent
+Task: Remove dead AI agents from src/agents/
+
+Work Log:
+- Audited every file in src/agents/ against the rest of the codebase (grep for imports + function-name usages)
+- Confirmed 5 agents had ZERO imports and ZERO callers:
+  * DataProtectionAgent.ts      — PII stripping now lives in src/utils/aiUtils.ts (stripPIIWithReport) and is invoked by ALDIA + AloaChat
+  * DraftingAgent.ts            — drafting flows through ALOA/ARIA via Gemini; no callers of rewriteText()
+  * NigerianLegalJurisdictionAgent.ts — the "jurisdictionScout" toggle in AgentSettings.tsx is decorative (persists a boolean, never calls determineJurisdiction())
+  * RpcGuidanceAgent.ts         — RPC review consolidated inside ALDIA per user direction; RpcGuidanceTip.tsx (UI) is a separate file and was NOT deleted
+  * ScaleOfChargesAgent.ts      — billing handled by the ScaleOfCharges UI component
+- Verified kept agents are still actively imported:
+  * AdvancedLegalDocumentIntelligenceAgent — used by DataProvider, DataContext, useMatters, MiniAloa, AloaChat (5 importers)
+  * AgencyHub                              — used by services/geminiService.ts
+  * IngestionAgent                         — used by MatterIngestionWizard
+  * NigerianTaxComplianceAgent             — used by ExpenseForm
+  * PropertyManagementAgent                — transitively used by AgencyHub
+  * ResearchAgent                          — used by ResearchStudio
+- Deleted the 5 dead agent files
+- Ran `npx tsc --noEmit`: only pre-existing error in src/app/page.tsx (unrelated, was already broken before this task)
+- Committed: "Cleanup: Remove 5 dead AI agents"
+
+Stage Summary:
+- src/agents/ shrunk from 11 files → 6 files (all 6 remaining are actively imported)
+- No orphaned imports remain anywhere in src/
+- Build/TypeScript health unchanged (no new errors introduced)
+- AgentSettings.tsx still has decorative toggles for jurisdictionScout/draftingAssistant/privacyShield/billingAuditor — these persist booleans but don't call any agent; left as-is per scope ("remove the dead agents" = the files, not the UI toggles). Worth a follow-up to clean these up or wire them to real behavior.
