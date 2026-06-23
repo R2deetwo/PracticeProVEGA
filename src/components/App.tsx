@@ -464,11 +464,18 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                 </div>
             )}
             {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
-            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full`}>
+            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full overflow-hidden`}>
                 {currentUser && !isPortalUser && <Header />}
-                <main className="flex-1 relative overflow-hidden md:h-full h-[calc(100%-3.5rem)] md:pb-0">
+                {/* Main content area: on desktop, fills remaining height.
+                    On mobile, the BottomNav is position:fixed and overlays
+                    the content. We add paddingBottom on mobile to ensure
+                    the last items aren't hidden behind the nav. The nav is
+                    h-14 (3.5rem = 56px). We use a CSS media query via the
+                    'pb-14 md:pb-0' class which applies 56px padding on
+                    screens < 768px (md breakpoint) and 0 on desktop. */}
+                <main className="flex-1 relative overflow-hidden">
                     {currentUser ? (
-                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate">
+                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>

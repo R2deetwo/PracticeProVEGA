@@ -109,9 +109,35 @@ const CONVERSATION_TYPE_STYLES: Record<ConversationType, { badge: string; dot: s
 
 function detectConversationType(conv: any): ConversationType {
     const preview: string = conv?.lastMessagePreview || '';
+    // A conversation's type is determined by its ORIGIN, not just the
+    // latest message. If the conversation EVER had a ticket or request
+    // (detected by the preview prefix at any point), it stays that type
+    // even after the admin replies. The admin reply prefix (✅) indicates
+    // the latest message is from admin, but the conversation's nature
+    // doesn't change.
+    //
+    // Priority: ticket/request origin > admin reply > plain portal
     if (preview.startsWith('🔧')) return 'maintenance';
     if (preview.startsWith('📋')) return 'service_request';
-    if (preview.startsWith('✅')) return 'admin_reply';
+    // ✅ prefix means admin replied — but we need to check if this
+    // conversation ORIGINATED as a ticket/request. We can't know that
+    // from just the preview, so we treat ✅ as 'admin_reply' ONLY if
+    // it's not a known ticket/request conversation. In practice, the
+    // admin reply message includes the ticket type in its content, so
+    // we also check for ticket/request keywords in the preview.
+    if (preview.startsWith('✅')) {
+        // Check if the reply mentions a ticket/request context
+        const lowerPreview = preview.toLowerCase();
+        if (lowerPreview.includes('maintenance') || lowerPreview.includes('ticket')) return 'maintenance';
+        if (lowerPreview.includes('service request') || lowerPreview.includes('request')) return 'service_request';
+        return 'admin_reply';
+    }
+    // 🚫 prefix = cancelled ticket
+    if (preview.startsWith('🚫')) {
+        const lowerPreview = preview.toLowerCase();
+        if (lowerPreview.includes('ticket')) return 'maintenance';
+        return 'service_request';
+    }
     return 'portal';
 }
 
@@ -658,6 +684,14 @@ const MessagesView: React.FC = () => {
             }
             addToast(`Status updated to "${newStatus.replace('_', ' ')}".`, { type: 'success' });
             await refreshTicketRecord(ticketInfo);
+            // Trigger visual highlight on the message card that owns this ticket
+            const cardEl = document.querySelector(`[data-ticket-id="${ticketInfo.id}"]`);
+            if (cardEl) {
+                cardEl.classList.remove('state-changed');
+                void cardEl.offsetWidth; // force reflow to restart animation
+                cardEl.classList.add('state-changed');
+                setTimeout(() => cardEl.classList.remove('state-changed'), 1000);
+            }
         } catch (err: any) {
             addToast(err.message || 'Failed to update status.', { type: 'error' });
         }
@@ -999,23 +1033,16 @@ const MessagesView: React.FC = () => {
                         )}
                     </button>
 
-                    {/* Team Chat Tab */}
-                    <button
-                        onClick={() => setActiveTab('team')}
-                        className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
-                            activeTab === 'team'
-                                ? 'border-primary-600 text-primary-700 dark:text-primary-400 dark:border-primary-500'
-                                : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                        }`}
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        <span className="hidden sm:inline">Team Chat</span>
-                    </button>
+                    {/* Team Chat tab REMOVED — internal team conversations are
+                        now subsumed into All Conversations. If it says "All
+                        Conversations" it should truly contain ALL dialog
+                        streams including internal team threads. */}
 
-                    {/* Notice Board Tab (property only) */}
-                    {isProperty && (
+                    {/* Notice Board Tab — available for ALL firms (both Vega
+                        and Atrium). Admins can post internal notices for
+                        their team, and property managers can post resident-
+                        facing notices. The NoticeBoardTab handles both. */}
+                    {(
                     <button
                         onClick={() => setActiveTab('notices')}
                         className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 -mb-px transition-colors ${
@@ -1488,7 +1515,9 @@ const MessagesView: React.FC = () => {
                                                         const msgTicketRecord = msgTicketId ? linkedTicketRecords[String(msgTicketId)] : null;
                                                         return (
                                                             <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-3`}>
-                                                                <div className={`relative max-w-[90%] ${isAdmin
+                                                                <div
+                                                                    data-ticket-id={msgTicketId ? String(msgTicketId) : undefined}
+                                                                    className={`relative max-w-[90%] transition-shadow ${isAdmin
                                                                     ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm'
                                                                     : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm'
                                                                 }`}>
@@ -1836,235 +1865,10 @@ const MessagesView: React.FC = () => {
                     </div>
                 )}
 
-                {/* ═══ TEAM CHAT TAB ═══ */}
-                {activeTab === 'team' && (
-                    <div className="flex h-full w-full">
-                        <div className={`w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 ${selectedId ? 'hidden md:flex' : 'flex'}`}>
-                            <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
-                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Team Chat</h3>
-                                <button onClick={() => openModal('newDirectMessage')} className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1 text-xs font-bold">
-                                    <PlusIcon className="w-3.5 h-3.5" /> New
-                                </button>
-                            </div>
-                            <div className="px-3 pb-2">
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                                    </div>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="text"
-                                        placeholder="Search chats..."
-                                        value={searchQuery}
-                                        onChange={e => setSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                                    />
-                                </div>
-                            </div>
+                {/* TEAM CHAT TAB REMOVED — subsumed into All Conversations */}
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar">
-                                {!isDataLoaded ? (
-                                    <div className="p-3">
-                                        <ListItemSkeleton count={6} />
-                                    </div>
-                                ) : (
-                                    <>
-                                        {filteredConversations.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">No conversations found.</p>}
-                                        {filteredConversations.map(c => {
-                                    let displayName = c.name || 'Chat';
-                                    let avatar = null;
-                                    const convMessages = messages.filter((m: any) => m && m.conversationId?.toString() === c.id);
-                                    const lastMsg = c._isSystem ? c.lastMsg : convMessages.sort((a: any, b: any) => {
-                                        const timeA = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
-                                        const timeB = b?.timestamp ? new Date(b.timestamp).getTime() : 0;
-                                        return (isNaN(timeA) ? 0 : timeA) - (isNaN(timeB) ? 0 : timeB);
-                                    }).pop();
-
-                                    const unreadCount = c._isSystem ? c.unreadCount : coreState.notifications.filter((n: any) =>
-                                        n.userId === currentUser.id &&
-                                        !n.isRead &&
-                                        n.link?.view === 'messaging' &&
-                                        n.link?.context?.activeConversationId?.toString() === c.id
-                                    ).length;
-                                    const hasUnread = unreadCount > 0;
-
-                                    if (c._isSystem) {
-                                        displayName = c.name;
-                                        avatar = (
-                                            <div className={`relative w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-100 flex items-center justify-center text-white dark:text-slate-900`}>
-                                                <SparklesIcon className="w-5 h-5" />
-                                                {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900"></span>}
-                                            </div>
-                                        );
-                                    } else if (c.type === 'direct') {
-                                        const otherId = c.memberIds?.find((id: string) => id !== currentUser.id);
-                                        const other = users.find(u => u.id === otherId);
-                                        displayName = other ? other.name : 'Unknown';
-                                        avatar = (
-                                            <div className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${getUserColor(displayName)}`}>
-                                                {getInitials(displayName)}
-                                                {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900"></span>}
-                                            </div>
-                                        );
-                                    } else {
-                                        displayName = `#${c.name}`;
-                                        avatar = (
-                                            <div className={`relative w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center text-primary-600 dark:text-primary-300`}>
-                                                <span className="font-bold text-lg">#</span>
-                                                {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-zinc-900"></span>}
-                                            </div>
-                                        );
-                                    }
-
-                                    return (
-                                        <div
-                                            key={c.id}
-                                            onClick={() => { setSelectedId(c.id); onNavigate('messaging', null, { activeConversationId: c.id }); }}
-                                            className={`flex items-center gap-3 p-3 cursor-pointer border-b border-slate-100 dark:border-zinc-800 transition-all group relative ${selectedId === c.id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-500' : 'hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
-                                        >
-                                            {avatar}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-baseline mb-0.5">
-                                                    <h4 className={`font-semibold text-sm truncate ${selectedId === c.id ? 'text-primary-700 dark:text-primary-400' : (hasUnread ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-900 dark:text-white')}`}>{displayName}</h4>
-                                                    {hasUnread ? (
-                                                        <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ml-2">
-                                                            {unreadCount > 9 ? '9+' : unreadCount}
-                                                        </span>
-                                                    ) : lastMsg && (
-                                                        <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{timeAgo(lastMsg.timestamp)}</span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center justify-between mt-0.5">
-                                                    <p className={`text-xs truncate max-w-[85%] ${hasUnread ? 'font-bold text-slate-700 dark:text-slate-300' : 'text-slate-500 dark:text-zinc-400'}`}>
-                                                        {c._isSystem ? (lastMsg ? lastMsg.adminReply || lastMsg.message : 'System updates') : renderSidebarPreview(lastMsg)}
-                                                    </p>
-                                                    {!c._isSystem && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                openModal('deleteConfirmation', c.id, {
-                                                                    title: "Hide Conversation?",
-                                                                    message: "This conversation will be hidden from your inbox. It will reappear if you receive a new message in this chat.",
-                                                                    onConfirm: async () => {
-                                                                        try { await handleDeleteChat(c.id, false, currentUser.id); } finally { closeModal(); }
-                                                                    },
-                                                                    confirmText: 'Hide for me',
-                                                                    confirmButtonClass: 'bg-slate-700 hover:bg-slate-800 text-white font-bold'
-                                                                });
-                                                            }}
-                                                            className="opacity-0 group-hover:opacity-100 p-1.5 -mr-1.5 text-slate-400 hover:text-red-500 focus:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-all z-10"
-                                                            title="Delete Chat"
-                                                        >
-                                                            <TrashIcon className="w-3.5 h-3.5" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className={`flex-1 flex flex-col bg-white dark:bg-zinc-900 ${!selectedId ? 'hidden md:flex' : 'flex'}`}>
-                            {selectedId === 'system-inbox' ? (
-                                <div className="flex flex-col h-full bg-slate-50/50 dark:bg-zinc-900 relative w-full">
-                                    <div className="flex-shrink-0 h-16 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between bg-white dark:bg-zinc-800 z-20 shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={() => { setSelectedId(null); onNavigate('messaging', null, { activeConversationId: null }); }} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full">
-                                                <ChevronRightIcon className="w-5 h-5 rotate-180" />
-                                            </button>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-100 flex items-center justify-center text-white dark:text-slate-900">
-                                                    <SparklesIcon className="w-5 h-5" />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-bold text-slate-900 dark:text-white text-base">ARIA Assistant</h3>
-                                                    <p className="text-xs text-slate-500 dark:text-zinc-400">Your AI assistant &amp; support</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth">
-                                        <div className="max-w-3xl mx-auto w-full pb-4">
-                                            {myFeedback.length === 0 ? (
-                                                <div className="flex flex-col items-center justify-center py-16 text-center">
-                                                    <div className="p-3.5 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl mb-4">
-                                                        <SparklesIcon className="w-7 h-7 text-slate-400" />
-                                                    </div>
-                                                    <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300">ARIA Assistant</h3>
-                                                    <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-xs mt-1.5">Submit feedback, report bugs, or ask for support. When our team replies, the messages will appear here.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-6">
-                                                    {myFeedback.map((item: any) => (
-                                                        <div key={item._id} className="space-y-4">
-                                                            <div className="flex justify-center my-4">
-                                                                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-zinc-800/50 px-3 py-1 rounded-full">{new Date(item.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                                                            </div>
-                                                            <div className="flex w-full mb-2 justify-end animate-fade-in-up">
-                                                                <div className="flex max-w-[85%] md:max-w-[75%] gap-2.5 flex-row-reverse">
-                                                                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 bg-primary-600 text-white font-bold text-[10px]">{getInitials(item.userName)}</div>
-                                                                    <div className="flex flex-col items-end group">
-                                                                        {item.title && <span className="text-[10px] font-bold text-slate-400 mb-1 px-1">[{item.type || 'Feedback'}] {item.title}</span>}
-                                                                        <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-primary-600 text-white rounded-tr-sm">
-                                                                            <span className="whitespace-pre-wrap break-words">{item.message}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {item.adminReply && (
-                                                                <div className="flex w-full mb-2 justify-start animate-fade-in-up">
-                                                                    <div className="flex max-w-[85%] md:max-w-[75%] gap-2.5 flex-row">
-                                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-900 dark:text-white">
-                                                                            <SparklesIcon className="w-4 h-4" />
-                                                                        </div>
-                                                                        <div className="flex flex-col items-start group">
-                                                                            <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">{isProperty ? 'ARIA' : 'ALOA'}</span>
-                                                                            <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm">
-                                                                                <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(item.adminReply) }} />
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : activeConversation ? (
-                                <ChatWindow
-                                    conversation={activeConversation}
-                                    messages={activeMessages}
-                                    currentUser={currentUser!}
-                                    users={users}
-                                    onSend={(text) => activeConversation && handleSendMessage(activeConversation.id, text, currentUser!.id)}
-                                    onBack={() => { setSelectedId(null); onNavigate('messaging', null, { activeConversationId: null }); }}
-                                    onDeleteMessage={handleDeleteMessage}
-                                    onDeleteChat={handleDeleteChat}
-                                    onRetry={(id) => retryMessage && retryMessage(id, false)}
-                                />
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600">
-                                    <div className="w-24 h-24 bg-slate-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-6">
-                                        <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                                    </div>
-                                    <p className="text-lg font-medium text-slate-600 dark:text-zinc-400">Select a conversation to start chatting</p>
-                                    <button onClick={() => openModal('newDirectMessage')} className="mt-4 px-6 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors">
-                                        Start New Chat
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* ═══ NOTICE BOARD TAB ═══ */}
-                {activeTab === 'notices' && isProperty && (
+                {/* ═══ NOTICE BOARD TAB ═══ — available for ALL firms */}
+                {activeTab === 'notices' && (
                     <NoticeBoardTab firmId={firmId} allNotices={allNotices} />
                 )}
 

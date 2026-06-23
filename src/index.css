@@ -1334,3 +1334,38 @@ span[data-type="legal-placeholder"] {
     display: none !important;
   }
 }
+
+/* ─── Bottom Nav Spacing Fix ───────────────────────────────────────────
+   The BottomNav is position:fixed on mobile (h-14 = 56px). Content that
+   scrolls inside overflow-y-auto containers gets clipped by the nav.
+   This global rule adds bottom padding to ALL scrollable containers on
+   mobile screens (< 768px) so nothing is hidden behind the nav.
+   Desktop has no bottom nav, so no padding needed. */
+@media (max-width: 767px) {
+  /* Target the most common scroll containers used across the app */
+  .overflow-y-auto:not(.no-nav-pad),
+  .overflow-auto:not(.no-nav-pad) {
+    padding-bottom: 3.5rem !important; /* 56px = h-14 = bottom nav height */
+  }
+  /* But don't double-pad containers that already have explicit padding */
+  .pb-14.overflow-y-auto,
+  .pb-16.overflow-y-auto,
+  .pb-20.overflow-y-auto,
+  .pb-24.overflow-y-auto,
+  .pb-28.overflow-y-auto {
+    padding-bottom: revert !important;
+  }
+}
+
+/* ─── State Transition Highlight ──────────────────────────────────────
+   When a ticket/request changes status, the message card briefly
+   pulses with an accent border to draw the admin's attention to the
+   change. Uses CSS animation for hardware acceleration. */
+@keyframes state-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50%  { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+.state-changed {
+  animation: state-pulse 0.8s ease-out;
+}
