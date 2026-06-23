@@ -4,6 +4,7 @@ import { timeAgo } from '../../utils/colorUtils';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -77,28 +78,48 @@ interface NoteEditorProps {
 }
 
 export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, onDelete, onCopy, onNavigateToMatter, onBack, showBackButton = true, breadcrumbItems = [], onBreadcrumbNav }) => {
+    const { addToast } = useUI();
     const saveTimeoutRef = useRef<number | null>(null);
     const isProgrammaticChange = useRef(false);
     const currentPageId = useRef<string | null>(null);
 
-    // ─── Dictation (Voice-to-Text) ────────────────────────────────────
+    // ─── Dictation (Voice-to-Text Transcription) ─────────────────────
     // Uses the Web Speech API (available in Chrome/Edge + Android WebView).
-    // The user taps the mic button, speaks, and their words are inserted
-    // at the cursor position in the note. Works continuously until stopped.
+    // The user taps the mic button, speaks, and their words are transcribed
+    // in real-time — interim results show as greyed text, final results are
+    // inserted into the note. Works continuously until stopped.
+    // Supports punctuation commands ("period", "comma", "new line").
     const [isDictating, setIsDictating] = useState(false);
     const [dictationSupported, setDictationSupported] = useState(false);
+    const [interimText, setInterimText] = useState('');
     const recognitionRef = useRef<SpeechRecognition | null>(null);
-    const interimTranscriptRef = useRef('');
 
     useEffect(() => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         setDictationSupported(!!SR);
     }, []);
 
+    // Process transcript — convert spoken punctuation commands to actual punctuation
+    const processTranscript = (text: string): string => {
+        return text
+            .replace(/\bperiod\b/gi, '.')
+            .replace(/\bcomma\b/gi, ',')
+            .replace(/\bquestion mark\b/gi, '?')
+            .replace(/\bexclamation (mark|point)\b/gi, '!')
+            .replace(/\bnew line\b/gi, '\n')
+            .replace(/\bnew paragraph\b/gi, '\n\n')
+            .replace(/\bcolon\b/gi, ':')
+            .replace(/\bsemicolon\b/gi, ';')
+            .replace(/\bopen quote\b/gi, '"')
+            .replace(/\bclose quote\b/gi, '"')
+            .replace(/\bhyphen\b/gi, '-');
+    };
+
     const toggleDictation = () => {
         if (isDictating) {
             recognitionRef.current?.stop();
             setIsDictating(false);
+            setInterimText('');
             return;
         }
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -108,35 +129,39 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         recognition.lang = 'en-US';
         recognition.continuous = true;
         recognition.interimResults = true;
-        interimTranscriptRef.current = '';
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
             let finalTranscript = '';
-            let interimTranscript = '';
+            let interim = '';
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const result = event.results[i];
                 if (result.isFinal) {
                     finalTranscript += result[0].transcript;
                 } else {
-                    interimTranscript += result[0].transcript;
+                    interim += result[0].transcript;
                 }
             }
 
             if (finalTranscript) {
-                // Insert final transcript at cursor position
-                const textToInsert = finalTranscript + ' ';
-                editor.chain().focus().insertContent(textToInsert).run();
-                interimTranscriptRef.current = '';
+                // Process punctuation commands and insert
+                const processed = processTranscript(finalTranscript);
+                editor.chain().focus().insertContent(processed + ' ').run();
+                setInterimText('');
+            } else if (interim) {
+                // Show interim text as a live preview
+                setInterimText(processTranscript(interim));
             }
         };
 
         recognition.onerror = (event: Event) => {
             console.warn('[Dictation] Error:', (event as any).error);
             setIsDictating(false);
+            setInterimText('');
         };
 
         recognition.onend = () => {
             setIsDictating(false);
+            setInterimText('');
         };
 
         recognitionRef.current = recognition;
@@ -319,6 +344,36 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                 </button>
                             </>
                         )}
+                        {/* Note Templates — quick-start templates for common note types */}
+                        <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                        <select
+                            onChange={(e) => {
+                                if (!editor || !e.target.value) return;
+                                const templates: Record<string, string> = {
+                                    meeting: '<h2>Meeting Notes</h2><p><strong>Date:</strong> </p><p><strong>Attendees:</strong> </p><p><strong>Agenda:</strong></p><ul><li> </li></ul><p><strong>Discussion:</strong></p><p></p><p><strong>Action Items:</strong></p><ul><li> </li></ul><p><strong>Next Meeting:</strong> </p>',
+                                    matter_summary: '<h2>Matter Summary</h2><p><strong>Matter:</strong> </p><p><strong>Client:</strong> </p><p><strong>Stage:</strong> </p><p><strong>Key Facts:</strong></p><ul><li> </li></ul><p><strong>Legal Issues:</strong></p><ul><li> </li></ul><p><strong>Strategy:</strong></p><p></p><p><strong>Next Steps:</strong></p><ul><li> </li></ul>',
+                                    property_inspection: '<h2>Property Inspection Report</h2><p><strong>Property:</strong> </p><p><strong>Unit:</strong> </p><p><strong>Date:</strong> </p><p><strong>Inspector:</strong> </p><p><strong>Condition:</strong></p><ul><li>Exterior: </li><li>Interior: </li><li>Plumbing: </li><li>Electrical: </li><li>Structural: </li></ul><p><strong>Issues Found:</strong></p><ul><li> </li></ul><p><strong>Recommendations:</strong></p><ul><li> </li></ul>',
+                                    deposition: '<h2>Deposition Notes</h2><p><strong>Witness:</strong> </p><p><strong>Date:</strong> </p><p><strong>Matter:</strong> </p><p><strong>Key Testimony:</strong></p><ul><li> </li></ul><p><strong>Contradictions:</strong></p><ul><li> </li></ul><p><strong>Follow-up Questions:</strong></p><ul><li> </li></ul>',
+                                    call_log: '<h2>Call Log</h2><p><strong>Date/Time:</strong> </p><p><strong>Caller:</strong> </p><p><strong>Recipient:</strong> </p><p><strong>Duration:</strong> </p><p><strong>Summary:</strong></p><p></p><p><strong>Action Items:</strong></p><ul><li> </li></ul>',
+                                };
+                                const template = templates[e.target.value];
+                                if (template) {
+                                    editor.chain().focus().setContent(template).run();
+                                    addToast('Template inserted', { type: 'success' });
+                                }
+                                e.target.value = '';
+                            }}
+                            className="text-[10px] font-bold px-1.5 py-1 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-700"
+                            defaultValue=""
+                            title="Insert a template"
+                        >
+                            <option value="">📋 Template</option>
+                            <option value="meeting">Meeting Notes</option>
+                            <option value="matter_summary">Matter Summary</option>
+                            <option value="property_inspection">Property Inspection</option>
+                            <option value="deposition">Deposition Notes</option>
+                            <option value="call_log">Call Log</option>
+                        </select>
                     </div>
                 )}
             </div>
@@ -332,6 +387,60 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     </div>
                 )}
                 <EditorContent editor={editor} />
+                {/* Interim dictation text — shows words as they're being spoken
+                    but not yet finalized. Appears as greyed text at the bottom
+                    of the editor so the user sees real-time transcription. */}
+                {isDictating && interimText && (
+                    <div className="px-4 sm:px-6 pb-2 text-sm text-slate-400 dark:text-zinc-500 italic">
+                        {interimText}…
+                    </div>
+                )}
+            </div>
+
+            {/* Dictation status bar — floating at the bottom while listening */}
+            {isDictating && (
+                <div className="flex-shrink-0 bg-red-500/10 border-t border-red-200 dark:border-red-900/30 px-4 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400">Listening…</span>
+                        <span className="text-[10px] text-slate-400">Say "period", "comma", "new line" for punctuation</span>
+                    </div>
+                    <button
+                        onClick={toggleDictation}
+                        className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600 transition-colors"
+                    >
+                        Stop
+                    </button>
+                </div>
+            )}
+
+            {/* Footer — word count + markdown export */}
+            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 dark:text-zinc-500">
+                <span>
+                    {(() => {
+                        const text = editor?.getText() || '';
+                        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+                        return `${words} word${words !== 1 ? 's' : ''}`;
+                    })()}
+                </span>
+                <button
+                    onClick={() => {
+                        if (!editor) return;
+                        const text = editor.getText();
+                        const title = (document.getElementById(`note-title-input-${page.id}`) as HTMLInputElement)?.value || page.title || 'Note';
+                        const blob = new Blob([`# ${title}\n\n${text}`], { type: 'text/markdown' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.md`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    }}
+                    className="hover:text-primary-600 dark:hover:text-primary-400 font-semibold transition-colors"
+                    title="Export as Markdown"
+                >
+                    ⬇ Export .md
+                </button>
             </div>
         </div>
     );
