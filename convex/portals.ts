@@ -2844,93 +2844,223 @@ export const cancelScheduledMessage = mutation({
 });
 
 /**
- * processScheduledMessages — Internal mutation called by cron every 5 minutes.
- * Finds all scheduled messages whose scheduledFor time has passed and processes them.
- * For email: sends via Brevo. For WhatsApp: sends via Chakra. For SMS: marks as failed (no provider).
+ * processScheduledMessages — Internal ACTION called by cron every 5 minutes.
+ * Finds all scheduled messages whose scheduledFor time has passed and
+ * ACTUALLY SENDS them via the appropriate channel (Brevo email / Chakra WhatsApp).
+ * Then creates a portal_message in the recipient's conversation so the sent
+ * message appears in All Conversations.
+ *
+ * NOTE: This was previously an internalMutation which CANNOT call actions
+ * (ctx.runAction). That's why messages were only marked as "sent" without
+ * actually being delivered. Now it's an internalAction which CAN call
+ * ctx.runAction to actually send via Brevo/Chakra.
  */
-export const processScheduledMessages = internalMutation({
+export const processScheduledMessages = internalAction({
   args: {},
   handler: async (ctx, _args) => {
+    const now = Date.now();
+    // Query due messages via a helper query
+    const dueMessages: any[] = await ctx.runQuery(internal.portals.getDueScheduledMessages, {});
+    let processed = 0;
+    let sent = 0;
+    let failed = 0;
+
+    for (const msg of dueMessages) {
+      try {
+        let sendSuccess = false;
+        let sendError = '';
+
+        // ── Actually send the message via the appropriate channel ──
+        if (msg.channel === "email" && msg.tenantIds && msg.tenantIds.length > 0) {
+          // Send email to each recipient via Brevo
+          for (const tenantId of msg.tenantIds) {
+            try {
+              // Look up the tenant's email address
+              const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
+              if (tenant?.email) {
+                await ctx.runAction(api.communications.sendEmail, {
+                  firmId: msg.firmId,
+                  to: tenant.email,
+                  toName: tenant.name || tenant.email,
+                  subject: msg.messageType ? `${msg.messageType.replace(/_/g, ' ')}` : 'Message from your Property Manager',
+                  htmlContent: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><p style="white-space:pre-line;">${msg.content}</p></div>`,
+                });
+                sendSuccess = true;
+              }
+            } catch (emailErr: any) {
+              sendError = emailErr?.message || 'Email send failed';
+              console.warn(`[processScheduledMessages] Email failed for ${tenantId}:`, sendError);
+            }
+          }
+        } else if (msg.channel === "whatsapp" && msg.tenantIds && msg.tenantIds.length > 0) {
+          // Send WhatsApp to each recipient via Chakra
+          for (const tenantId of msg.tenantIds) {
+            try {
+              // Look up the tenant's phone number from their user record
+              const tenant: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: tenantId });
+              // The tenant's phone might be on their user record or their property/unit record
+              // For now we try the user record's phone field, or skip if not found
+              const tenantPhone = tenant?.phone || tenant?.phoneNumber;
+              if (tenantPhone) {
+                await ctx.runAction(api.communications.sendWhatsApp, {
+                  firmId: msg.firmId,
+                  to: tenantPhone,
+                  messageText: msg.content,
+                });
+                sendSuccess = true;
+              } else {
+                sendError = `No phone number found for tenant ${tenantId}`;
+              }
+            } catch (waErr: any) {
+              sendError = waErr?.message || 'WhatsApp send failed';
+              console.warn(`[processScheduledMessages] WhatsApp failed for ${tenantId}:`, sendError);
+            }
+          }
+        } else if (msg.channel === "sms") {
+          sendError = "SMS provider not configured";
+        }
+
+        // ── Update the scheduled message status ──
+        if (sendSuccess) {
+          await ctx.runMutation(internal.portals.updateScheduledMessageStatus, {
+            messageId: msg._id,
+            status: "sent",
+            sentAt: now,
+          });
+          sent++;
+        } else {
+          await ctx.runMutation(internal.portals.updateScheduledMessageStatus, {
+            messageId: msg._id,
+            status: "failed",
+            failureReason: sendError || "No recipients or unknown channel",
+          });
+          failed++;
+        }
+
+        // ── Wire sent message into All Conversations ──
+        if (sendSuccess && msg.tenantIds && msg.tenantIds.length > 0) {
+          await ctx.runMutation(internal.portals.createConversationFromScheduled, {
+            firmId: msg.firmId,
+            tenantIds: msg.tenantIds,
+            content: msg.content,
+            messageType: msg.messageType,
+            propertyId: msg.propertyId,
+            triggeredBy: msg.triggeredBy,
+          });
+        }
+
+        processed++;
+      } catch (e: any) {
+        console.error(`[processScheduledMessages] Failed for msg ${msg._id}:`, e?.message);
+        try {
+          await ctx.runMutation(internal.portals.updateScheduledMessageStatus, {
+            messageId: msg._id,
+            status: "failed",
+            failureReason: e.message || "Unknown error",
+          });
+        } catch {}
+        failed++;
+      }
+    }
+
+    console.log(`[processScheduledMessages] Processed: ${processed}, Sent: ${sent}, Failed: ${failed}`);
+    return { processed, sent, failed };
+  },
+});
+
+/**
+ * getDueScheduledMessages — Internal query used by processScheduledMessages
+ * to fetch messages whose scheduledFor time has passed.
+ */
+export const getDueScheduledMessages = internalQuery({
+  args: {},
+  handler: async (ctx) => {
     const now = Date.now();
     const dueMessages = await ctx.db
       .query("scheduled_messages")
       .withIndex("by_status", (q) => q.eq("status", "scheduled"))
       .collect();
+    return dueMessages.filter((m) => m.scheduledFor <= now);
+  },
+});
 
-    const due = dueMessages.filter((m) => m.scheduledFor <= now);
-    let processed = 0;
+/**
+ * updateScheduledMessageStatus — Internal mutation to update a scheduled
+ * message's status (sent/failed). Called by processScheduledMessages.
+ */
+export const updateScheduledMessageStatus = internalMutation({
+  args: {
+    messageId: v.id("scheduled_messages"),
+    status: v.union(v.literal("sent"), v.literal("failed"), v.literal("cancelled")),
+    sentAt: v.optional(v.number()),
+    failureReason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.patch(args.messageId, {
+      status: args.status,
+      sentAt: args.sentAt,
+      failureReason: args.failureReason,
+      updatedAt: now,
+    });
+  },
+});
 
-    for (const msg of due) {
+/**
+ * createConversationFromScheduled — Internal mutation that creates a
+ * portal_message in each recipient's conversation when a scheduled
+ * message is successfully sent. This makes the sent message appear in
+ * All Conversations alongside real-time messages.
+ */
+export const createConversationFromScheduled = internalMutation({
+  args: {
+    firmId: v.string(),
+    tenantIds: v.array(v.string()),
+    content: v.string(),
+    messageType: v.optional(v.string()),
+    propertyId: v.optional(v.string()),
+    triggeredBy: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    for (const tenantId of args.tenantIds) {
       try {
-        if (msg.channel === "email") {
-          await ctx.db.patch(msg._id, { status: "sent", sentAt: now, updatedAt: now });
-        } else if (msg.channel === "whatsapp") {
-          await ctx.db.patch(msg._id, { status: "sent", sentAt: now, updatedAt: now });
-        } else if (msg.channel === "sms") {
-          await ctx.db.patch(msg._id, { status: "failed", failureReason: "SMS provider not configured", updatedAt: now });
-        }
+        const conversation = await getOrCreateConversation(ctx, {
+          firmId: args.firmId,
+          participantId: tenantId,
+          participantRole: "Tenant",
+          propertyId: args.propertyId,
+        });
+        const conversationId = String(conversation._id);
 
-        // ─── Wire sent message into All Conversations ──────────────────
-        // When a scheduled message is sent, create a portal_message in the
-        // recipient's conversation so it appears in the All Conversations
-        // stream. This keeps the conversation log complete — scheduled
-        // messages that have been sent are visible in the conversation
-        // thread alongside real-time messages.
-        if (msg.tenantIds && msg.tenantIds.length > 0) {
-          for (const tenantId of msg.tenantIds) {
-            try {
-              // Find or create the conversation for this tenant
-              const conversation = await getOrCreateConversation(ctx, {
-                firmId: msg.firmId,
-                participantId: tenantId,
-                participantRole: "Tenant",
-                propertyId: msg.propertyId,
-              });
-              const conversationId = String(conversation._id);
-
-              await ctx.db.insert("portal_messages", {
-                firmId: msg.firmId,
-                conversationId,
-                senderId: msg.triggeredBy || "system",
-                senderName: msg.firmId ? "Automated" : "System",
-                senderRole: "Admin",
-                subject: msg.messageType ? `Automated: ${msg.messageType}` : "Scheduled Message",
-                content: msg.content,
-                attachments: [],
-                attachmentNames: [],
-                propertyId: msg.propertyId,
-                status: "read",
-                isRead: false,
-                createdAt: now,
-                updatedAt: now,
-              });
-
-              // Update conversation metadata
-              const existingUnread = (conversation as any).unreadByAdmin || 0;
-              await ctx.db.patch(conversation._id, {
-                lastMessageAt: now,
-                lastMessagePreview: `📤 ${msg.content.substring(0, 70)}`.substring(0, 80),
-                lastMessageBy: "admin",
-                unreadByParticipant: ((conversation as any).unreadByParticipant || 0) + 1,
-                updatedAt: now,
-              });
-            } catch (convErr) {
-              console.warn("[processScheduledMessages] Failed to create conversation message:", (convErr as any)?.message);
-            }
-          }
-        }
-
-        processed++;
-      } catch (e: any) {
-        await ctx.db.patch(msg._id, {
-          status: "failed",
-          failureReason: e.message || "Unknown error",
+        await ctx.db.insert("portal_messages", {
+          firmId: args.firmId,
+          conversationId,
+          senderId: args.triggeredBy || "system",
+          senderName: "Automated",
+          senderRole: "Admin",
+          subject: args.messageType ? `Automated: ${args.messageType}` : "Scheduled Message",
+          content: args.content,
+          attachments: [],
+          attachmentNames: [],
+          propertyId: args.propertyId,
+          status: "read",
+          isRead: false,
+          createdAt: now,
           updatedAt: now,
         });
+
+        await ctx.db.patch(conversation._id, {
+          lastMessageAt: now,
+          lastMessagePreview: `📤 ${args.content.substring(0, 70)}`.substring(0, 80),
+          lastMessageBy: "admin",
+          unreadByParticipant: ((conversation as any).unreadByParticipant || 0) + 1,
+          updatedAt: now,
+        });
+      } catch (err) {
+        console.warn("[createConversationFromScheduled] Failed:", (err as any)?.message);
       }
     }
-
-    return { processed, total: due.length };
   },
 });
 
