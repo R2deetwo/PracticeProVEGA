@@ -389,8 +389,34 @@ const ChatWindow: React.FC<{
     );
 };
 
+// ─── MessageContent — progressive disclosure for long message text ──────
+// Truncates after 4 lines / 280 chars, shows "See More" to expand inline.
+// Uses line-clamp-4 (CSS) + overflow hidden to prevent layout jump.
+// The expand/collapse is purely visual — no scroll position reset.
+const MessageContent: React.FC<{ content: string; isAdmin: boolean }> = ({ content, isAdmin }) => {
+    const [expanded, setExpanded] = React.useState(false);
+    const isLong = content.length > 280 || content.split('\n').length > 4;
+    return (
+        <>
+            <p
+                className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'} ${isLong && !expanded ? 'line-clamp-4' : ''}`}
+            >
+                {content}
+            </p>
+            {isLong && (
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className={`text-[10px] font-bold mt-0.5 transition-colors ${isAdmin ? 'text-primary-200 hover:text-primary-100' : 'text-primary-600 hover:text-primary-500'}`}
+                >
+                    {expanded ? '▲ Show less' : '▼ See more'}
+                </button>
+            )}
+        </>
+    );
+};
+
 // ══════════════════════════════════════════════════════════════════════════
-// Unified MessagesView — 3-tab hub: Inbox / Team Chat / Scheduled
+// Unified MessagesView — Conversations / Notices / Scheduled
 // ══════════════════════════════════════════════════════════════════════════
 const MessagesView: React.FC = () => {
     const { coreState, isDataLoaded } = useCoreState();
@@ -1549,8 +1575,8 @@ const MessagesView: React.FC = () => {
                                                                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                                         </span>
                                                                     </div>
-                                                                    {/* Message content */}
-                                                                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
+                                                                    {/* Message content — with "See More" progressive disclosure */}
+                                                                    <MessageContent content={msg.content || ''} isAdmin={isAdmin} />
                                                                     {/* Attachments */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
                                                                         <div className="mt-2 grid grid-cols-2 gap-1.5">
@@ -1575,12 +1601,11 @@ const MessagesView: React.FC = () => {
                                                                         </div>
                                                                     )}
                                                                     {/* INLINE TICKET CONTROLS — embedded directly in the message
-                                                                        bubble for messages that originated a ticket/request.
-                                                                        This eliminates the separate split-view ticket bar and
-                                                                        makes the conversation a unified timeline. */}
+                                                                        bubble. Layout: status pills on top, assign dropdown at bottom
+                                                                        for clean visual hierarchy. */}
                                                                     {msgTicketInfo && msgTicketRecord && (
-                                                                        <div className={`mt-2.5 pt-2 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'} space-y-1.5`}>
-                                                                            {/* Status pills — compact, inline */}
+                                                                        <div className={`mt-2.5 pt-2 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'} space-y-2`}>
+                                                                            {/* Row 1: Status pills only — clean, no dropdown mixed in */}
                                                                             {msgTicketRecord.status !== 'cancelled' ? (
                                                                                 <div className="flex items-center gap-1 flex-wrap">
                                                                                     {([
@@ -1607,7 +1632,22 @@ const MessagesView: React.FC = () => {
                                                                                             </button>
                                                                                         );
                                                                                     })}
-                                                                                    {/* Assign dropdown — inline, compact */}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                    Cancelled
+                                                                                </span>
+                                                                            )}
+                                                                            {/* Row 2: Assign dropdown — anchored at the bottom for
+                                                                                clean separation from status pills. Shows assigned
+                                                                                name as a chip when set. */}
+                                                                            {msgTicketRecord.status !== 'cancelled' && (
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    {msgTicketRecord.assignedTo ? (
+                                                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
+                                                                                            👤 {coreState.users?.find((u: any) => u.id === msgTicketRecord.assignedTo)?.name || 'Assigned'}
+                                                                                        </span>
+                                                                                    ) : null}
                                                                                     <select
                                                                                         value={msgTicketRecord.assignedTo || ''}
                                                                                         onChange={(e) => {
@@ -1616,7 +1656,7 @@ const MessagesView: React.FC = () => {
                                                                                         }}
                                                                                         className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
                                                                                     >
-                                                                                        <option value="">👤 Assign</option>
+                                                                                        <option value="">{msgTicketRecord.assignedTo ? 'Reassign' : '👤 Assign to...'}</option>
                                                                                         {coreState.users
                                                                                             ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
                                                                                             .map((u: any) => (
@@ -1624,16 +1664,7 @@ const MessagesView: React.FC = () => {
                                                                                             ))
                                                                                         }
                                                                                     </select>
-                                                                                    {msgTicketRecord.assignedTo && (
-                                                                                        <span className={`text-[9px] font-bold ${isAdmin ? 'text-primary-200' : 'text-indigo-500'}`}>
-                                                                                            → {coreState.users?.find((u: any) => u.id === msgTicketRecord.assignedTo)?.name || 'Assigned'}
-                                                                                        </span>
-                                                                                    )}
                                                                                 </div>
-                                                                            ) : (
-                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
-                                                                                    Cancelled
-                                                                                </span>
                                                                             )}
                                                                         </div>
                                                                     )}

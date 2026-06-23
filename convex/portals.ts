@@ -417,6 +417,27 @@ export const assignTicketToTeamMember = mutation({
       updatedAt: now,
     } as any);
 
+    // ─── Auto-create a task for the assigned teammate ──────────────────
+    // When a ticket is delegated, a task is created in the teammate's task
+    // list so they can track and manage it from their workspace.
+    try {
+      const ticketLabel = args.requestKind === "maintenance" ? "Maintenance Ticket" : "Service Request";
+      const typeLabel = record.requestTypeLabel || record.category || ticketLabel;
+      await ctx.db.insert("tasks", {
+        firmId: args.firmId,
+        title: `${typeLabel}: ${record.subject}`,
+        description: `Assigned from conversation. ${record.description || ''}`.substring(0, 500),
+        status: "todo",
+        priority: record.priority || "medium",
+        assignedUsers: [args.assignedToUserId],
+        creatorId: args.assignedBy,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (taskErr) {
+      console.warn("[assignTicketToTeamMember] Task creation failed:", (taskErr as any)?.message);
+    }
+
     // Post a message to the linked conversation
     if (record.conversationId) {
       try {
