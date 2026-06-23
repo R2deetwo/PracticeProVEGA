@@ -778,7 +778,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     };
 
     // ── AI Help for Placeholders ────────────────────────────────────────────
-    // Opens Mini ALOA with context about the current document and the
+    // Opens ALOA/ARIA with context about the current document and the
     // specific placeholder the user needs help with.
     const handleAiHelpForPlaceholder = (label: string) => {
         setAiHelpLabel(label);
@@ -793,7 +793,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         });
         const truncatedContext = docContext.slice(0, 500);
 
-        // Open MiniAloa with context about this placeholder
+        // Open ALOA/ARIA with context about this placeholder
         openWithContext({
             entityType: 'matter',
             entityId: 'draftpro-placeholder-help',

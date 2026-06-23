@@ -17,9 +17,6 @@ interface AloaContextType {
     closePanel: () => void;
     openPanel: () => void;
 
-    isMinimized: boolean;
-    setIsMinimized: React.Dispatch<React.SetStateAction<boolean>>;
-
     messages: AloaMessage[];
     setMessages: React.Dispatch<React.SetStateAction<AloaMessage[]>>;
     isLoading: boolean;
@@ -80,7 +77,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const { appState } = useDataState();
     // Renamed from isAloaVisible to isPanelOpen to match component expectations
     const [isPanelOpen, setIsPanelOpen] = React.useState(false);
-    const [isMinimized, setIsMinimized] = React.useState(false);
     const [messages, setMessages] = React.useState<AloaMessage[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [urgencyStatus, setUrgencyStatus] = React.useState<UrgencyStatus>('none');
@@ -127,9 +123,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const togglePanel = () => {
         setIsPanelOpen(prev => {
-            if (!prev) {
-                setIsMinimized(false);
-            }
             if (prev) {
                 window.speechSynthesis.cancel();
                 setAloaState('idle');
@@ -146,12 +139,10 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         try { window.speechSynthesis?.cancel?.(); } catch {}
         setAloaState('idle');
         setIsPanelOpen(false);
-        setIsMinimized(false);
     }, []);
 
     const openPanel = React.useCallback(() => {
         setIsPanelOpen(true);
-        setIsMinimized(false);
     }, []);
 
     const toggleIsMuted = () => {
@@ -234,7 +225,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const openWithContext = React.useCallback((ctx: AriaChatContext) => {
         setInjectedContext(ctx);
         setIsPanelOpen(true);
-        setIsMinimized(false);
         setMessages([]);               // Fresh conversation for this entity
         setActiveConversationId(null);
     }, []);
@@ -244,8 +234,6 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         togglePanel,
         closePanel,
         openPanel,
-        isMinimized,
-        setIsMinimized,
         messages,
         setMessages,
         isLoading,

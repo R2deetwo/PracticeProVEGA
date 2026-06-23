@@ -62,9 +62,9 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
     </button>
 );
 
-export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; onMinimize?: () => void; isMobile?: boolean }> = ({ onClose, onDraftStream, onMinimize, isMobile }) => {
-    // ─── Bulletproof close/minimize handlers ──────────────────────────
-    // These use onPointerDown (NOT onClick) because pointerdown is the
+export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean }> = ({ onClose, onDraftStream, isMobile }) => {
+    // ─── Bulletproof close handler ──────────────────────────────────
+    // Uses onPointerDown (NOT onClick) because pointerdown is the
     // VERY FIRST event in the browser's pointer event chain. It fires
     // before mousedown, touchstart, click, and any drag-start handlers.
     // This means NO parent element's drag/touch handler can intercept
@@ -74,12 +74,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         e.preventDefault();
         onClose();
     }, [onClose]);
-
-    const handleMinimizeClick = React.useCallback((e: React.PointerEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onMinimize?.();
-    }, [onMinimize]);
     const {
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled,
@@ -989,16 +983,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     >
                         <HistoryIcon className="w-5 h-5" />
                     </button>
-                    {activeView === 'chat' && (
-                        <button
-                            onPointerDown={handleMinimizeClick}
-                            className="touch-target p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all relative z-30"
-                            title="Minimize"
-                            aria-label="Minimize panel"
-                        >
-                            <ChevronRightIcon className="w-6 h-6" />
-                        </button>
-                    )}
                     <button
                         onPointerDown={handleClose}
                         className="touch-target p-2.5 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-xl active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0 relative z-30"

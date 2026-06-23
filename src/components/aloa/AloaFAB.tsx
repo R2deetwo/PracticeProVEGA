@@ -10,8 +10,8 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { getAssistantName } from '../../utils/assistantIdentity';
 
 const AloaFAB: React.FC = () => {
-    const { togglePanel, openPanel, isPanelOpen, isMinimized, aloaState } = useAloa();
-    const { coreState, isDataLoaded } = useCoreState();
+    const { togglePanel, isPanelOpen, aloaState } = useAloa();
+    const { coreState } = useCoreState();
     const { view, modal, dockedModalType, isMobileSearchOpen, openModal } = useUI();
     const { isProperty } = useProduct();
     const { canUseAI } = useFeatures();
@@ -30,23 +30,20 @@ const AloaFAB: React.FC = () => {
         if (!isAiActive) {
             return;
         }
-        
+
         const hasConsent = localStorage.getItem('practicepro_ai_consent') === 'true';
         if (!hasConsent) {
-            openModal('aiConsent', null, { 
-                onConsent: () => togglePanel() 
+            openModal('aiConsent', null, {
+                onConsent: () => togglePanel()
             });
             return;
         }
 
-        if (isPanelOpen && isMinimized) {
-            openPanel();
-        } else {
-            togglePanel();
-        }
+        togglePanel();
     };
 
-    if (isPanelOpen && !isMinimized) return null;
+    // Hide FAB when the full panel is open
+    if (isPanelOpen) return null;
 
     const isListening = aloaState === 'listening';
     const isSpeaking = aloaState === 'speaking';
@@ -67,13 +64,13 @@ const AloaFAB: React.FC = () => {
 
     return (
         <div className={`fixed bottom-20 md:bottom-8 right-6 z-[1001] transition-all duration-500 ease-in-out ${visibilityClass}`}>
-            <Tooltip text={isAiActive ? (isPanelOpen && isMinimized ? "Resume Chat" : `Open ${assistantName}®`) : `Unlock ${assistantName}® AI`}>
+            <Tooltip text={isAiActive ? `Open ${assistantName}®` : `Unlock ${assistantName}® AI`}>
                 <button
                     onClick={handleClick}
                     data-tour-id="aloa-fab"
                     className={`
-                        relative w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center 
-                        transition-all transform hover:scale-105 active:scale-95 focus:outline-none 
+                        relative w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center
+                        transition-all transform hover:scale-105 active:scale-95 focus:outline-none
                         focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 dark:focus:ring-offset-zinc-900 focus:ring-primary-500 group
                         ${bgClass}
                         ${animationClass}
