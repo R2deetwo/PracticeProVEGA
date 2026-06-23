@@ -1482,76 +1482,134 @@ const MessagesView: React.FC = () => {
                                                     // this filter, deleted messages would stay visible forever.
                                                     conversationMessages.filter((msg: any) => !msg.isDeleted).map((msg: any) => {
                                                         const isAdmin = msg.senderRole === 'Admin';
+                                                        // Find the linked ticket record for this message (if any)
+                                                        const msgTicketId = msg.linkedTicketId || msg.linkedRequestId;
+                                                        const msgTicketInfo = msgTicketId ? linkedTickets.find(t => t.id === String(msgTicketId)) : null;
+                                                        const msgTicketRecord = msgTicketId ? linkedTicketRecords[String(msgTicketId)] : null;
                                                         return (
-                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
-                                                                <div className={`relative max-w-[85%] ${isAdmin
-                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm'
-                                                                    : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm'
+                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-3`}>
+                                                                <div className={`relative max-w-[90%] ${isAdmin
+                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm'
+                                                                    : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm'
                                                                 }`}>
-                                                                    <div className={`flex items-center justify-between mb-2 pb-2 ${isAdmin ? 'border-primary-500' : 'border-slate-100 dark:border-zinc-700'} border-b`}>
-                                                                        <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                                                            <span className={`text-[10px] font-bold uppercase tracking-widest ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
+                                                                    {/* Compact header: sender + timestamp */}
+                                                                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                                                                            <span className={`text-[10px] font-bold uppercase tracking-wide ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
                                                                                 {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
                                                                             </span>
-                                                                            {/* Service Request / Maintenance Ticket badge —
-                                                                                shows when this message is the originating
-                                                                                submission of a ticket/request. Helps the
-                                                                                practitioner understand the context at a glance. */}
                                                                             {msg.linkedTicketId && (
-                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                                                                                    🔧 {msg.requestTypeLabel || 'Maintenance Ticket'}
+                                                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                                    🔧 {msg.requestTypeLabel || 'Ticket'}
                                                                                 </span>
                                                                             )}
                                                                             {msg.linkedRequestId && (
-                                                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
-                                                                                    📋 {msg.requestTypeLabel || 'Service Request'}
+                                                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                    📋 {msg.requestTypeLabel || 'Request'}
                                                                                 </span>
                                                                             )}
                                                                         </div>
-                                                                        <div className="flex items-center gap-2 flex-shrink-0">
-                                                                            <span className={`text-[10px] ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
-                                                                                {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
-                                                                            </span>
-                                                                        </div>
+                                                                        <span className={`text-[9px] flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                            {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                                        </span>
                                                                     </div>
+                                                                    {/* Message content */}
                                                                     <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isAdmin ? '' : 'text-slate-700 dark:text-slate-300'}`}>{msg.content}</p>
-                                                                    {/* Attachments — images render as thumbnails, files as download chips */}
+                                                                    {/* Attachments */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
-                                                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                                                        <div className="mt-2 grid grid-cols-2 gap-1.5">
                                                                             {msg.attachments.map((storageId: string, idx: number) => {
                                                                                 const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
                                                                                 const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
                                                                                 const convexFileUrl = `${import.meta.env.VITE_CONVEX_URL || ''}/api/storage/${storageId}`;
                                                                                 if (isImage) {
                                                                                     return (
-                                                                                        <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-700 group/img">
-                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-32 object-cover group-hover/img:opacity-80 transition-opacity" />
-                                                                                            <div className={`px-2 py-1 text-[10px] truncate ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}>
-                                                                                                {fileName}
-                                                                                            </div>
+                                                                                        <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
+                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-24 object-cover" />
                                                                                         </a>
                                                                                     );
                                                                                 }
                                                                                 return (
-                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-2 px-3 py-2 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80 transition-opacity`}>
-                                                                                        <DocumentIcon className={`w-4 h-4 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
-                                                                                        <span className={`text-xs truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
-                                                                                        <DownloadIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`} />
+                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-1.5 px-2 py-1.5 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80`}>
+                                                                                        <DocumentIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
+                                                                                        <span className={`text-[11px] truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
                                                                                     </a>
                                                                                 );
                                                                             })}
                                                                         </div>
                                                                     )}
-                                                                    {/* Read receipt for admin messages */}
+                                                                    {/* INLINE TICKET CONTROLS — embedded directly in the message
+                                                                        bubble for messages that originated a ticket/request.
+                                                                        This eliminates the separate split-view ticket bar and
+                                                                        makes the conversation a unified timeline. */}
+                                                                    {msgTicketInfo && msgTicketRecord && (
+                                                                        <div className={`mt-2.5 pt-2 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'} space-y-1.5`}>
+                                                                            {/* Status pills — compact, inline */}
+                                                                            {msgTicketRecord.status !== 'cancelled' ? (
+                                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                                    {([
+                                                                                        { value: 'open',        label: 'Received',  active: 'bg-amber-500 text-white' },
+                                                                                        { value: 'in_progress', label: 'Progress',  active: 'bg-blue-500 text-white' },
+                                                                                        { value: 'resolved',    label: 'Addressed', active: 'bg-emerald-500 text-white' },
+                                                                                        { value: 'closed',      label: 'Closed',    active: 'bg-slate-500 text-white' },
+                                                                                    ] as const).map(stage => {
+                                                                                        const isCurrent = msgTicketRecord.status === stage.value;
+                                                                                        return (
+                                                                                            <button
+                                                                                                key={stage.value}
+                                                                                                onClick={() => handleAdvanceTicket(msgTicketInfo, stage.value)}
+                                                                                                disabled={isCurrent}
+                                                                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-colors ${
+                                                                                                    isCurrent
+                                                                                                        ? `${stage.active} cursor-default`
+                                                                                                        : isAdmin
+                                                                                                        ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
+                                                                                                        : 'bg-white dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-600 hover:bg-slate-100 dark:hover:bg-zinc-600'
+                                                                                                }`}
+                                                                                            >
+                                                                                                {stage.label}
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                    {/* Assign dropdown — inline, compact */}
+                                                                                    <select
+                                                                                        value={msgTicketRecord.assignedTo || ''}
+                                                                                        onChange={(e) => {
+                                                                                            const user = coreState.users?.find((u: any) => u.id === e.target.value);
+                                                                                            if (user) handleAssignTicket(msgTicketInfo, user.id, user.name || 'Team Member');
+                                                                                        }}
+                                                                                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                    >
+                                                                                        <option value="">👤 Assign</option>
+                                                                                        {coreState.users
+                                                                                            ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
+                                                                                            .map((u: any) => (
+                                                                                                <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                                                                                            ))
+                                                                                        }
+                                                                                    </select>
+                                                                                    {msgTicketRecord.assignedTo && (
+                                                                                        <span className={`text-[9px] font-bold ${isAdmin ? 'text-primary-200' : 'text-indigo-500'}`}>
+                                                                                            → {coreState.users?.find((u: any) => u.id === msgTicketRecord.assignedTo)?.name || 'Assigned'}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                    Cancelled
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                    {/* Read receipt */}
                                                                     {isAdmin && (
-                                                                        <div className="flex items-center justify-end gap-1 mt-1">
+                                                                        <div className="flex items-center justify-end gap-1 mt-0.5">
                                                                             <span className="text-[9px] text-primary-200">
                                                                                 {msg.isRead ? '✓✓ Read' : '✓ Sent'}
                                                                             </span>
                                                                         </div>
                                                                     )}
-                                                                    {/* Delete button — appears on hover. Admin can delete ANY
-                                                                        message in the conversation (their own or the portal user's). */}
+                                                                    {/* Delete button */}
                                                                     <button
                                                                         onClick={async () => {
                                                                             const ok = await confirm({
@@ -1573,7 +1631,7 @@ const MessagesView: React.FC = () => {
                                                                                 addToast(err.message || 'Failed to delete message.', { type: 'error' });
                                                                             }
                                                                         }}
-                                                                        className={`absolute -top-1 ${isAdmin ? '-left-1' : '-right-1'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm`}
+                                                                        className={`absolute -top-1.5 ${isAdmin ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100`}
                                                                         title="Delete message"
                                                                     >
                                                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1641,102 +1699,11 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Ticket Status Bars — ONE PER LINKED TICKET.
-                                        Each ticket/request in this conversation gets its own
-                                        status bar with independent status controls + delegation.
-                                        This lets the admin address multiple issues individually. */}
-                                    {linkedTickets.length > 0 && (
-                                        <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 px-4 py-2 space-y-2 max-h-[30vh] overflow-y-auto custom-scrollbar">
-                                            {linkedTickets.map((ticket, idx) => {
-                                                const record = linkedTicketRecords[ticket.id];
-                                                if (!record) return null;
-                                                return (
-                                                    <div key={ticket.id} className={`max-w-2xl mx-auto space-y-1.5 ${idx > 0 ? 'pt-2 border-t border-slate-200 dark:border-zinc-700' : ''}`}>
-                                                        {/* Row 1: ticket type + status buttons */}
-                                                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                                                            <div className="flex items-center gap-2 min-w-0">
-                                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                                                    ticket.kind === 'maintenance'
-                                                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                                                                        : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
-                                                                }`}>
-                                                                    {ticket.kind === 'maintenance' ? '🔧' : '📋'} {linkedTickets.length > 1 ? `#${idx + 1}` : ''}
-                                                                </span>
-                                                                {ticket.requestTypeLabel && (
-                                                                    <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium truncate">
-                                                                        {ticket.requestTypeLabel}
-                                                                    </span>
-                                                                )}
-                                                                {record.subject && (
-                                                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">
-                                                                        {record.subject}
-                                                                    </span>
-                                                                )}
-                                                                {record.status === 'cancelled' && (
-                                                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
-                                                                        Cancelled
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {record.status !== 'cancelled' && (
-                                                                <div className="flex items-center gap-1 flex-shrink-0">
-                                                                    {([
-                                                                        { value: 'open',        label: 'Received',    activeClass: 'bg-amber-500 text-white',         hoverClass: 'hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-700 dark:hover:text-amber-400' },
-                                                                        { value: 'in_progress', label: 'In Progress', activeClass: 'bg-blue-500 text-white',          hoverClass: 'hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400' },
-                                                                        { value: 'resolved',    label: 'Addressed',   activeClass: 'bg-emerald-500 text-white',       hoverClass: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-700 dark:hover:text-emerald-400' },
-                                                                        { value: 'closed',      label: 'Closed',      activeClass: 'bg-slate-500 text-white',         hoverClass: 'hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200' },
-                                                                    ] as const).map(stage => {
-                                                                        const isCurrent = record.status === stage.value;
-                                                                        return (
-                                                                            <button
-                                                                                key={stage.value}
-                                                                                onClick={() => handleAdvanceTicket(ticket, stage.value)}
-                                                                                disabled={isCurrent}
-                                                                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-colors ${
-                                                                                    isCurrent
-                                                                                        ? `${stage.activeClass} cursor-default`
-                                                                                        : `bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600 ${stage.hoverClass}`
-                                                                                }`}
-                                                                            >
-                                                                                {stage.label}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {/* Row 2: delegation */}
-                                                        {record.status !== 'cancelled' && (
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign:</span>
-                                                                {record.assignedTo && (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                                                                        👤 {coreState.users?.find((u: any) => u.id === record.assignedTo)?.name || 'Assigned'}
-                                                                    </span>
-                                                                )}
-                                                                <select
-                                                                    value={record.assignedTo || ''}
-                                                                    onChange={(e) => {
-                                                                        const user = coreState.users?.find((u: any) => u.id === e.target.value);
-                                                                        if (user) handleAssignTicket(ticket, user.id, user.name || 'Team Member');
-                                                                    }}
-                                                                    className="text-[10px] font-bold px-2 py-1 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/30"
-                                                                >
-                                                                    <option value="">Unassigned</option>
-                                                                    {coreState.users
-                                                                        ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
-                                                                        .map((u: any) => (
-                                                                            <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                                                        ))
-                                                                    }
-                                                                </select>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+                                    {/* The separate "Ticket Status Bars" section has been REMOVED.
+                                        Ticket controls (status pills + assign dropdown) are now
+                                        embedded INLINE within each message bubble that originated
+                                        a ticket/request. This eliminates the split-view redundancy
+                                        and makes the conversation a unified timeline. */}
 
                                     {/* Reply Input */}
                                     <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
