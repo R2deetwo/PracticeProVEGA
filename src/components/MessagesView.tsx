@@ -416,6 +416,120 @@ const MessageContent: React.FC<{ content: string; isAdmin: boolean }> = ({ conte
 };
 
 // ══════════════════════════════════════════════════════════════════════════
+// InlineTicketReply — appears directly under a ticket's thread when the
+// admin clicks "Reply to this ticket". Has its own textarea + send button
+// so the admin can respond immediately without scrolling to the bottom.
+// ══════════════════════════════════════════════════════════════════════════
+const InlineTicketReply: React.FC<{
+    ticketId: string;
+    conversationId: string;
+    firmId: string;
+    adminId: string;
+    adminName: string;
+    onSent: () => void;
+    onCancel: () => void;
+    sendAdminReply: any;
+    addToast: (msg: string, opts?: any) => void;
+}> = ({ ticketId, conversationId, firmId, adminId, adminName, onSent, onCancel, sendAdminReply, addToast }) => {
+    const [text, setText] = useState('');
+    const [sending, setSending] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // Auto-focus on mount so the admin can type immediately
+    useEffect(() => {
+        textareaRef.current?.focus();
+        // Scroll into view so the composer isn't hidden behind the keyboard on mobile
+        setTimeout(() => {
+            textareaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    }, []);
+
+    const handleSend = async () => {
+        if (!text.trim() || sending) return;
+        setSending(true);
+        try {
+            await sendAdminReply({
+                conversationId,
+                firmId,
+                adminId,
+                adminName,
+                content: text.trim(),
+                threadTicketId: ticketId,
+            });
+            addToast('Reply sent to portal user.', { type: 'success' });
+            setText('');
+            onSent();
+        } catch (err: any) {
+            addToast(err.message || 'Failed to send reply.', { type: 'error' });
+        } finally {
+            setSending(false);
+        }
+    };
+
+    return (
+        <div className="mt-2 ml-2 pl-3 border-l-2 border-primary-400/50">
+            <div className="bg-slate-50 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 p-2.5">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                    <svg className="w-3.5 h-3.5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                        Replying to this ticket thread
+                    </span>
+                </div>
+                <textarea
+                    ref={textareaRef}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            handleSend();
+                        }
+                    }}
+                    placeholder="Type your reply to the resident/client..."
+                    rows={2}
+                    className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none"
+                />
+                <div className="flex items-center justify-between mt-2">
+                    <span className="text-[10px] text-slate-400">
+                        ⌘+Enter to send
+                    </span>
+                    <div className="flex gap-1.5">
+                        <button
+                            onClick={onCancel}
+                            disabled={sending}
+                            className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleSend}
+                            disabled={!text.trim() || sending}
+                            className="px-3 py-1 text-[11px] font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-600 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                        >
+                            {sending ? (
+                                <>
+                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                    </svg>
+                                    Sending...
+                                </>
+                            ) : (
+                                <>
+                                    <SendIcon /> Send Reply
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════════════════
 // Unified MessagesView — Conversations / Notices / Scheduled
 // ══════════════════════════════════════════════════════════════════════════
 const MessagesView: React.FC = () => {
@@ -1546,40 +1660,43 @@ const MessagesView: React.FC = () => {
                                                         const msgTicketId = msg.linkedTicketId || msg.linkedRequestId;
                                                         const msgTicketInfo = msgTicketId ? linkedTickets.find(t => t.id === String(msgTicketId)) : null;
                                                         const msgTicketRecord = msgTicketId ? linkedTicketRecords[String(msgTicketId)] : null;
+                                                        const isReplyingToThis = msgTicketId && activeThreadTicketId === String(msgTicketId);
                                                         return (
-                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-3`}>
+                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
                                                                 <div
                                                                     data-ticket-id={msgTicketId ? String(msgTicketId) : undefined}
-                                                                    className={`relative max-w-[90%] transition-shadow ${isAdmin
-                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm'
-                                                                    : 'bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm'
+                                                                    className={`relative max-w-[88%] sm:max-w-[75%] transition-all ${isAdmin
+                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-primary-600/10'
+                                                                    : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm'
                                                                 }`}>
-                                                                    {/* Compact header: sender + timestamp */}
-                                                                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                                    {/* Header: sender name + ticket badge + timestamp */}
+                                                                    <div className="flex items-center justify-between gap-2 mb-2">
                                                                         <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                                                                            <span className={`text-[10px] font-bold uppercase tracking-wide ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`}>
+                                                                            <span className={`text-xs font-bold ${isAdmin ? 'text-primary-100' : 'text-slate-700 dark:text-zinc-200'}`}>
                                                                                 {isAdmin ? (msg.senderName || 'You') : (msg.senderName || 'Portal User')}
                                                                             </span>
                                                                             {msg.linkedTicketId && (
-                                                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                                                                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                                                                                     🔧 {msg.requestTypeLabel || 'Ticket'}
                                                                                 </span>
                                                                             )}
                                                                             {msg.linkedRequestId && (
-                                                                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
                                                                                     📋 {msg.requestTypeLabel || 'Request'}
                                                                                 </span>
                                                                             )}
                                                                         </div>
-                                                                        <span className={`text-[9px] flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                        <span className={`text-[10px] flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                                         </span>
                                                                     </div>
-                                                                    {/* Message content — with "See More" progressive disclosure */}
+
+                                                                    {/* Message content */}
                                                                     <MessageContent content={msg.content || ''} isAdmin={isAdmin} />
+
                                                                     {/* Attachments */}
                                                                     {msg.attachments && msg.attachments.length > 0 && (
-                                                                        <div className="mt-2 grid grid-cols-2 gap-1.5">
+                                                                        <div className="mt-2.5 grid grid-cols-2 gap-2">
                                                                             {msg.attachments.map((storageId: string, idx: number) => {
                                                                                 const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
                                                                                 const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
@@ -1587,30 +1704,30 @@ const MessagesView: React.FC = () => {
                                                                                 if (isImage) {
                                                                                     return (
                                                                                         <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
-                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-24 object-cover" />
+                                                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-28 object-cover" />
                                                                                         </a>
                                                                                     );
                                                                                 }
                                                                                 return (
-                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-1.5 px-2 py-1.5 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80`}>
-                                                                                        <DocumentIcon className={`w-3.5 h-3.5 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
-                                                                                        <span className={`text-[11px] truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
+                                                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-2 px-2.5 py-2 ${isAdmin ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80 transition-opacity`}>
+                                                                                        <DocumentIcon className={`w-4 h-4 flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-500'}`} />
+                                                                                        <span className={`text-xs truncate flex-1 ${isAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-300'}`}>{fileName}</span>
                                                                                     </a>
                                                                                 );
                                                                             })}
                                                                         </div>
                                                                     )}
-                                                                    {/* INLINE TICKET CONTROLS — embedded directly in the message
-                                                                        bubble. Layout: status pills on top, assign dropdown at bottom
-                                                                        for clean visual hierarchy. */}
+
+                                                                    {/* Ticket controls panel — only on messages that originated a ticket */}
                                                                     {msgTicketInfo && msgTicketRecord && (
-                                                                        <div className={`mt-2.5 pt-2 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'} space-y-2`}>
-                                                                            {/* Row 1: Status pills only — clean, no dropdown mixed in */}
+                                                                        <div className={`mt-3 pt-2.5 border-t ${isAdmin ? 'border-primary-500/40' : 'border-slate-200 dark:border-zinc-700'}`}>
+                                                                            {/* Status pills row */}
                                                                             {msgTicketRecord.status !== 'cancelled' ? (
-                                                                                <div className="flex items-center gap-1 flex-wrap">
+                                                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide mr-1">Status:</span>
                                                                                     {([
                                                                                         { value: 'open',        label: 'Received',  active: 'bg-amber-500 text-white' },
-                                                                                        { value: 'in_progress', label: 'Progress',  active: 'bg-blue-500 text-white' },
+                                                                                        { value: 'in_progress', label: 'In Progress',  active: 'bg-blue-500 text-white' },
                                                                                         { value: 'resolved',    label: 'Addressed', active: 'bg-emerald-500 text-white' },
                                                                                         { value: 'closed',      label: 'Closed',    active: 'bg-slate-500 text-white' },
                                                                                     ] as const).map(stage => {
@@ -1620,12 +1737,12 @@ const MessagesView: React.FC = () => {
                                                                                                 key={stage.value}
                                                                                                 onClick={() => handleAdvanceTicket(msgTicketInfo, stage.value)}
                                                                                                 disabled={isCurrent}
-                                                                                                className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-colors ${
+                                                                                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
                                                                                                     isCurrent
-                                                                                                        ? `${stage.active} cursor-default`
+                                                                                                        ? `${stage.active} cursor-default shadow-sm`
                                                                                                         : isAdmin
                                                                                                         ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
-                                                                                                        : 'bg-white dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-600 hover:bg-slate-100 dark:hover:bg-zinc-600'
+                                                                                                        : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-600 hover:bg-slate-200 dark:hover:bg-zinc-600'
                                                                                                 }`}
                                                                                             >
                                                                                                 {stage.label}
@@ -1634,17 +1751,17 @@ const MessagesView: React.FC = () => {
                                                                                     })}
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
-                                                                                    Cancelled
+                                                                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                    ✕ Cancelled
                                                                                 </span>
                                                                             )}
-                                                                            {/* Row 2: Assign dropdown — anchored at the bottom for
-                                                                                clean separation from status pills. Shows assigned
-                                                                                name as a chip when set. */}
+
+                                                                            {/* Assign row — separated from status pills with a small gap */}
                                                                             {msgTicketRecord.status !== 'cancelled' && (
-                                                                                <div className="flex items-center gap-1.5">
+                                                                                <div className="flex items-center gap-2 mt-2">
+                                                                                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign:</span>
                                                                                     {msgTicketRecord.assignedTo ? (
-                                                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
+                                                                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
                                                                                             👤 {coreState.users?.find((u: any) => u.id === msgTicketRecord.assignedTo)?.name || 'Assigned'}
                                                                                         </span>
                                                                                     ) : null}
@@ -1654,9 +1771,9 @@ const MessagesView: React.FC = () => {
                                                                                             const user = coreState.users?.find((u: any) => u.id === e.target.value);
                                                                                             if (user) handleAssignTicket(msgTicketInfo, user.id, user.name || 'Team Member');
                                                                                         }}
-                                                                                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30 cursor-pointer`}
                                                                                     >
-                                                                                        <option value="">{msgTicketRecord.assignedTo ? 'Reassign' : '👤 Assign to...'}</option>
+                                                                                        <option value="">{msgTicketRecord.assignedTo ? 'Reassign' : 'Select team member...'}</option>
                                                                                         {coreState.users
                                                                                             ?.filter((u: any) => ['Admin', 'Lawyer', 'Paralegal', 'ExternalCounsel'].includes(u.role))
                                                                                             .map((u: any) => (
@@ -1668,55 +1785,82 @@ const MessagesView: React.FC = () => {
                                                                             )}
                                                                         </div>
                                                                     )}
-                                                                    {/* Sub-thread reply button — lets the admin reply
-                                                                        specifically within this ticket's sub-thread */}
-                                                                    {msgTicketInfo && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && (
-                                                                        <button
-                                                                            onClick={() => {
-                                                                                const ticketId = String(msgTicketId);
-                                                                                setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
-                                                                            }}
-                                                                            className={`mt-1.5 text-[9px] font-bold px-2 py-0.5 rounded-full transition-colors ${
-                                                                                activeThreadTicketId === String(msgTicketId)
-                                                                                    ? 'bg-emerald-500 text-white'
-                                                                                    : isAdmin
-                                                                                    ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
-                                                                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600'
-                                                                            }`}
-                                                                        >
-                                                                            {activeThreadTicketId === String(msgTicketId) ? '✓ Replying to this ticket' : '↩ Reply to this ticket'}
-                                                                        </button>
-                                                                    )}
-                                                                    {/* Show threaded replies (messages with threadTicketId matching this ticket) */}
+
+                                                                    {/* Threaded replies — prior admin responses within this ticket's sub-thread */}
                                                                     {msgTicketId && conversationMessages && (() => {
                                                                         const threadReplies = (conversationMessages as any[]).filter(
                                                                             (m: any) => !m.isDeleted && m.threadTicketId === String(msgTicketId) && String(m._id) !== String(msg._id)
                                                                         );
                                                                         if (threadReplies.length === 0) return null;
                                                                         return (
-                                                                            <div className={`mt-1.5 ml-3 pl-2 border-l-2 ${isAdmin ? 'border-primary-400/40' : 'border-slate-300 dark:border-zinc-600'} space-y-1`}>
+                                                                            <div className={`mt-2.5 ml-1 pl-3 border-l-2 ${isAdmin ? 'border-primary-300/50' : 'border-slate-300 dark:border-zinc-600'} space-y-1.5`}>
                                                                                 {threadReplies.map((reply: any) => {
                                                                                     const replyIsAdmin = reply.senderRole === 'Admin';
                                                                                     return (
-                                                                                        <div key={String(reply._id)} className={`text-[11px] leading-relaxed ${replyIsAdmin ? 'text-primary-200' : 'text-slate-600 dark:text-zinc-400'}`}>
-                                                                                            <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 200)}
-                                                                                            {reply.content && reply.content.length > 200 && '...'}
-                                                                                            <span className="text-[8px] text-slate-400 ml-1">{reply.createdAt ? new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                                                                                        <div key={String(reply._id)} className={`text-xs leading-relaxed ${replyIsAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-400'}`}>
+                                                                                            <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 280)}
+                                                                                            {reply.content && reply.content.length > 280 && '...'}
+                                                                                            <span className="text-[9px] text-slate-400 ml-1.5">{reply.createdAt ? new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
                                                                                         </div>
                                                                                     );
                                                                                 })}
                                                                             </div>
                                                                         );
                                                                     })()}
-                                                                    {/* Read receipt */}
-                                                                    {isAdmin && (
-                                                                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                                                                            <span className="text-[9px] text-primary-200">
+
+                                                                    {/* INLINE REPLY COMPOSER — appears directly under the ticket
+                                                                        when "Reply to this ticket" is clicked. This is the key
+                                                                        fix: the admin can now type and send a reply without
+                                                                        scrolling to the bottom of the conversation. */}
+                                                                    {isReplyingToThis && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && selectedInboxId && (
+                                                                        <InlineTicketReply
+                                                                            ticketId={String(msgTicketId)}
+                                                                            conversationId={selectedInboxId}
+                                                                            firmId={firmId}
+                                                                            adminId={currentUser?.id || ''}
+                                                                            adminName={currentUser?.name || 'Admin'}
+                                                                            sendAdminReply={sendAdminReply}
+                                                                            addToast={addToast}
+                                                                            onSent={() => {
+                                                                                // Keep the composer open so the admin can send
+                                                                                // multiple replies if needed. The new reply will
+                                                                                // appear in the threaded replies section above.
+                                                                            }}
+                                                                            onCancel={() => setActiveThreadTicketId(null)}
+                                                                        />
+                                                                    )}
+
+                                                                    {/* Action row: reply button + read receipt */}
+                                                                    <div className="flex items-center justify-between gap-2 mt-2">
+                                                                        {msgTicketInfo && msgTicketRecord && msgTicketRecord.status !== 'cancelled' && (
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    const ticketId = String(msgTicketId);
+                                                                                    setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
+                                                                                }}
+                                                                                className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full transition-all ${
+                                                                                    isReplyingToThis
+                                                                                        ? 'bg-emerald-500 text-white shadow-sm'
+                                                                                        : isAdmin
+                                                                                        ? 'bg-primary-500/30 text-primary-100 hover:bg-primary-500/50'
+                                                                                        : 'bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600'
+                                                                                }`}
+                                                                            >
+                                                                                {isReplyingToThis ? (
+                                                                                    <>✕ Cancel reply</>
+                                                                                ) : (
+                                                                                    <>↩ Reply to this ticket</>
+                                                                                )}
+                                                                            </button>
+                                                                        )}
+                                                                        {isAdmin && (
+                                                                            <span className="text-[10px] text-primary-200 ml-auto">
                                                                                 {msg.isRead ? '✓✓ Read' : '✓ Sent'}
                                                                             </span>
-                                                                        </div>
-                                                                    )}
-                                                                    {/* Delete button */}
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Delete button — appears on hover */}
                                                                     <button
                                                                         onClick={async () => {
                                                                             const ok = await confirm({
@@ -1865,6 +2009,23 @@ const MessagesView: React.FC = () => {
                                             <div className="flex items-end gap-2">
                                                 {selectedInboundMsg._inboxType === 'conversation' && (
                                                     <>
+                                                        {/* Thread reply banner — shows when the admin has activated
+                                                            a ticket thread reply via the inline composer above.
+                                                            The bottom composer is for GENERAL conversation replies,
+                                                            not ticket-specific replies. This banner makes it clear. */}
+                                                        {activeThreadTicketId && (
+                                                            <div className="flex items-center justify-between gap-2 mb-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg">
+                                                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                                                    ↩ Replying to ticket thread — use the inline composer above
+                                                                </span>
+                                                                <button
+                                                                    onClick={() => setActiveThreadTicketId(null)}
+                                                                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                                                >
+                                                                    ✕ Clear
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                         <input
                                                             type="file"
                                                             ref={adminFileInputRef}
@@ -1899,7 +2060,7 @@ const MessagesView: React.FC = () => {
                                                     value={inboxReply}
                                                     onChange={(e) => setInboxReply(e.target.value)}
                                                     placeholder={selectedInboundMsg._inboxType === 'conversation'
-                                                        ? (activeThreadTicketId ? 'Reply to this ticket thread...' : 'Reply in conversation...')
+                                                        ? (activeThreadTicketId ? 'General conversation reply... (ticket reply is above)' : 'Reply in conversation...')
                                                         : selectedInboundMsg._inboxType === 'portal'
                                                         ? 'Reply to portal user...'
                                                         : `Reply via ${selectedInboundMsg.channel || 'message'}...`}

@@ -1340,20 +1340,17 @@ span[data-type="legal-placeholder"] {
    scrolls inside overflow-y-auto containers gets clipped by the nav.
    This global rule adds bottom padding to ALL scrollable containers on
    mobile screens (< 768px) so nothing is hidden behind the nav.
-   Desktop has no bottom nav, so no padding needed. */
+   Desktop has no bottom nav, so no padding needed.
+
+   CRITICAL: Do NOT use `revert` to "undo" this for containers that
+   already have pb-14/pb-16 etc. — `revert` resets to the UA default
+   (0px), which REMOVES all padding and causes content to be hidden
+   behind the bottom nav. Instead, we use :not() to exclude containers
+   that already have explicit bottom padding. */
 @media (max-width: 767px) {
-  /* Target the most common scroll containers used across the app */
-  .overflow-y-auto:not(.no-nav-pad),
-  .overflow-auto:not(.no-nav-pad) {
+  .overflow-y-auto:not(.no-nav-pad):not([class*="pb-14"]):not([class*="pb-16"]):not([class*="pb-20"]):not([class*="pb-24"]):not([class*="pb-28"]),
+  .overflow-auto:not(.no-nav-pad):not([class*="pb-14"]):not([class*="pb-16"]):not([class*="pb-20"]):not([class*="pb-24"]):not([class*="pb-28"]) {
     padding-bottom: 3.5rem !important; /* 56px = h-14 = bottom nav height */
-  }
-  /* But don't double-pad containers that already have explicit padding */
-  .pb-14.overflow-y-auto,
-  .pb-16.overflow-y-auto,
-  .pb-20.overflow-y-auto,
-  .pb-24.overflow-y-auto,
-  .pb-28.overflow-y-auto {
-    padding-bottom: revert !important;
   }
 }
 
