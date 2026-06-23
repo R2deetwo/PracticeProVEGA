@@ -1975,3 +1975,45 @@ Stage Summary:
 - No orphaned imports remain anywhere in src/
 - Build/TypeScript health unchanged (no new errors introduced)
 - AgentSettings.tsx still has decorative toggles for jurisdictionScout/draftingAssistant/privacyShield/billingAuditor — these persist booleans but don't call any agent; left as-is per scope ("remove the dead agents" = the files, not the UI toggles). Worth a follow-up to clean these up or wire them to real behavior.
+
+---
+Task ID: 27
+Agent: Main Agent
+Task: Remove decorative AgentSettings toggles + slim form factor + remove MiniAloa entirely
+
+Work Log:
+- Read AgentSettings.tsx (452 lines) — confirmed 5 toggles (jurisdictionScout, rpcGuardian, privacyShield, billingAuditor, draftingAssistant) persisted booleans via toggleAgent() but never invoked any agent function
+- Rewrote AgentSettings.tsx with slimmer form factor:
+  * Card padding p-6 → p-5, heading text-xl → text-lg, mb-4 → mb-3
+  * Removed AgentToggle component and toggleAgent function
+  * Removed "settings" state object (no longer needed)
+  * New compact AgentRow component: icon + name + 1-line desc + trigger chip in a single 2-column grid row
+  * New "Active AI Agents" card lists the real working agents (ALOA/ARIA Chat, ALDIA, RPC Review, PII Shield, Brain Memory, Research, Tax Compliance for legal; Atrium variant omits RPC Review + Tax Compliance)
+  * Removed unused GavelIconLarge + CalculatorIcon imports
+- Added BrainIcon to constants.tsx (new SVG, used in agent list)
+- Fixed import name ScaleIcon → ScalesIcon (existing icon)
+
+MiniAloa removal (entire minimize concept gone):
+- Deleted src/components/aloa/MiniAloa.tsx (300+ lines)
+- AloaPanel.tsx: removed MiniAloa import, removed ErrorBoundary mini floating render block, removed handleMinimize callback, removed auto-minimize effect when modal opens, removed isMinimized from useAloa destructure. Panel is now either fully open or fully closed — nothing in between.
+- AloaChat.tsx: removed onMinimize from props signature, removed handleMinimizeClick callback, removed the minimize chevron button from header. Verified ChevronRightIcon still imported (still used elsewhere at line 932).
+- AloaFAB.tsx: removed isMinimized from useAloa destructure, removed the "if minimized → openPanel() else togglePanel()" branch (now just calls togglePanel), simplified "hide FAB" check from `isPanelOpen && !isMinimized` to just `isPanelOpen`, simplified tooltip text (no more "Resume Chat" vs "Open" distinction)
+- AloaProvider.tsx: removed isMinimized state declaration, removed isMinimized/setIsMinimized from AloaContextType interface, removed isMinimized/setIsMinimized from context value object, removed all 4 setIsMinimized(false) calls inside togglePanel/closePanel/openPanel/openWithContext
+- DraftProEditor.tsx: updated 2 comments that referenced "Mini ALOA" / "MiniAloa" → "ALOA/ARIA"
+
+Verification:
+- grep for (isMinimized|setIsMinimized|MiniAloa|onMinimize) across src/ returns zero matches — fully removed
+- npx tsc --noEmit: only pre-existing src/app/page.tsx error remains (unrelated)
+- npx vite build: succeeds, ✓ built in 18.67s
+
+Commit + push:
+- Committed: "Slim AgentSettings + remove MiniAloa entirely" (8 files, +127 -779)
+- Had to git pull --rebase first (CI had pushed a Convex deployment commit)
+- Pushed: 257fd3a..c10b566 main -> main
+
+Stage Summary:
+- AgentSettings form factor meaningfully slimmer (smaller padding, smaller headings, tighter spacing, 2-column compact agent rows instead of 5 large toggle cards)
+- Decorative toggles gone — replaced with honest info display of actually-working agents
+- MiniAloa code path completely removed (300+ lines deleted) — the panel is now binary open/closed
+- 8 files changed, net -652 lines
+- Webapp + APK will rebuild automatically via GitHub Actions
