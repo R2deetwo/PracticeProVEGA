@@ -2017,3 +2017,87 @@ Stage Summary:
 - MiniAloa code path completely removed (300+ lines deleted) — the panel is now binary open/closed
 - 8 files changed, net -652 lines
 - Webapp + APK will rebuild automatically via GitHub Actions
+
+---
+Task ID: 28
+Agent: Main Agent
+Task: Fix 'Reply to this ticket' flow + redesign message cards + fix bottom-crop
+
+Work Log:
+
+DIAGNOSIS:
+1. 'Reply to this ticket' button only set activeThreadTicketId state and
+   changed the button color to green. The actual reply composer was at
+   the bottom of the conversation — far away and visually disconnected.
+   The user expected clicking the button to let them type a reply
+   immediately, right there under the ticket.
+
+2. Bottom-crop issue: CSS rule in index.css used
+   `padding-bottom: revert !important` for containers with pb-14/pb-16/etc.
+   `revert` resets to the UA default (0px), which REMOVED all bottom
+   padding. The App.tsx wrapper (pb-14 overflow-y-auto) matched this rule
+   → got 0px padding → content hidden behind fixed bottom nav (56px).
+
+3. Message cards used very small text (9-11px), cramped controls, and
+   mixed alignment — hard to work with daily.
+
+FIXES APPLIED:
+
+1. INLINE REPLY COMPOSER (InlineTicketReply component):
+   - New component added after MessageContent in MessagesView.tsx
+   - Appears directly under the ticket's thread when 'Reply to this
+     ticket' is clicked
+   - Auto-focuses the textarea on mount
+   - Auto-scrolls into view (block: 'center') so it's not hidden behind
+     mobile keyboard
+   - Has its own textarea + Send Reply button + Cancel button
+   - Calls sendAdminReply mutation with threadTicketId
+   - Supports Cmd/Ctrl+Enter keyboard shortcut
+   - Shows loading spinner while sending
+   - After sending, stays open so admin can send multiple replies
+   - New replies appear in the threaded replies section above
+
+2. BOTTOM COMPOSER BANNER:
+   - When activeThreadTicketId is set, shows a green banner above the
+     bottom composer: '↩ Replying to ticket thread — use the inline
+     composer above' with a ✕ Clear button
+   - Bottom composer placeholder changes to 'General conversation
+     reply... (ticket reply is above)' when thread is active
+   - Makes it clear that ticket replies go through the inline composer
+
+3. CSS BOTTOM-CROP FIX (index.css):
+   - Removed the `padding-bottom: revert !important` rules entirely
+   - Replaced with :not() selectors on the global rule:
+     `.overflow-y-auto:not(.no-nav-pad):not([class*="pb-14"]):not([class*="pb-16"])...`
+   - Now the global 3.5rem padding only applies to containers WITHOUT
+     explicit bottom padding classes
+   - Containers with pb-14/pb-16/etc. keep their own padding naturally
+   - Added CRITICAL comment explaining why `revert` must never be used
+
+4. MESSAGE CARD REDESIGN:
+   - Larger text: sender name text-xs (was text-[10px]), timestamps
+     text-[10px] (was text-[9px]), ticket badges text-[10px] (was text-[9px])
+   - Clearer visual hierarchy: header → content → attachments → ticket
+     controls panel → threaded replies → inline composer → action row
+   - Ticket controls now in a bordered panel with 'Status:' and 'Assign:'
+     labels (was unlabeled mixed row)
+   - Status pills slightly larger (px-2.5 py-1) with shadow on active
+   - Assign dropdown uses rounded-lg with 'Select team member...' placeholder
+   - Threaded replies use text-xs with 280-char preview (was 200)
+   - Action row combines reply button + read receipt in one flex row
+   - Better spacing: mb-4 between messages, mt-3 for ticket panel
+   - Admin bubbles use shadow-md for more depth
+   - Non-admin bubbles use bg-white for better contrast
+
+VERIFICATION:
+- tsc --noEmit: only pre-existing src/app/page.tsx error (unrelated)
+- vite build: succeeds, ✓ built in 20.77s
+- Committed and pushed: 9ff4c4d..ac6ed55 main -> main
+
+Stage Summary:
+- 'Reply to this ticket' now opens an inline composer directly under the
+  ticket — admin can type and send immediately without scrolling
+- Bottom-crop issue fixed at the CSS level — no more content hidden
+  behind the bottom nav
+- Message cards redesigned with larger text, clearer hierarchy, better
+  spacing — suitable for daily use
