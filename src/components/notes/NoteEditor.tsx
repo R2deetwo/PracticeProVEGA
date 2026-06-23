@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { NotePage, Matter } from '../../types';
 import { timeAgo } from '../../utils/colorUtils';
 import { useQuery } from 'convex/react';
@@ -10,6 +10,47 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
+
+// ─── Web Speech API types ─────────────────────────────────────────────
+// The Web Speech API (SpeechRecognition) is available in Chrome/Edge and
+// Android WebView. Not available in Safari/Firefox — the dictation button
+// is hidden when unsupported.
+interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
+    resultIndex: number;
+}
+interface SpeechRecognitionResultList {
+    length: number;
+    item(index: number): SpeechRecognitionResult;
+    [index: number]: SpeechRecognitionResult;
+}
+interface SpeechRecognitionResult {
+    length: number;
+    item(index: number): SpeechRecognitionAlternative;
+    [index: number]: SpeechRecognitionAlternative;
+    isFinal: boolean;
+}
+interface SpeechRecognitionAlternative {
+    transcript: string;
+    confidence: number;
+}
+interface SpeechRecognition extends EventTarget {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    start(): void;
+    stop(): void;
+    abort(): void;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: Event) => void) | null;
+    onend: (() => void) | null;
+}
+declare global {
+    interface Window {
+        SpeechRecognition?: new () => SpeechRecognition;
+        webkitSpeechRecognition?: new () => SpeechRecognition;
+    }
+}
 
 const BackIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -39,6 +80,70 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const saveTimeoutRef = useRef<number | null>(null);
     const isProgrammaticChange = useRef(false);
     const currentPageId = useRef<string | null>(null);
+
+    // ─── Dictation (Voice-to-Text) ────────────────────────────────────
+    // Uses the Web Speech API (available in Chrome/Edge + Android WebView).
+    // The user taps the mic button, speaks, and their words are inserted
+    // at the cursor position in the note. Works continuously until stopped.
+    const [isDictating, setIsDictating] = useState(false);
+    const [dictationSupported, setDictationSupported] = useState(false);
+    const recognitionRef = useRef<SpeechRecognition | null>(null);
+    const interimTranscriptRef = useRef('');
+
+    useEffect(() => {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        setDictationSupported(!!SR);
+    }, []);
+
+    const toggleDictation = () => {
+        if (isDictating) {
+            recognitionRef.current?.stop();
+            setIsDictating(false);
+            return;
+        }
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR || !editor) return;
+
+        const recognition = new SR();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        interimTranscriptRef.current = '';
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    finalTranscript += result[0].transcript;
+                } else {
+                    interimTranscript += result[0].transcript;
+                }
+            }
+
+            if (finalTranscript) {
+                // Insert final transcript at cursor position
+                const textToInsert = finalTranscript + ' ';
+                editor.chain().focus().insertContent(textToInsert).run();
+                interimTranscriptRef.current = '';
+            }
+        };
+
+        recognition.onerror = (event: Event) => {
+            console.warn('[Dictation] Error:', (event as any).error);
+            setIsDictating(false);
+        };
+
+        recognition.onend = () => {
+            setIsDictating(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+        setIsDictating(true);
+        editor.commands.focus();
+    };
 
     const savePendingChanges = useCallback((html?: string) => {
         if (currentPageId.current) {
@@ -177,9 +282,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     </div>
                 </div>
                 
-                {/* Minimal Tiptap Toolbar */}
+                {/* Minimal Tiptap Toolbar + Dictation */}
                 {editor && (
-                    <div className="flex items-center gap-1 pt-2">
+                    <div className="flex items-center gap-1 pt-2 flex-wrap">
                         <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('bold') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'}`}><b className="font-serif">B</b></button>
                         <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('italic') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'}`}><i className="font-serif">I</i></button>
                         <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('underline') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'}`}><u className="font-serif">U</u></button>
@@ -189,6 +294,31 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                         <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
                         <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('bulletList') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'} text-xs leading-none`}>• List</button>
                         <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('orderedList') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'} text-xs leading-none`}>1. List</button>
+                        {/* Dictation (Voice-to-Text) — uses Web Speech API.
+                            Only shown on browsers/webviews that support it
+                            (Chrome, Edge, Android WebView). Hidden on Safari. */}
+                        {dictationSupported && (
+                            <>
+                                <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                                <button
+                                    onClick={toggleDictation}
+                                    className={`p-1.5 rounded transition-all flex items-center gap-1 ${
+                                        isDictating
+                                            ? 'bg-red-500 text-white animate-pulse'
+                                            : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500'
+                                    }`}
+                                    title={isDictating ? 'Stop dictation' : 'Start voice dictation'}
+                                >
+                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                        <line x1="12" y1="19" x2="12" y2="23"/>
+                                        <line x1="8" y1="23" x2="16" y2="23"/>
+                                    </svg>
+                                    {isDictating && <span className="text-[9px] font-bold">Listening...</span>}
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
             </div>

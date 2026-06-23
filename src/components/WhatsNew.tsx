@@ -135,6 +135,24 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // Use 'icon' to pick from FEATURE_ICONS above.
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.15.0',
+        version: '1.15.0',
+        date: '2026-06-23',
+        title: 'Unified Messaging Engine, Portal Redesign & Ticketing System',
+        description: 'A complete overhaul of the portal experience and messaging system. Portal users now have a premium card-based dashboard, individual ticket management within conversations, and the ability to cancel requests with notes. The admin side gets a unified All Conversations inbox with inline ticket controls, delegation to team members, sub-threading per ticket, and smart notification delivery.',
+        features: [
+            { icon: 'portal', label: 'Premium Portal Dashboard', text: 'Both Client and Resident portals now feature a card-based dashboard with hero card, financial summary, quick services grid, and recent activity — emulating a premium executive planner aesthetic.' },
+            { icon: 'chat', label: 'Unified All Conversations', text: 'Team Chat and WhatsApp & Email tabs have been merged into a single All Conversations stream. Every dialog — portal messages, tickets, internal team chat, and sent scheduled messages — lives in one unified inbox with color-coded type badges and role filters.' },
+            { icon: 'bolt', label: 'Inline Ticket Controls', text: 'Ticket status pills (Received → Progress → Addressed → Closed) and assign-to-team-member dropdowns are now embedded directly inside the message bubble that originated the ticket. No more split-view redundancy. Each ticket in a conversation has independent controls.' },
+            { icon: 'shield', label: 'Sub-Threading Per Ticket', text: 'Admins can reply within a specific ticket\'s sub-thread, keeping multiple issues in one conversation neatly organized. Threaded replies render as indented sub-threads beneath the originating ticket message.' },
+            { icon: 'pen', label: 'Portal Request Cancellation', text: 'Portal users can cancel their own open tickets and service requests with a required reason note. The admin is automatically notified via a portal message in the conversation thread.' },
+            { icon: 'portal', label: 'Image & Video Uploads', text: 'Portal users can attach photos, short videos, and PDFs to their service requests. Image attachments render as thumbnails in the conversation thread. Especially useful for maintenance tickets showing the issue visually.' },
+            { icon: 'theme', label: 'Platinum Calendar', text: 'The calendar module has been overhauled with a premium aesthetic: soft grid lines, pill-shaped event indicators, a pulsing current-time playhead with timestamp badge, and golden-ratio spacing throughout.' },
+            { icon: 'shield', label: 'Haptic Feedback & Biometric Unlock', text: 'The Android APK now supports haptic feedback on button taps, tab changes, and form submissions. Biometric unlock (fingerprint/face) is available after enabling Remember Me on login.' },
+            { icon: 'bolt', label: 'Smart Notification Delivery', text: 'When a portal user submits a ticket or message, admins receive an in-app notification AND an email — but only if push notifications aren\'t enabled. Smart delivery: push OR email, not both. New notification types for all portal inbound events.' },
+        ],
+    },
+    {
         id: 'v1.14.0',
         version: '1.14.0',
         date: '2026-06-11',
