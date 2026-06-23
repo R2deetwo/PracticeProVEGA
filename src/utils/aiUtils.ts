@@ -233,26 +233,64 @@ export const getAIProvider = (): 'gemini' => 'gemini';
 
 /**
  * Strips Personal Identifiable Information (PII) from text.
- * Specifically targets Nigerian formats like NIN (11 digits), 
+ * Specifically targets Nigerian formats like NIN (11 digits),
  * BVN (11 digits), Phone Numbers (+234), and Emails.
+ *
+ * Returns both the sanitized text AND a report of what was stripped,
+ * so the UI can show the user exactly what PII was detected and removed
+ * before their data is sent to Google's AI.
  */
+export interface PIIStripResult {
+    sanitized: string;
+    found: { type: string; original: string; replacement: string }[];
+    totalStripped: number;
+}
+
 export const stripPII = (text: string): string => {
+    return stripPIIWithReport(text).sanitized;
+};
+
+export const stripPIIWithReport = (text: string): PIIStripResult => {
     let sanitized = text;
+    const found: { type: string; original: string; replacement: string }[] = [];
 
     // Email
-    sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL_REDACTED]');
+    sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, (match) => {
+        found.push({ type: 'Email', original: match, replacement: '[EMAIL_REDACTED]' });
+        return '[EMAIL_REDACTED]';
+    });
 
-    // Nigerian Phone Numbers (+234, 080, 081, 090, 070 followed by 8-10 digits)
-    sanitized = sanitized.replace(/(?:\+234|0)[789][01]\d{8}/g, '[PHONE_REDACTED]');
+    // Nigerian Phone Numbers (+234, 080, 081, 090, 070 followed by 8 digits)
+    sanitized = sanitized.replace(/(?:\+234|0)[789][01]\d{8}/g, (match) => {
+        found.push({ type: 'Phone', original: match, replacement: '[PHONE_REDACTED]' });
+        return '[PHONE_REDACTED]';
+    });
 
-    // BVN / NIN (usually 11 digits) - risky to blindly strip any 11 digits, 
-    // but in legal context often identifies NIN/BVN
-    sanitized = sanitized.replace(/\b\d{11}\b/g, '[ID_REDACTED]');
+    // BVN / NIN (11 digits)
+    sanitized = sanitized.replace(/\b\d{11}\b/g, (match) => {
+        found.push({ type: 'NIN/BVN', original: match, replacement: '[ID_REDACTED]' });
+        return '[ID_REDACTED]';
+    });
 
-    // Credit Cards (generic)
-    sanitized = sanitized.replace(/\b(?:\d{4}[ -]?){3}\d{4}\b/g, '[CARD_REDACTED]');
+    // Credit Cards
+    sanitized = sanitized.replace(/\b(?:\d{4}[ -]?){3}\d{4}\b/g, (match) => {
+        found.push({ type: 'Card', original: match, replacement: '[CARD_REDACTED]' });
+        return '[CARD_REDACTED]';
+    });
 
-    return sanitized;
+    // Nigerian bank account numbers (10 digits)
+    sanitized = sanitized.replace(/\b\d{10}\b/g, (match) => {
+        // Only flag if it looks like a bank account (not a date or reference number)
+        // We check context — if preceded by "account", "acct", "bank", "no."
+        const before = sanitized.substring(Math.max(0, sanitized.indexOf(match) - 30), sanitized.indexOf(match)).toLowerCase();
+        if (before.includes('account') || before.includes('acct') || before.includes('bank') || before.includes('no.')) {
+            found.push({ type: 'Bank Account', original: match, replacement: '[ACCOUNT_REDACTED]' });
+            return '[ACCOUNT_REDACTED]';
+        }
+        return match;
+    });
+
+    return { sanitized, found, totalStripped: found.length };
 };
 
 /**

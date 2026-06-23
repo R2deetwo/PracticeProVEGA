@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Document, RiskAnalysis, ExtractedMetadata, FileDetails, DataProtectionAnalysis, RpcStatus } from '../types';
-import { getGeminiApiKey, stripPII, AI_CONFIG } from '../utils/aiUtils';
+import { getGeminiApiKey, stripPII, stripPIIWithReport, AI_CONFIG } from '../utils/aiUtils';
 
 // --- Types for the Orchestrator ---
 
@@ -11,6 +11,8 @@ export interface AldiaFullReport {
   extractedMetadata: ExtractedMetadata;
   dataProtection: DataProtectionAnalysis;
   rpcReview: RpcStatus;
+  piiStripped?: { type: string; original: string; replacement: string }[];
+  piiTotalStripped?: number;
 }
 
 interface AnalyzableDocument {
@@ -175,6 +177,12 @@ export const analyzeDocument = async (
     const parts: any[] = [];
     parts.push({ text: getSystemPrompt(isProperty) });
 
+    // ─── PII Stripping with Report ────────────────────────────────────
+    // Strip PII from the document content before sending to Google's AI.
+    // Keep a report of what was stripped so the UI can show the user
+    // exactly what was detected and removed.
+    let piiResult: { found: { type: string; original: string; replacement: string }[]; totalStripped: number } = { found: [], totalStripped: 0 };
+
     if (document.file && document.file.dataUrl) {
       try {
         const filePart = await getFilePart(document.file);
@@ -182,17 +190,18 @@ export const analyzeDocument = async (
         parts.push({ text: "\n\nAnalyze the document provided above." });
       } catch (e: any) {
         console.warn("Binary processing failed or unsupported type:", e.message);
-
-        // Fallback: If it's a text-readable file (like .txt or simple extracted content), send it as text.
-        // Otherwise, throw a clear error to the user.
         if (document.content && document.content.length > 0) {
-          parts.push({ text: stripPII(document.content) });
+          const pii = stripPIIWithReport(document.content);
+          piiResult = { found: pii.found, totalStripped: pii.totalStripped };
+          parts.push({ text: pii.sanitized });
         } else {
           throw new Error(`Could not analyze file: ${e.message}`);
         }
       }
     } else if (document.content) {
-      parts.push({ text: `\n\nAnalyze the following text:\n${stripPII(document.content)}` });
+      const pii = stripPIIWithReport(document.content);
+      piiResult = { found: pii.found, totalStripped: pii.totalStripped };
+      parts.push({ text: `\n\nAnalyze the following text:\n${pii.sanitized}` });
     } else {
       throw new Error("No document content found to analyze.");
     }
@@ -231,13 +240,15 @@ export const analyzeDocument = async (
 
     const rpcResult = JSON.parse(rpcResponse.text || '{"status": "approved", "commentary": "Verified."}');
 
-    // 4. Assemble Final Report
+    // 4. Assemble Final Report — include PII stripping report
     return {
       summary: rawResult.summary,
       riskAnalysis: rawResult.riskAnalysis,
       extractedMetadata: rawResult.extractedMetadata,
       dataProtection: rawResult.dataProtection,
-      rpcReview: rpcResult
+      rpcReview: rpcResult,
+      piiStripped: piiResult.found,
+      piiTotalStripped: piiResult.totalStripped,
     };
 
   } catch (error: any) {

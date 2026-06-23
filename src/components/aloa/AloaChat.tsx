@@ -363,7 +363,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     report,
                                     label: 'View Full Analysis'
                                 };
-                                feedbackMessage = `Deep analysis complete. ${report.summary}`;
+                                // Include PII stripping info in the feedback message
+                                const piiNote = report.piiTotalStripped && report.piiTotalStripped > 0
+                                    ? ` 🛡️ ${report.piiTotalStripped} PII item(s) were detected and stripped before AI analysis.`
+                                    : '';
+                                feedbackMessage = `Deep analysis complete. ${report.summary}${piiNote}`;
                             } catch (err: any) {
                                 toolOutput = { error: err.message || "Analysis failed." };
                                 feedbackMessage = `Analysis failed: ${err.message}`;
@@ -603,6 +607,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         const content = overrideContent ?? textInput;
         if (!content.trim() || isGeneratingRef.current) return;
 
+        // ─── PII Scan — check the user's message for PII before sending ──
+        // Show a visible indicator if PII was detected and stripped
+        const { stripPIIWithReport } = await import('../../utils/aiUtils');
+        const piiResult = stripPIIWithReport(content);
+        let piiNotice: string | null = null;
+        if (piiResult.totalStripped > 0) {
+            const types = [...new Set(piiResult.found.map(f => f.type))].join(', ');
+            piiNotice = `🛡️ ${piiResult.totalStripped} PII item(s) detected and stripped (${types}) before sending to AI.`;
+        }
+
         const isDemo = currentUser?.email === 'demo@practicepro.ng';
         const userMessagesCount = messages.filter(m => m.role === 'user').length;
         if (isDemo && userMessagesCount >= 5) {
@@ -621,7 +635,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             return;
         }
 
-        const newUserMsg: AloaMessage = { id: uuidv4(), role: 'user', content };
+        const newUserMsg: AloaMessage = { id: uuidv4(), role: 'user', content: piiResult.sanitized };
+
+        // If PII was stripped, show a system notice before the user's message
+        if (piiNotice) {
+            setMessages(prev => [...prev, {
+                id: uuidv4(),
+                role: 'model',
+                content: piiNotice,
+                isSystemNotice: true,
+            }]);
+        }
 
         const streamMsgId = uuidv4();
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
