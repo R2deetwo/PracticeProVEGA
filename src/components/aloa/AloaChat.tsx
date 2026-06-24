@@ -27,6 +27,7 @@ import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIco
 import { api } from '../../../convex/_generated/api';
 import { decode, decodeAudioData } from '../../utils/audioUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
+import { getGlobalAIQueue, validateAPIKey } from '../../utils/aiRequestQueue';
 import Tooltip from '../Tooltip';
 import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
@@ -127,6 +128,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
     const nextStartTimeRef = useRef<number>(0);
     const isGeneratingRef = useRef<boolean>(false);
+    const aiQueueRef = useRef(getGlobalAIQueue());
+    const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
     const openModalRef = useRef(openModal);
     const navigateToRef = useRef(navigateTo);
@@ -599,7 +602,30 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     const handleSend = async (overrideContent?: string) => {
         const content = overrideContent ?? textInput;
-        if (!content.trim() || isGeneratingRef.current) return;
+        if (!content.trim()) return;
+
+        // ─── API KEY PRE-FLIGHT VALIDATION ──────────────────────────────
+        // Check that a valid Gemini API key exists BEFORE we do any work.
+        // If missing, show a graceful error card instead of letting the
+        // request fail with an unhandled exception mid-stream.
+        const isDemo = currentUser?.email === 'demo@practicepro.ng';
+        if (!isDemo) {
+            const keyCheck = validateAPIKey();
+            if (!keyCheck.valid) {
+                setMessages(prev => [...prev, {
+                    id: uuidv4(),
+                    role: 'user',
+                    content: content,
+                }, {
+                    id: uuidv4(),
+                    role: 'model',
+                    content: `**API Key Required**\n\n${keyCheck.error}`,
+                    isError: true,
+                }]);
+                if (!overrideContent) setTextInput('');
+                return;
+            }
+        }
 
         // ─── PII Scan — check the user's message for PII before sending ──
         // Show a visible indicator if PII was detected and stripped
@@ -611,7 +637,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             piiNotice = `🛡️ ${piiResult.totalStripped} PII item(s) detected and stripped (${types}) before sending to AI.`;
         }
 
-        const isDemo = currentUser?.email === 'demo@practicepro.ng';
         const userMessagesCount = messages.filter(m => m.role === 'user').length;
         if (isDemo && userMessagesCount >= 5) {
             setMessages(prev => [...prev, {
@@ -641,15 +666,30 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }]);
         }
 
+        // ─── OPTIMISTIC UI ──────────────────────────────────────────────
+        // Paired UUIDs: the user message and the (empty) model response
+        // card are created together. The input tray clears instantly for
+        // responsive feedback. The actual AI call is enqueued below.
         const streamMsgId = uuidv4();
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
         if (!overrideContent) setTextInput('');
-        setIsLoading(true);
-        setAloaStatus('Thinking…');
-        isGeneratingRef.current = true;
-        let currentConvId = activeConversationId;
 
-        const aiContext = {
+        // Show "Thinking…" immediately so the user sees activity even if
+        // the request is queued behind a previous one.
+        setAloaStatus('Thinking…');
+
+        // ─── DETERMINISTIC REQUEST QUEUE ────────────────────────────────
+        // The AI execution is enqueued in a global sequential queue.
+        // Task N+1 cannot fire until Task N resolves or catches. This
+        // eliminates race conditions where responses print out of order.
+        // While queued, we show a pending indicator to the user.
+        setPendingQueueCount(prev => prev + 1);
+
+        // Capture context values at enqueue time so they don't drift
+        // if the user sends another message while this is queued.
+        const capturedMessages = [...messages, newUserMsg];
+        const capturedActiveConvId = activeConversationId;
+        const capturedAiContext = {
             appState: { ...coreState, ...matterState, ...executionState, ...financeState, ...documentState } as any,
             currentUser: currentUser!,
             currentHistoryEntry,
@@ -667,80 +707,161 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             })) ?? null,
         };
 
-        try {
-            const isDemo = currentUser?.email === 'demo@practicepro.ng';
-
-            if (!isDemo) {
-                if (!currentConvId) {
-                    const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
-                    currentConvId = await createConversationMutation({
-                        firmId: coreState.firmDetails?.id || '',
-                        userId: currentUser?.id || '',
-                        title: title
-                    });
-                    setActiveConversationId(currentConvId);
-                }
-                void saveMessageMutation({
-                    conversationId: currentConvId!,
-                    firmId: coreState.firmDetails?.id || '',
-                    userId: currentUser?.id,
-                    message: newUserMsg
-                });
-            }
-
-            const { brain } = await import('../../services/brainService');
-
-            // Intelligent auto-RAG: Always search institutional knowledge when the query is
-            // data-related, context-specific, or mentions entities the user would have stored.
-            // This replaces the manual "Firm RAG" toggle with seamless auto-detection.
-            const wantsDataSearch = /\b(find|show|list|how many|what are|who are|which|all my|my current|pending|outstanding|overdue|recent|last|today|summary|status|balance|total|count|details|information|record|document|contract|lease|tenant|landlord|property|matter|invoice|payment|rent|charge|fee|agreement|compliance|report)\b/i.test(content);
-
-            // Always provide the brain search function — the backend (AgencyHub system prompt)
-            // will decide whether to invoke it based on the search_legal_repo tool.
-            // This ensures ARIA always has access to institutional knowledge.
-            aiContext.searchBrain = async (query: string) => {
-                if (!wantsDataSearch) return "";
-                setAloaStatus('Searching records…');
-                return await brain.search({
-                    query,
-                    firmId: coreState.firmDetails?.id || '',
-                    scope: isProperty ? 'property' : 'legal',
-                    convexQuery: (name: any, args: any) => convex.query(name, args)
-                });
-            };
-            aiContext.isFirmSearchEnabled = true; // Always enabled for intelligent retrieval
-
-            if (wantsDataSearch) {
-                setAloaStatus('Searching records…');
-            }
-
-            const wantsToolAction = /\b(create|open|add|new|draft|navigate|show me|find my|schedule|invoice|task|matter|contact)\b/i.test(content);
-            const effectiveModel = preferredModel === 'auto' ? 'flash' : preferredModel;
-
-            if (!wantsToolAction) {
-                setAloaStatus('Writing…');
+        // The execute function runs inside the queue — it receives an
+        // AbortSignal for timeout cancellation. All references inside
+        // use the captured context (capturedMessages, capturedAiContext,
+        // capturedActiveConvId) so queued tasks don't drift.
+        void aiQueueRef.current.enqueue({
+            id: streamMsgId,
+            execute: async (signal: AbortSignal) => {
+                let currentConvId = capturedActiveConvId;
+                isGeneratingRef.current = true; // Prevent history-load from overwriting optimistic UI
                 try {
-                    const streamed = await aiService.streamMessage(
-                        [...messages, newUserMsg],
-                        aiContext,
-                        (chunk) => {
-                            setMessages(prev => prev.map(m =>
-                                m.id === streamMsgId ? { ...m, content: `${typeof m.content === 'string' ? m.content : ''}${chunk}` } : m
-                            ));
-                        },
-                        effectiveModel
+                    const isDemo = currentUser?.email === 'demo@practicepro.ng';
+
+                    if (!isDemo) {
+                        if (!currentConvId) {
+                            const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
+                            currentConvId = await createConversationMutation({
+                                firmId: coreState.firmDetails?.id || '',
+                                userId: currentUser?.id || '',
+                                title: title
+                            });
+                            setActiveConversationId(currentConvId);
+                        }
+                        void saveMessageMutation({
+                            conversationId: currentConvId!,
+                            firmId: coreState.firmDetails?.id || '',
+                            userId: currentUser?.id,
+                            message: newUserMsg
+                        });
+                    }
+
+                    const { brain } = await import('../../services/brainService');
+
+                    const wantsDataSearch = /\b(find|show|list|how many|what are|who are|which|all my|my current|pending|outstanding|overdue|recent|last|today|summary|status|balance|total|count|details|information|record|document|contract|lease|tenant|landlord|property|matter|invoice|payment|rent|charge|fee|agreement|compliance|report)\b/i.test(content);
+
+                    capturedAiContext.searchBrain = async (query: string) => {
+                        if (!wantsDataSearch) return "";
+                        setAloaStatus('Searching records…');
+                        return await brain.search({
+                            query,
+                            firmId: coreState.firmDetails?.id || '',
+                            scope: isProperty ? 'property' : 'legal',
+                            convexQuery: (name: any, args: any) => convex.query(name, args)
+                        });
+                    };
+                    capturedAiContext.isFirmSearchEnabled = true;
+
+                    if (wantsDataSearch) {
+                        setAloaStatus('Searching records…');
+                    }
+
+                    const wantsToolAction = /\b(create|open|add|new|draft|navigate|show me|find my|schedule|invoice|task|matter|contact)\b/i.test(content);
+                    const effectiveModel = preferredModel === 'auto' ? 'flash' : preferredModel;
+
+                    if (!wantsToolAction) {
+                        setAloaStatus('Writing…');
+                        setIsLoading(true);
+                        try {
+                            const streamed = await aiService.streamMessage(
+                                capturedMessages,
+                                capturedAiContext,
+                                (chunk) => {
+                                    setMessages(prev => prev.map(m =>
+                                        m.id === streamMsgId ? { ...m, content: `${typeof m.content === 'string' ? m.content : ''}${chunk}` } : m
+                                    ));
+                                },
+                                effectiveModel,
+                                signal // ── AbortSignal passed for timeout cancellation
+                            );
+                            if (streamed.text?.trim()) {
+                                const validatedText = validateAIResponse(streamed.text, isProperty);
+                                const parsedForm = tryParseInteractiveForm(validatedText);
+                                const modelMsg: AloaMessage = {
+                                    id: streamMsgId,
+                                    role: 'model',
+                                    content: parsedForm ? '' : validatedText,
+                                    interactiveForm: parsedForm ?? undefined,
+                                    modelUsed: streamed.modelUsed
+                                };
+                                setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
+                                if (!isDemo && currentConvId) {
+                                    void saveMessageMutation({
+                                        conversationId: currentConvId,
+                                        firmId: coreState.firmDetails?.id || '',
+                                        userId: currentUser?.id,
+                                        message: modelMsg
+                                    });
+                                }
+                                return modelMsg;
+                            }
+                        } catch (streamErr: any) {
+                            if (signal.aborted) throw streamErr; // timeout — propagate
+                            console.warn('[ARIA] Stream path failed, using tool-capable request:', streamErr);
+                        }
+                    }
+
+                    setAloaStatus('Thinking…');
+                    setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
+
+                    const response = await aiService.sendMessage(
+                        capturedMessages,
+                        capturedAiContext,
+                        effectiveModel,
+                        signal
                     );
-                    if (streamed.text?.trim()) {
-                        const validatedText = validateAIResponse(streamed.text, isProperty);
+
+                    let currentResponse = response;
+                    let iterationCount = 0;
+                    const maxIterations = 3;
+                    let turnHistory = [...capturedMessages];
+
+                    while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
+                        iterationCount++;
+                        setAloaStatus('Using tools…');
+                        const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls);
+
+                        if (isTerminal) {
+                            setMessages(prev => prev.filter(m => m.id !== streamMsgId));
+                            break;
+                        }
+
+                        const assistantToolCallMsg: AloaMessage = {
+                            id: uuidv4(),
+                            role: 'model',
+                            toolCalls: currentResponse.toolCalls
+                        };
+
+                        const toolResultsMsgs: AloaMessage[] = toolOutputs.map(output => ({
+                            id: uuidv4(),
+                            role: 'tool',
+                            toolResult: output
+                        }));
+
+                        turnHistory = [...turnHistory, assistantToolCallMsg, ...toolResultsMsgs];
+
+                        setAloaStatus('Writing…');
+                        currentResponse = await aiService.sendMessage(
+                            turnHistory,
+                            capturedAiContext,
+                            effectiveModel,
+                            signal
+                        );
+                    }
+
+                    if (currentResponse.text && currentResponse.text.trim()) {
+                        const validatedText = validateAIResponse(currentResponse.text, isProperty);
                         const parsedForm = tryParseInteractiveForm(validatedText);
                         const modelMsg: AloaMessage = {
                             id: streamMsgId,
                             role: 'model',
                             content: parsedForm ? '' : validatedText,
                             interactiveForm: parsedForm ?? undefined,
-                            modelUsed: streamed.modelUsed
+                            modelUsed: currentResponse.modelUsed
                         };
                         setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
+
                         if (!isDemo && currentConvId) {
                             void saveMessageMutation({
                                 conversationId: currentConvId,
@@ -749,131 +870,68 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 message: modelMsg
                             });
                         }
-                        return;
+                        return modelMsg;
+                    } else {
+                        setMessages(prev => prev.filter(m => m.id !== streamMsgId));
+                        return null;
                     }
-                } catch (streamErr) {
-                    console.warn('[ARIA] Stream path failed, using tool-capable request:', streamErr);
+                } finally {
+                    setIsLoading(false);
+                    setAloaStatus('');
+                    isGeneratingRef.current = false;
                 }
-            }
+            },
+            onSuccess: () => {
+                setPendingQueueCount(prev => Math.max(0, prev - 1));
+            },
+            onError: (error: Error) => {
+                setPendingQueueCount(prev => Math.max(0, prev - 1));
+                setIsLoading(false);
+                setAloaStatus('');
 
-            setAloaStatus('Thinking…');
-            setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
+                let errorMessage = "I encountered an issue processing your request.";
+                let isAuthError = false;
+                let helpText = "Please try again later.";
 
-            const response = await aiService.sendMessage(
-                [...messages, newUserMsg],
-                aiContext,
-                effectiveModel
-            );
-
-            let currentResponse = response;
-            let iterationCount = 0;
-            const maxIterations = 3;
-
-            let turnHistory = [...messages, newUserMsg]; 
-
-            while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
-                iterationCount++;
-                setAloaStatus('Using tools…');
-                const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls);
-
-                if (isTerminal) {
-                    setMessages(prev => prev.filter(m => m.id !== streamMsgId));
-                    break;
+                if (error.message) {
+                    if (error.name === 'AbortError' || error.message.includes('timed out')) {
+                        errorMessage = "Request Timed Out";
+                        helpText = "The AI took too long to respond. This is common on slow mobile connections. Please try again.";
+                    }
+                    else if (error.message.includes('API key') || error.message.includes('403')) {
+                        errorMessage = "Authentication Error: API Key is invalid or missing.";
+                        isAuthError = true;
+                        helpText = "Please check your AI Settings and verify your API key.\n\n**Need a key?** Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**Where to paste it?** Settings → Agents → API Key Configuration";
+                    }
+                    else if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
+                        errorMessage = "Quota Exceeded: Your AI usage limit has been reached.";
+                        helpText = "**Solutions:**\n\n1. **Wait**: Free tier quotas reset daily\n2. **Upgrade**: Get higher limits at [Google AI Studio](https://ai.google.dev/pricing)\n3. **Monitor Usage**: Check your quota at [AI Dev Console](https://ai.dev/rate-limit)\n4. **Alternative**: Try switching to DeepSeek in Settings (if configured)";
+                    }
+                    else if (error.message.includes('network') || error.message.includes('fetch')) {
+                        errorMessage = "Network Error: Please check your internet connection.";
+                        helpText = "Verify you're online and try again.";
+                    }
+                    else if (error.message.includes('not found') || error.message.includes('404')) {
+                        errorMessage = "Model Configuration Error: The requested AI model is unavailable.";
+                        helpText = "The AI model may have been deprecated. Please contact support or check for app updates.";
+                    }
+                    else {
+                        errorMessage = `System Error: ${error.message}`;
+                        helpText = "If this persists, please contact support.";
+                    }
                 }
 
-                const assistantToolCallMsg: AloaMessage = {
+                const errorMsgObj: AloaMessage = {
                     id: uuidv4(),
                     role: 'model',
-                    toolCalls: currentResponse.toolCalls
+                    content: `**${errorMessage}**\n\n${isAuthError ? "Please check your AI Settings." : "Please try again later."}`,
+                    isError: true,
+                    errorDetails: JSON.stringify(error.message || error, null, 2)
                 };
 
-                const toolResultsMsgs: AloaMessage[] = toolOutputs.map(output => ({
-                    id: uuidv4(),
-                    role: 'tool',
-                    toolResult: output
-                }));
-
-                turnHistory = [...turnHistory, assistantToolCallMsg, ...toolResultsMsgs];
-
-                setAloaStatus('Writing…');
-                currentResponse = await aiService.sendMessage(
-                    turnHistory,
-                    aiContext,
-                    effectiveModel
-                );
-            }
-
-            if (currentResponse.text && currentResponse.text.trim()) {
-                const validatedText = validateAIResponse(currentResponse.text, isProperty);
-                const parsedForm = tryParseInteractiveForm(validatedText);
-                const modelMsg: AloaMessage = {
-                    id: streamMsgId,
-                    role: 'model',
-                    content: parsedForm ? '' : validatedText,
-                    interactiveForm: parsedForm ?? undefined,
-                    modelUsed: currentResponse.modelUsed
-                };
-                setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
-
-                if (!isDemo && currentConvId) {
-                    void saveMessageMutation({
-                        conversationId: currentConvId,
-                        firmId: coreState.firmDetails?.id || '',
-                        userId: currentUser?.id,
-                        message: modelMsg
-                    });
-                }
-            } else {
-                setMessages(prev => prev.filter(m => m.id !== streamMsgId));
-            }
-
-        } catch (error: any) {
-            console.error("ARIA Message Error:", error);
-
-            let errorMessage = "I encountered an issue processing your request.";
-            let isAuthError = false;
-            let isQuotaError = false;
-            let helpText = "Please try again later.";
-
-            if (error.message) {
-                if (error.message.includes('API key') || error.message.includes('403')) {
-                    errorMessage = "Authentication Error: API Key is invalid or missing.";
-                    isAuthError = true;
-                    helpText = "Please check your AI Settings and verify your API key.\n\n**Need a key?** Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**Where to paste it?** Settings → Agents → API Key Configuration";
-                }
-                else if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
-                    errorMessage = "Quota Exceeded: Your AI usage limit has been reached.";
-                    isQuotaError = true;
-                    helpText = "**Solutions:**\n\n1. **Wait**: Free tier quotas reset daily\n2. **Upgrade**: Get higher limits at [Google AI Studio](https://ai.google.dev/pricing)\n3. **Monitor Usage**: Check your quota at [AI Dev Console](https://ai.dev/rate-limit)\n4. **Alternative**: Try switching to DeepSeek in Settings (if configured)";
-                }
-                else if (error.message.includes('network') || error.message.includes('fetch')) {
-                    errorMessage = "Network Error: Please check your internet connection.";
-                    helpText = "Verify you're online and try again.";
-                }
-                else if (error.message.includes('not found') || error.message.includes('404')) {
-                    errorMessage = "Model Configuration Error: The requested AI model is unavailable.";
-                    helpText = "The AI model may have been deprecated. Please contact support or check for app updates.";
-                }
-                else {
-                    errorMessage = `System Error: ${error.message}`;
-                    helpText = "If this persists, please contact support.";
-                }
-            }
-
-            const errorMsgObj: AloaMessage = {
-                id: uuidv4(),
-                role: 'model',
-                content: `**${errorMessage}**\n\n${isAuthError ? "Please check your AI Settings." : "Please try again later."}`,
-                isError: true,
-                errorDetails: JSON.stringify(error.message || error, null, 2)
-            };
-
-            setMessages(prev => [...prev.filter(m => m.id !== streamMsgId), errorMsgObj]);
-        } finally {
-            setIsLoading(false);
-            setAloaStatus('');
-            isGeneratingRef.current = false;
-        }
+                setMessages(prev => [...prev.filter(m => m.id !== streamMsgId), errorMsgObj]);
+            },
+        });
     };
 
     const toggleErrorDetails = (id: string) => {
@@ -1285,11 +1343,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     {isLoading && aloaStatus && (
                         <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400 px-2 animate-pulse">{aloaStatus}</p>
                     )}
+                    {pendingQueueCount > 0 && (
+                        <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 px-2 animate-pulse">
+                            {pendingQueueCount} request{pendingQueueCount > 1 ? 's' : ''} queued…
+                        </p>
+                    )}
                     <div ref={messagesEndRef} />
                 </main>
             </div>
 
-            <footer className="flex-shrink-0 p-6 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+            <footer className="flex-shrink-0 p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center gap-3">
                          <button onClick={resetChat} className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm" title="Reset Chat">
@@ -1304,18 +1367,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         className="flex gap-3 items-center"
                     >
                         <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
-                            <input autoComplete="off" data-lpignore="true" 
+                            <input autoComplete="off" data-lpignore="true"
                                 value={textInput}
                                 onChange={e => setTextInput(e.target.value)}
                                 placeholder={
                                     isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
                                 }
-                                className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
-                                disabled={isLoading || aloaState !== 'idle'}
+                                className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
                             />
                             <button
                                 type="submit"
-                                disabled={!textInput.trim() || isLoading}
+                                disabled={!textInput.trim()}
                                 className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white`}
                             >
                                 <SendIcon />

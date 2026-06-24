@@ -1874,7 +1874,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   // ─── Chat View (when a conversation is active) ────────────────────────
   if (activeConversationId && activeConversation) {
     return (
-      <div className="flex flex-col h-[calc(100vh-220px)] min-h-[400px]">
+      <div className="flex flex-col h-[calc(100dvh-220px)] min-h-[400px] min-h-0">
         {/* Chat header */}
         <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-t-xl">
           <button

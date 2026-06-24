@@ -6,10 +6,11 @@ import * as geminiService from './geminiService';
 export const sendMessage = async (
     history: AloaMessage[],
     context: Parameters<typeof geminiService.sendMessage>[1],
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto'
+    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    signal?: AbortSignal
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
     // Default to Gemini
-    return geminiService.sendMessage(history, context, modelPreference);
+    return geminiService.sendMessage(history, context, modelPreference, signal);
 };
 
 export const streamMessage = async (

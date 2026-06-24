@@ -103,7 +103,7 @@ class ConvexErrorBoundary extends Component<Props, State> {
             : 'An unexpected error occurred in the application.';
 
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in" style={{
+            <div className="min-h-[100dvh] flex flex-col items-center justify-center p-6 text-center animate-fade-in" style={{
                 background: 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%)',
                 color: '#f8fafc',
                 fontFamily: 'Outfit, Inter, system-ui, sans-serif',

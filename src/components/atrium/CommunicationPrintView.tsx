@@ -133,7 +133,7 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
       {/* Printable content */}
       <div
         ref={printRef}
-        className="print-content bg-white text-slate-900 w-full max-w-3xl mx-auto mt-16 mb-4 rounded-xl overflow-y-auto max-h-[calc(100vh-5rem)] print:max-h-none print:rounded-none print:m-0 print:shadow-none shadow-2xl"
+        className="print-content bg-white text-slate-900 w-full max-w-3xl mx-auto mt-16 mb-4 rounded-xl overflow-y-auto max-h-[calc(100dvh-5rem)] print:max-h-none print:rounded-none print:m-0 print:shadow-none shadow-2xl"
       >
         {/* Letterhead */}
         <div className="print-letterhead border-b-2 border-slate-200 px-8 py-6 print:px-12 print:py-8">

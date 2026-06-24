@@ -181,7 +181,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                     <>
                         {/* Desktop Table */}
                         <div className="hidden md:block rounded-lg bg-white dark:bg-zinc-800 shadow-md border border-slate-200 dark:border-zinc-700 overflow-hidden">
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto table-wrapper">
                                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                     <thead className="bg-slate-50 dark:bg-slate-700/50">
                                         <tr>

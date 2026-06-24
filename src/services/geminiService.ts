@@ -245,7 +245,8 @@ export const sendMessage = async (
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
     },
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto'
+    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    signal?: AbortSignal
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
 
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
@@ -326,6 +327,7 @@ export const sendMessage = async (
                 const directResponse = await fetch(directUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
+                    signal,
                     body: JSON.stringify({
                         contents,
                         systemInstruction: { parts: [{ text: stripPII(systemInstruction) }] },

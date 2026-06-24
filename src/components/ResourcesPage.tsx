@@ -931,7 +931,7 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
 const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onDPAClick, activeProduct, setActiveProduct }) => {
     const isVega = activeProduct === 'vega';
     return (
-        <div className="h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
+        <div className="h-[100dvh] overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans">
             {/* Header */}
             <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/[0.06] sticky top-0 z-10">
                 <div className="container mx-auto px-6 h-16 flex items-center gap-4">

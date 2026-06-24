@@ -1366,3 +1366,123 @@ span[data-type="legal-placeholder"] {
 .state-changed {
   animation: state-pulse 0.8s ease-out;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SECTION 2 & 3: iOS SAFARI MOBILE OPTIMIZATION
+ * ═══════════════════════════════════════════════════════════════════════════
+ * These rules address Safari iOS-specific rendering bugs:
+ *   1. Nested flex layouts with dynamically mapped arrays freeze scrolling
+ *   2. Safari's 300ms click delay on touch targets
+ *   3. Safari auto-zooms on inputs < 16px font size
+ *   4. Bottom content clipped behind home indicator / notches
+ *   5. Accidental text selection on rapid taps
+ */
+
+/* ─── 3.2: Eliminate 300ms click delay ───────────────────────────────────
+ * Applies to ALL interactive elements. `manipulation` disables
+ * double-tap-to-zoom, which is what causes the 300ms delay. */
+button,
+[role="button"],
+a,
+summary,
+label,
+select,
+.tab,
+.nav-item,
+.clickable,
+.touch-target {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── 3.1: Anti-zoom input enforcement ───────────────────────────────────
+ * Safari auto-zooms when focusing an input with font-size < 16px.
+ * On mobile, force all form inputs to 16px minimum. This completely
+ * prevents the jarring page-shift zoom behavior. */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input:not([type]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* ─── 3.5: Text highlight suppression ────────────────────────────────────
+ * Prevents accidental text selection when users tap quickly on
+ * buttons, nav items, and tracking headers. Body text remains
+ * selectable for copy/paste. */
+button,
+[role="button"],
+nav,
+.nav-item,
+.tab,
+.card-header,
+.tracking-header,
+.icon-wrapper,
+.badge,
+.chip,
+.pill {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ─── 2.3: Hardware acceleration & kinetic scrolling ─────────────────────
+ * All overflow containers get native iOS momentum scrolling + GPU
+ * compositing for smooth 60fps scrolling. */
+.overflow-y-auto,
+.overflow-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* ─── 2.2: Flexbox sizing overrides for Safari ───────────────────────────
+ * Safari fails to properly compute bound heights of nested flex
+ * layouts, stretching components infinitely instead of triggering
+ * local scrolling. `min-h-0` / `min-w-0` forces the shrink. */
+.flex.flex-col > .overflow-y-auto,
+.flex.flex-col > .overflow-auto,
+.flex-1 > .overflow-y-auto,
+.flex-1 > .overflow-auto {
+  min-height: 0;
+}
+
+.flex.flex-row > .overflow-x-auto,
+.flex-1 > .overflow-x-auto {
+  min-width: 0;
+}
+
+/* ─── 3.3: Safe area boundary integration ────────────────────────────────
+ * Bottom input panels, fixed nav, and absolute actions must respect
+ * the home indicator / notch. The .pb-safe utility already exists;
+ * this ensures any fixed bottom element gets at least the inset. */
+@media (max-width: 767px) {
+  .fixed.bottom-0,
+  .absolute.bottom-0 {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ─── 2.4: Dual-axis separation for tables ───────────────────────────────
+ * Tables that need horizontal scrolling must NOT also have vertical
+ * overflow on the same element. This rule ensures table wrappers
+ * only scroll horizontally, while the parent container handles
+ * vertical scrolling. */
+.table-wrapper,
+.overflow-x-auto > table {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}

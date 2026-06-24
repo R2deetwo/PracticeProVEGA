@@ -1957,7 +1957,7 @@ const MessagesView: React.FC = () => {
                                         and makes the conversation a unified timeline. */}
 
                                     {/* Reply Input */}
-                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
+                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-safe">
                                         <div className="max-w-2xl mx-auto">
                                             {/* Quick reply chips — for linked tickets, let the admin
                                                 send a brief status-update message with one tap. */}

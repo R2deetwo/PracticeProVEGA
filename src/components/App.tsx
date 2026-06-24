@@ -473,9 +473,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     h-14 (3.5rem = 56px). We use a CSS media query via the
                     'pb-14 md:pb-0' class which applies 56px padding on
                     screens < 768px (md breakpoint) and 0 on desktop. */}
-                <main className="flex-1 relative overflow-hidden">
+                <main className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
-                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0">
+                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0 min-h-0">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>
@@ -1100,7 +1100,7 @@ export const App: React.FC = () => {
 
         if (currentUser?.role === 'Pending') {
             return (
-                <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950 w-full p-8 text-center font-sans">
+                <div className="flex flex-col items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-zinc-950 w-full p-8 text-center font-sans">
                     <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-10 rounded-[32px] shadow-2xl shadow-slate-200 dark:shadow-black/50 border border-slate-100 dark:border-zinc-800 flex flex-col items-center animate-in fade-in zoom-in duration-500">
                         <div className="w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-8 ring-8 ring-amber-50/50 dark:ring-amber-900/10">
                             <OfficeBuildingIcon className="w-10 h-10 text-amber-600 dark:text-amber-400" />

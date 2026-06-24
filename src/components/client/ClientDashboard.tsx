@@ -345,7 +345,7 @@ const ClientDashboard: React.FC = () => {
     // AND no invite records exist to resolve it from.
     if (!effectiveFirmId && firmResolution !== undefined) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-zinc-950 p-6">
+            <div className="flex items-center justify-center min-h-[100dvh] bg-slate-50 dark:bg-zinc-950 p-6">
                 <div className="text-center max-w-sm">
                     <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center mb-4">
                         <ExclamationTriangleIcon className="w-8 h-8 text-rose-500" />

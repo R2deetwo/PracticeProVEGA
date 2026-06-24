@@ -59,7 +59,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
 
       try {
         return (
-          <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#0f172a', padding: '24px', textAlign: 'center', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+          <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#0f172a', padding: '24px', textAlign: 'center', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24, fontSize: 28, color: '#ef4444' }}><AlertTriangle size={32} /></div>
             <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, margin: '0 0 8px' }}>Application Error</h1>
             <p style={{ color: '#475569', marginBottom: 32, maxWidth: 480 }}>
