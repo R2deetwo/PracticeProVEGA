@@ -128,4 +128,16 @@ crons.interval(
   {}
 );
 
+// ─── NIGHTLY R2 BACKUP ───────────────────────────────────────────────────
+// Full database export to Cloudflare R2 at 2:00 AM UTC (3:00 AM WAT).
+// Exports all 72 tables, gzip-compresses, uploads to R2, and cleans up
+// backups older than 30 days. If R2 env vars are not set, the backup
+// silently skips (app still works). See convex/backups.ts for setup.
+crons.daily(
+  "nightlyR2Backup",
+  { hourUTC: 2, minuteUTC: 0 },
+  internal.backups.runBackup,
+  {}
+);
+
 export default crons;
