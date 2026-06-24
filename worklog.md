@@ -2175,3 +2175,53 @@ Stage Summary:
 - All inputs 16px on mobile (no Safari auto-zoom)
 - 300ms click delay eliminated globally
 - Safe area insets respected on all bottom-fixed elements
+
+---
+Task ID: 30
+Agent: Main Agent
+Task: Build Cloudflare R2 nightly backup system
+
+Work Log:
+- Audited current backup status: all company data lives in Convex (single
+  point of failure). No external backups existed.
+- Created convex/backups.ts:
+  * Exports all 72 database tables (firms, users, matters, properties,
+    messages, documents, etc.) to a single JSON blob
+  * Gzip compresses via Web CompressionStream API (no Node deps)
+  * Uploads to Cloudflare R2 using S3-compatible REST API
+  * AWS Signature V4 signing implemented manually (no AWS SDK needed)
+  * 30-day rolling retention — auto-deletes backups older than 30 days
+  * Silently skips if R2 env vars not configured (app still works)
+  * triggerBackupNow mutation for manual testing
+  * getBackupStatus query to check if R2 is configured
+  * getAllDocuments internal query fetches all docs per table
+- Registered nightly cron in crons.ts at 2:00 AM UTC (3 AM WAT)
+- Created download/BACKUP_SETUP.md:
+  * Step-by-step Cloudflare R2 setup (10 minutes)
+  * Env var configuration for Convex
+  * Manual test backup instructions
+  * Restore from backup instructions
+  * Disaster recovery runbook (3 scenarios)
+  * Cost breakdown ($0/month on free tier)
+  * Monitoring guide
+  * Future work: file upload mirroring
+
+ENV VARS REQUIRED (user must set in Convex dashboard):
+  R2_ACCOUNT_ID  — Cloudflare account ID
+  R2_ACCESS_KEY  — R2 access key ID
+  R2_SECRET_KEY  — R2 secret access key
+  R2_BUCKET_NAME — e.g. "practicepro-backups"
+  R2_ENDPOINT    — https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+
+VERIFICATION:
+- Frontend tsc: clean
+- Frontend build: succeeds
+- Convex tsc: only internal.backups references (resolves after deploy)
+- Committed + pushed: 6309a70..894a728 main -> main
+
+Stage Summary:
+- Code is deployed — backup cron will fire nightly at 2 AM UTC
+- User needs to: (1) create R2 bucket, (2) create API token, (3) add 5
+  env vars to Convex dashboard, (4) run triggerBackupNow to test
+- Full setup instructions in download/BACKUP_SETUP.md
+- Cost: $0/month (within R2 free tier: 10 GB storage, free egress)
