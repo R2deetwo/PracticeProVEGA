@@ -2101,3 +2101,77 @@ Stage Summary:
   behind the bottom nav
 - Message cards redesigned with larger text, clearer hierarchy, better
   spacing — suitable for daily use
+
+---
+Task ID: 29
+Agent: Main Agent
+Task: System optimization — AI queue + iOS Safari fixes + premium UI
+
+Work Log:
+
+SECTION 1: AI CHAT RESILIENCY
+- Created src/utils/aiRequestQueue.ts:
+  * AIRequestQueue class with strict FIFO sequential processing
+  * 15-second AbortController timeout per request
+  * cancelAll() for aborting pending tasks
+  * validateAPIKey() pre-flight check (format: starts with AIza, 30+ chars)
+  * getGlobalAIQueue() singleton
+- Refactored AloaChat.handleSend:
+  * API key pre-flight validation before any work (graceful error card)
+  * Optimistic UI: paired UUIDs (userMsg + streamMsgId), input clears instantly
+  * AI execution enqueued via aiQueueRef.current.enqueue()
+  * AbortSignal passed to streamMessage + sendMessage for timeout cancellation
+  * Context captured at enqueue time (capturedMessages, capturedAiContext,
+    capturedActiveConvId) so queued tasks don't drift
+  * Input + send button no longer disabled during processing — user can
+    type and send while requests are queued
+  * Pending queue count shown in UI ('N requests queued…')
+  * Timeout errors show 'Request Timed Out' error card
+- Updated geminiService.sendMessage + streamMessage to accept optional
+  AbortSignal and pass to fetch() calls
+- Updated aiService.sendMessage to pass signal through
+
+SECTION 2: iOS SAFARI SCROLLING FIXES
+- Replaced 100vh/h-screen/min-h-screen → 100dvh/h-[100dvh]/min-h-[100dvh]:
+  ResourcesPage, TenantPortal, AtriumInbox, CommunicationPrintView,
+  GlobalErrorBoundary, ConvexErrorBoundary, ClientDashboard, App.tsx
+- App.tsx: added min-h-0 to <main> and inner content div
+- index.css global rules:
+  * -webkit-overflow-scrolling: touch + will-change: transform + translateZ(0)
+    on all overflow containers
+  * min-height:0 on .flex.flex-col > .overflow-y-auto children
+  * min-width:0 on .flex.flex-row > .overflow-x-auto children
+  * .table-wrapper class: overflow-x:auto + overflow-y:visible
+- Applied .table-wrapper to BillingView + shared Table component
+
+SECTION 3: PREMIUM iOS UI/UX
+- index.css global rules:
+  * touch-action: manipulation + -webkit-tap-highlight-color: transparent
+    on all interactive elements (eliminates 300ms delay)
+  * font-size: 16px !important on all inputs/textareas/selects on mobile
+    (prevents Safari auto-zoom)
+  * user-select: none on buttons, nav, .nav-item, .tab, .badge, .chip, .pill
+    (prevents accidental text selection)
+  * env(safe-area-inset-bottom) on .fixed.bottom-0 and .absolute.bottom-0
+- AloaChat footer: pb-safe class
+- MessagesView composer footer: pb-safe class
+- AloaChat input: text-sm → text-base (16px anti-zoom)
+
+VERIFICATION:
+- tsc --noEmit: clean (only pre-existing src/app/page.tsx error)
+- vite build: succeeds, ✓ built in 20.24s
+- Committed: "System optimization: AI request queue + iOS Safari fixes + premium UI"
+- 16 files changed, +579 -204
+- Pushed: a26d92a..8c57d9e main -> main
+
+Stage Summary:
+- AI chat now processes requests strictly sequentially — no more race
+  conditions or out-of-order responses
+- 15-second timeout prevents UI freezes on dropped mobile connections
+- API key validated before any network call
+- iOS Safari scrolling fixed via dvh units, min-h-0 flex overrides, and
+  kinetic scrolling CSS
+- Tables use dual-axis separation (horizontal-only inner wrapper)
+- All inputs 16px on mobile (no Safari auto-zoom)
+- 300ms click delay eliminated globally
+- Safe area insets respected on all bottom-fixed elements
