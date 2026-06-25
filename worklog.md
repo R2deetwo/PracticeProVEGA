@@ -2225,3 +2225,71 @@ Stage Summary:
   env vars to Convex dashboard, (4) run triggerBackupNow to test
 - Full setup instructions in download/BACKUP_SETUP.md
 - Cost: $0/month (within R2 free tier: 10 GB storage, free egress)
+
+---
+Task ID: 31
+Agent: Main Agent
+Task: Multi-target backup (GitHub + Telegram, no credit card)
+
+Work Log:
+- User couldn't use Cloudflare R2 (requires credit card even for free tier)
+- Replaced R2 with two truly free, no-credit-card targets:
+
+1. GITHUB PRIVATE REPO:
+   - uploadToGitHub() uses PUT /repos/{owner}/{repo}/contents/{path}
+   - File content base64-encoded in JSON body
+   - Stores SHA in backup_log table (needed for delete)
+   - cleanupOldGitHubBackups() deletes files older than 30 days via
+     DELETE /contents/{path} with the stored SHA
+
+2. TELEGRAM BOT CHANNEL:
+   - uploadToTelegram() uses POST /bot{token}/sendDocument (multipart)
+   - File sent as Blob with application/gzip type
+   - Stores message_id in backup_log table
+   - cleanupOldTelegramBackups() deletes old messages via
+     POST /bot{token}/deleteMessage
+
+- Added backup_log table to schema.ts:
+  Fields: target, backupKey, externalId, fileUrl, sizeBytes, success,
+  error, createdAt
+  Indexes: by_target, by_created, by_target_created
+
+- Internal helpers:
+  * logBackup — inserts into backup_log
+  * deleteBackupLog — removes entry after external delete
+  * getOldBackupLogs — finds entries older than cutoff for a target
+
+- runBackup action now:
+  1. Exports all 72 tables (same as before)
+  2. Gzip compresses
+  3. Uploads to GitHub (if configured) + logs result
+  4. Uploads to Telegram (if configured) + logs result
+  5. Cleans up old backups on each target
+  6. Returns comprehensive status object
+
+- Updated download/BACKUP_SETUP.md:
+  * Part 1: GitHub setup (create private repo, PAT, env vars)
+  * Part 2: Telegram setup (BotFather, private channel, chat ID)
+  * Part 3: Verify both targets work
+  * Restore instructions for both targets
+  * Disaster recovery runbook (5 scenarios including target-specific failures)
+  * Cost: $0/month total
+
+ENV VARS NEEDED:
+  GitHub:
+    GITHUB_BACKUP_TOKEN, GITHUB_BACKUP_OWNER, GITHUB_BACKUP_REPO
+  Telegram:
+    TELEGRAM_BOT_TOKEN, TELEGRAM_BACKUP_CHAT_ID
+
+VERIFICATION:
+- Frontend tsc: clean
+- Frontend build: succeeds
+- Committed + pushed: 3c803ba..46af3f2 main -> main
+
+Stage Summary:
+- Two redundant backup targets, both free, no credit card
+- Code deployed, cron fires nightly at 2 AM UTC
+- User needs to: (1) create GitHub private repo + PAT, (2) create Telegram
+  bot + private channel, (3) add 5 env vars to Convex dashboard, (4) run
+  triggerBackupNow to test
+- Full instructions in download/BACKUP_SETUP.md
