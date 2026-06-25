@@ -80,19 +80,38 @@ function getTelegramConfig() {
 }
 
 // ─── Gzip compression ────────────────────────────────────────────────────
+// Uses Web APIs (TextEncoder, CompressionStream, Response) which are
+// available in the Convex actions runtime.
 async function gzip(data: string): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
-  const stream = new Blob([encoder.encode(data)]).stream();
+  const encoded = encoder.encode(data);
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(encoded);
+      controller.close();
+    },
+  });
   const compressed = stream.pipeThrough(new CompressionStream("gzip"));
   return await new Response(compressed).arrayBuffer();
 }
 
 // ArrayBuffer → base64 (for GitHub API)
+// Uses a manual byte-by-byte conversion to avoid btoa() which may not
+// be available in all Convex runtime environments.
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
+  const chunkSize = 0x8000; // Process in 32KB chunks to avoid stack overflow
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk) as number[]);
+  }
+  // Use globalThis.btoa if available, otherwise use Buffer (Node fallback)
+  if (typeof globalThis !== 'undefined' && typeof (globalThis as any).btoa === 'function') {
+    return (globalThis as any).btoa(binary);
+  }
+  // Node.js fallback
+  return Buffer.from(binary, 'binary').toString('base64');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

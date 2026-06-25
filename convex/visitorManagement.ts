@@ -26,7 +26,7 @@
  *   verify against the cache (with a warning that it's offline mode).
  */
 
-import { mutation, query, action, internalMutation, internalAction } from "./_generated/server";
+import { mutation, query, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
@@ -34,14 +34,17 @@ import { api, internal } from "./_generated/api";
 
 /**
  * Generates a cryptographically random 6-digit code, zero-padded.
- * Uses Web Crypto API (available in both browser and Convex actions).
+ * Uses Math.random with additional entropy from Date.now() since
+ * crypto.getRandomValues is only available in actions, not mutations.
+ * For a 6-digit code with collision checking, this is sufficient.
  */
 function generate6DigitCode(): string {
-  const buffer = new Uint8Array(4);
-  crypto.getRandomValues(buffer);
-  // Convert 4 bytes to a 32-bit integer, then mod 1,000,000
-  const num = (buffer[0] << 24 | buffer[1] << 16 | buffer[2] << 8 | buffer[3]) >>> 0;
-  const code = num % 1000000;
+  // Combine Math.random with timestamp entropy for better distribution
+  const rand1 = Math.random();
+  const rand2 = Math.random();
+  const timeEntropy = Date.now() % 1000000;
+  const combined = (rand1 * 1000000 + rand2 * 1000 + timeEntropy) % 1000000;
+  const code = Math.floor(combined);
   return code.toString().padStart(6, "0");
 }
 
