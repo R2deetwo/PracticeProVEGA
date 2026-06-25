@@ -41,14 +41,16 @@ jobs:
 
       - name: Set up Android SDK
         # GitHub Actions runners come with Android SDK pre-installed at
-        # /usr/local/lib/android/sdk. We just need to install the specific
-        # build-tools and platform versions we need, and accept licenses.
+        # /usr/local/lib/android/sdk. We install API 36 build tools + platform
+        # because our dependencies (androidx.activity:1.11.0, androidx.core:1.17.0)
+        # require compileSdk 36.
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_SDK_ROOT=$ANDROID_HOME
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platforms;android-36" "platform-tools"
           echo "Android SDK setup complete."
+          echo "Installed packages:"
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed 2>/dev/null || true
 
       - name: Install dependencies
@@ -108,15 +110,7 @@ jobs:
 
       - name: Build APK (clean build to purge cached assets)
         working-directory: android
-        run: |
-          ./gradlew clean assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build-output.txt
-          # Check if build succeeded
-          if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            echo "=== BUILD FAILED ==="
-            echo "=== Last 100 lines of build output ==="
-            tail -100 build-output.txt
-            exit 1
-          fi
+        run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK was created
         run: |
