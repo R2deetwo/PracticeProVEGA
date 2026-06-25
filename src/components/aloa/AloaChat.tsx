@@ -610,7 +610,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // request fail with an unhandled exception mid-stream.
         const isDemo = currentUser?.email === 'demo@practicepro.ng';
         if (!isDemo) {
-            const keyCheck = validateAPIKey();
+            const firmKey = coreState.firmDetails?.aiSettings?.firmGeminiApiKey;
+            const keyCheck = validateAPIKey(firmKey);
             if (!keyCheck.valid) {
                 setMessages(prev => [...prev, {
                     id: uuidv4(),
@@ -1282,6 +1283,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {msg.content && (
                                         <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }} />
                                     )}
+                                    {/* Streaming cursor — shows blinking cursor when AI is actively writing this message */}
+                                    {isLoading && msg.role === 'model' && idx === messages.length - 1 && !msg.content && (
+                                        <div className="flex items-center gap-1 py-1">
+                                            <span className="w-2 h-4 bg-primary-500 animate-pulse rounded-sm" />
+                                        </div>
+                                    )}
+                                    {isLoading && msg.role === 'model' && idx === messages.length - 1 && msg.content && (
+                                        <span className="inline-block w-1.5 h-4 bg-primary-500 animate-pulse rounded-sm align-text-bottom ml-0.5" />
+                                    )}
                                     {msg.interactiveForm && (
                                         <DynamicChatForm
                                             schema={msg.interactiveForm}
@@ -1333,15 +1343,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         )}
                                     </div>
                                 </div>
-                                <div className={`mt-1.5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    {msg.role === 'user' ? 'You' : getAssistantName(isProperty)}
-                                </div>
                             </div>
                         </div>
                     ))}
 
                     {isLoading && aloaStatus && (
-                        <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400 px-2 animate-pulse">{aloaStatus}</p>
+                        <div className="flex items-center gap-2 px-2 py-1">
+                            <div className="flex gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                            <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400">{aloaStatus}</p>
+                        </div>
                     )}
                     {pendingQueueCount > 0 && (
                         <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 px-2 animate-pulse">
@@ -1352,39 +1366,37 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 </main>
             </div>
 
-            <footer className="flex-shrink-0 p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-3">
-                         <button onClick={resetChat} className="p-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 hover:text-red-500 transition-all shadow-sm" title="Reset Chat">
+            <footer className="flex-shrink-0 p-4 sm:p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSend();
+                    }}
+                    className="flex gap-2 items-end"
+                >
+                    {messages.length > 0 && (
+                        <button onClick={resetChat} type="button" className="p-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 hover:text-red-500 transition-all flex-shrink-0" title="Clear chat">
                             <TrashIcon className="w-4 h-4" />
                         </button>
+                    )}
+                    <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
+                        <input autoComplete="off" data-lpignore="true"
+                            value={textInput}
+                            onChange={e => setTextInput(e.target.value)}
+                            placeholder={
+                                isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
+                            }
+                            className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
+                        />
+                        <button
+                            type="submit"
+                            disabled={!textInput.trim()}
+                            className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white flex-shrink-0`}
+                        >
+                            <SendIcon />
+                        </button>
                     </div>
-                    <form
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            handleSend();
-                        }}
-                        className="flex gap-3 items-center"
-                    >
-                        <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
-                            <input autoComplete="off" data-lpignore="true"
-                                value={textInput}
-                                onChange={e => setTextInput(e.target.value)}
-                                placeholder={
-                                    isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
-                                }
-                                className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
-                            />
-                            <button
-                                type="submit"
-                                disabled={!textInput.trim()}
-                                className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white`}
-                            >
-                                <SendIcon />
-                            </button>
-                        </div>
-                    </form>
-                </div>
+                </form>
             </footer>
                 </>
             )}

@@ -168,8 +168,19 @@ export const getGlobalAIQueue = (): AIRequestQueue => {
  */
 import { getGeminiApiKey } from './aiUtils';
 
-export const validateAPIKey = (): { valid: boolean; error?: string } => {
-    const key = getGeminiApiKey();
+/**
+ * Validates that a Gemini API key exists before initiating a network
+ * payload. Checks BOTH the user's personal key (localStorage) AND the
+ * firm-wide key (passed via appState).
+ *
+ * We intentionally do NOT check the key format (startsWith, length) here
+ * because that caused false rejections of valid keys. The API itself
+ * will return a 403 if the key is actually invalid, and that error is
+ * already handled gracefully by the onError handler.
+ */
+export const validateAPIKey = (firmKey?: string): { valid: boolean; error?: string } => {
+    const personalKey = getGeminiApiKey();
+    const key = firmKey || personalKey;
 
     if (!key) {
         return {
@@ -178,11 +189,12 @@ export const validateAPIKey = (): { valid: boolean; error?: string } => {
         };
     }
 
-    // Basic format check — Gemini keys start with "AIza" and are ~39 chars
-    if (!key.startsWith('AIza') || key.length < 30) {
+    // Only check that the key exists and has a reasonable length.
+    // Don't check the prefix — some valid keys may have different formats.
+    if (key.trim().length < 20) {
         return {
             valid: false,
-            error: 'Your Gemini API key appears to be malformed. Please re-check the key in Settings → AI Settings → API Key Configuration.',
+            error: 'Your Gemini API key appears to be too short. Please re-check the key in Settings → AI Settings → API Key Configuration.',
         };
     }
 
