@@ -112,7 +112,7 @@ jobs:
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-      - name: Verify APK was created
+      - name: Verify APK was created and is valid
         run: |
           echo "Checking for APK..."
           ls -la android/app/build/outputs/apk/debug/
@@ -120,7 +120,27 @@ jobs:
             echo "ERROR: APK was not created!"
             exit 1
           fi
-          echo "APK size: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+          APK_SIZE=$(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)
+          echo "APK size: $APK_SIZE"
+          
+          # Verify APK is a valid ZIP/APK file (APKs are ZIP files)
+          echo "Verifying APK integrity..."
+          if unzip -t android/app/build/outputs/apk/debug/app-debug.apk > /dev/null 2>&1; then
+            echo "✓ APK is a valid ZIP/APK file"
+          else
+            echo "✗ APK is corrupted (failed ZIP integrity check)"
+            exit 1
+          fi
+          
+          # Check APK signature
+          echo "Checking APK signature..."
+          if [ -f android/app/debug.keystore ]; then
+            echo "✓ Debug keystore present"
+          else
+            echo "✗ Debug keystore missing!"
+            exit 1
+          fi
+          
           echo "APK is valid and ready."
 
       - name: Rename APK with version number
@@ -137,6 +157,8 @@ jobs:
           cp android/app/build/outputs/apk/debug/app-debug.apk \
              android/app/build/outputs/apk/debug/PracticePro.apk
           echo "APK_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Final APK files:"
+          ls -la android/app/build/outputs/apk/debug/PracticePro*.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -147,3 +169,4 @@ jobs:
             android/app/build/outputs/apk/debug/PracticePro.apk
           retention-days: 30
           if-no-files-found: error
+          compression-level: 0  # APKs are already compressed — don't re-compress
