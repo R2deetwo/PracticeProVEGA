@@ -2598,3 +2598,32 @@ APP ICON IMPROVEMENT:
 VERIFICATION:
 - vite build: succeeds
 - Committed + pushed: f6cb967..64feeb3 main -> main
+
+---
+Task ID: 40
+Agent: Main Agent
+Task: Fix 'There was a problem while parsing the package' APK install error
+
+Work Log:
+
+ROOT CAUSE (confirmed from user's screenshot of GitHub Actions warnings):
+The workflow used android-actions/setup-android@v3 with inputs 'api-level'
+and 'build-tools-version' — but v3 doesn't accept these (they were v2 inputs).
+The SDK was NOT being set up → build produced malformed APK → parse error
+on phone.
+
+FIXES:
+1. setup-android@v3: changed to 'packages' input with build-tools;35.0.0,
+   platforms;android-35, platform-tools
+2. Lowered compileSdkVersion/targetSdkVersion: 36 → 35 (API 36 = Android 16
+   dev preview, API 35 = Android 15 stable)
+3. Added --stacktrace to gradlew for better error visibility
+4. Added 'Verify APK was created' step to catch silent build failures
+
+ALSO EXPLAINED:
+- Two APKs in artifact = same file, two names (versioned + generic)
+- Node.js 20 deprecation warning = harmless, build still works
+
+VERIFICATION:
+- Committed + pushed: 20e477e..56fa90f main -> main
+- Next CI build should produce a valid installable APK
