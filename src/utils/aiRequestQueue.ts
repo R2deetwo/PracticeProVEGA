@@ -174,7 +174,7 @@ export const validateAPIKey = (): { valid: boolean; error?: string } => {
     if (!key) {
         return {
             valid: false,
-            error: 'No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration.',
+            error: 'No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration.',
         };
     }
 
@@ -182,7 +182,7 @@ export const validateAPIKey = (): { valid: boolean; error?: string } => {
     if (!key.startsWith('AIza') || key.length < 30) {
         return {
             valid: false,
-            error: 'Your Gemini API key appears to be malformed. Please re-check the key in Settings → Agents → API Key Configuration.',
+            error: 'Your Gemini API key appears to be malformed. Please re-check the key in Settings → AI Settings → API Key Configuration.',
         };
     }
 

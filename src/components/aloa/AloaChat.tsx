@@ -619,7 +619,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }, {
                     id: uuidv4(),
                     role: 'model',
-                    content: `**API Key Required**\n\n${keyCheck.error}`,
+                    content: `**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. It's free and takes 30 seconds:\n\n**1. Get your free key** → [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**2. Paste it** in **Settings → AI Settings → API Key Configuration**\n\n> 💡 The key is stored locally on your device and never sent to our servers.\n\n[Get your free API key now](https://aistudio.google.com/app/apikey)`,
                     isError: true,
                 }]);
                 if (!overrideContent) setTextInput('');
@@ -901,7 +901,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     else if (error.message.includes('API key') || error.message.includes('403')) {
                         errorMessage = "Authentication Error: API Key is invalid or missing.";
                         isAuthError = true;
-                        helpText = "Please check your AI Settings and verify your API key.\n\n**Need a key?** Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**Where to paste it?** Settings → Agents → API Key Configuration";
+                        helpText = "Please check your AI Settings and verify your API key.\n\n**Need a key?** Get one free at [Google AI Studio](https://aistudio.google.com/app/apikey)\n\n**Where to paste it?** Settings → AI Settings → API Key Configuration";
                     }
                     else if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
                         errorMessage = "Quota Exceeded: Your AI usage limit has been reached.";

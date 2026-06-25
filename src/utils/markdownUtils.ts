@@ -11,6 +11,12 @@ export const parseAloaMarkdown = (text: string): string => {
     // We NO LONGER escape < and > here because the AI often returns raw HTML 
     // for DraftPro/Legal layouts, which we want to preserve and sanitize later.
 
+    // 0.5. Markdown links [text](url) → clickable <a> tags
+    // Must run BEFORE the citation pill parser so links aren't converted to pills
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (match, text, url) => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary-600 dark:text-primary-400 font-bold underline decoration-primary-300 dark:decoration-primary-700 underline-offset-2 hover:decoration-primary-500 transition-colors">${text}</a>`;
+    });
+
     // 1. Interactive Citations [Source Name]
     // Transform [Source Name] into a pill
     html = html.replace(/\[([^\]]+)\]/g, (match, p1) => {

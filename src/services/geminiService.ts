@@ -457,7 +457,7 @@ export const streamMessage = async (
     }).filter((c): c is Content => c !== null);
 
     const clientKey = firmKey || getGeminiApiKey();
-    if (!clientKey) throw new Error('No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration');
+    if (!clientKey) throw new Error('No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration');
 
     const modelTag = preferredModelName.includes('models/') ? preferredModelName : `models/${preferredModelName}`;
     const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:streamGenerateContent?alt=sse&key=${clientKey}`;
@@ -578,7 +578,7 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
 
     const clientKey = getGeminiApiKey();
     if (!clientKey) {
-        throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → Agents → API Key Configuration");
+        throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
     }
     
     // ─── STRATEGY: Direct REST Stream (mirrors the working sendMessage pattern) ─

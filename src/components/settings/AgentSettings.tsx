@@ -134,11 +134,23 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
     };
 
     const handleSaveKey = () => {
-        if (customKey && customKey !== '••••••••••••••••') {
-            setCustomApiKey(customKey);
+        // Strip any mask characters that might have been appended
+        const cleanKey = customKey.replace(/•/g, '').trim();
+        if (!cleanKey) {
+            addToast("Please enter a valid API key.", { type: 'error' });
+            return;
+        }
+        if (cleanKey.length < 30) {
+            addToast("That key looks too short. Gemini keys are usually 39 characters starting with 'AIza'.", { type: 'error' });
+            return;
+        }
+        try {
+            setCustomApiKey(cleanKey);
             setHasKey(true);
-            addToast("Gemini Key saved.", { type: 'success' });
-            if (!showKey) setCustomKey('••••••••••••••••');
+            addToast("Gemini Key saved successfully.", { type: 'success' });
+            setCustomKey('••••••••••••••••');
+        } catch (err: any) {
+            addToast("Failed to save key: " + (err.message || "Unknown error"), { type: 'error' });
         }
     };
 
@@ -147,6 +159,14 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         setHasKey(false);
         setCustomKey('');
         addToast("Key removed.", { type: 'info' });
+    };
+
+    // When user focuses the input and it contains the mask, clear it
+    // so they can type a fresh key without appending to the mask.
+    const handleInputFocus = () => {
+        if (customKey === '••••••••••••••••') {
+            setCustomKey('');
+        }
     };
 
     // Build the agent list dynamically based on product (Vega vs Atrium).
@@ -196,8 +216,9 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                                 type={showKey ? "text" : "password"}
                                 value={customKey}
                                 onChange={(e) => setCustomKey(e.target.value)}
+                                onFocus={handleInputFocus}
                                 placeholder="AIzaSy..."
-                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500 pr-10"
+                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-base focus:ring-primary-500 focus:border-primary-500 pr-10"
                             />
                             <button
                                 onClick={handleToggleShow}
@@ -211,8 +232,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                     <div className="flex gap-2 w-full sm:w-auto">
                         <button
                             onClick={handleSaveKey}
-                            disabled={!customKey || customKey === '••••••••••••••••'}
-                            className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex-grow sm:flex-grow-0"
+                            className="px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 shadow-sm flex-grow sm:flex-grow-0 transition-colors active:scale-95"
                         >
                             Save Key
                         </button>
@@ -250,10 +270,22 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                     </div>
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                    <LockClosedIcon className="w-3 h-3" />
-                    <span>Stored locally. Never sent to our servers.</span>
-                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-primary-600 hover:underline ml-1">Get Gemini Key &rarr;</a>
+                <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <LockClosedIcon className="w-3 h-3" />
+                        <span>Stored locally. Never sent to our servers.</span>
+                    </div>
+                    <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-bold hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                        </svg>
+                        Get your free API key
+                    </a>
                 </div>
             </SettingsCard>
 
