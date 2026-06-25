@@ -2658,3 +2658,24 @@ ROOT CAUSE CHAIN:
 VERIFICATION:
 - Committed + pushed: ddb8bdb..0b871e7 main -> main
 - Next build should succeed and produce installable APK
+
+---
+Task ID: 42
+Agent: Main Agent
+Task: Fix 'There was a problem while parsing the package' — old broken APK
+
+ROOT CAUSE (confirmed from phone screenshot):
+The user was trying to install PracticePro-v1.0.52.apk (15.94 MB, dated
+Jun 25 9:55pm). This APK was built BEFORE the SDK setup fix — it was
+built with the broken android-actions/setup-android@v3 action that didn't
+install the SDK properly. The APK is malformed and will never install.
+
+FIXES:
+1. APK integrity check (unzip -t) — verifies APK is valid ZIP before upload
+2. Keystore presence check
+3. compression-level: 0 on artifact upload (prevents re-compression corruption)
+4. Better logging of final APK files
+
+USER ACTION:
+Must download the NEWEST build (after commit f8c9487), not the old v1.0.52.
+The old APK is permanently broken.
