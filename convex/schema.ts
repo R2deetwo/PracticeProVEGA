@@ -1536,4 +1536,57 @@ export default defineSchema({
     .index("by_created", ["createdAt"])
     .index("by_target_created", ["target", "createdAt"]),
 
+  // ─── VISITOR MANAGEMENT SYSTEM (VMS) ──────────────────────────────────
+  // Gated-estate visitor access tokens. Residents generate 6-digit codes
+  // for their visitors; gatekeepers verify at the gate.
+  visitor_tokens: defineTable({
+    firmId: v.string(),
+    propertyId: v.string(),           // estate ID
+    propertyName: v.optional(v.string()),  // estate name (denormalized for gate display)
+    propertyAddress: v.optional(v.string()), // full street address (denormalized)
+    unitId: v.optional(v.string()),
+    unitName: v.optional(v.string()),  // house number / flat label
+    residentId: v.string(),           // userId of the resident
+    residentName: v.optional(v.string()),
+    residentPhone: v.optional(v.string()),
+    // Visitor details
+    visitorName: v.string(),
+    visitorPhone: v.string(),         // required for portal-API delivery
+    // Token
+    tokenCode: v.string(),            // 6-digit code, zero-padded
+    deliveryMethod: v.union(v.literal("client_share"), v.literal("portal_api")),
+    whatsappSentAt: v.optional(v.number()), // timestamp if portal_api delivery succeeded
+    // Lifecycle
+    status: v.union(
+      v.literal("active"),
+      v.literal("used"),
+      v.literal("expired"),
+      v.literal("revoked")
+    ),
+    visitDate: v.string(),            // YYYY-MM-DD (the date the visit is scheduled)
+    expiresAt: v.number(),            // Unix ms — computed from visitDate + expiryWindow
+    expiryWindowHours: v.number(),    // 2, 6, 12, or 24
+    gracePeriodMinutes: v.optional(v.number()), // default 30 — allows entry slightly before/after
+    // Gate logs
+    checkedInAt: v.optional(v.number()),
+    checkedInBy: v.optional(v.string()),  // gatekeeper userId or name
+    checkedOutAt: v.optional(v.number()),
+    // Revocation
+    revokedAt: v.optional(v.number()),
+    revokedReason: v.optional(v.string()),
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm",                ["firmId"])
+    .index("by_property",            ["propertyId"])
+    .index("by_resident",            ["residentId"])
+    .index("by_status",              ["status"])
+    .index("by_firm_status",         ["firmId", "status"])
+    .index("by_property_status",     ["propertyId", "status"])
+    .index("by_token_code",          ["tokenCode"])
+    .index("by_property_code",       ["propertyId", "tokenCode"])
+    .index("by_expires",             ["expiresAt"])
+    .index("by_firm_resident",       ["firmId", "residentId"]),
+
 }, { schemaValidation: false });

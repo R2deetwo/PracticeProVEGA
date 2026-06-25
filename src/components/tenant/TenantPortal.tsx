@@ -25,8 +25,10 @@ import {
   DocumentIcon,
   MailIcon,
   BellIcon,
+  VisitorIcon,
 } from '../../constants';
 import { Receipt as ReceiptIcon, Home as HomeIcon, Zap as ZapIcon, Wifi as WifiIcon, PlugZap as BoltIcon } from 'lucide-react';
+import { VisitorPortal } from '../portal/VisitorPortal';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
@@ -100,7 +102,7 @@ const formatDate = (ts: number) => {
 };
 
 // ─── Tab Type ─────────────────────────────────────────────────────────────────
-type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents';
+type TabId = 'dashboard' | 'notices' | 'ledger' | 'receipts' | 'maintenance' | 'messages' | 'payments' | 'documents' | 'visitors';
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const TenantPortal: React.FC = () => {
@@ -363,6 +365,7 @@ const TenantPortal: React.FC = () => {
   const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'dashboard', label: 'Home', icon: <HomeIcon className="w-4 h-4" /> },
     { id: 'notices', label: 'Notices', icon: <BellIcon className="w-4 h-4" /> },
+    { id: 'visitors', label: 'Visitors', icon: <VisitorIcon className="w-4 h-4" /> },
     { id: 'ledger', label: 'Ledger', icon: <ReceiptIcon className="w-4 h-4" /> },
     { id: 'receipts', label: 'Receipts', icon: <DownloadIcon className="w-4 h-4" /> },
     { id: 'maintenance', label: 'Maintenance', icon: <WrenchIcon className="w-4 h-4" /> },
@@ -517,6 +520,7 @@ const TenantPortal: React.FC = () => {
             {activeTab === 'messages' && <TabErrorBoundary tabName="Messages"><MessagesTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} portalSettings={portalSettings} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'payments' && <TabErrorBoundary tabName="Payments"><PaymentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
             {activeTab === 'documents' && <TabErrorBoundary tabName="Documents"><DocumentsTab tenantInfo={tenantInfo} effectiveFirmId={effectiveFirmId} addToast={addToast} /></TabErrorBoundary>}
+            {activeTab === 'visitors' && <TabErrorBoundary tabName="Visitors"><VisitorPortal firmId={effectiveFirmId} propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''} propertyName={tenantInfo?.primaryPropertyName || tenantInfo?.properties?.[0]?.name} propertyAddress={tenantInfo?.primaryPropertyAddress || tenantInfo?.properties?.[0]?.address} unitId={tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id} unitName={tenantInfo?.primaryUnitName || tenantInfo?.units?.[0]?.name} residentName={tenantInfo?.tenantName} /></TabErrorBoundary>}
           </>
         )}
       </div>

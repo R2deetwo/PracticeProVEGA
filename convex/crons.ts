@@ -140,4 +140,15 @@ crons.daily(
   {}
 );
 
+// ─── VISITOR TOKEN EXPIRY CLEANUP ────────────────────────────────────────
+// Every 15 minutes, scan active visitor tokens and mark any past their
+// grace period as "expired". This keeps the gatekeeper verification
+// accurate and cleans up stale tokens.
+crons.interval(
+  "cleanupExpiredVisitorTokens",
+  { minutes: 15 },
+  internal.visitorManagement.cleanupExpiredTokens,
+  {}
+);
+
 export default crons;
