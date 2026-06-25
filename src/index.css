@@ -1486,3 +1486,15 @@ nav,
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ─── Ticket Body Scroll — forces scroll activation on the dynamic
+ *   message thread container. Safari needs flex: 1 1 0% + min-height: 0
+ *   to bound the container to the viewport instead of stretching
+ *   infinitely. */
+.ticket-body-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+}

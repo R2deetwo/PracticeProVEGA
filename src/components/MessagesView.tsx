@@ -467,10 +467,10 @@ const InlineTicketReply: React.FC<{
     };
 
     return (
-        <div className="mt-2 ml-2 pl-3 border-l-2 border-primary-400/50">
-            <div className="bg-slate-50 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 p-2.5">
+        <div className="mt-2 ml-1 pl-3 border-l-2 border-primary-400/50 w-full box-border min-w-0">
+            <div className="bg-slate-50 dark:bg-zinc-800/80 rounded-xl border border-slate-200 dark:border-zinc-700 p-2.5 w-full box-border">
                 <div className="flex items-center gap-1.5 mb-1.5">
-                    <svg className="w-3.5 h-3.5 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                     </svg>
                     <span className="text-[11px] font-bold text-slate-500 dark:text-zinc-400">
@@ -489,7 +489,7 @@ const InlineTicketReply: React.FC<{
                     }}
                     placeholder="Type your reply to the resident/client..."
                     rows={2}
-                    className="w-full bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none"
+                    className="w-full block box-border bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-base text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none"
                 />
                 <div className="flex items-center justify-between mt-2">
                     <span className="text-[10px] text-slate-400">
@@ -1235,7 +1235,7 @@ const MessagesView: React.FC = () => {
             </div>
 
             {/* ── Tab Content ── */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden min-h-0 min-w-0">
                 {/* ═══ INBOX TAB ═══ */}
                 {activeTab === 'inbox' && (
                     <div className="flex w-full h-full">
@@ -1576,46 +1576,43 @@ const MessagesView: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Inbox Thread Detail */}
-                        <div className={`${selectedInboxId ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-white dark:bg-zinc-900`}>
+                        {/* Inbox Thread Detail — bounded to viewport, no spillover */}
+                        <div className={`${selectedInboxId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-950`}>
                             {selectedInboundMsg ? (
                                 <>
-                                    {/* Thread Header */}
-                                    <div className="flex-shrink-0 h-14 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between bg-white dark:bg-zinc-800 z-20">
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={() => setSelectedInboxId(null)} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full">
+                                    {/* Thread Header — adaptive flex, no hardcoded heights */}
+                                    <div className="flex-shrink-0 min-h-[3.5rem] py-2 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-2 bg-white dark:bg-zinc-800 z-20">
+                                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                            <button onClick={() => setSelectedInboxId(null)} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0">
                                                 <ChevronRightIcon className="w-5 h-5 rotate-180" />
                                             </button>
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${getUserColor(selectedInboundMsg.senderName || 'U')}`}>
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 ${getUserColor(selectedInboundMsg.senderName || 'U')}`}>
                                                 {getInitials(selectedInboundMsg.senderName || 'U')}
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm">{selectedInboundMsg.senderName || selectedInboundMsg.senderContact}</h3>
-                                                <div className="flex items-center gap-1.5 text-[10px] flex-wrap">
-                                                    <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${CHANNEL_COLORS[selectedInboundMsg.channel]}`}>
+                                            <div className="min-w-0 flex-1">
+                                                <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{selectedInboundMsg.senderName || selectedInboundMsg.senderContact}</h3>
+                                                <div className="flex items-center gap-1.5 text-[10px] flex-wrap mt-0.5">
+                                                    <span className={`px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ${CHANNEL_COLORS[selectedInboundMsg.channel]}`}>
                                                         {CHANNEL_LABELS[selectedInboundMsg.channel] || selectedInboundMsg.channel}
                                                     </span>
-                                                    {/* Show conversation type badge in the thread header too —
-                                                        gives the practitioner immediate context about what kind
-                                                        of conversation they're responding to. */}
                                                     {selectedInboxType === 'conversation' && (() => {
                                                         const conv = (portalConversations as any[]).find((c: any) => String(c._id) === selectedInboxId);
                                                         if (!conv) return null;
                                                         const convType = detectConversationType(conv);
                                                         const typeStyle = CONVERSATION_TYPE_STYLES[convType];
                                                         return (
-                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
+                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ${typeStyle.badge}`}>
                                                                 {typeStyle.label}
                                                             </span>
                                                         );
                                                     })()}
-                                                    <span className="text-slate-400">{selectedInboundMsg.senderContact}</span>
+                                                    <span className="text-slate-400 truncate min-w-0">{selectedInboundMsg.senderContact}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center gap-1 flex-shrink-0">
                                             {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.status === 'replied' && (
-                                                <span className="flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg">
+                                                <span className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg">
                                                     <CheckIcon className="w-3 h-3" /> Replied
                                                 </span>
                                             )}
@@ -1636,7 +1633,7 @@ const MessagesView: React.FC = () => {
                                                     }
                                                     setSelectedInboxId(null);
                                                 }}
-                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors flex-shrink-0"
                                                 title="Delete message"
                                             >
                                                 <TrashIcon className="w-4 h-4" />
@@ -1644,9 +1641,11 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Message Content — Conversation View */}
-                                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-                                        <div className="max-w-2xl mx-auto">
+                                    {/* Message Content — Conversation View
+                                        flex: 1 1 0% + min-h-0 forces Safari to bound
+                                        the scroll container to viewport height. */}
+                                    <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+                                        <div className="max-w-2xl mx-auto w-full box-border">
                                             {/* Conversation-based thread view */}
                                             {selectedInboundMsg._inboxType === 'conversation' ? (
                                                 conversationMessages && conversationMessages.length > 0 ? (
@@ -1662,12 +1661,12 @@ const MessagesView: React.FC = () => {
                                                         const msgTicketRecord = msgTicketId ? linkedTicketRecords[String(msgTicketId)] : null;
                                                         const isReplyingToThis = msgTicketId && activeThreadTicketId === String(msgTicketId);
                                                         return (
-                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4`}>
+                                                            <div key={msg._id} className={`group flex ${isAdmin ? 'justify-end' : 'justify-start'} mb-4 w-full`}>
                                                                 <div
                                                                     data-ticket-id={msgTicketId ? String(msgTicketId) : undefined}
-                                                                    className={`relative max-w-[88%] sm:max-w-[75%] transition-all ${isAdmin
-                                                                    ? 'bg-primary-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-md shadow-primary-600/10'
-                                                                    : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm'
+                                                                    className={`relative max-w-[88%] sm:max-w-[75%] transition-all rounded-2xl px-4 py-3 min-w-0 box-border ${isAdmin
+                                                                    ? 'bg-primary-600 text-white rounded-tr-sm shadow-md shadow-primary-600/10'
+                                                                    : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-tl-sm shadow-sm'
                                                                 }`}>
                                                                     {/* Header: sender name + ticket badge + timestamp */}
                                                                     <div className="flex items-center justify-between gap-2 mb-2">
@@ -1758,7 +1757,7 @@ const MessagesView: React.FC = () => {
 
                                                                             {/* Assign row — separated from status pills with a small gap */}
                                                                             {msgTicketRecord.status !== 'cancelled' && (
-                                                                                <div className="flex items-center gap-2 mt-2">
+                                                                                <div className="flex flex-wrap items-center gap-2 mt-2">
                                                                                     <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Assign:</span>
                                                                                     {msgTicketRecord.assignedTo ? (
                                                                                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${isAdmin ? 'bg-primary-500/30 text-primary-100' : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'}`}>
@@ -1956,13 +1955,14 @@ const MessagesView: React.FC = () => {
                                         a ticket/request. This eliminates the split-view redundancy
                                         and makes the conversation a unified timeline. */}
 
-                                    {/* Reply Input */}
-                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-safe">
-                                        <div className="max-w-2xl mx-auto">
+                                    {/* Reply Input — sticky bottom action tray, card-based
+                                        Stays docked above the bottom nav via pb-safe. */}
+                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 pb-safe">
+                                        <div className="max-w-2xl mx-auto w-full box-border">
                                             {/* Quick reply chips — for linked tickets, let the admin
                                                 send a brief status-update message with one tap. */}
                                             {linkedTickets.length > 0 && selectedInboundMsg?._inboxType === 'conversation' && (
-                                                <div className="flex gap-1.5 mb-2 flex-wrap">
+                                                <div className="flex flex-wrap gap-1.5 mb-2">
                                                     {[
                                                         { label: '✅ Acknowledged', msg: 'Thank you for your request. We have received it and will get back to you shortly.' },
                                                         { label: '🔄 In Progress', msg: 'Your request is now being processed. We will update you once it is resolved.' },
@@ -1985,7 +1985,7 @@ const MessagesView: React.FC = () => {
                                                                     addToast(err.message || 'Failed to send.', { type: 'error' });
                                                                 }
                                                             }}
-                                                            className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                                            className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-colors flex-shrink-0"
                                                         >
                                                             {chip.label}
                                                         </button>
@@ -1994,19 +1994,19 @@ const MessagesView: React.FC = () => {
                                             )}
                                             {/* Pending file attachments for admin reply */}
                                             {adminAttachments.length > 0 && (
-                                                <div className="flex gap-2 flex-wrap mb-2">
+                                                <div className="flex flex-wrap gap-2 mb-2">
                                                     {adminAttachments.map((att, i) => (
-                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs">
-                                                            <DocumentIcon className="w-3 h-3 text-slate-400" />
-                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300">{att.name}</span>
-                                                            <button onClick={() => setAdminAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5">
+                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs max-w-full min-w-0">
+                                                            <DocumentIcon className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300 min-w-0">{att.name}</span>
+                                                            <button onClick={() => setAdminAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5 flex-shrink-0">
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                                             </button>
                                                         </div>
                                                     ))}
                                                 </div>
                                             )}
-                                            <div className="flex items-end gap-2">
+                                            <div className="flex items-end gap-2 w-full box-border">
                                                 {selectedInboundMsg._inboxType === 'conversation' && (
                                                     <>
                                                         {/* Thread reply banner — shows when the admin has activated
@@ -2014,13 +2014,13 @@ const MessagesView: React.FC = () => {
                                                             The bottom composer is for GENERAL conversation replies,
                                                             not ticket-specific replies. This banner makes it clear. */}
                                                         {activeThreadTicketId && (
-                                                            <div className="flex items-center justify-between gap-2 mb-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg">
-                                                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                                            <div className="flex items-center justify-between gap-2 mb-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg w-full box-border">
+                                                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 min-w-0 truncate">
                                                                     ↩ Replying to ticket thread — use the inline composer above
                                                                 </span>
                                                                 <button
                                                                     onClick={() => setActiveThreadTicketId(null)}
-                                                                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+                                                                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 flex-shrink-0"
                                                                 >
                                                                     ✕ Clear
                                                                 </button>
@@ -2049,7 +2049,7 @@ const MessagesView: React.FC = () => {
                                                         />
                                                         <button
                                                             onClick={() => adminFileInputRef.current?.click()}
-                                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors"
+                                                            className="p-2.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-colors flex-shrink-0"
                                                             title="Attach file"
                                                         >
                                                             <PaperClipIcon className="w-5 h-5" />
@@ -2065,7 +2065,7 @@ const MessagesView: React.FC = () => {
                                                         ? 'Reply to portal user...'
                                                         : `Reply via ${selectedInboundMsg.channel || 'message'}...`}
                                                     rows={Math.min(4, inboxReply.split('\n').length || 1)}
-                                                    className="flex-1 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-sm rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
+                                                    className="flex-1 min-w-0 block box-border bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-base rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
                                                 />
                                                 <button
                                                     onClick={handleInboxReply}
