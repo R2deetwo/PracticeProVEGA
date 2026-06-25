@@ -81,8 +81,15 @@ jobs:
       # on every push to main. Requires the CONVEX_DEPLOY_KEY GitHub secret.
       # If the secret is not set, HAS_CONVEX_KEY is 'false' and this step
       # is skipped (APK still builds).
+      #
+      # CRITICAL: `continue-on-error: true` ensures that even if the Convex
+      # deploy fails (e.g. parse error in a new file, codegen issue), the
+      # APK build still proceeds. The APK doesn't depend on Convex being
+      # redeployed — it just needs the web assets bundled. Convex can be
+      # fixed and redeployed separately without blocking app updates.
       - name: Deploy Convex backend
         if: ${{ env.HAS_CONVEX_KEY == 'true' }}
+        continue-on-error: true
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
         run: npx convex deploy --cmd "echo 'Convex deployed successfully'"
