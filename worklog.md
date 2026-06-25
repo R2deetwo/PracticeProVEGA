@@ -2627,3 +2627,34 @@ ALSO EXPLAINED:
 VERIFICATION:
 - Committed + pushed: 20e477e..56fa90f main -> main
 - Next CI build should produce a valid installable APK
+
+---
+Task ID: 41
+Agent: Main Agent
+Task: Fix build: restore API 36 + install SDK 36 packages
+
+Work Log:
+
+EXACT ERROR (from user-provided build log):
+':aparajita-capacitor-biometric-auth:checkDebugAarMetadata' failed because:
+  - androidx.activity:activity:1.11.0 requires compileSdk 36
+  - androidx.core:core-ktx:1.17.0 requires compileSdk 36
+  - androidx.core:core:1.17.0 requires compileSdk 36
+  - Plugin was compiled against android-35 (my previous change)
+
+FIX:
+1. variables.gradle: restored compileSdkVersion/targetSdkVersion = 36
+2. Workflow: install build-tools;36.0.0 + platforms;android-36 via
+   direct sdkmanager (bypasses broken android-actions/setup-android@v3)
+3. Simplified build step (removed --info, kept --stacktrace)
+
+ROOT CAUSE CHAIN:
+- Original issue: android-actions/setup-android@v3 had broken inputs
+  (api-level/build-tools-version not valid in v3)
+- My first fix: changed to API 35 → broke dependencies that need API 36
+- Correct fix: keep API 36 + use direct sdkmanager to install API 36
+  packages (bypasses the broken action entirely)
+
+VERIFICATION:
+- Committed + pushed: ddb8bdb..0b871e7 main -> main
+- Next build should succeed and produce installable APK
