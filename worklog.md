@@ -2470,3 +2470,43 @@ Stage Summary:
 - Dual WhatsApp delivery (free client-share + automated portal-API)
 - Offline-capable gatekeeper interface for Lagos network issues
 - 15-min cron auto-expires stale tokens
+
+---
+Task ID: 36
+Agent: Main Agent
+Task: Fix API key save button + ALOA error messages with clickable links
+
+Work Log:
+
+CRITICAL: API key save button was broken
+- Root cause: when a key was already saved, input showed mask (••••••••••••••••)
+- User types new key → APPENDS to mask → corrupted key saved
+- AI wouldn't work because stored key was '••••••••••••••••AIzaSy...'
+- Fix: handleInputFocus() clears mask on focus
+- Fix: handleSaveKey() strips mask chars + validates length (min 30)
+- Fix: try/catch with error toast
+- Removed disabled attr (handler validates instead)
+- Input: text-sm → text-base (16px Safari anti-zoom)
+
+ERROR MESSAGES:
+- All 'Settings → Agents → API Key Configuration' → 'Settings → AI Settings
+  → API Key Configuration' (correct tab name)
+  Files: aiUtils.ts (3), geminiService.ts (2), aiRequestQueue.ts (2),
+  AloaChat.tsx (2)
+- ALOA pre-flight error card: includes clickable [Google AI Studio](url)
+  markdown links rendered as <a> tags
+- parseAloaMarkdown(): added markdown link parsing BEFORE citation pill
+  parser so [text](url) becomes clickable link, not a pill
+
+PROMINENT GET KEY LINK:
+- AgentSettings: plain text link → styled button-link with icon
+
+BUTTON AUDIT:
+- All pointer-events-none usages are on decorative elements only
+- Settings nav buttons all have proper onClick handlers
+- Global CSS rules don't interfere with button clicks
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds
+- Committed + pushed: ee6bcf5..d3c2642 main -> main
