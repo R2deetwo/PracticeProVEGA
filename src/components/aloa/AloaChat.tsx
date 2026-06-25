@@ -716,6 +716,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             execute: async (signal: AbortSignal) => {
                 let currentConvId = capturedActiveConvId;
                 isGeneratingRef.current = true; // Prevent history-load from overwriting optimistic UI
+                setIsLoading(true); // Show loading state immediately for ALL message types
                 try {
                     const isDemo = currentUser?.email === 'demo@practicepro.ng';
 
@@ -762,7 +763,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     if (!wantsToolAction) {
                         setAloaStatus('Writing…');
-                        setIsLoading(true);
                         try {
                             const streamed = await aiService.streamMessage(
                                 capturedMessages,

@@ -595,11 +595,11 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
   // ── Recipient chip component ─────────────────────────────────────────
   const RecipientChip: React.FC<{ recipient: SelectableRecipient }> = ({ recipient }) => (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-700/80 border border-slate-600 text-xs text-white font-medium max-w-[200px]">
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-700/40 text-xs text-primary-700 dark:text-primary-300 font-medium max-w-[200px]">
       <span className="truncate">{recipient.label}</span>
       <button
         onClick={(e) => { e.stopPropagation(); removeRecipient(recipient.id); }}
-        className="ml-0.5 text-slate-400 hover:text-white flex-shrink-0"
+        className="ml-0.5 text-primary-400 hover:text-primary-700 dark:hover:text-primary-200 flex-shrink-0"
       >
         <X className="w-3 h-3" />
       </button>
@@ -608,29 +608,29 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
   // ── Render ───────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm sm:p-4 text-white">
-      <div className="bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92vh] text-slate-900 dark:text-white">
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 flex-shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
           <div>
-            <h3 className="font-bold text-white text-lg">Compose Message</h3>
-            <p className="text-xs text-slate-500">Preview before sending — all sends are logged</p>
+            <h3 className="font-bold text-slate-900 dark:text-white text-base sm:text-lg">Compose Message</h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Preview before sending — all sends are logged</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none p-1">×</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none p-1">×</button>
         </div>
 
         {step === 'compose' ? (
-          <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+          <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
             {/* ── Row 1: Message Type + Channel ──────────────────────── */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Message Type</label>
-                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
-                  <optgroup label="Standard" className="bg-slate-900">
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Message Type</label>
+                <select value={msgType} onChange={e => { setMsgType(e.target.value as AutomationMessageType); setIsEdited(false); }} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/50 focus:border-primary-400">
+                  <optgroup label="Standard" className="bg-white dark:bg-zinc-900">
                     {Object.entries(MSG_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </optgroup>
                   {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
-                    <optgroup label="Custom Templates" className="bg-slate-900">
+                    <optgroup label="Custom Templates" className="bg-white dark:bg-zinc-900">
                       {Object.keys(coreState.firmDetails?.automationSettings?.automationTemplates || {}).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
                         <option key={k} value={k}>{getMsgTypeLabel(k)}</option>
                       ))}
@@ -639,7 +639,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Channel</label>
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Channel</label>
                 <div className="flex gap-1.5">
                   {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
                     const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
@@ -651,14 +651,14 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                         title={!waAllowed ? 'WhatsApp requires Growth plan or above' : undefined}
                         className={`relative flex-1 py-2 rounded-xl text-xs font-bold transition-all ${
                           !waAllowed
-                            ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                            ? 'bg-slate-100 dark:bg-zinc-800/50 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
                             : channel === ch 
-                              ? CHANNEL_COLORS[ch] + ' ring-1 ring-white/20' 
-                              : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              ? 'bg-primary-600 text-white shadow-sm' 
+                              : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                         }`}
                       >
                         {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
-                        {!waAllowed && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-500" />}
+                        {!waAllowed && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
                       </button>
                     );
                   })}
@@ -669,13 +669,13 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             {/* ── Recipients (multi-select chip input) ────────────────── */}
             <div ref={dropdownRef} className="relative">
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs text-slate-500 uppercase tracking-wider">
-                  Recipients {selectedRecipients.length > 0 && <span className="text-emerald-400">({selectedRecipients.length})</span>}
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
+                  Recipients {selectedRecipients.length > 0 && <span className="text-primary-600 dark:text-primary-400">({selectedRecipients.length})</span>}
                 </label>
                 {tenantedRecipients.length > 1 && (
                   <button
                     onClick={selectAllTenanted}
-                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/50 transition-colors"
+                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
                   >
                     {tenantedRecipients.every(r => selectedRecipientIds.includes(r.id)) ? 'Deselect All' : 'Select All Tenanted'}
                   </button>
@@ -684,7 +684,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
               {/* Chip area + search input */}
               <div 
-                className="min-h-[42px] bg-slate-800 border border-slate-700 rounded-xl px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-2 focus-within:ring-emerald-500"
+                className="min-h-[42px] bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-2 py-1.5 flex flex-wrap gap-1.5 items-center cursor-text focus-within:ring-2 focus-within:ring-primary-500/30"
                 onClick={() => setShowRecipientDropdown(true)}
               >
                 {selectedRecipients.map(r => (
@@ -695,15 +695,15 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                   value={recipientSearch}
                   onChange={e => { setRecipientSearch(e.target.value); setShowRecipientDropdown(true); }}
                   placeholder={selectedRecipients.length === 0 ? 'Search units or tenants…' : 'Add more…'}
-                  className="flex-1 min-w-[100px] bg-transparent text-sm text-white outline-none placeholder:text-slate-600 py-1"
+                  className="flex-1 min-w-[100px] bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 py-1"
                 />
               </div>
 
               {/* Dropdown list — grouped by building with collapsible sections */}
               {showRecipientDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
                   {filteredRecipients.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-slate-500">No recipients found</div>
+                    <div className="px-3 py-2 text-xs text-slate-400 dark:text-zinc-500">No recipients found</div>
                   )}
                   {(() => {
                     // Build grouped list from filtered recipients
@@ -724,14 +724,14 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                             <button
                               key={r.id}
                               onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
-                              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
-                                selectedRecipientIds.includes(r.id) ? 'bg-slate-700/60' : ''
+                              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center gap-2 ${
+                                selectedRecipientIds.includes(r.id) ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                               }`}
                             >
                               <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
                                 selectedRecipientIds.includes(r.id) 
-                                  ? 'bg-emerald-500 border-emerald-500' 
-                                  : 'border-slate-500'
+                                  ? 'bg-primary-600 border-primary-600' 
+                                  : 'border-slate-300 dark:border-zinc-600'
                               }`}>
                                 {selectedRecipientIds.includes(r.id) && (
                                   <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -740,8 +740,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                 )}
                               </span>
                               <div className="flex-1 min-w-0">
-                                <div className="text-white truncate">{r.label}</div>
-                                {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+                                <div className="text-slate-900 dark:text-white truncate">{r.label}</div>
+                                {r.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
                               </div>
                             </button>
                           );
@@ -761,15 +761,15 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                 if (!isExpanded) toggleGroup(g.addressKey);
                                 else toggleGroup(g.addressKey);
                               }}
-                              className="w-full text-left px-3 py-2 hover:bg-slate-700/40 transition-colors flex items-center gap-2 border-b border-slate-700/50"
+                              className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-zinc-700/40 transition-colors flex items-center gap-2 border-b border-slate-100 dark:border-zinc-700/50"
                             >
                               <span
                                 className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center cursor-pointer ${
                                   allSelected
-                                    ? 'bg-emerald-500 border-emerald-500'
+                                    ? 'bg-primary-600 border-primary-600'
                                     : someSelected
-                                    ? 'bg-emerald-500/40 border-emerald-500/60'
-                                    : 'border-slate-500'
+                                    ? 'bg-primary-400 border-primary-500'
+                                    : 'border-slate-300 dark:border-zinc-600'
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -789,12 +789,12 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                   </svg>
                                 )}
                               </span>
-                              <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                              <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
-                                <span className="text-xs font-semibold text-slate-300 truncate block">{g.shortAddress}</span>
-                                <span className="text-[10px] text-slate-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
+                                <span className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate block">{g.shortAddress}</span>
+                                <span className="text-[10px] text-slate-400 dark:text-zinc-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
                               </div>
-                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-500" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-500" />}
+                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
                             </button>
 
                             {/* Expanded units */}
@@ -805,14 +805,14 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                 <button
                                   key={r.id}
                                   onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
-                                  className={`w-full text-left pl-9 pr-3 py-1.5 text-sm hover:bg-slate-700 transition-colors flex items-center gap-2 ${
-                                    selectedRecipientIds.includes(r.id) ? 'bg-slate-700/40' : ''
+                                  className={`w-full text-left pl-9 pr-3 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center gap-2 ${
+                                    selectedRecipientIds.includes(r.id) ? 'bg-primary-50 dark:bg-primary-900/20' : ''
                                   }`}
                                 >
                                   <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
                                     selectedRecipientIds.includes(r.id) 
-                                      ? 'bg-emerald-500 border-emerald-500' 
-                                      : 'border-slate-500'
+                                      ? 'bg-primary-600 border-primary-600' 
+                                      : 'border-slate-300 dark:border-zinc-600'
                                   }`}>
                                     {selectedRecipientIds.includes(r.id) && (
                                       <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -821,8 +821,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                     )}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-white truncate text-xs">{r.label}</div>
-                                    {r.tenantPhone && <span className="text-[10px] text-slate-600 truncate block">{r.tenantPhone}</span>}
+                                    <div className="text-slate-900 dark:text-white truncate text-xs">{r.label}</div>
+                                    {r.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
                                   </div>
                                 </button>
                               );
@@ -835,17 +835,17 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               )}
 
               {isMultiRecipient && (
-                <p className="text-[10px] text-amber-400/80 mt-1 flex items-center gap-1">
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                   <Radio className="w-3 h-3" /> Bulk send: each recipient gets a personalized message
                 </p>
               )}
             </div>
 
             {/* ── Financial Details (collapsible) ────────────────────── */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setShowFinancials(!showFinancials)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-400 hover:bg-slate-800/50 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
               >
                 <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
                   <Receipt className="w-3.5 h-3.5" />
@@ -856,40 +856,40 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               {showFinancials && (
                 <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Rent Amount (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Rent Amount (₦)</label>
+                    <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Service Charge (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => setServiceCharge(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Service Charge (₦)</label>
+                    <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => setServiceCharge(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Caution Deposit (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => setCautionDeposit(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Caution Deposit (₦)</label>
+                    <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => setCautionDeposit(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Legal Fee (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => setLegalFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Legal Fee (₦)</label>
+                    <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => setLegalFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Agency Fee (₦)</label>
-                    <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => setAgencyFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Agency Fee (₦)</label>
+                    <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => setAgencyFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-0.5 uppercase tracking-wider">Due Date</label>
-                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" />
+                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Due Date</label>
+                    <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
                   </div>
                 </div>
               )}
             </div>
 
             {/* ── Message Content ────────────────────────────────────── */}
-            <div className="pt-2 border-t border-slate-800">
+            <div className="pt-2 border-t border-slate-200 dark:border-zinc-700">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs text-slate-500 uppercase tracking-wider">Message Content</label>
+                <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">Message Content</label>
                 <button 
                   onClick={() => setIsEdited(false)} 
-                  className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-emerald-400 bg-emerald-900/30 hover:bg-emerald-900/50' : 'text-slate-600 opacity-50 cursor-not-allowed'}`}
+                  className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40' : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'}`}
                   disabled={!isEdited}
                 >
                   Reset Template
@@ -899,28 +899,28 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 value={customText} 
                 onChange={e => { setCustomText(e.target.value); setIsEdited(true); }} 
                 rows={7}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-3 text-sm text-white focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-600 font-mono leading-relaxed resize-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-3 py-3 text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-400 leading-relaxed resize-none"
                 placeholder="Type your message here..."
               />
             </div>
 
             {/* ── Action Buttons ──────────────────────────────────────── */}
             <div className="flex gap-3 pt-2">
-              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+              <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
               <button 
                 onClick={() => setStep('preview')} 
                 disabled={selectedRecipients.length === 0} 
-                className="flex-1 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-bold hover:bg-slate-600 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-500 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
               >
                 <EyeIcon /> Preview {isMultiRecipient ? `(${selectedRecipients.length})` : ''}
               </button>
             </div>
 
             {/* ── Upcoming Messages Panel ─────────────────────────────── */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden">
+            <div className="border border-slate-200 dark:border-zinc-700 rounded-xl overflow-hidden">
               <button
                 onClick={() => setShowUpcoming(!showUpcoming)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-400 hover:bg-slate-800/50 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors"
               >
                 <span className="flex items-center gap-1.5 uppercase tracking-wider font-medium">
                   <Clock className="w-3.5 h-3.5" />
@@ -931,29 +931,29 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               {showUpcoming && (
                 <div className="px-4 pb-3">
                   <div className="flex items-center gap-1 mb-2">
-                    <Clock className="w-3 h-3 text-amber-400" />
-                    <span className="text-[10px] text-amber-400/80">Recent automated messages</span>
+                    <Clock className="w-3 h-3 text-amber-500" />
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400">Recent automated messages</span>
                   </div>
                   {upcomingLoading ? (
-                    <div className="text-xs text-slate-500 py-2 text-center">Loading…</div>
+                    <div className="text-xs text-slate-400 dark:text-zinc-500 py-2 text-center">Loading…</div>
                   ) : upcomingLogs.length === 0 ? (
-                    <div className="text-xs text-slate-600 py-2 text-center">No recent messages found</div>
+                    <div className="text-xs text-slate-400 dark:text-zinc-600 py-2 text-center">No recent messages found</div>
                   ) : (
                     <div className="space-y-1.5 max-h-44 overflow-y-auto custom-scrollbar">
                       {upcomingLogs.map((log: any) => (
-                        <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-800/60 border border-slate-700/50">
-                          <span className="text-slate-400">{getMsgTypeIcon(log.messageType)}</span>
+                        <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/50">
+                          <span className="text-slate-400 dark:text-zinc-500">{getMsgTypeIcon(log.messageType)}</span>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel as AutomationChannel]}`}>
                             {log.channel?.toUpperCase()}
                           </span>
-                          <span className="text-xs text-white truncate flex-1">{getMsgTypeLabel(log.messageType)}</span>
-                          <span className="text-[10px] text-slate-500 flex-shrink-0">
+                          <span className="text-xs text-slate-900 dark:text-white truncate flex-1">{getMsgTypeLabel(log.messageType)}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-zinc-500 flex-shrink-0">
                             {log.sentAt ? new Date(log.sentAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                           </span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                            log.status === 'sent' ? 'bg-green-900/30 text-green-400' 
-                            : log.status === 'simulated' ? 'bg-amber-900/30 text-amber-400' 
-                            : 'bg-red-900/30 text-red-400'
+                            log.status === 'sent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                            : log.status === 'simulated' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' 
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                           }`}>
                             {log.status}
                           </span>
@@ -967,17 +967,17 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
           </div>
         ) : (
           /* ── Preview Step ────────────────────────────────────────────── */
-          <div className="p-5 overflow-y-auto flex-1">
+          <div className="p-4 sm:p-5 overflow-y-auto flex-1">
             {/* Recipients summary for multi-send */}
             {isMultiRecipient && (
-              <div className="mb-3 p-3 rounded-xl bg-slate-800/50 border border-slate-700">
+              <div className="mb-3 p-3 rounded-xl bg-primary-50 dark:bg-primary-900/10 border border-primary-200 dark:border-primary-700/30">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-bold text-white">Sending to {selectedRecipients.length} recipients</span>
+                  <Users className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                  <span className="text-sm font-bold text-slate-900 dark:text-white">Sending to {selectedRecipients.length} recipients</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {selectedRecipients.map(r => (
-                    <span key={r.id} className="text-[10px] px-2 py-0.5 rounded-md bg-slate-700 text-slate-300 truncate max-w-[160px]">
+                    <span key={r.id} className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 truncate max-w-[160px]">
                       {r.label}
                     </span>
                   ))}
@@ -988,42 +988,42 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             {/* Message preview(s) */}
             {!isMultiRecipient ? (
               /* Single recipient — show full message */
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 mb-4">
+              <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-4 mb-4">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-lg">{MSG_TYPE_ICONS[msgType]}</span>
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
-                  {primaryRecipient && <span className="text-xs text-slate-500">→ {primaryRecipient.tenantPhone || primaryRecipient.tenantEmail || primaryRecipient.label}</span>}
+                  {primaryRecipient && <span className="text-xs text-slate-500 dark:text-zinc-400">→ {primaryRecipient.tenantPhone || primaryRecipient.tenantEmail || primaryRecipient.label}</span>}
                 </div>
-                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{customText}</p>
+                <p className="text-sm text-slate-700 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap">{customText}</p>
               </div>
             ) : (
               /* Multiple recipients — show first full + count */
               <div className="space-y-2 mb-4">
                 {previewMessages.slice(0, 3).map((pm, i) => (
-                  <div key={pm.recipient.id} className="bg-slate-950 border border-slate-800 rounded-xl p-3">
+                  <div key={pm.recipient.id} className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl p-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
-                      <span className="text-xs text-slate-400 font-medium">{pm.recipient.label}</span>
-                      {pm.recipient.tenantPhone && <span className="text-[10px] text-slate-600">→ {pm.recipient.tenantPhone}</span>}
-                      {pm.recipient.tenantEmail && !pm.recipient.tenantPhone && <span className="text-[10px] text-slate-600">→ {pm.recipient.tenantEmail}</span>}
+                      <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium">{pm.recipient.label}</span>
+                      {pm.recipient.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantPhone}</span>}
+                      {pm.recipient.tenantEmail && !pm.recipient.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantEmail}</span>}
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap line-clamp-4">{pm.message}</p>
+                    <p className="text-xs text-slate-700 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap line-clamp-4">{pm.message}</p>
                   </div>
                 ))}
                 {previewMessages.length > 3 && (
-                  <div className="text-xs text-slate-500 text-center py-1">
+                  <div className="text-xs text-slate-400 dark:text-zinc-500 text-center py-1">
                     + {previewMessages.length - 3} more personalized messages
                   </div>
                 )}
               </div>
             )}
 
-            <p className="text-xs text-slate-500 mb-4 flex items-center gap-1.5">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4 flex items-center gap-1.5">
               <ZapIcon className="w-3 h-3" /> Review message carefully before sending. Logs are always recorded.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-sm font-semibold hover:bg-slate-700 transition-colors">← Edit</button>
-              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+              <button onClick={() => setStep('compose')} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">← Edit</button>
+              <button onClick={handleSend} disabled={loading} className="flex-1 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                 <SendIcon /> {loading ? 'Sending…' : `Confirm & Send${isMultiRecipient ? ` (${selectedRecipients.length})` : ''}`}
               </button>
             </div>

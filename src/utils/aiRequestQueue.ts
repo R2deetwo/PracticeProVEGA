@@ -166,9 +166,9 @@ export const getGlobalAIQueue = (): AIRequestQueue => {
  * This is called BEFORE any fetch() so we never send a request that's
  * doomed to fail with a 403.
  */
+import { getGeminiApiKey } from './aiUtils';
+
 export const validateAPIKey = (): { valid: boolean; error?: string } => {
-    // Lazy import to avoid circular deps
-    const { getGeminiApiKey } = require('../utils/aiUtils');
     const key = getGeminiApiKey();
 
     if (!key) {
