@@ -2410,3 +2410,63 @@ Stage Summary:
 - ALOA/ARIA chat works again (was completely broken by require() bug)
 - Messaging UI simplified — fewer badges, cleaner controls, less noise
 - ComposeModal now matches app's design architecture (white/primary, not dark slate)
+
+---
+Task ID: 35
+Agent: Main Agent
+Task: Build Visitor Management System (VMS) for gated estates
+
+Work Log:
+
+BACKEND:
+- Added visitor_tokens table to schema.ts (10 indexes for fast queries)
+- Created convex/visitorManagement.ts with 8 functions:
+  * generateVisitorToken — crypto-secure 6-digit code, collision check
+    over 24h window per estate, denormalizes property/address for gate
+  * verifyToken — gatekeeper query with grace period logic
+  * checkInVisitor / checkOutVisitor — timestamp logging
+  * revokeVisitorToken — resident authorization check
+  * sendVisitorWhatsApp — internal action → Chakra API
+  * cleanupExpiredTokens — cron every 15 min
+  * getResidentTokens / getGatehouseLogs / getGatekeeperProperties
+- Registered cron in crons.ts (every 15 min)
+
+FRONTEND:
+- VisitorPortal.tsx: resident-facing token generation
+  * Auto-fills estate/address from tenantInfo
+  * Dual delivery: client_share (wa.me) vs portal_api (Chakra)
+  * Active tokens list with revoke
+  * History with status badges
+- GatekeeperInterface.tsx: gate verification portal
+  * Large 6-digit input, auto-focus
+  * Green/red result screens
+  * Offline fallback (localStorage cache, last 100 verifications)
+  * Today's activity log
+- Added VisitorIcon + GateIcon to constants.tsx
+- Added 'visitors' tab to TenantPortal between Notices and Ledger
+
+DESIGN:
+- Matches portal architecture: emerald hero, rounded-premium cards,
+  shadow-soft, same icon-tile pattern as DashboardTab
+- All inputs text-base (16px, Safari anti-zoom)
+- pb-safe on bottom elements
+- Card-based layout on slate-50/zinc-950 canvas
+
+SECURITY:
+- crypto.getRandomValues for token randomness
+- Collision check: 10 retries, 24h window per estate
+- Revocation: resident authorization required
+- Grace period: 30 min configurable buffer
+- Offline: last 100 verified tokens cached
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds
+- Committed + pushed: 4ddf3c5..15cf3ee main -> main
+- 7 files, +1385 lines
+
+Stage Summary:
+- Complete VMS live: residents generate codes, gatekeepers verify
+- Dual WhatsApp delivery (free client-share + automated portal-API)
+- Offline-capable gatekeeper interface for Lagos network issues
+- 15-min cron auto-expires stale tokens
