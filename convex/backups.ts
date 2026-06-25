@@ -1,225 +1,249 @@
 /**
- * Cloudflare R2 Backup System
+ * Multi-Target Cloud Backup System (No Credit Card Required)
  * ═══════════════════════════════════════════════════════════════════════
  *
- * Nightly full-database export to Cloudflare R2.
+ * Nightly full-database export to TWO free cloud targets:
+ *
+ *   1. GitHub Private Repo — uses the GitHub Contents API
+ *   2. Telegram Bot Channel — uses the Telegram Bot API sendDocument
+ *
+ * Both are TRULY FREE (no credit card required) and provide redundant
+ * off-Convex copies of your entire database.
  *
  * WHAT IT DOES:
- *   1. Reads every table in the Convex database
+ *   1. Reads every table in the Convex database (72 tables)
  *   2. Serializes all documents to a single JSON blob
  *   3. Compresses with gzip
- *   4. Uploads to R2 at: practicepro-backups/YYYY-MM-DD/convex-backup-HHMM.json.gz
- *   5. Deletes backups older than 30 days (rolling retention)
+ *   4. Uploads to GitHub (if GITHUB_BACKUP_TOKEN is set)
+ *   5. Uploads to Telegram (if TELEGRAM_BOT_TOKEN is set)
+ *   6. Logs each upload to backup_log table (for cleanup + status)
+ *   7. Deletes backups older than 30 days from each target
  *
- * ENV VARS REQUIRED (set in Convex dashboard → Settings → Environment Variables):
- *   R2_ACCOUNT_ID    — Cloudflare account ID (found in R2 dashboard sidebar)
- *   R2_ACCESS_KEY    — R2 access key ID (from API token creation)
- *   R2_SECRET_KEY    — R2 secret access key (from API token creation)
- *   R2_BUCKET_NAME   — bucket name, e.g. "practicepro-backups"
- *   R2_ENDPOINT      — https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+ * ENV VARS (set in Convex dashboard → Settings → Environment Variables):
  *
- * If any env var is missing, the backup silently skips (logs to console)
- * instead of crashing — so the app still works even before R2 is configured.
+ *   GitHub target:
+ *     GITHUB_BACKUP_TOKEN  — GitHub Personal Access Token (classic, with repo scope)
+ *     GITHUB_BACKUP_OWNER  — your GitHub username, e.g. "R2deetwo"
+ *     GITHUB_BACKUP_REPO   — private repo name, e.g. "PracticePro-Backups"
  *
- * COST: Free tier = 10 GB storage + 1M writes/month. Your data is likely
- * under 2 GB, so this costs $0/month.
+ *   Telegram target:
+ *     TELEGRAM_BOT_TOKEN     — bot token from @BotFather
+ *     TELEGRAM_BACKUP_CHAT_ID — chat ID of the private channel (negative number)
+ *
+ * If a target's env vars are missing, it silently skips. The app still works.
+ *
+ * COST: $0/month — GitHub private repos are free, Telegram cloud is free.
  */
 
-import { internalAction, internalMutation, mutation, query, internalQuery } from "./_generated/server";
+import { internalAction, mutation, query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
 // ─── Table list — all 72 tables from schema.ts ────────────────────────────
-// Hardcoded (not introspected) because Convex doesn't expose a "list all
-// tables" API. If you add a new table to schema.ts, add it here too.
 const ALL_TABLES = [
-  "firms",
-  "users",
-  "matters",
-  "contacts",
-  "tasks",
-  "documents",
-  "workflows",
-  "leads",
-  "notifications",
-  "invoices",
-  "events",
-  "timeEntries",
-  "expenses",
-  "firmActivity",
-  "chatMessages",
-  "chatConversations",
-  "noteNotebooks",
-  "notePages",
-  "eventTypes",
-  "contactCategories",
-  "documentCategories",
-  "checklistTemplates",
-  "documentTemplates",
-  "documentTemplateCategories",
-  "externalCounselInvites",
-  "automationRules",
-  "intakeForms",
-  "documentGenerationMetadata",
-  "clientMessages",
-  "archive",
-  "researchNotebooks",
-  "researchSources",
-  "researchMessages",
-  "researchAnalysisResults",
-  "presence",
-  "properties",
-  "tenancies",
-  "memories",
-  "aloaConversations",
-  "aloaMessages",
-  "analytics_events",
-  "usage_snapshots",
-  "firm_health_scores",
-  "user_feedback",
-  "legal_modules",
-  "statutes",
-  "firm_licenses",
-  "ledger_entries",
-  "service_charges",
-  "leads_pipeline",
-  "automation_logs",
-  "atrium_inbound_messages",
-  "index_checkpoints",
-  "module_usage_logs",
-  "aloa_documents",
-  "sales_inquiries",
-  "service_request_types",
-  "client_service_requests",
-  "maintenance_tickets",
-  "portal_invites",
-  "scheduled_messages",
-  "portal_conversations",
-  "portal_messages",
-  "payment_proofs",
-  "portal_settings",
-  "portal_notices",
-  "notification_preferences",
-  "proactive_insights",
-  "conversation_summaries",
-  "audit_logs",
-  "invoice_outbox",
+  "firms", "users", "matters", "contacts", "tasks", "documents", "workflows",
+  "leads", "notifications", "invoices", "events", "timeEntries", "expenses",
+  "firmActivity", "chatMessages", "chatConversations", "noteNotebooks",
+  "notePages", "eventTypes", "contactCategories", "documentCategories",
+  "checklistTemplates", "documentTemplates", "documentTemplateCategories",
+  "externalCounselInvites", "automationRules", "intakeForms",
+  "documentGenerationMetadata", "clientMessages", "archive",
+  "researchNotebooks", "researchSources", "researchMessages",
+  "researchAnalysisResults", "presence", "properties", "tenancies",
+  "memories", "aloaConversations", "aloaMessages", "analytics_events",
+  "usage_snapshots", "firm_health_scores", "user_feedback", "legal_modules",
+  "statutes", "firm_licenses", "ledger_entries", "service_charges",
+  "leads_pipeline", "automation_logs", "atrium_inbound_messages",
+  "index_checkpoints", "module_usage_logs", "aloa_documents",
+  "sales_inquiries", "service_request_types", "client_service_requests",
+  "maintenance_tickets", "portal_invites", "scheduled_messages",
+  "portal_conversations", "portal_messages", "payment_proofs",
+  "portal_settings", "portal_notices", "notification_preferences",
+  "proactive_insights", "conversation_summaries", "audit_logs",
+  "invoice_outbox", "backup_log",
 ] as const;
 
-// ─── R2 configuration helper ─────────────────────────────────────────────
-function getR2Config() {
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKey = process.env.R2_ACCESS_KEY;
-  const secretKey = process.env.R2_SECRET_KEY;
-  const bucketName = process.env.R2_BUCKET_NAME;
-  const endpoint = process.env.R2_ENDPOINT;
-
-  if (!accountId || !accessKey || !secretKey || !bucketName || !endpoint) {
-    return null; // R2 not configured — skip backup silently
-  }
-  return { accountId, accessKey, secretKey, bucketName, endpoint };
+// ─── Config helpers ──────────────────────────────────────────────────────
+function getGitHubConfig() {
+  const token = process.env.GITHUB_BACKUP_TOKEN;
+  const owner = process.env.GITHUB_BACKUP_OWNER;
+  const repo = process.env.GITHUB_BACKUP_REPO;
+  if (!token || !owner || !repo) return null;
+  return { token, owner, repo };
 }
 
-// ─── AWS S3-compatible signing for R2 ────────────────────────────────────
-// R2 uses the S3 API, which requires AWS Signature V4. We implement the
-// signing manually (no AWS SDK dependency) to keep the bundle small.
-async function signV4(
-  method: string,
-  url: string,
-  headers: Record<string, string>,
-  body: ArrayBuffer,
-  accessKey: string,
-  secretKey: string,
-  region: string,
-  service: string,
-): Promise<Record<string, string>> {
-  const urlObj = new URL(url);
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-
-  // Canonical headers (sorted, lowercase keys, trimmed values)
-  const headerKeys = Object.keys(headers).map(k => k.toLowerCase()).sort();
-  const canonicalHeaders = headerKeys.map(k => `${k}:${headers[k].trim()}\n`).join("");
-  const signedHeaders = headerKeys.join(";");
-
-  // Payload hash
-  const encoder = new TextEncoder();
-  const bodyHash = await crypto.subtle.digest("SHA-256", body);
-  const payloadHash = Array.from(new Uint8Array(bodyHash))
-    .map(b => b.toString(16).padStart(2, "0")).join("");
-
-  // Canonical request
-  const canonicalRequest = [
-    method,
-    urlObj.pathname,
-    urlObj.search.replace(/^\?/, ""), // query string without leading ?
-    canonicalHeaders,
-    signedHeaders,
-    payloadHash,
-  ].join("\n");
-
-  // String to sign
-  const scope = `${dateStamp}/${region}/${service}/aws4_request`;
-  const canonicalRequestHash = await crypto.subtle.digest(
-    "SHA-256",
-    encoder.encode(canonicalRequest),
-  );
-  const canonicalRequestHashHex = Array.from(new Uint8Array(canonicalRequestHash))
-    .map(b => b.toString(16).padStart(2, "0")).join("");
-  const stringToSign = [
-    "AWS4-HMAC-SHA256",
-    amzDate,
-    scope,
-    canonicalRequestHashHex,
-  ].join("\n");
-
-  // Signing key
-  const kDate = await hmac(encoder.encode(dateStamp), encoder.encode("AWS4" + secretKey));
-  const kRegion = await hmac(encoder.encode(region), kDate);
-  const kService = await hmac(encoder.encode(service), kRegion);
-  const kSigning = await hmac(encoder.encode("aws4_request"), kService);
-
-  // Signature
-  const signature = await hmac(encoder.encode(stringToSign), kSigning);
-  const signatureHex = Array.from(new Uint8Array(signature))
-    .map(b => b.toString(16).padStart(2, "0")).join("");
-
-  // Authorization header
-  const authHeader = `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signatureHex}`;
-
-  return {
-    ...headers,
-    "x-amz-date": amzDate,
-    "x-amz-content-sha256": payloadHash,
-    "Authorization": authHeader,
-  };
+function getTelegramConfig() {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_BACKUP_CHAT_ID;
+  if (!botToken || !chatId) return null;
+  return { botToken, chatId };
 }
 
-async function hmac(key: BufferSource, data: BufferSource): Promise<ArrayBuffer> {
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
-  );
-  return crypto.subtle.sign("HMAC", cryptoKey, data);
-}
-
-// ─── Gzip compression (using Web Compression API) ────────────────────────
+// ─── Gzip compression ────────────────────────────────────────────────────
 async function gzip(data: string): Promise<ArrayBuffer> {
   const encoder = new TextEncoder();
   const stream = new Blob([encoder.encode(data)]).stream();
   const compressed = stream.pipeThrough(new CompressionStream("gzip"));
-  const result = await new Response(compressed).arrayBuffer();
-  return result;
+  return await new Response(compressed).arrayBuffer();
 }
 
-// ─── Main backup action ──────────────────────────────────────────────────
+// ArrayBuffer → base64 (for GitHub API)
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GITHUB TARGET
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function uploadToGitHub(
+  config: NonNullable<ReturnType<typeof getGitHubConfig>>,
+  compressed: ArrayBuffer,
+  backupKey: string,
+): Promise<{ sha: string; url: string }> {
+  const base64Content = arrayBufferToBase64(compressed);
+  const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${backupKey}`;
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${config.token}`,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+    body: JSON.stringify({
+      message: `Nightly backup: ${backupKey}`,
+      content: base64Content,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`GitHub upload failed (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  return { sha: data.content.sha, url: data.content.html_url };
+}
+
+async function cleanupOldGitHubBackups(
+  config: NonNullable<ReturnType<typeof getGitHubConfig>>,
+  retentionDays: number,
+  ctx: any,
+) {
+  // List backup_log entries older than retention period for GitHub
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+  const oldEntries: any[] = await ctx.runQuery(internal.backups.getOldBackupLogs, { target: "github", cutoff });
+
+  if (oldEntries.length === 0) return;
+  console.log(`[Backup] GitHub cleanup: deleting ${oldEntries.length} old backup(s)...`);
+
+  for (const entry of oldEntries) {
+    try {
+      // Delete the file from GitHub (needs the SHA)
+      const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${entry.backupKey}`;
+      await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${config.token}`,
+          "Accept": "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        body: JSON.stringify({
+          message: `Cleanup: delete ${entry.backupKey}`,
+          sha: entry.externalId,
+        }),
+      });
+      // Delete the log entry
+      await ctx.runMutation(internal.backups.deleteBackupLog, { id: entry._id });
+      console.log(`[Backup] GitHub deleted: ${entry.backupKey}`);
+    } catch (err: any) {
+      console.warn(`[Backup] Failed to delete GitHub backup ${entry.backupKey}:`, err.message);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TELEGRAM TARGET
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function uploadToTelegram(
+  config: NonNullable<ReturnType<typeof getTelegramConfig>>,
+  compressed: ArrayBuffer,
+  backupKey: string,
+): Promise<{ messageId: string; fileId: string }> {
+  const formData = new FormData();
+  formData.append("chat_id", config.chatId);
+  const blob = new Blob([compressed], { type: "application/gzip" });
+  formData.append("document", blob, backupKey);
+  formData.append("caption", `📦 PracticePro backup: ${backupKey}`);
+
+  const response = await fetch(`https://api.telegram.org/bot${config.botToken}/sendDocument`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Telegram upload failed (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  if (!data.ok) throw new Error(`Telegram API error: ${data.description}`);
+
+  return {
+    messageId: String(data.result.message_id),
+    fileId: data.result.document?.file_id || "",
+  };
+}
+
+async function cleanupOldTelegramBackups(
+  config: NonNullable<ReturnType<typeof getTelegramConfig>>,
+  retentionDays: number,
+  ctx: any,
+) {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
+  const oldEntries: any[] = await ctx.runQuery(internal.backups.getOldBackupLogs, { target: "telegram", cutoff });
+
+  if (oldEntries.length === 0) return;
+  console.log(`[Backup] Telegram cleanup: deleting ${oldEntries.length} old message(s)...`);
+
+  for (const entry of oldEntries) {
+    try {
+      await fetch(`https://api.telegram.org/bot${config.botToken}/deleteMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: config.chatId,
+          message_id: parseInt(entry.externalId, 10),
+        }),
+      });
+      await ctx.runMutation(internal.backups.deleteBackupLog, { id: entry._id });
+      console.log(`[Backup] Telegram deleted message ${entry.externalId}`);
+    } catch (err: any) {
+      console.warn(`[Backup] Failed to delete Telegram message ${entry.externalId}:`, err.message);
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN BACKUP ACTION
+// ═══════════════════════════════════════════════════════════════════════════
+
 export const runBackup = internalAction({
   args: {},
   handler: async (ctx) => {
-    const config = getR2Config();
-    if (!config) {
-      console.log("[Backup] R2 not configured — skipping. Set R2_* env vars in Convex dashboard.");
-      return { success: false, reason: "R2_NOT_CONFIGURED" };
+    const githubConfig = getGitHubConfig();
+    const telegramConfig = getTelegramConfig();
+
+    if (!githubConfig && !telegramConfig) {
+      console.log("[Backup] No backup targets configured. Set GITHUB_BACKUP_* and/or TELEGRAM_* env vars in Convex dashboard.");
+      return { success: false, reason: "NO_TARGETS_CONFIGURED" };
     }
 
     const now = new Date();
@@ -227,7 +251,7 @@ export const runBackup = internalAction({
     const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/[:]/g, ""); // HHMMSS
     const backupKey = `${dateStr}/convex-backup-${timeStr}.json.gz`;
 
-    console.log(`[Backup] Starting export for ${dateStr}...`);
+    console.log(`[Backup] Starting export for ${dateStr} at ${now.toISOString()}...`);
 
     // ─── Export each table ──────────────────────────────────────────────
     const exportData: Record<string, any> = {
@@ -235,7 +259,7 @@ export const runBackup = internalAction({
         exportedAt: now.toISOString(),
         convexDeployment: "gregarious-malamute-537",
         tableCount: ALL_TABLES.length,
-        version: 1,
+        version: 2,
       },
     };
 
@@ -263,142 +287,138 @@ export const runBackup = internalAction({
 
     console.log(`[Backup] Total: ${totalDocs} docs, ${(totalBytes / 1024 / 1024).toFixed(2)} MB raw → ${(compressedSize / 1024 / 1024).toFixed(2)} MB compressed`);
 
-    // ─── Upload to R2 ──────────────────────────────────────────────────
-    const uploadUrl = `${config.endpoint}/${config.bucketName}/${backupKey}`;
-    const uploadHeaders: Record<string, string> = {
-      "Host": new URL(config.endpoint).host,
-      "Content-Type": "application/json",
-      "Content-Encoding": "gzip",
-    };
+    const results: any = { backupKey, totalDocs, rawBytes: totalBytes, compressedBytes: compressedSize, targets: {} };
 
-    const signedHeaders = await signV4(
-      "PUT",
-      uploadUrl,
-      uploadHeaders,
-      compressed,
-      config.accessKey,
-      config.secretKey,
-      "auto",
-      "s3",
-    );
+    // ─── Upload to GitHub ──────────────────────────────────────────────
+    if (githubConfig) {
+      try {
+        console.log("[Backup] Uploading to GitHub...");
+        const ghResult = await uploadToGitHub(githubConfig, compressed, backupKey);
+        await ctx.runMutation(internal.backups.logBackup, {
+          target: "github",
+          backupKey,
+          externalId: ghResult.sha,
+          fileUrl: ghResult.url,
+          sizeBytes: compressedSize,
+          success: true,
+        });
+        results.targets.github = { success: true, url: ghResult.url };
+        console.log(`[Backup] ✓ GitHub: ${ghResult.url}`);
 
-    const uploadResponse = await fetch(uploadUrl, {
-      method: "PUT",
-      headers: signedHeaders,
-      body: compressed,
-    });
-
-    if (!uploadResponse.ok) {
-      const errText = await uploadResponse.text();
-      console.error(`[Backup] R2 upload failed (${uploadResponse.status}):`, errText);
-      return { success: false, reason: "UPLOAD_FAILED", status: uploadResponse.status, error: errText };
+        // Cleanup old backups
+        try {
+          await cleanupOldGitHubBackups(githubConfig, 30, ctx);
+        } catch (err: any) {
+          console.warn(`[Backup] GitHub cleanup failed (non-fatal):`, err.message);
+        }
+      } catch (err: any) {
+        console.error(`[Backup] GitHub upload failed:`, err.message);
+        await ctx.runMutation(internal.backups.logBackup, {
+          target: "github",
+          backupKey,
+          externalId: "",
+          fileUrl: "",
+          sizeBytes: compressedSize,
+          success: false,
+          error: err.message,
+        });
+        results.targets.github = { success: false, error: err.message };
+      }
     }
 
-    console.log(`[Backup] ✓ Uploaded to R2: ${backupKey}`);
+    // ─── Upload to Telegram ────────────────────────────────────────────
+    if (telegramConfig) {
+      try {
+        console.log("[Backup] Uploading to Telegram...");
+        const tgResult = await uploadToTelegram(telegramConfig, compressed, backupKey);
+        await ctx.runMutation(internal.backups.logBackup, {
+          target: "telegram",
+          backupKey,
+          externalId: tgResult.messageId,
+          fileUrl: "",
+          sizeBytes: compressedSize,
+          success: true,
+        });
+        results.targets.telegram = { success: true, messageId: tgResult.messageId };
+        console.log(`[Backup] ✓ Telegram: message ${tgResult.messageId}`);
 
-    // ─── Cleanup old backups (>30 days) ────────────────────────────────
-    try {
-      await cleanupOldBackups(config, 30);
-    } catch (err: any) {
-      console.warn(`[Backup] Cleanup failed (non-fatal):`, err.message);
+        // Cleanup old messages
+        try {
+          await cleanupOldTelegramBackups(telegramConfig, 30, ctx);
+        } catch (err: any) {
+          console.warn(`[Backup] Telegram cleanup failed (non-fatal):`, err.message);
+        }
+      } catch (err: any) {
+        console.error(`[Backup] Telegram upload failed:`, err.message);
+        await ctx.runMutation(internal.backups.logBackup, {
+          target: "telegram",
+          backupKey,
+          externalId: "",
+          fileUrl: "",
+          sizeBytes: compressedSize,
+          success: false,
+          error: err.message,
+        });
+        results.targets.telegram = { success: false, error: err.message };
+      }
     }
 
-    return {
-      success: true,
-      backupKey,
-      totalDocs,
-      rawBytes: totalBytes,
-      compressedBytes: compressedSize,
-    };
+    console.log("[Backup] Done.");
+    return { success: true, ...results };
   },
 });
 
-// ─── Cleanup: delete backups older than N days ───────────────────────────
-async function cleanupOldBackups(config: NonNullable<ReturnType<typeof getR2Config>>, retentionDays: number) {
-  // List objects in the bucket
-  const listUrl = `${config.endpoint}/${config.bucketName}?list-type=2`;
-  const listHeaders: Record<string, string> = {
-    "Host": new URL(config.endpoint).host,
-  };
+// ═══════════════════════════════════════════════════════════════════════════
+// BACKUP LOG MUTATIONS / QUERIES
+// ═══════════════════════════════════════════════════════════════════════════
 
-  const signedListHeaders = await signV4(
-    "GET",
-    listUrl,
-    listHeaders,
-    new ArrayBuffer(0),
-    config.accessKey,
-    config.secretKey,
-    "auto",
-    "s3",
-  );
-
-  const listResponse = await fetch(listUrl, { headers: signedListHeaders });
-  if (!listResponse.ok) {
-    throw new Error(`List failed: ${listResponse.status}`);
-  }
-
-  const listXml = await listResponse.text();
-
-  // Parse XML response to extract object keys + last modified dates
-  const objects: Array<{ key: string; lastModified: string }> = [];
-  const objectRegex = /<Contents>([\s\S]*?)<\/Contents>/g;
-  let match;
-  while ((match = objectRegex.exec(listXml)) !== null) {
-    const contents = match[1];
-    const keyMatch = contents.match(/<Key>(.*?)<\/Key>/);
-    const dateMatch = contents.match(/<LastModified>(.*?)<\/LastModified>/);
-    if (keyMatch && dateMatch) {
-      objects.push({ key: keyMatch[1], lastModified: dateMatch[1] });
-    }
-  }
-
-  // Find old backups
-  const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
-  const oldObjects = objects.filter(o => new Date(o.lastModified).getTime() < cutoff);
-
-  if (oldObjects.length === 0) {
-    console.log("[Backup] No old backups to clean up.");
-    return;
-  }
-
-  console.log(`[Backup] Cleaning up ${oldObjects.length} backup(s) older than ${retentionDays} days...`);
-
-  // Delete each old object
-  for (const obj of oldObjects) {
-    const deleteUrl = `${config.endpoint}/${config.bucketName}/${encodeURIComponent(obj.key)}`;
-    const deleteHeaders: Record<string, string> = {
-      "Host": new URL(config.endpoint).host,
-    };
-
-    const signedDeleteHeaders = await signV4(
-      "DELETE",
-      deleteUrl,
-      deleteHeaders,
-      new ArrayBuffer(0),
-      config.accessKey,
-      config.secretKey,
-      "auto",
-      "s3",
-    );
-
-    const deleteResponse = await fetch(deleteUrl, {
-      method: "DELETE",
-      headers: signedDeleteHeaders,
+export const logBackup = internalMutation({
+  args: {
+    target: v.string(),
+    backupKey: v.string(),
+    externalId: v.string(),
+    fileUrl: v.optional(v.string()),
+    sizeBytes: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = new Date().toISOString();
+    return await ctx.db.insert("backup_log", {
+      target: args.target,
+      backupKey: args.backupKey,
+      externalId: args.externalId,
+      fileUrl: args.fileUrl,
+      sizeBytes: args.sizeBytes,
+      success: args.success,
+      error: args.error,
+      createdAt: now,
     });
+  },
+});
 
-    if (deleteResponse.ok) {
-      console.log(`[Backup] Deleted: ${obj.key}`);
-    } else {
-      console.warn(`[Backup] Failed to delete ${obj.key}: ${deleteResponse.status}`);
-    }
-  }
-}
+export const deleteBackupLog = internalMutation({
+  args: { id: v.id("backup_log") },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.id);
+  },
+});
+
+export const getOldBackupLogs = internalQuery({
+  args: { target: v.string(), cutoff: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("backup_log")
+      .withIndex("by_target_created", (q: any) => q.eq("target", args.target).lt("createdAt", args.cutoff))
+      .filter((q: any) => q.eq(q.field("success"), true))
+      .collect();
+  },
+});
 
 // ─── Manual trigger (for testing) ────────────────────────────────────────
 export const triggerBackupNow = mutation({
   args: {},
   handler: async (ctx) => {
-    // Schedule the backup action to run immediately
     await ctx.scheduler.runAfter(0, internal.backups.runBackup, {});
     return { scheduled: true, message: "Backup scheduled. Check Convex logs for progress." };
   },
@@ -408,24 +428,38 @@ export const triggerBackupNow = mutation({
 export const getBackupStatus = query({
   args: {},
   handler: async (ctx) => {
+    const githubConfigured = getGitHubConfig() !== null;
+    const telegramConfigured = getTelegramConfig() !== null;
+
+    // Get last 10 backup log entries
+    const recentLogs: any[] = await ctx.db
+      .query("backup_log")
+      .withIndex("by_created", (q: any) => q)
+      .order("desc")
+      .take(10);
+
     return {
-      r2Configured: getR2Config() !== null,
+      githubConfigured,
+      telegramConfigured,
       tableCount: ALL_TABLES.length,
-      tables: ALL_TABLES,
+      recentBackups: recentLogs.map((l: any) => ({
+        target: l.target,
+        backupKey: l.backupKey,
+        success: l.success,
+        sizeBytes: l.sizeBytes,
+        error: l.error,
+        createdAt: l.createdAt,
+        url: l.fileUrl,
+      })),
     };
   },
 });
 
 // ─── Internal query: fetch all documents from a table ────────────────────
-// Called by runBackup for each table. Uses .collect() with no filter
-// to get every document. The result is JSON-serialized by the action.
 export const getAllDocuments = internalQuery({
   args: { tableName: v.string() },
   handler: async (ctx, args) => {
-    // Convex doesn't allow dynamic table names in the typed query builder,
-    // so we use the generic db.query() with a cast.
     const results = await (ctx.db as any).query(args.tableName).collect();
     return results;
   },
 });
-

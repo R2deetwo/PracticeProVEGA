@@ -4,104 +4,153 @@
 
 | Component | Backup Method | Frequency | Retention |
 |---|---|---|---|
-| **Convex Database** (all 72 tables) | Nightly export → Cloudflare R2 | Daily at 2:00 AM UTC (3 AM WAT) | 30 days |
+| **Convex Database** (all 72 tables) | Nightly export → GitHub + Telegram | Daily at 2:00 AM UTC (3 AM WAT) | 30 days |
 | **Code** | GitHub (with full git history) | Every push | Unlimited |
 | **Frontend** | Rebuilds from GitHub on deploy | Every push | Unlimited |
 | **API keys / secrets** | Manual export to password manager | One-time | Permanent |
 
-## Setting Up Cloudflare R2 (One-Time, ~10 Minutes)
+---
 
-### Step 1: Create a Cloudflare Account
-1. Go to https://dash.cloudflare.com/sign-up
-2. Sign up (free)
+## Two Redundant Targets (Both Free, No Credit Card)
 
-### Step 2: Create an R2 Bucket
-1. In the Cloudflare dashboard, click **R2** in the left sidebar
-2. Click **Create bucket**
-3. Name it: `practicepro-backups`
-4. Location: Auto (let Cloudflare decide)
-5. Click **Create**
+Your database backup goes to **both** of these every night:
 
-### Step 3: Get Your Account ID
-1. Still in the R2 dashboard
-2. Look at the right sidebar — you'll see **Account ID**
-3. Copy it (looks like `a1b2c3d4e5f6...`)
+1. **GitHub Private Repo** — browseable via web UI, downloadable via git
+2. **Telegram Private Channel** — files stored in Telegram's cloud forever
 
-### Step 4: Create an API Token
-1. In R2 dashboard, click **Manage R2 API Tokens** (or go to R2 → API Tokens)
-2. Click **Create API Token**
-3. Name: `practicepro-convex-backup`
-4. Permissions: **Object Read & Write**
-5. Specify bucket: `practicepro-backups` (or all buckets)
-6. Click **Create API Token**
-7. You'll see:
-   - **Access Key ID** — copy this
-   - **Secret Access Key** — copy this (only shown once!)
-   - **Endpoint** — looks like `https://a1b2c3d4.r2.cloudflarestorage.com`
-8. **Save all three in a password manager immediately**
+If one goes down, the other still has your data.
 
-### Step 5: Add Environment Variables to Convex
-1. Go to your Convex dashboard: https://dashboard.convex.dev
-2. Select your deployment: `gregarious-malamute-537`
-3. Go to **Settings → Environment Variables**
-4. Add these 5 variables (for both Production and Preview):
+---
+
+## Part 1: GitHub Setup (5 minutes)
+
+### Step 1: Create a Private GitHub Repo
+1. Go to https://github.com/new
+2. Repository name: `PracticePro-Backups`
+3. **Private** (not public — your data is in here)
+4. **Don't** initialize with README (keeps it empty)
+5. Click **Create repository**
+
+### Step 2: Create a Personal Access Token
+1. Go to https://github.com/settings/tokens
+2. Click **Generate new token (classic)**
+3. Note: `PracticePro Backup`
+4. Expiration: **No expiration** (or 1 year — you'll need to renew)
+5. Scopes: check **`repo`** (full repo access)
+6. Click **Generate token**
+7. **Copy the token immediately** — you won't see it again. Looks like `ghp_xxxxxxxxxxxx...`
+
+### Step 3: Add Env Vars to Convex
+Go to your Convex dashboard → **Settings → Environment Variables** and add:
 
 | Name | Value |
 |---|---|
-| `R2_ACCOUNT_ID` | (your account ID from step 3) |
-| `R2_ACCESS_KEY` | (access key ID from step 4) |
-| `R2_SECRET_KEY` | (secret access key from step 4) |
-| `R2_BUCKET_NAME` | `practicepro-backups` |
-| `R2_ENDPOINT` | `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
+| `GITHUB_BACKUP_TOKEN` | `ghp_xxxxxxxxxxxx...` (your token) |
+| `GITHUB_BACKUP_OWNER` | `R2deetwo` (your GitHub username) |
+| `GITHUB_BACKUP_REPO` | `PracticePro-Backups` |
 
-5. Click **Save** on each
+### Step 4: Test
+In Convex dashboard → **Functions** → find `backups/triggerBackupNow` → click **Run Function**. Check logs for `✓ GitHub: https://github.com/...`. Then go to your repo — you'll see a folder `2026-06-25/` containing the backup file.
 
-### Step 6: Trigger a Test Backup
-Once the env vars are set and the code is deployed, you can trigger a backup immediately from the Convex dashboard:
-1. Go to your Convex dashboard
-2. Go to **Functions** → find `backups/triggerBackupNow`
-3. Click **Run Function**
-4. Check the logs — you should see:
+---
+
+## Part 2: Telegram Setup (5 minutes)
+
+### Step 1: Create a Telegram Bot
+1. Open Telegram, search for **@BotFather**
+2. Send `/newbot`
+3. Name: `PracticePro Backup Bot`
+4. Username: `practicepro_backup_bot` (must end in `_bot`)
+5. BotFather gives you a **token** — copy it. Looks like `123456789:ABCdefGHIjklMNOpqr...`
+
+### Step 2: Create a Private Channel
+1. In Telegram, click the pencil icon → **New Channel**
+2. Name: `PracticePro Backups`
+3. **Private** (not public)
+4. Click **Create**
+
+### Step 3: Add the Bot to the Channel
+1. Open your new channel
+2. Click the channel name → **Administrators** → **Add Admin**
+3. Search for your bot's username (`@practicepro_backup_bot`)
+4. Make sure **Post Messages** permission is ON
+5. Click **Save**
+
+### Step 4: Get the Channel ID
+1. In the channel, post any message
+2. Forward that message to **@userinfobot** (or use @RawDataBot)
+3. It replies with the chat info — copy the **chat ID** (a negative number like `-1001234567890`)
+
+Alternatively, open the channel in the Telegram web client (web.telegram.org) and look at the URL — the number after `#/p` or in the URL is related to the chat ID.
+
+### Step 5: Add Env Vars to Convex
+Go to your Convex dashboard → **Settings → Environment Variables** and add:
+
+| Name | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | `123456789:ABCdefGHIjklMNOpqr...` |
+| `TELEGRAM_BACKUP_CHAT_ID` | `-1001234567890` |
+
+### Step 6: Test
+In Convex dashboard → **Functions** → find `backups/triggerBackupNow` → click **Run Function**. Check logs for `✓ Telegram: message 123`. Then open your Telegram channel — you'll see the backup file.
+
+---
+
+## Part 3: Verify Everything Works
+
+Once both targets are configured, trigger a test backup:
+1. Convex dashboard → **Functions** → `backups/triggerBackupNow` → **Run Function**
+2. Check the logs — you should see both:
    ```
-   [Backup] Starting export for 2026-06-25...
-   [Backup] firms: 5 docs (2.1 KB)
-   [Backup] users: 23 docs (8.4 KB)
-   ...
-   [Backup] ✓ Uploaded to R2: 2026-06-25/convex-backup-020000.json.gz
+   [Backup] ✓ GitHub: https://github.com/R2deetwo/PracticePro-Backups/...
+   [Backup] ✓ Telegram: message 456
    ```
+3. Verify in GitHub: your repo now has `2026-06-25/convex-backup-HHMMSS.json.gz`
+4. Verify in Telegram: your channel now has a file message
 
-### Step 7: Verify in R2
-1. Go back to Cloudflare R2 dashboard
-2. Click on `practicepro-backups` bucket
-3. You should see a folder `2026-06-25/` containing `convex-backup-020000.json.gz`
+You can also check status via the `backups/getBackupStatus` function — it returns which targets are configured and the last 10 backup results.
 
 ---
 
 ## How to Restore from Backup
 
-### If you need to restore the entire database:
+### Option A: Restore from GitHub
+```bash
+# Clone your backup repo
+git clone https://github.com/R2deetwo/PracticePro-Backups.git
+cd PracticePro-Backups
 
-1. **Download the backup from R2**
-   ```bash
-   # Install rclone or use the R2 web UI to download
-   # The file is: YYYY-MM-DD/convex-backup-HHMMSS.json.gz
-   ```
+# Find the date you want to restore
+ls  # shows folders like 2026-06-25/
 
-2. **Decompress it**
-   ```bash
-   gunzip convex-backup-020000.json.gz
-   ```
+# Decompress
+gunzip 2026-06-25/convex-backup-020000.json.gz
 
-3. **Import to a new Convex deployment**
-   - Create a new Convex project
-   - Deploy your schema: `npx convex deploy`
-   - Write a restore script that reads the JSON and inserts documents via Convex mutations
-   - (I can build this restore script when needed — it's not needed until a disaster happens)
+# Now you have convex-backup-020000.json — a full snapshot of all tables
+```
 
-### If only specific tables need restoration:
-1. Download the backup JSON
-2. Extract just the affected table array
-3. Write targeted mutations to upsert those documents
+### Option B: Restore from Telegram
+1. Open your Telegram channel
+2. Download the `.json.gz` file from the desired date
+3. Decompress: `gunzip convex-backup-020000.json.gz`
+
+### Importing the Backup
+The JSON file contains an object with each table name as a key:
+```json
+{
+  "_metadata": { "exportedAt": "...", "tableCount": 72 },
+  "firms": [ ... ],
+  "users": [ ... ],
+  "matters": [ ... ],
+  ...
+}
+```
+
+To restore to a new Convex deployment:
+1. Create a new Convex project
+2. Deploy your schema: `npx convex deploy`
+3. Write a restore script that reads the JSON and inserts documents via Convex mutations
+4. (I can build this restore script on-demand — it's only needed during an actual disaster)
 
 ---
 
@@ -113,35 +162,42 @@ Once the env vars are set and the code is deployed, you can trigger a backup imm
 3. **Long-term**: If Convex is down for > 24 hours:
    - Create a new Convex project in a different region
    - Deploy your code: `npx convex deploy`
-   - Download latest backup from R2
-   - Run the restore script (to be built when needed)
+   - Download latest backup from GitHub or Telegram
+   - Run the restore script (I can build this when needed)
    - Update `VITE_CONVEX_URL` in your frontend env
    - Redeploy frontend
 
 ### Scenario: Convex account is locked / billing dispute
-1. Your data is safe in R2 — you have 30 days of backups
+1. Your data is safe — you have 30 days of backups in GitHub AND Telegram
 2. Create a new Convex project under a different account
-3. Deploy + restore from R2 backup
+3. Deploy + restore from either backup target
 4. Update frontend env vars + redeploy
 
 ### Scenario: Accidental data deletion
-1. Don't panic — last night's backup is in R2
+1. Don't panic — last night's backup is in both GitHub and Telegram
 2. Download the backup
-3. Extract the affected table
+3. Extract the affected table array
 4. Write a script to re-insert the deleted documents
 5. (I can build this on-demand)
+
+### Scenario: GitHub is down / account locked
+1. Your Telegram backup is completely independent — still safe
+2. Restore from Telegram instead
+
+### Scenario: Telegram is down
+1. Your GitHub backup is completely independent — still safe
+2. Restore from GitHub instead
 
 ---
 
 ## Costs
 
-| Item | Free Tier | Your Expected Usage |
-|---|---|---|
-| R2 Storage | 10 GB/month | ~1-3 GB (well within free) |
-| R2 Class A ops (writes) | 1M/month | ~30/month (1 backup × 30 days) |
-| R2 Class B ops (reads) | 10M/month | ~0 (only read during restore) |
-| R2 Egress | Unlimited free | $0 forever |
-| **Total monthly cost** | | **$0.00** |
+| Item | Cost |
+|---|---|
+| GitHub Private Repo | **$0** (free since 2019) |
+| Telegram Bot API | **$0** (free forever) |
+| Convex (your existing plan) | Already paying |
+| **Total additional cost** | **$0.00/month** |
 
 ---
 
@@ -149,16 +205,35 @@ Once the env vars are set and the code is deployed, you can trigger a backup imm
 
 ### Check if backups are running:
 1. Convex dashboard → **Functions** → `backups/runBackup`
-2. Check the **Logs** tab — you should see nightly entries at 2:00 AM UTC
+2. Check the **Logs** tab — nightly entries at 2:00 AM UTC
 
-### Check what's in R2:
-1. Cloudflare R2 dashboard → `practicepro-backups` bucket
-2. You'll see folders organized by date: `2026-06-25/`, `2026-06-26/`, etc.
+### Check GitHub:
+1. Go to your `PracticePro-Backups` repo
+2. You'll see folders organized by date
+
+### Check Telegram:
+1. Open your `PracticePro Backups` channel
+2. Each backup is a file message with the date in the caption
+
+### Check via API:
+Run the `backups/getBackupStatus` function in Convex dashboard. It returns:
+```json
+{
+  "githubConfigured": true,
+  "telegramConfigured": true,
+  "tableCount": 72,
+  "recentBackups": [
+    { "target": "github", "backupKey": "2026-06-25/...", "success": true, "sizeBytes": 456789, ... },
+    { "target": "telegram", "backupKey": "2026-06-25/...", "success": true, ... }
+  ]
+}
+```
 
 ### If backups stop working:
-- Check that R2 env vars are still set in Convex
+- Check that env vars are still set in Convex
 - Check Convex function logs for errors
-- Verify R2 API token hasn't expired
+- Verify GitHub token hasn't expired (regenerate if needed)
+- Verify Telegram bot is still in the channel as admin
 - Run `triggerBackupNow` manually to test
 
 ---
@@ -167,14 +242,13 @@ Once the env vars are set and the code is deployed, you can trigger a backup imm
 
 | Item | Status | Recommendation |
 |---|---|---|
-| File uploads (portal attachments, documents) | ⚠️ In Convex File Storage only | Build nightly file mirror to R2 |
-| GitHub repo | ✅ On GitHub | Consider mirroring to GitLab |
+| File uploads (portal attachments, documents) | ⚠️ In Convex File Storage only | Build nightly file mirror to GitHub/Telegram |
 | API keys | ⚠️ In Convex env vars | Export to password manager NOW |
 
 ### To back up file uploads:
-The database backup includes the *storage IDs* of all uploaded files, but not the file *contents*. If you need the file contents backed up too, I can build a second cron that:
-1. Queries all documents with file attachments
-2. Downloads each file from Convex File Storage
-3. Uploads to R2 at `files/<storageId>`
+The database backup includes the *storage IDs* of all uploaded files, but not the file *contents*. If you need file contents backed up too, a second cron can:
+1. Query all documents with file attachments
+2. Download each file from Convex File Storage
+3. Upload to GitHub and/or Telegram
 
-This is important for full disaster recovery. Let me know if you want me to build this.
+Let me know if you want me to build this.

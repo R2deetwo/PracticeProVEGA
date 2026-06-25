@@ -1517,4 +1517,23 @@ export default defineSchema({
     .index("by_state", ["state"])
     .index("by_scheduled_for", ["scheduledFor"]),
 
+  // ─── BACKUP LOG ───────────────────────────────────────────────────────
+  // Tracks each backup run so we can:
+  //   1. Show backup status in the admin UI
+  //   2. Clean up old backups (GitHub file SHAs + Telegram message IDs
+  //      are needed to delete via their respective APIs)
+  backup_log: defineTable({
+    target: v.string(),           // "github" | "telegram"
+    backupKey: v.string(),        // e.g. "2026-06-25/convex-backup-020000.json.gz"
+    externalId: v.string(),       // GitHub: file SHA, Telegram: message_id
+    fileUrl: v.optional(v.string()),
+    sizeBytes: v.number(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    createdAt: v.string(),        // ISO timestamp
+  })
+    .index("by_target", ["target"])
+    .index("by_created", ["createdAt"])
+    .index("by_target_created", ["target", "createdAt"]),
+
 }, { schemaValidation: false });
