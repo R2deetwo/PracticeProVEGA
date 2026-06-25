@@ -2698,3 +2698,27 @@ ACTION: Triggered fresh build (commit 397d5b3). User needs to:
 3. Download THAT artifact — NOT the old v1.0.52
 4. Delete the old v1.0.52 APK from their phone
 5. Install the new v1.0.56+ APK
+
+---
+Task ID: 44
+Agent: Main Agent
+Task: User STILL installing v1.0.52 despite multiple fixes
+
+CRITICAL FINDING:
+Screenshot shows user is STILL trying to install PracticePro-v1.0.52.apk
+(15.94 MB). This is the OLD broken APK. The latest version is 1.0.57+.
+
+The user may not understand how to download the newest artifact from
+GitHub Actions. They need step-by-step instructions.
+
+ADDED to CI:
+- APK signature verification (apksigner verify)
+- APK contents listing (unzip -l)
+- ANDROID_HOME env var
+
+POTENTIAL PHONE-SIDE ISSUES (if new APK still fails):
+1. Browser renaming .apk to .zip — must rename back to .apk
+2. Download interrupted — re-download
+3. Samsung One UI package installer cache — clear cache
+4. Insufficient storage
+5. Unknown sources not enabled for file manager
