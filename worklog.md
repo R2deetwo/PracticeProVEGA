@@ -2679,3 +2679,22 @@ FIXES:
 USER ACTION:
 Must download the NEWEST build (after commit f8c9487), not the old v1.0.52.
 The old APK is permanently broken.
+
+---
+Task ID: 43
+Agent: Main Agent
+Task: User still installing old broken APK v1.0.52
+
+ROOT CAUSE:
+User is downloading and trying to install PracticePro-v1.0.52.apk which
+was built BEFORE the SDK fix. That APK is permanently malformed.
+
+The latest code is at v1.0.56 (triggered fresh build). User must download
+v1.0.56 or later from GitHub Actions artifacts.
+
+ACTION: Triggered fresh build (commit 397d5b3). User needs to:
+1. Go to GitHub Actions page
+2. Wait for the latest build (v1.0.56+) to complete
+3. Download THAT artifact — NOT the old v1.0.52
+4. Delete the old v1.0.52 APK from their phone
+5. Install the new v1.0.56+ APK
