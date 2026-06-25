@@ -2293,3 +2293,67 @@ Stage Summary:
   bot + private channel, (3) add 5 env vars to Convex dashboard, (4) run
   triggerBackupNow to test
 - Full instructions in download/BACKUP_SETUP.md
+
+---
+Task ID: 32
+Agent: Main Agent
+Task: Fix ticket detail viewport spillover + card-based layout
+
+Work Log:
+
+PROBLEM: The ticket detail view was spilling past viewport on mobile —
+containers expanding infinitely, text overlapping, button clipping, and
+no container-level scrolling.
+
+ROOT CAUSES:
+1. Root thread detail container had no min-w-0/min-h-0 — Safari stretched
+   it infinitely instead of bounding to viewport
+2. Header used hardcoded h-14 — couldn't adapt to wrapping content
+3. Inline reply composer had no w-full/box-border — textarea expanded
+   parent width
+4. Message body used flex-1 overflow-y-auto without min-h-0 — Safari
+   didn't activate scrolling
+
+FIXES:
+
+1.1 VIEWPORT BOUNDARY LOCK
+- Thread detail root: added min-w-0 min-h-0 overflow-hidden
+  + bg-slate-50 dark:bg-zinc-950 (neutral canvas)
+- Parent tab content container: added min-h-0 min-w-0
+
+1.2 HEADER + STATUS PILLS ADAPTIVE FLEX
+- Thread header: min-h-[3.5rem] py-2 (was hardcoded h-14)
+- Header content: min-w-0 flex-1 so sender name truncates
+- Badges: flex-shrink-0 so they don't get squeezed
+- 'Replied' badge: hidden sm:flex (saves mobile space)
+- Assign row: added flex-wrap for long names
+
+1.3 NESTED REPLY COMPOSER ISOLATION
+- InlineTicketReply: w-full block box-border min-w-0
+- Textareas: text-sm → text-base (16px, kills Safari auto-zoom)
+- Bottom composer textarea: min-w-0 block box-border
+- Attachment chips + banner: min-w-0 for proper truncation
+
+1.4 GLOBAL SCROLL ACTIVATION
+- New .ticket-body-scroll CSS class with flex: 1 1 0%; min-height: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; will-change: transform
+- Applied to message body container
+- Message bubbles: min-w-0 box-border
+
+2. CARD-BASED NATIVE LOOK-AND-FEEL
+- Thread detail bg: white/zinc-900 → slate-50/zinc-950 (muted canvas)
+- Message bubbles already card-like (rounded-2xl + border + shadow)
+- Bottom composer: bg-white/zinc-900 (card on dark canvas)
+- pb-safe on bottom composer docks above home indicator
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds
+- Committed + pushed: 56ea5d2..1392488 main -> main
+
+Stage Summary:
+- Ticket detail view now bounded to viewport on all devices
+- Scrolling works properly on iOS Safari
+- No more text overlapping or button clipping
+- Card-based layout on neutral canvas
+- All text inputs 16px (no Safari auto-zoom)
