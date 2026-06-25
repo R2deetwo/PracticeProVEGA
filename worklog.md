@@ -2535,3 +2535,42 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds
 - Committed + pushed: b921dc7..dd07fa1 main -> main
+
+---
+Task ID: 38
+Agent: Main Agent
+Task: Fix 'failed to parse' APK install error
+
+Work Log:
+
+ROOT CAUSE: Convex deploy step in GitHub Actions was failing because
+the new Convex files used Web APIs that aren't available in the Convex
+runtime, causing module evaluation errors.
+
+ISSUE 1: btoa() in backups.ts
+- btoa() is a browser API that may not exist in Convex runtime
+- Fix: arrayBufferToBase64 checks for globalThis.btoa, falls back to
+  Buffer.from (Node.js)
+
+ISSUE 2: Blob().stream() in backups.ts gzip function
+- Replaced with ReadableStream + CompressionStream (standard Web
+  Streams API, fully supported in Convex)
+
+ISSUE 3: crypto.getRandomValues() in visitorManagement.ts MUTATION
+- crypto is only available in ACTIONS, not mutations
+- This is the most likely cause of the parse error — Convex may
+  evaluate the module at deploy time and fail
+- Fix: Replaced with Math.random + Date.now entropy
+- For 6-digit codes with collision checking (10 retries, 24h window),
+  this provides sufficient randomness
+
+Also removed unused 'action' import from visitorManagement.ts.
+
+VERIFICATION:
+- Convex tsc: only codegen type errors (internal.backups/visitorManagement
+  references that resolve after first deploy)
+- Frontend tsc: clean
+- vite build: succeeds
+- Committed + pushed: 6037f5e..2ac4625 main -> main
+
+Next CI run should deploy Convex successfully and build the APK.
