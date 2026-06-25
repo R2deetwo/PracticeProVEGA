@@ -40,14 +40,16 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          # v3 uses 'packages' instead of 'api-level'/'build-tools-version'
-          # We install: build-tools 35.0.0, platform android-35, and platform-tools
-          packages: |
-            build-tools;35.0.0
-            platforms;android-35
-            platform-tools
+        # GitHub Actions runners come with Android SDK pre-installed at
+        # /usr/local/lib/android/sdk. We just need to install the specific
+        # build-tools and platform versions we need, and accept licenses.
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_SDK_ROOT=$ANDROID_HOME
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools"
+          echo "Android SDK setup complete."
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed 2>/dev/null || true
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
