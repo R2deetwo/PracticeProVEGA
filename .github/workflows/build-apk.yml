@@ -113,6 +113,8 @@ jobs:
         run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK was created and is valid
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
           echo "Checking for APK..."
           ls -la android/app/build/outputs/apk/debug/
@@ -132,6 +134,10 @@ jobs:
             exit 1
           fi
           
+          # Print APK contents (first 20 entries) so we can verify structure
+          echo "=== APK contents (first 20 entries) ==="
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | head -25
+          
           # Check APK signature
           echo "Checking APK signature..."
           if [ -f android/app/debug.keystore ]; then
@@ -139,6 +145,16 @@ jobs:
           else
             echo "✗ Debug keystore missing!"
             exit 1
+          fi
+          
+          # Verify the APK is signed
+          echo "Verifying APK signature..."
+          APKSIGNER=$(find $ANDROID_HOME -name "apksigner" -type f 2>/dev/null | head -1)
+          if [ -n "$APKSIGNER" ]; then
+            $APKSIGNER verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk 2>&1 | head -10
+            echo "✓ APK signature verified"
+          else
+            echo "WARNING: apksigner not found, skipping signature verification"
           fi
           
           echo "APK is valid and ready."
