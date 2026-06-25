@@ -2510,3 +2510,28 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds
 - Committed + pushed: ee6bcf5..d3c2642 main -> main
+
+---
+Task ID: 37
+Agent: Main Agent
+Task: Fix API key validation + modernize ALOA chat UI
+
+Work Log:
+
+API KEY BUG:
+- validateAPIKey had startsWith('AIza') check that rejected valid keys
+- Removed prefix check — only checks existence + length >= 20
+- Added firmKey parameter so it checks personal + firm-wide keys
+- AloaChat now passes firmGeminiApiKey to validateAPIKey
+- API itself validates key — 403 error already handled gracefully
+
+UI MODERNIZATION:
+1. Removed sender labels ('YOU'/'ALOA') — position + color = identity
+2. Animated 3-dot typing indicator (staggered bounce)
+3. Streaming cursor (blinking bar at end of AI text)
+4. Cleaner footer (reset button inline-left, only shows with messages)
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds
+- Committed + pushed: b921dc7..dd07fa1 main -> main
