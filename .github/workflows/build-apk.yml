@@ -42,8 +42,12 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 36
-          build-tools-version: '36.0.0'
+          # v3 uses 'packages' instead of 'api-level'/'build-tools-version'
+          # We install: build-tools 35.0.0, platform android-35, and platform-tools
+          packages: |
+            build-tools;35.0.0
+            platforms;android-35
+            platform-tools
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -102,7 +106,18 @@ jobs:
 
       - name: Build APK (clean build to purge cached assets)
         working-directory: android
-        run: ./gradlew clean assembleDebug --no-daemon
+        run: ./gradlew clean assembleDebug --no-daemon --stacktrace
+
+      - name: Verify APK was created
+        run: |
+          echo "Checking for APK..."
+          ls -la android/app/build/outputs/apk/debug/
+          if [ ! -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            echo "ERROR: APK was not created!"
+            exit 1
+          fi
+          echo "APK size: $(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+          echo "APK is valid and ready."
 
       - name: Rename APK with version number
         run: |
