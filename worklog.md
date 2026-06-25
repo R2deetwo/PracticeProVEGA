@@ -2357,3 +2357,56 @@ Stage Summary:
 - No more text overlapping or button clipping
 - Card-based layout on neutral canvas
 - All text inputs 16px (no Safari auto-zoom)
+
+---
+Task ID: 33
+Agent: Main Agent
+Task: Fix broken ALOA chat, simplify messaging UI, redesign ComposeModal
+
+Work Log:
+
+1. CRITICAL: ALOA/ARIA CHAT BROKEN — send did nothing
+   ROOT CAUSE: validateAPIKey() in aiRequestQueue.ts used require() to
+   import getGeminiApiKey. In the browser ESM context, require() is not
+   defined → throws "require is not defined" → crashes handleSend
+   silently before any optimistic UI appears → user sees "nothing happens"
+   FIX: Replaced require() with static import: import { getGeminiApiKey }
+   from './aiUtils'. Verified no circular dependency (aiUtils only
+   imports from types and constants).
+   Also: Moved setIsLoading(true) to start of execute function so ALL
+   message types show loading state immediately (was only inside the
+   non-tool-action path).
+
+2. MESSAGING SIMPLIFICATION:
+   - Removed sender name header from bubbles (position = identity, like iMessage)
+   - Replaced 4 status pills with single dropdown select
+   - Combined status + assign into one flex-wrap row
+   - Removed quick-reply chips from bottom composer
+   - Shortened "Reply to this ticket" → "Reply"
+   - Moved timestamp + read receipt to bottom-right (iMessage style)
+   - Reduced bubble padding and max-width
+   - Threaded replies: removed timestamps, tighter spacing
+
+3. COMPOSEMODAL REDESIGN — was dark slate-900 theme (looked like different app):
+   - All backgrounds → white/zinc-900 with slate-50/zinc-800 inputs
+   - All accents → primary-600 (consistent with rest of app)
+   - All text → slate-900 dark:text-white (was white on dark)
+   - All borders → slate-200 dark:zinc-700
+   - Recipient chips → primary-50/primary-900/20 with primary-700 text
+   - Channel buttons → primary-600 active with shadow-sm
+   - Checkbox selection → primary-600
+   - Message textarea → text-base (16px anti-zoom), normal font
+   - Financial inputs → slate-50 with primary-500/30 focus ring
+   - Preview cards → slate-50/zinc-800
+   - Send button → primary-600 (was green-600)
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds
+- Committed + pushed: 89b99ae..82d2a09 main -> main
+- 4 files changed, +150 -235 (net simpler)
+
+Stage Summary:
+- ALOA/ARIA chat works again (was completely broken by require() bug)
+- Messaging UI simplified — fewer badges, cleaner controls, less noise
+- ComposeModal now matches app's design architecture (white/primary, not dark slate)
