@@ -2722,3 +2722,24 @@ POTENTIAL PHONE-SIDE ISSUES (if new APK still fails):
 3. Samsung One UI package installer cache — clear cache
 4. Insufficient storage
 5. Unknown sources not enabled for file manager
+
+---
+Task ID: 45
+Agent: Main Agent
+Task: Fix APK parse error — user confirmed they ARE downloading latest
+
+USER CORRECTION:
+User confirmed they ARE downloading the latest APK (not the old one).
+The latest APK still gives 'There was a problem while parsing the package'.
+
+ROOT CAUSE FOUND:
+targetSdkVersion was 36 (Android 16 developer preview). Many phones
+reject APKs targeting an unreleased API level.
+
+FIX:
+1. targetSdkVersion: 36 → 34 (Android 14, stable on all phones)
+2. compileSdk stays at 36 (required by androidx dependencies)
+3. Upload only ONE APK file (not two)
+4. Added aapt2 dump badging to CI for manifest verification
+
+Pushed: 66f3b98 main -> main
