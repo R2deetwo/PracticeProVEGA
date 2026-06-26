@@ -2743,3 +2743,28 @@ FIX:
 4. Added aapt2 dump badging to CI for manifest verification
 
 Pushed: 66f3b98 main -> main
+
+---
+Task ID: 47
+Agent: Main Agent
+Task: Fix APK parse error — downgrade to stable AGP + AndroidX
+
+ROOT CAUSE (CONFIRMED):
+AGP 8.13.0 + Gradle 8.14.3 + AndroidX 1.17.0 are all bleeding-edge
+versions released in the last few weeks. They require API 36 (Android 16
+developer preview) and produce APKs that phones and BlueStacks reject
+with 'There was a problem while parsing the package'.
+
+FIX:
+Downgraded everything to proven stable versions:
+- AGP: 8.13.0 → 8.9.1 (stable, supports API 35)
+- Gradle: 8.14.3 → 8.11.1
+- compileSdk/targetSdk: 36 → 35 (Android 15 stable)
+- All AndroidX libraries downgraded to stable versions
+- CI: install API 35 (not 36)
+
+These are versions that have been used in production by thousands of apps
+for months. The APK will be built against Android 15 (API 35) which is
+stable and supported by all modern phones and BlueStacks.
+
+Pushed: 8836e71..5555458 main -> main
