@@ -157,6 +157,15 @@ jobs:
             echo "WARNING: apksigner not found, skipping signature verification"
           fi
           
+          # Print the AndroidManifest.xml version info using aapt
+          echo "=== APK manifest info ==="
+          AAPT=$(find $ANDROID_HOME -name "aapt2" -type f 2>/dev/null | head -1)
+          if [ -n "$AAPT" ]; then
+            $AAPT dump badging android/app/build/outputs/apk/debug/app-debug.apk 2>&1 | head -15
+          else
+            echo "aapt2 not found, skipping manifest dump"
+          fi
+          
           echo "APK is valid and ready."
 
       - name: Rename APK with version number
@@ -176,13 +185,13 @@ jobs:
           echo "Final APK files:"
           ls -la android/app/build/outputs/apk/debug/PracticePro*.apk
 
-      - name: Upload APK
+      - name: Upload APK (single file, no zip wrapping)
         uses: actions/upload-artifact@v4
         with:
           name: PracticePro-v${{ env.APK_VERSION }}
-          path: |
-            android/app/build/outputs/apk/debug/PracticePro-v*.apk
-            android/app/build/outputs/apk/debug/PracticePro.apk
+          # Upload ONLY the versioned APK — not both files.
+          # This prevents confusion about which file to install.
+          path: android/app/build/outputs/apk/debug/PracticePro-v*.apk
           retention-days: 30
           if-no-files-found: error
-          compression-level: 0  # APKs are already compressed — don't re-compress
+          compression-level: 0  # APKs are already ZIP-compressed — don't re-compress
