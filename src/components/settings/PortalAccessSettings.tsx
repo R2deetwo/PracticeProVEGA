@@ -34,6 +34,7 @@ import {
   MailIcon, CheckIcon, ClockIcon,
   ExclamationTriangleIcon, SendIcon, DeviceMobileIcon,
   UsersIcon, OfficeBuildingIcon, EyeIcon, BellIcon,
+  VisitorIcon,
 } from '../../constants';
 
 // ─── Delete Confirmation Dialog ──────────────────────────────────────────
@@ -1206,6 +1207,99 @@ export const PortalAccessSettings: React.FC = () => {
         {/* Service Request Types — admin-configurable catalog for both portals */}
         {showResidentPortal && <ServiceRequestTypesConfig portalType="resident" />}
         {showClientPortal && <ServiceRequestTypesConfig portalType="client" />}
+
+        {/* ─── Visitor Management System (VMS) Settings ─────────────────── */}
+        {showResidentPortal && (
+          <div className="bg-emerald-50/30 dark:bg-emerald-900/5 rounded-2xl border border-emerald-100 dark:border-emerald-900/20 p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
+                <VisitorIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm">Visitor Management System</h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400">Gate access codes, verification, and notifications</p>
+              </div>
+            </div>
+
+            {/* Master toggle */}
+            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-zinc-700/50">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Enable Visitor Codes</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Residents can generate 6-digit access codes for their visitors</p>
+              </div>
+              <button
+                onClick={() => updateSettings({ firmId, vmsEnabled: !portalSettings?.vmsEnabled })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.vmsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Gatekeeper notifications */}
+            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-zinc-700/50">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Gatekeeper Notifications</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp alert to gatekeeper when a visitor is verified</p>
+              </div>
+              <button
+                onClick={() => updateSettings({ firmId, vmsGatekeeperNotifications: !portalSettings?.vmsGatekeeperNotifications })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsGatekeeperNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.vmsGatekeeperNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Resident notifications */}
+            <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-zinc-700/50">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Resident Arrival Notifications</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send WhatsApp to resident when their visitor checks in at the gate</p>
+              </div>
+              <button
+                onClick={() => updateSettings({ firmId, vmsResidentNotifications: !portalSettings?.vmsResidentNotifications })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${portalSettings?.vmsResidentNotifications ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${portalSettings?.vmsResidentNotifications ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+
+            {/* Grace period + Default expiry */}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Grace Period (minutes)</label>
+                <select
+                  value={portalSettings?.vmsGracePeriodMinutes ?? 30}
+                  onChange={(e) => updateSettings({ firmId, vmsGracePeriodMinutes: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                >
+                  <option value={0}>No grace</option>
+                  <option value={15}>15 min</option>
+                  <option value={30}>30 min (default)</option>
+                  <option value={60}>1 hour</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Default Validity</label>
+                <select
+                  value={portalSettings?.vmsDefaultExpiryHours ?? 6}
+                  onChange={(e) => updateSettings({ firmId, vmsDefaultExpiryHours: parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/30"
+                >
+                  <option value={2}>2 Hours</option>
+                  <option value={6}>6 Hours</option>
+                  <option value={12}>12 Hours</option>
+                  <option value={24}>24 Hours</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800/30">
+              <p className="text-[11px] text-blue-700 dark:text-blue-400 leading-relaxed">
+                <strong>How it works:</strong> Residents generate 6-digit codes from their portal. Gatekeepers verify codes at the gate using the Gatekeeper Interface. Notifications are sent via WhatsApp when enabled.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Client Portal Section — primary for Komplete/lawyers */}
         <div className="bg-violet-50/30 dark:bg-violet-900/5 rounded-2xl border border-violet-100 dark:border-violet-900/20 p-4 sm:p-6">

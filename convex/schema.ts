@@ -1360,6 +1360,12 @@ export default defineSchema({
     tenantMessagingEnabled: v.optional(v.boolean()),  // Off by default
     clientMessagingEnabled: v.optional(v.boolean()),  // Off by default
     paymentProofUploadEnabled: v.optional(v.boolean()), // On by default
+    // ─── Visitor Management System (VMS) Settings ─────────────────────
+    vmsEnabled: v.optional(v.boolean()),              // Master toggle for visitor codes
+    vmsGatekeeperNotifications: v.optional(v.boolean()), // Send WhatsApp to gatekeeper on check-in
+    vmsResidentNotifications: v.optional(v.boolean()),   // Send WhatsApp to resident when visitor arrives
+    vmsGracePeriodMinutes: v.optional(v.number()),    // Default 30 min grace period
+    vmsDefaultExpiryHours: v.optional(v.number()),    // Default expiry window (2/6/12/24)
     createdAt: v.number(),
     updatedAt: v.number(),
   })

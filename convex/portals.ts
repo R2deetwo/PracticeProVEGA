@@ -4805,6 +4805,12 @@ export const updateFirmPortalSettings = mutation({
     tenantMessagingEnabled: v.optional(v.boolean()),
     clientMessagingEnabled: v.optional(v.boolean()),
     paymentProofUploadEnabled: v.optional(v.boolean()),
+    // VMS settings
+    vmsEnabled: v.optional(v.boolean()),
+    vmsGatekeeperNotifications: v.optional(v.boolean()),
+    vmsResidentNotifications: v.optional(v.boolean()),
+    vmsGracePeriodMinutes: v.optional(v.number()),
+    vmsDefaultExpiryHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const { firmId, ...updates } = args;
@@ -4822,6 +4828,11 @@ export const updateFirmPortalSettings = mutation({
         tenantMessagingEnabled: updates.tenantMessagingEnabled ?? false,
         clientMessagingEnabled: updates.clientMessagingEnabled ?? false,
         paymentProofUploadEnabled: updates.paymentProofUploadEnabled ?? true,
+        vmsEnabled: updates.vmsEnabled ?? false,
+        vmsGatekeeperNotifications: updates.vmsGatekeeperNotifications ?? false,
+        vmsResidentNotifications: updates.vmsResidentNotifications ?? false,
+        vmsGracePeriodMinutes: updates.vmsGracePeriodMinutes ?? 30,
+        vmsDefaultExpiryHours: updates.vmsDefaultExpiryHours ?? 6,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
