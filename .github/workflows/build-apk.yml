@@ -40,18 +40,14 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        # GitHub Actions runners come with Android SDK pre-installed at
-        # /usr/local/lib/android/sdk. We install API 36 build tools + platform
-        # because our dependencies (androidx.activity:1.11.0, androidx.core:1.17.0)
-        # require compileSdk 36.
+        # Install API 35 (Android 15 stable) + build-tools 35.0.0
+        # using direct sdkmanager (bypasses broken android-actions/setup-android@v3)
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_SDK_ROOT=$ANDROID_HOME
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platforms;android-36" "platform-tools"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools"
           echo "Android SDK setup complete."
-          echo "Installed packages:"
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --list_installed 2>/dev/null || true
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
