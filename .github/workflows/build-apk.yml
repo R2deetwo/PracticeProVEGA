@@ -154,9 +154,36 @@ jobs:
             exit 1
           fi
           
-          # Print APK contents (first 20 entries) so we can verify structure
-          echo "=== APK contents (first 20 entries) ==="
-          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | head -25
+          # CRITICAL: Check that the APK contains required files for installation
+          # If classes.dex or resources.arsc is missing, the APK will fail to install
+          # with "There was a problem while parsing the package"
+          echo "=== Checking required APK contents ==="
+          APK_CONTENTS=$(unzip -l android/app/build/outputs/apk/debug/app-debug.apk)
+          
+          if echo "$APK_CONTENTS" | grep -q "classes.dex"; then
+            echo "✓ classes.dex: present"
+          else
+            echo "✗ classes.dex: MISSING — APK will not install!"
+            exit 1
+          fi
+          
+          if echo "$APK_CONTENTS" | grep -q "resources.arsc"; then
+            echo "✓ resources.arsc: present"
+          else
+            echo "✗ resources.arsc: MISSING — APK will not install!"
+            exit 1
+          fi
+          
+          if echo "$APK_CONTENTS" | grep -q "AndroidManifest.xml"; then
+            echo "✓ AndroidManifest.xml: present"
+          else
+            echo "✗ AndroidManifest.xml: MISSING — APK will not install!"
+            exit 1
+          fi
+          
+          # Print full APK contents
+          echo "=== Full APK contents ==="
+          echo "$APK_CONTENTS"
           
           # Check APK signature
           echo "Checking APK signature..."

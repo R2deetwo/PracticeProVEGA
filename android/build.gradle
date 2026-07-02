@@ -22,6 +22,22 @@ allprojects {
         google()
         mavenCentral()
     }
+
+    // ─── Force consistent dependency versions across ALL modules ───────
+    // The biometric auth plugin (@aparajita/capacitor-biometric-auth@10.0.0)
+    // bundles its own build.gradle with AGP 8.13.2 and material 1.13.0,
+    // both of which require API 36 and produce broken APKs.
+    // This resolutionStrategy forces stable versions everywhere.
+    configurations.all {
+        resolutionStrategy {
+            force 'com.android.tools.build:gradle:8.9.1'
+            force 'com.google.android.material:material:1.12.0'
+            force 'androidx.activity:activity:1.9.3'
+            force 'androidx.core:core:1.13.1'
+            force 'androidx.core:core-ktx:1.13.1'
+            force 'androidx.appcompat:appcompat:1.7.0'
+        }
+    }
 }
 
 task clean(type: Delete) {
