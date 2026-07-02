@@ -52,6 +52,26 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # ─── Patch biometric plugin to use stable AGP ─────────────────────
+      # The @aparajita/capacitor-biometric-auth plugin bundles its own
+      # build.gradle with AGP 8.13.2 (requires API 36, produces broken APKs).
+      # We patch it to use AGP 8.9.1 (stable, works with API 35).
+      # This runs AFTER npm install so node_modules exists.
+      - name: Patch biometric plugin AGP version
+        run: |
+          PLUGIN_GRADLE="node_modules/@aparajita/capacitor-biometric-auth/android/build.gradle"
+          if [ -f "$PLUGIN_GRADLE" ]; then
+            echo "Patching $PLUGIN_GRADLE..."
+            sed -i 's/classpath .com.android.tools.build:gradle:8.13.2./classpath "com.android.tools.build:gradle:8.9.1"/g' "$PLUGIN_GRADLE"
+            sed -i "s/compileSdkVersion = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36/compileSdkVersion = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 35/g" "$PLUGIN_GRADLE"
+            sed -i "s/targetSdkVersion = project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36/targetSdkVersion = project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 35/g" "$PLUGIN_GRADLE"
+            sed -i "s/'1.13.0'/'1.12.0'/g" "$PLUGIN_GRADLE"
+            echo "Patched. Verifying:"
+            grep -n "classpath\|compileSdkVersion\|targetSdkVersion\|materialVersion" "$PLUGIN_GRADLE" | head -10
+          else
+            echo "WARNING: Plugin build.gradle not found at $PLUGIN_GRADLE"
+          fi
+
       # ─── Auto-Increment PATCH Version ──────────────────────────────────
       # Only increments PATCH (bug fixes, small tweaks). MAJOR and MINOR
       # are manually controlled by the developer.
@@ -174,7 +194,7 @@ jobs:
           echo "Final APK:"
           ls -la android/app/build/outputs/apk/debug/PracticePro-v*.apk
 
-      # ─── Upload via actions/upload-artifact (for round-trip test) ─────
+      # ─── Upload via actions/upload-artifact ─────
       - name: Upload APK via artifact
         uses: actions/upload-artifact@v4
         with:
@@ -183,16 +203,7 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-      - name: Upload checksum
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-checksum
-          path: pre-upload.sha256
-
       # ─── STEP 2: Round-trip corruption test ───────────────────────────
-      # Download the artifact we just uploaded, compare SHA256.
-      # MATCH = artifact transport is clean, problem is elsewhere.
-      # MISMATCH = artifact pipeline corrupts the APK binary.
       - name: Round-trip download in same job
         uses: actions/download-artifact@v4
         with:

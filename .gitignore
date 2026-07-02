@@ -50,3 +50,5 @@ android/app/release/
 # signature as local builds. This prevents "App not installed as package
 # appears to be invalid" errors when updating the APK.
 !android/app/debug.keystore
+android/app/capacitor.build.gradle
+android/capacitor.settings.gradle
