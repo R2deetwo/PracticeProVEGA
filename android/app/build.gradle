@@ -26,12 +26,22 @@ android {
     //     -storepass android -alias androiddebugkey -keypass android \
     //     -keyalg RSA -keysize 2048 -validity 10000 \
     //     -dname "CN=PracticePro Debug, OU=Dev, O=PracticePro, L=Lagos, ST=Lagos, C=NG"
+    //
+    // STOPGAP: v1-only signing. v2/v3 signing blocks are byte-offset-sensitive
+    // and can be silently corrupted by GitHub Actions artifact transport
+    // (upload-artifact → download-artifact round trip re-zips the APK).
+    // v1 (JAR signing) tolerates archive repackaging. Revert to v2/v3
+    // enabled once we confirm the release-asset delivery path works.
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
+            v1SigningEnabled true
+            v2SigningEnabled false
+            v3SigningEnabled false
+            v4SigningEnabled false
         }
     }
 

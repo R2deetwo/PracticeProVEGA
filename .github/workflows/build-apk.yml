@@ -132,92 +132,36 @@ jobs:
         working-directory: android
         run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-      - name: Verify APK was created and is valid
+      # ─── STEP 1: Pre-upload verification ──────────────────────────────
+      # Verify APK integrity BEFORE uploading. If apksigner or zipalign
+      # fails here, the build itself is broken. If both pass, any
+      # installation failure is caused by artifact transport corruption.
+      - name: Verify APK integrity pre-upload
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          echo "Checking for APK..."
-          ls -la android/app/build/outputs/apk/debug/
-          if [ ! -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            echo "ERROR: APK was not created!"
-            exit 1
-          fi
-          APK_SIZE=$(du -h android/app/build/outputs/apk/debug/app-debug.apk | cut -f1)
-          echo "APK size: $APK_SIZE"
-          
-          # Verify APK is a valid ZIP/APK file (APKs are ZIP files)
-          echo "Verifying APK integrity..."
-          if unzip -t android/app/build/outputs/apk/debug/app-debug.apk > /dev/null 2>&1; then
-            echo "✓ APK is a valid ZIP/APK file"
-          else
-            echo "✗ APK is corrupted (failed ZIP integrity check)"
-            exit 1
-          fi
-          
-          # CRITICAL: Check that the APK contains required files for installation
-          # If classes.dex or resources.arsc is missing, the APK will fail to install
-          # with "There was a problem while parsing the package"
-          echo "=== Checking required APK contents ==="
-          APK_CONTENTS=$(unzip -l android/app/build/outputs/apk/debug/app-debug.apk)
-          
-          if echo "$APK_CONTENTS" | grep -q "classes.dex"; then
-            echo "✓ classes.dex: present"
-          else
-            echo "✗ classes.dex: MISSING — APK will not install!"
-            exit 1
-          fi
-          
-          if echo "$APK_CONTENTS" | grep -q "resources.arsc"; then
-            echo "✓ resources.arsc: present"
-          else
-            echo "✗ resources.arsc: MISSING — APK will not install!"
-            exit 1
-          fi
-          
-          if echo "$APK_CONTENTS" | grep -q "AndroidManifest.xml"; then
-            echo "✓ AndroidManifest.xml: present"
-          else
-            echo "✗ AndroidManifest.xml: MISSING — APK will not install!"
-            exit 1
-          fi
-          
-          # Print full APK contents
-          echo "=== Full APK contents ==="
-          echo "$APK_CONTENTS"
-          
-          # Check APK signature
-          echo "Checking APK signature..."
-          if [ -f android/app/debug.keystore ]; then
-            echo "✓ Debug keystore present"
-          else
-            echo "✗ Debug keystore missing!"
-            exit 1
-          fi
-          
-          # Verify the APK is signed
-          echo "Verifying APK signature..."
-          APKSIGNER=$(find $ANDROID_HOME -name "apksigner" -type f 2>/dev/null | head -1)
-          if [ -n "$APKSIGNER" ]; then
-            $APKSIGNER verify --print-certs android/app/build/outputs/apk/debug/app-debug.apk 2>&1 | head -10
-            echo "✓ APK signature verified"
-          else
-            echo "WARNING: apksigner not found, skipping signature verification"
-          fi
-          
-          # Print the AndroidManifest.xml version info using aapt
-          echo "=== APK manifest info ==="
-          AAPT=$(find $ANDROID_HOME -name "aapt2" -type f 2>/dev/null | head -1)
-          if [ -n "$AAPT" ]; then
-            $AAPT dump badging android/app/build/outputs/apk/debug/app-debug.apk 2>&1 | head -15
-          else
-            echo "aapt2 not found, skipping manifest dump"
-          fi
-          
-          echo "APK is valid and ready."
+          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
+          echo "=== APK file ==="
+          ls -la "$APK_PATH"
+          echo ""
+          echo "--- SHA256 before upload ---"
+          sha256sum "$APK_PATH" | tee pre-upload.sha256
+          echo ""
+          echo "--- Required APK contents check ---"
+          unzip -l "$APK_PATH" | grep -E "classes.dex|resources.arsc|AndroidManifest.xml" || { echo "FAIL: missing required APK entry"; exit 1; }
+          echo ""
+          echo "--- apksigner verify ---"
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK_PATH"
+          echo ""
+          echo "--- zipalign check ---"
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -v 4 "$APK_PATH"
+          echo ""
+          echo "--- aapt badging dump ---"
+          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK_PATH" | head -5
 
       - name: Rename APK with version number
         run: |
-          # Read version from version.properties
           MAJOR=$(grep '^MAJOR=' android/app/version.properties | cut -d= -f2)
           MINOR=$(grep '^MINOR=' android/app/version.properties | cut -d= -f2)
           PATCH=$(grep '^PATCH=' android/app/version.properties | cut -d= -f2)
@@ -225,20 +169,64 @@ jobs:
           echo "Version: $VERSION"
           cp android/app/build/outputs/apk/debug/app-debug.apk \
              "android/app/build/outputs/apk/debug/PracticePro-v${VERSION}.apk"
-          # Also keep a generic name for backward compat
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             android/app/build/outputs/apk/debug/PracticePro.apk
           echo "APK_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Final APK files:"
-          ls -la android/app/build/outputs/apk/debug/PracticePro*.apk
+          echo "APK_FILENAME=PracticePro-v${VERSION}.apk" >> $GITHUB_ENV
+          echo "Final APK:"
+          ls -la android/app/build/outputs/apk/debug/PracticePro-v*.apk
 
-      - name: Upload APK
+      # ─── Upload via actions/upload-artifact (for round-trip test) ─────
+      - name: Upload APK via artifact
         uses: actions/upload-artifact@v4
         with:
           name: PracticePro-v${{ env.APK_VERSION }}
           path: android/app/build/outputs/apk/debug/PracticePro-v*.apk
           retention-days: 30
           if-no-files-found: error
-          # Don't set compression-level — let GitHub use default.
-          # The artifact is downloaded as a .zip, the user extracts it,
-          # and the APK inside is untouched.
+
+      - name: Upload checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-checksum
+          path: pre-upload.sha256
+
+      # ─── STEP 2: Round-trip corruption test ───────────────────────────
+      # Download the artifact we just uploaded, compare SHA256.
+      # MATCH = artifact transport is clean, problem is elsewhere.
+      # MISMATCH = artifact pipeline corrupts the APK binary.
+      - name: Round-trip download in same job
+        uses: actions/download-artifact@v4
+        with:
+          name: PracticePro-v${{ env.APK_VERSION }}
+          path: roundtrip-check/
+
+      - name: Compare checksums pre vs post artifact transport
+        run: |
+          echo "--- SHA256 after round-trip ---"
+          sha256sum roundtrip-check/*.apk
+          echo "--- Original ---"
+          cat pre-upload.sha256
+          diff <(sha256sum roundtrip-check/*.apk | awk '{print $1}') <(awk '{print $1}' pre-upload.sha256) && echo "MATCH - no corruption in transport" || echo "MISMATCH - artifact pipeline corrupts binary"
+
+      # ─── STEP 3: Publish as GitHub Release asset ─────────────────────
+      # Release assets are stored raw (not re-zipped), bypassing the
+      # artifact pipeline corruption entirely. Download via:
+      #   gh release download build-<run_number> --pattern "*.apk"
+      #   or: https://github.com/R2deetwo/PracticeProVEGA/releases
+      - name: Publish APK as release asset (bypasses artifact repackaging)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          files: android/app/build/outputs/apk/debug/PracticePro-v*.apk
+          prerelease: true
+          name: PracticePro v${{ env.APK_VERSION }}
+          body: |
+            APK build ${{ github.run_number }} (v${{ env.APK_VERSION }})
+
+            **Download the .apk file below.** Release assets are stored raw
+            and are NOT re-zipped by GitHub's artifact pipeline.
+
+            If the artifact download gives "parsing the package" error,
+            use this release asset instead — it is byte-for-byte identical
+            to what was built on the CI runner.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
