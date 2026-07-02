@@ -38,10 +38,10 @@ android {
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
-            v1SigningEnabled true
-            v2SigningEnabled false
-            v3SigningEnabled false
-            v4SigningEnabled false
+            enableV1Signing true
+            enableV2Signing false
+            enableV3Signing false
+            enableV4Signing false
         }
     }
 
