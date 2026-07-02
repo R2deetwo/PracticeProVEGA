@@ -150,35 +150,62 @@ jobs:
 
       - name: Build APK (clean build to purge cached assets)
         working-directory: android
-        run: ./gradlew clean assembleDebug --no-daemon --stacktrace
+        run: ./gradlew clean assembleDebug --no-daemon --stacktrace --info 2>&1 | tee build-log.txt
 
-      # ─── STEP 1: Pre-upload verification ──────────────────────────────
-      # Verify APK integrity BEFORE uploading. These checks are REPORT-ONLY
-      # (|| true) so they print results without failing the build.
-      # We need the diagnostic data, not a pass/fail gate at this stage.
-      - name: Verify APK integrity pre-upload
+      - name: Show build output if failed
+        if: failure()
+        run: tail -200 build-log.txt
+
+      # ─── FULL APK DIAGNOSTIC ──────────────────────────────────────────
+      # Dump EVERYTHING about the APK so we can see exactly what's wrong.
+      - name: Full APK diagnostic
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          APK_PATH="android/app/build/outputs/apk/debug/app-debug.apk"
-          echo "APK_PATH=$APK_PATH" >> $GITHUB_ENV
-          echo "=== APK file ==="
-          ls -la "$APK_PATH"
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          echo "=========================================="
+          echo "APK FILE: $APK"
+          echo "SIZE: $(du -h "$APK" | cut -f1)"
+          echo "=========================================="
+          
           echo ""
-          echo "--- SHA256 before upload ---"
-          sha256sum "$APK_PATH" | tee pre-upload.sha256
+          echo "=== 1. ZIP INTEGRITY ==="
+          unzip -t "$APK" 2>&1 | tail -5
+          
           echo ""
-          echo "--- Required APK contents check ---"
-          unzip -l "$APK_PATH" | grep -E "classes.dex|resources.arsc|AndroidManifest.xml" || { echo "FAIL: missing required APK entry"; exit 1; }
+          echo "=== 2. FULL APK CONTENTS ==="
+          unzip -l "$APK"
+          
           echo ""
-          echo "--- apksigner verify (report only) ---"
-          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK_PATH" 2>&1 || echo "apksigner verify returned non-zero (may be expected with v1-only signing)"
+          echo "=== 3. REQUIRED FILES CHECK ==="
+          for f in classes.dex resources.arsc AndroidManifest.xml; do
+            if unzip -l "$APK" | grep -q "$f"; then
+              echo "✓ $f: FOUND"
+            else
+              echo "✗ $f: MISSING!"
+            fi
+          done
+          
           echo ""
-          echo "--- zipalign check (report only) ---"
-          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -v 4 "$APK_PATH" 2>&1 || echo "zipalign check returned non-zero (APK may not be aligned)"
+          echo "=== 4. AAPT BADGING (package info) ==="
+          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK" 2>&1
+          
           echo ""
-          echo "--- aapt badging dump ---"
-          $ANDROID_HOME/build-tools/35.0.0/aapt dump badging "$APK_PATH" 2>&1 | head -5 || true
+          echo "=== 5. APKSIGNER VERIFY ==="
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK" 2>&1
+          
+          echo ""
+          echo "=== 6. ZIPALIGN CHECK ==="
+          $ANDROID_HOME/build-tools/35.0.0/zipalign -c -v 4 "$APK" 2>&1 | tail -10
+          
+          echo ""
+          echo "=== 7. SHA256 CHECKSUM ==="
+          sha256sum "$APK" | tee pre-upload.sha256
+          
+          echo ""
+          echo "=========================================="
+          echo "DIAGNOSTIC COMPLETE"
+          echo "=========================================="
 
       - name: Rename APK with version number
         run: |
