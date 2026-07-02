@@ -2768,3 +2768,31 @@ for months. The APK will be built against Android 15 (API 35) which is
 stable and supported by all modern phones and BlueStacks.
 
 Pushed: 8836e71..5555458 main -> main
+
+---
+Task ID: 48
+Agent: Main Agent
+Task: Fix APK parse error — force stable dependency versions across ALL modules
+
+ROOT CAUSE (FINALLY CONFIRMED):
+The biometric auth plugin (@aparajita/capacitor-biometric-auth@10.0.0)
+bundles its own build.gradle in node_modules that specifies:
+  - AGP 8.13.2 (requires API 36)
+  - material:1.13.0 (requires API 36)
+
+These override our downgraded versions in variables.gradle because the
+plugin module resolves its own dependencies independently. The version
+mismatch between the app module (stable AGP) and the plugin module
+(bleeding-edge AGP) produces a structurally invalid APK that phones
+and BlueStacks reject with "There was a problem while parsing the package".
+
+FIX:
+1. Added androidxMaterialVersion = '1.12.0' to variables.gradle
+2. Added resolutionStrategy in root build.gradle that FORCES stable
+   versions across ALL modules (app + plugins):
+   - AGP: 8.9.1, material: 1.12.0, activity: 1.9.3, core: 1.13.1
+3. Added critical APK content verification in CI:
+   - Checks for classes.dex, resources.arsc, AndroidManifest.xml
+   - If ANY are missing, build fails immediately
+
+Pushed: 53619ab..e9167a8 main -> main
