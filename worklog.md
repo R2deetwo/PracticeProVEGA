@@ -2796,3 +2796,36 @@ FIX:
    - If ANY are missing, build fails immediately
 
 Pushed: 53619ab..e9167a8 main -> main
+
+---
+Task ID: 49
+Agent: Main Agent
+Task: Diagnose APK corruption — pre-upload verify + round-trip test + release assets + v1 signing
+
+Implemented the diagnostic plan from external LLM consultation:
+
+STEP 1 — Pre-upload verification:
+- apksigner verify --verbose --print-certs
+- zipalign -c -v 4
+- aapt dump badging
+- SHA256 checksum before upload
+- Required contents check (classes.dex, resources.arsc, AndroidManifest.xml)
+
+STEP 2 — Round-trip corruption test:
+- Downloads artifact in same job, compares SHA256
+- Prints MATCH or MISMATCH definitively
+
+STEP 3 — GitHub Release asset upload:
+- Publishes APK as release asset (stored raw, not re-zipped)
+- Download from: https://github.com/R2deetwo/PracticeProVEGA/releases
+- Bypasses artifact pipeline entirely
+
+STEP 4 — v1-only signing (stopgap):
+- Disabled v2/v3/v4 signing in build.gradle
+- v1 (JAR signing) tolerates archive repackaging
+- v2/v3 blocks are byte-offset-sensitive and break under re-zip
+
+Pushed: 5d3c66e..64f4fba main -> main
+
+NEXT: Check the build log for the MATCH/MISMATCH result from step 2.
+Also try downloading the APK from the GitHub Releases page (not artifacts).
