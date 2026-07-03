@@ -38,12 +38,10 @@ android {
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
-            // Standard signing — v1 + v2 both enabled.
-            // v2 is required for Android 7+ and is the production standard.
-            enableV1Signing true
-            enableV2Signing true
-            enableV3Signing false
-            enableV4Signing false
+            // Use AGP defaults for signing. Do NOT set enableV1/V2/V3/V4
+            // — these properties were producing a corrupted APK Signing
+            // Block v2 that caused "There was a problem while parsing the
+            // package" on all devices. AGP 8.9.1 defaults are correct.
         }
     }
 
