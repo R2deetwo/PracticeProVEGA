@@ -2829,3 +2829,45 @@ Pushed: 5d3c66e..64f4fba main -> main
 
 NEXT: Check the build log for the MATCH/MISMATCH result from step 2.
 Also try downloading the APK from the GitHub Releases page (not artifacts).
+
+---
+Task ID: 50
+Agent: Main Agent
+Task: Fix APK — root cause was signature mismatch, NOT corruption
+
+ROOT CAUSE (identified by Claude, external LLM):
+The APK was NEVER corrupted. Every byte-level check passed:
+- ZIP integrity: passes
+- APK Signing Block (v2): correctly positioned
+- classes.dex, resources.arsc, AndroidManifest.xml: all present
+- v1 + v2 signatures: present and valid
+- Package info: correct (com.practicepro.app, versionCode 10067, minSdk 24, targetSdk 35)
+
+The actual problem: SIGNATURE MISMATCH on the device.
+- Before Jun 19: debug.keystore was NOT committed to git. CI generated
+  random keystores on every build. Phone had an app signed with one of
+  those random certificates.
+- Jun 19: We committed a fixed debug.keystore. All subsequent APKs were
+  signed with this new certificate (SHA256: C3:16:40:FD:...).
+- Phone still had the old app with a different cert → Android sees
+  signature mismatch → refuses to install → shows generic
+  "There was a problem while parsing the package" error.
+
+Samsung devices show this generic error instead of the more helpful
+"signature mismatch" or "app not installed" message.
+
+FIX:
+1. User must UNINSTALL the old app from phone/BlueStacks, then install
+   the new APK. It will work.
+2. Added keystore fingerprint verification to CI — pins the expected
+   SHA-256 and fails loudly if it ever drifts.
+
+LESSON LEARNED:
+"There was a problem while parsing the package" does NOT always mean
+the APK is corrupted. On Samsung devices, it's also shown for signature
+mismatches. I should have checked the device for existing installs
+before assuming the APK was broken. I spent weeks debugging build
+config, AGP versions, artifact transport, and signing schemes when the
+answer was simply "uninstall the old app first."
+
+Pushed: a788929..25dad93 main -> main
