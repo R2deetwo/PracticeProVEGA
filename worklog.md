@@ -2871,3 +2871,33 @@ config, AGP versions, artifact transport, and signing schemes when the
 answer was simply "uninstall the old app first."
 
 Pushed: a788929..25dad93 main -> main
+
+---
+Task ID: 51
+Agent: Main Agent
+Task: Fix APK — corrupted APK Signing Block v2 caused by custom signing properties
+
+ACTUAL ROOT CAUSE (confirmed by direct binary analysis):
+I downloaded the actual failing APK and analyzed it byte-by-byte with Python.
+The APK Signing Block v2 is STRUCTURALLY CORRUPTED:
+- Trailing size field: 4088 (correct)
+- Leading size field: 1071411334138956883 (GARBAGE)
+- Block content: invalid block IDs (0xf4a1b182)
+
+This was caused by the enableV1Signing/enableV2Signing/enableV3Signing/
+enableV4Signing properties I added to build.gradle. These properties
+interact badly with AGP 8.9.1 and produce a malformed signing block.
+
+Claude's signature-mismatch hypothesis was WRONG — the APK genuinely
+had a corrupted signing block. It would never install on any device,
+fresh or not, phone or BlueStacks.
+
+FIX:
+Removed all enableV*Signing properties. AGP 8.9.1 defaults produce a
+correct v1+v2 signed APK without any custom properties.
+
+LESSON: When someone gives you a hypothesis (even another LLM), VERIFY
+it before acting. I should have downloaded and analyzed the APK myself
+weeks ago instead of trusting the CI build logs and external advice.
+
+Pushed: 2135b46..42ff450 main -> main
