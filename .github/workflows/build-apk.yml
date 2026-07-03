@@ -52,6 +52,26 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      # ─── Verify keystore fingerprint hasn't changed ────────────────────
+      # The debug.keystore must be stable across all builds. If it changes,
+      # Android refuses to install the new APK over the old one with
+      # "There was a problem while parsing the package" (signature mismatch).
+      # This check pins the expected SHA-256 fingerprint and fails loudly
+      # if it ever drifts, so this silent failure mode can't recur.
+      - name: Verify debug keystore fingerprint
+        run: |
+          EXPECTED_SHA256="C3:16:40:FD:48:30:E1:30:D8:30:FD:BD:7E:38:96:93:DC:B4:B4:EE:76:15:60:3C:3F:D3:AE:B8:EC:5A:13:C8"
+          ACTUAL_SHA256=$(keytool -list -v -keystore android/app/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" | awk '{print $2}')
+          echo "Expected: $EXPECTED_SHA256"
+          echo "Actual:   $ACTUAL_SHA256"
+          if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
+            echo "ERROR: debug.keystore fingerprint has changed!"
+            echo "This will cause 'There was a problem while parsing the package' on all existing installs."
+            echo "If this is intentional (e.g. migrating to a release keystore), update EXPECTED_SHA256 in the workflow."
+            exit 1
+          fi
+          echo "✓ Keystore fingerprint matches — existing installs will update cleanly"
+
       # ─── Patch biometric plugin to use stable AGP ─────────────────────
       # The @aparajita/capacitor-biometric-auth plugin bundles its own
       # build.gradle with AGP 8.13.2 (requires API 36, produces broken APKs).
