@@ -11,11 +11,9 @@ android {
     }
 
     // ─── Signing Configuration ─────────────────────────────────────────
-    // We do NOT use Gradle's built-in signing. The APK is built unsigned
-    // and then signed manually with apksigner in the CI workflow.
-    // This is the nuclear option — Gradle's signing produced corrupted
-    // APK Signing Blocks that caused "There was a problem while parsing
-    // the package" on every device.
+    // Use Gradle's default debug signing. The debug.keystore is committed
+    // to git for consistent signatures across builds.
+    // No custom enableV*Signing properties — they caused corrupted APKs.
     signingConfigs {
         debug {
             storeFile file('debug.keystore')

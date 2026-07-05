@@ -174,75 +174,8 @@ jobs:
 
       - name: Show build output if failed
         if: failure()
-        run: tail -200 android/build-log.txt || true
-
-      # ─── NUCLEAR OPTION: Manual zipalign + manual apksigner ───────────
-      # Don't trust Gradle's built-in signing at all. Build the APK,
-      # strip the existing signature, zipalign, then sign with apksigner.
-      # This is the standard Android build pipeline done manually.
-      - name: Manual zipalign + sign + verify
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-        working-directory: android/app
-        run: |
-          BT="$ANDROID_HOME/build-tools/35.0.0"
-          INPUT_APK="build/outputs/apk/debug/app-debug.apk"
-          ALIGNED_APK="build/outputs/apk/debug/app-aligned.apk"
-          FINAL_APK="build/outputs/apk/debug/app-final.apk"
-          
-          echo "=== 1. Original APK info ==="
-          ls -la "$INPUT_APK"
-          echo "Size: $(du -h "$INPUT_APK" | cut -f1)"
-          
-          echo ""
-          echo "=== 2. Strip existing signature (remove META-INF) ==="
-          # Create a copy without META-INF (strips all existing signatures)
-          cp "$INPUT_APK" "$ALIGNED_APK.tmp"
-          zip -d "$ALIGNED_APK.tmp" "META-INF/*" 2>/dev/null || true
-          
-          echo ""
-          echo "=== 3. Zipalign (4-byte boundary) ==="
-          "$BT/zipalign" -f -v 4 "$ALIGNED_APK.tmp" "$ALIGNED_APK" 2>&1 | tail -5
-          rm "$ALIGNED_APK.tmp"
-          
-          echo ""
-          echo "=== 4. Sign with apksigner (v1 + v2) ==="
-          "$BT/apksigner" sign \
-            --ks debug.keystore \
-            --ks-pass pass:android \
-            --ks-key-alias androiddebugkey \
-            --key-pass pass:android \
-            --v1-signing-enabled true \
-            --v2-signing-enabled true \
-            --v3-signing-enabled false \
-            --v4-signing-enabled false \
-            --out "$FINAL_APK" \
-            "$ALIGNED_APK"
-          
-          echo ""
-          echo "=== 5. Verify signature ==="
-          "$BT/apksigner" verify --verbose --print-certs "$FINAL_APK"
-          
-          echo ""
-          echo "=== 6. Verify zipalign ==="
-          "$BT/zipalign" -c -v 4 "$FINAL_APK" 2>&1 | tail -5
-          
-          echo ""
-          echo "=== 7. Verify required contents ==="
-          unzip -l "$FINAL_APK" | grep -E "classes.dex|resources.arsc|AndroidManifest.xml"
-          
-          echo ""
-          echo "=== 8. AAPT badging ==="
-          "$BT/aapt" dump badging "$FINAL_APK" 2>&1 | head -10
-          
-          echo ""
-          echo "=== 9. SHA256 checksum ==="
-          sha256sum "$FINAL_APK" | tee pre-upload.sha256
-          
-          echo ""
-          echo "=== 10. Replace original with signed APK ==="
-          cp "$FINAL_APK" "$INPUT_APK"
-          echo "Done. Final APK is ready."
+        working-directory: android
+        run: cat build-log.txt 2>/dev/null || true
 
       - name: Rename APK with version number
         run: |
@@ -272,10 +205,5 @@ jobs:
           files: android/app/build/outputs/apk/debug/PracticePro-v*.apk
           prerelease: true
           name: PracticePro v${{ env.APK_VERSION }}
-          body: |
-            APK build ${{ github.run_number }} (v${{ env.APK_VERSION }})
-
-            This APK was manually zipaligned and signed with apksigner
-            (not Gradle's built-in signing). Download the .apk file below.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
