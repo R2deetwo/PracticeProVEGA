@@ -40,57 +40,17 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        # Install API 35 (Android 15 stable) + build-tools 35.0.0
-        # using direct sdkmanager (bypasses broken android-actions/setup-android@v3)
+        # Install API 36 + build-tools 36.0.0 to match the last known
+        # working config (June 19, commit 6050c30).
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           export ANDROID_SDK_ROOT=$ANDROID_HOME
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;35.0.0" "platforms;android-35" "platform-tools"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;36.0.0" "platforms;android-36" "platform-tools"
           echo "Android SDK setup complete."
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-
-      # ─── Verify keystore fingerprint hasn't changed ────────────────────
-      # The debug.keystore must be stable across all builds. If it changes,
-      # Android refuses to install the new APK over the old one with
-      # "There was a problem while parsing the package" (signature mismatch).
-      # This check pins the expected SHA-256 fingerprint and fails loudly
-      # if it ever drifts, so this silent failure mode can't recur.
-      - name: Verify debug keystore fingerprint
-        run: |
-          EXPECTED_SHA256="C3:16:40:FD:48:30:E1:30:D8:30:FD:BD:7E:38:96:93:DC:B4:B4:EE:76:15:60:3C:3F:D3:AE:B8:EC:5A:13:C8"
-          ACTUAL_SHA256=$(keytool -list -v -keystore android/app/debug.keystore -storepass android 2>/dev/null | grep "SHA256:" | awk '{print $2}')
-          echo "Expected: $EXPECTED_SHA256"
-          echo "Actual:   $ACTUAL_SHA256"
-          if [ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]; then
-            echo "ERROR: debug.keystore fingerprint has changed!"
-            echo "This will cause 'There was a problem while parsing the package' on all existing installs."
-            echo "If this is intentional (e.g. migrating to a release keystore), update EXPECTED_SHA256 in the workflow."
-            exit 1
-          fi
-          echo "✓ Keystore fingerprint matches — existing installs will update cleanly"
-
-      # ─── Patch biometric plugin to use stable AGP ─────────────────────
-      # The @aparajita/capacitor-biometric-auth plugin bundles its own
-      # build.gradle with AGP 8.13.2 (requires API 36, produces broken APKs).
-      # We patch it to use AGP 8.9.1 (stable, works with API 35).
-      # This runs AFTER npm install so node_modules exists.
-      - name: Patch biometric plugin AGP version
-        run: |
-          PLUGIN_GRADLE="node_modules/@aparajita/capacitor-biometric-auth/android/build.gradle"
-          if [ -f "$PLUGIN_GRADLE" ]; then
-            echo "Patching $PLUGIN_GRADLE..."
-            sed -i 's/classpath .com.android.tools.build:gradle:8.13.2./classpath "com.android.tools.build:gradle:8.9.1"/g' "$PLUGIN_GRADLE"
-            sed -i "s/compileSdkVersion = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 36/compileSdkVersion = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 35/g" "$PLUGIN_GRADLE"
-            sed -i "s/targetSdkVersion = project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 36/targetSdkVersion = project.hasProperty('targetSdkVersion') ? rootProject.ext.targetSdkVersion : 35/g" "$PLUGIN_GRADLE"
-            sed -i "s/'1.13.0'/'1.12.0'/g" "$PLUGIN_GRADLE"
-            echo "Patched. Verifying:"
-            grep -n "classpath\|compileSdkVersion\|targetSdkVersion\|materialVersion" "$PLUGIN_GRADLE" | head -10
-          else
-            echo "WARNING: Plugin build.gradle not found at $PLUGIN_GRADLE"
-          fi
 
       # ─── Auto-Increment PATCH Version ──────────────────────────────────
       # Only increments PATCH (bug fixes, small tweaks). MAJOR and MINOR

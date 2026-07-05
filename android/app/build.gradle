@@ -10,10 +10,22 @@ android {
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    // ─── Signing Configuration ─────────────────────────────────────────
-    // Use Gradle's default debug signing. The debug.keystore is committed
-    // to git for consistent signatures across builds.
-    // No custom enableV*Signing properties — they caused corrupted APKs.
+    // ─── Consistent Signing Configuration ────────────────────────────────
+    // PROBLEM: Without a shared debug keystore, every CI build generates a
+    // NEW random debug keystore, causing "App not installed as package
+    // appears to be invalid" when installing a new APK over an existing one
+    // (signature mismatch).
+    //
+    // FIX: We commit a project-local debug keystore (android/app/debug.keystore)
+    // and reference it here. Both local builds and CI builds use the SAME
+    // keystore, so the signature is consistent across all builds → the OS
+    // treats successive APKs as valid updates instead of mismatches.
+    //
+    // The debug.keystore is generated with:
+    //   keytool -genkey -v -keystore android/app/debug.keystore \
+    //     -storepass android -alias androiddebugkey -keypass android \
+    //     -keyalg RSA -keysize 2048 -validity 10000 \
+    //     -dname "CN=PracticePro Debug, OU=Dev, O=PracticePro, L=Lagos, ST=Lagos, C=NG"
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -28,28 +40,28 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
 
-        // ─── Semantic Version Code Computation ────────────────────────────
-        // Reads MAJOR, MINOR, PATCH from version.properties and computes:
-        //   versionCode = MAJOR × 10000 + MINOR × 100 + PATCH
-        //   versionName = "MAJOR.MINOR.PATCH"
+        // ─── Version Code Auto-Increment ─────────────────────────────────
+        // versionCode is read from a version.properties file that CI auto-
+        // increments on each build. This ensures the Android OS recognizes
+        // each new APK as a valid update (versionCode must strictly increase).
         //
-        // This guarantees versionCode always strictly increases as PATCH
-        // auto-increments in CI, while keeping the numbers compact.
+        // The file is at android/app/version.properties with format:
+        //   versionCode=3
+        //   versionName=1.0.2
         //
-        // Example: 1.2.3 → versionCode 10203, versionName "1.2.3"
+        // If the file doesn't exist (local dev without CI), we fall back to
+        // sensible defaults.
         def versionPropsFile = file('version.properties')
-        def major = 1
-        def minor = 0
-        def patch = 0
+        def vCode = 2
+        def vName = "1.0.1"
         if (versionPropsFile.canRead()) {
             def versionProps = new Properties()
             versionProps.load(new FileInputStream(versionPropsFile))
-            major = versionProps['MAJOR'].toInteger()
-            minor = versionProps['MINOR'].toInteger()
-            patch = versionProps['PATCH'].toInteger()
+            vCode = versionProps['versionCode'].toInteger()
+            vName = versionProps['versionName']
         }
-        versionCode major * 10000 + minor * 100 + patch
-        versionName "${major}.${minor}.${patch}"
+        versionCode vCode
+        versionName vName
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
