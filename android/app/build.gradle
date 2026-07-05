@@ -10,38 +10,18 @@ android {
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    // ─── Consistent Signing Configuration ────────────────────────────────
-    // PROBLEM: Without a shared debug keystore, every CI build generates a
-    // NEW random debug keystore, causing "App not installed as package
-    // appears to be invalid" when installing a new APK over an existing one
-    // (signature mismatch).
-    //
-    // FIX: We commit a project-local debug keystore (android/app/debug.keystore)
-    // and reference it here. Both local builds and CI builds use the SAME
-    // keystore, so the signature is consistent across all builds → the OS
-    // treats successive APKs as valid updates instead of mismatches.
-    //
-    // The debug.keystore is generated with:
-    //   keytool -genkey -v -keystore android/app/debug.keystore \
-    //     -storepass android -alias androiddebugkey -keypass android \
-    //     -keyalg RSA -keysize 2048 -validity 10000 \
-    //     -dname "CN=PracticePro Debug, OU=Dev, O=PracticePro, L=Lagos, ST=Lagos, C=NG"
-    //
-    // STOPGAP: v1-only signing. v2/v3 signing blocks are byte-offset-sensitive
-    // and can be silently corrupted by GitHub Actions artifact transport
-    // (upload-artifact → download-artifact round trip re-zips the APK).
-    // v1 (JAR signing) tolerates archive repackaging. Revert to v2/v3
-    // enabled once we confirm the release-asset delivery path works.
+    // ─── Signing Configuration ─────────────────────────────────────────
+    // We do NOT use Gradle's built-in signing. The APK is built unsigned
+    // and then signed manually with apksigner in the CI workflow.
+    // This is the nuclear option — Gradle's signing produced corrupted
+    // APK Signing Blocks that caused "There was a problem while parsing
+    // the package" on every device.
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
-            // Use AGP defaults for signing. Do NOT set enableV1/V2/V3/V4
-            // — these properties were producing a corrupted APK Signing
-            // Block v2 that caused "There was a problem while parsing the
-            // package" on all devices. AGP 8.9.1 defaults are correct.
         }
     }
 
