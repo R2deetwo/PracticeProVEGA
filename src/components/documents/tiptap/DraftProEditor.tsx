@@ -45,6 +45,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 import LegalPlaceholder from './extensions/LegalPlaceholder';
+import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
 import { FontSize } from './extensions/FontSize';
@@ -645,8 +646,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
                     cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-                    const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, '<span data-type="legal-placeholder" data-label="$1"></span>');
-                    
+                    const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
+                        const def = getPlaceholderDef(label);
+                        const cat = def?.category ?? 'freetext';
+                        return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
+                    });
+
                     editor.commands.setContent(processedDraft);
                     addToast('Drafting complete', { type: 'success' });
 
@@ -683,7 +688,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             .replace(/\\n/g, '\n')
                             .replace(/\r/g, '');
                         cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, '<span data-type="legal-placeholder" data-label="$1"></span>');
+                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
+                            const def = getPlaceholderDef(label);
+                            const cat = def?.category ?? 'freetext';
+                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
+                        });
                         editor.commands.setContent(processedDraft);
                         addToast('Draft completed (with minor stream error).', { type: 'success' });
                         persistDraftRef.current?.(processedDraft, documentTitle, draftPrompt);
@@ -762,9 +771,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const insertPlaceholder = () => {
         const val = modalInput.trim().toUpperCase();
         if (val && editor) {
+            const def = getPlaceholderDef(val);
+            const cat = def?.category ?? 'freetext';
             editor.chain().focus().insertContent([{
                 type: 'legalPlaceholder',
-                attrs: { label: val }
+                attrs: { label: val, category: cat }
             }]).run();
             setActiveModal(null);
             setModalInput('');
@@ -1281,14 +1292,45 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             )}
 
                             {activeModal === 'fill_placeholders' && (() => {
-                                // Collect unique labels for the form UI (read-only at render time)
-                                const nodesForUI: { label: string }[] = [];
+                                // Collect unique labels with category for the form UI
+                                const nodesForUI: { label: string; category: PlaceholderCategory }[] = [];
                                 editor?.state.doc.descendants((node) => {
                                     if (node.type.name === 'legalPlaceholder') {
-                                        nodesForUI.push({ label: node.attrs.label });
+                                        const def = getPlaceholderDef(node.attrs.label);
+                                        const cat = (node.attrs.category as PlaceholderCategory) || def?.category || 'freetext';
+                                        nodesForUI.push({ label: node.attrs.label, category: cat });
                                     }
                                 });
-                                const uniqueLabels = Array.from(new Set(nodesForUI.map(n => n.label)));
+                                const uniqueLabels = Array.from(new Map(nodesForUI.map(n => [n.label, n])).values());
+                                // Group by category
+                                const grouped = uniqueLabels.reduce((acc, item) => {
+                                    if (!acc[item.category]) acc[item.category] = [];
+                                    acc[item.category].push(item.label);
+                                    return acc;
+                                }, {} as Record<PlaceholderCategory, string[]>);
+                                const categoryOrder: PlaceholderCategory[] = ['parties', 'dates', 'financial', 'location', 'court', 'firm', 'freetext'];
+                                const categoryMeta: Record<PlaceholderCategory, { name: string; abbr: string; color: string }> = {
+                                    parties:   { name: 'Parties',   abbr: 'P', color: 'text-blue-500' },
+                                    dates:     { name: 'Dates',     abbr: 'D', color: 'text-purple-500' },
+                                    financial: { name: 'Financial', abbr: '$', color: 'text-green-500' },
+                                    location:  { name: 'Location',  abbr: 'A', color: 'text-teal-500' },
+                                    court:     { name: 'Court',     abbr: 'C', color: 'text-rose-500' },
+                                    firm:      { name: 'Firm',      abbr: 'F', color: 'text-indigo-500' },
+                                    freetext:  { name: 'Free Text', abbr: 'T', color: 'text-amber-500' },
+                                };
+
+                                const handleAutoFill = () => {
+                                    const linkedMatter = appState.matters?.find((m: any) => m.id === linkedMatterId);
+                                    const firm = appState.firmDetails;
+                                    uniqueLabels.forEach(({ label }) => {
+                                        const val = resolveAutoFill(label, linkedMatter, undefined, undefined, firm);
+                                        if (val) {
+                                            const input = document.querySelector(`input[name="${label}"]`) as HTMLInputElement;
+                                            if (input) { input.value = val; input.dispatchEvent(new Event('input')); }
+                                        }
+                                    });
+                                    addToast('Auto-filled from matter/firm data.', { type: 'success' });
+                                };
 
                                 const processFill = () => {
                                     // Guard against duplicate submissions
@@ -1360,46 +1402,61 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
                                 return (
                                     <form id="fill-placeholders-form" className="space-y-4" onSubmit={e => { e.preventDefault(); processFill(); }}>
-                                        <div className="max-h-[60vh] overflow-y-auto space-y-3 custom-scrollbar pr-2">
-                                            {uniqueLabels.map(label => (
-                                                <div key={label} className="flex flex-col gap-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 capitalize">{label.toLowerCase()}</label>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleAiHelpForPlaceholder(label)}
-                                                            disabled={aiHelpLoading && aiHelpLabel === label}
-                                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
-                                                            title="Get AI help for this placeholder"
-                                                        >
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                                                            </svg>
-                                                            {aiHelpLoading && aiHelpLabel === label ? 'Asking...' : `Ask ${isProperty ? 'ARIA' : 'ALOA'}`}
-                                                        </button>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] text-slate-400">{uniqueLabels.length} placeholder{uniqueLabels.length !== 1 ? 's' : ''}</span>
+                                            <button type="button" onClick={handleAutoFill} className="text-[10px] font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
+                                                ⚡ Auto-fill from matter
+                                            </button>
+                                        </div>
+                                        <div className="max-h-[55vh] overflow-y-auto space-y-4 custom-scrollbar pr-2">
+                                            {categoryOrder.map(cat => {
+                                                const labels = grouped[cat];
+                                                if (!labels || labels.length === 0) return null;
+                                                const meta = categoryMeta[cat];
+                                                return (
+                                                    <div key={cat}>
+                                                        <div className="flex items-center gap-1.5 mb-2">
+                                                            <span className={`text-[10px] font-black ${meta.color}`}>{meta.abbr}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{meta.name}</span>
+                                                            <span className="text-[10px] text-slate-300">({labels.length})</span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {labels.map(label => (
+                                                                <div key={label} className="flex flex-col gap-1">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400">{label}</label>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleAiHelpForPlaceholder(label)}
+                                                                            disabled={aiHelpLoading && aiHelpLabel === label}
+                                                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
+                                                                        >
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                                                                            </svg>
+                                                                            {aiHelpLoading && aiHelpLabel === label ? 'Asking...' : `Ask ${isProperty ? 'ARIA' : 'ALOA'}`}
+                                                                        </button>
+                                                                    </div>
+                                                                    <input autoComplete="off" data-lpignore="true"
+                                                                        name={label}
+                                                                        autoFocus={targetPlaceholderLabel === label}
+                                                                        className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
+                                                                        placeholder={aiHelpResult[label] || `Enter ${label.toLowerCase()}...`}
+                                                                        defaultValue={aiHelpResult[label] || ''}
+                                                                    />
+                                                                    {aiHelpResult[label] && (
+                                                                        <p className="text-[10px] text-violet-500 dark:text-violet-400">AI suggested — edit or accept</p>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                    <input autoComplete="off" data-lpignore="true"
-                                                        name={label}
-                                                        required
-                                                        autoFocus={targetPlaceholderLabel === label}
-                                                        className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                                                        placeholder={aiHelpResult[label] || `Enter ${label.toLowerCase()}...`}
-                                                        defaultValue={aiHelpResult[label] || ''}
-                                                    />
-                                                    {aiHelpResult[label] && (
-                                                        <p className="text-[10px] text-violet-500 dark:text-violet-400 flex items-center gap-1">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                                                            </svg>
-                                                            AI suggested — edit or accept
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                         <div className="flex gap-2 pt-2 border-t border-slate-200 dark:border-zinc-800">
                                             <button type="button" onClick={closeFillModal} className="flex-1 bg-slate-100 dark:bg-zinc-800 text-slate-600 font-bold py-2 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
-                                            <button type="submit" className="flex-1 bg-amber-500 text-white font-bold py-2 rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Apply All</button>
+                                            <button type="submit" className="flex-1 bg-amber-500 text-white font-bold py-2 rounded-lg hover:bg-amber-600 transition-colors">Apply All</button>
                                         </div>
                                     </form>
                                 );
