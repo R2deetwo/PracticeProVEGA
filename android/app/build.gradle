@@ -4,28 +4,11 @@ android {
     namespace = "com.practicepro.app"
     compileSdk = rootProject.ext.compileSdkVersion
 
-    // TASK: Java 21 compatibility — required by Android Gradle Plugin 8.13+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    // ─── Consistent Signing Configuration ────────────────────────────────
-    // PROBLEM: Without a shared debug keystore, every CI build generates a
-    // NEW random debug keystore, causing "App not installed as package
-    // appears to be invalid" when installing a new APK over an existing one
-    // (signature mismatch).
-    //
-    // FIX: We commit a project-local debug keystore (android/app/debug.keystore)
-    // and reference it here. Both local builds and CI builds use the SAME
-    // keystore, so the signature is consistent across all builds → the OS
-    // treats successive APKs as valid updates instead of mismatches.
-    //
-    // The debug.keystore is generated with:
-    //   keytool -genkey -v -keystore android/app/debug.keystore \
-    //     -storepass android -alias androiddebugkey -keypass android \
-    //     -keyalg RSA -keysize 2048 -validity 10000 \
-    //     -dname "CN=PracticePro Debug, OU=Dev, O=PracticePro, L=Lagos, ST=Lagos, C=NG"
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -40,63 +23,42 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
 
-        // ─── Version Code Auto-Increment ─────────────────────────────────
-        // versionCode is read from a version.properties file that CI auto-
-        // increments on each build. This ensures the Android OS recognizes
-        // each new APK as a valid update (versionCode must strictly increase).
-        //
-        // The file is at android/app/version.properties with format:
-        //   versionCode=3
-        //   versionName=1.0.2
-        //
-        // If the file doesn't exist (local dev without CI), we fall back to
-        // sensible defaults.
+        // Semantic versioning: reads MAJOR, MINOR, PATCH from version.properties
         def versionPropsFile = file('version.properties')
-        def vCode = 2
-        def vName = "1.0.1"
+        def major = 1
+        def minor = 0
+        def patch = 0
         if (versionPropsFile.canRead()) {
             def versionProps = new Properties()
             versionProps.load(new FileInputStream(versionPropsFile))
-            vCode = versionProps['versionCode'].toInteger()
-            vName = versionProps['versionName']
+            major = versionProps['MAJOR'].toInteger()
+            minor = versionProps['MINOR'].toInteger()
+            patch = versionProps['PATCH'].toInteger()
         }
-        versionCode vCode
-        versionName vName
+        versionCode major * 10000 + minor * 100 + patch
+        versionName "${major}.${minor}.${patch}"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // TASK: Build a UNIVERSAL APK that includes ALL CPU architectures.
-        // Without this, Gradle may produce architecture-specific APKs (arm64-v8a,
-        // x86_64, etc.) that won't install on emulators like BlueStacks (which
-        // uses x86/x86_64). The universal filter ensures one APK works everywhere.
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
 
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#L61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
     buildTypes {
         debug {
-            // Use the shared debug signingConfig so all builds (local + CI)
-            // have the same signature — enables seamless APK updates.
             signingConfig signingConfigs.debug
         }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            // For release builds, we'd use a release keystore stored as a
-            // GitHub secret. For now, debug builds are what we ship for testing.
             signingConfig signingConfigs.debug
         }
     }
 
-    // TASK: Generate a SINGLE universal APK (not per-architecture splits).
-    // This ensures the APK installs on ALL devices and emulators including
-    // BlueStacks (x86), real phones (ARM), and Android Studio emulator (x86_64).
     splits {
         abi {
             enable false
