@@ -99,6 +99,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const saveMessageMutation = useMutation(api.myFunctions.saveAloaMessage);
     const createConversationMutation = useMutation(api.myFunctions.createAloaConversation);
     const deleteConversationMutation = useMutation(api.myFunctions.deleteAloaConversation);
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+    const getFileUrl = useQuery as any;
 
     // ─── Phase 2: Proactive Intelligence & Conversation Memory ──────────
     const firmId = coreState?.firmDetails?.id;
@@ -117,6 +119,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     );
 
     const [textInput, setTextInput] = useState('');
+    const [pendingAttachments, setPendingAttachments] = useState<{ storageId: string; name: string; type: string }[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [aloaStatus, setAloaStatus] = useState('');
     const [showHistory, setShowHistory] = useState(false);
     const [expandedErrorIds, setExpandedErrorIds] = useState<Set<string>>(new Set());
@@ -601,9 +606,40 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         return null;
     };
 
+    // ─── File Upload Handler ────────────────────────────────────────────
+    // Uploads files to Convex storage and attaches them to the next message.
+    const handleFileUpload = async (files: FileList) => {
+        setIsUploading(true);
+        try {
+            for (const file of Array.from(files)) {
+                if (file.size > 20 * 1024 * 1024) {
+                    addToast(`${file.name} is too large (max 20MB).`, { type: 'error' });
+                    continue;
+                }
+                const postUrl = await generateUploadUrl();
+                const res = await fetch(postUrl, { method: 'POST', body: file });
+                if (res.ok) {
+                    const { storageId } = await res.json();
+                    if (storageId) {
+                        setPendingAttachments(prev => [...prev, {
+                            storageId,
+                            name: file.name,
+                            type: file.type || 'application/octet-stream',
+                        }]);
+                    }
+                }
+            }
+        } catch (err: any) {
+            addToast('Upload failed: ' + (err.message || 'Unknown error'), { type: 'error' });
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     const handleSend = async (overrideContent?: string) => {
         const content = overrideContent ?? textInput;
-        if (!content.trim()) return;
+        if (!content.trim() && pendingAttachments.length === 0) return;
 
         // ─── API KEY PRE-FLIGHT VALIDATION ──────────────────────────────
         // Check that a valid Gemini API key exists BEFORE we do any work.
@@ -650,7 +686,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             return;
         }
 
-        const newUserMsg: AloaMessage = { id: uuidv4(), role: 'user', content: piiResult.sanitized };
+        const newUserMsg: AloaMessage = {
+            id: uuidv4(),
+            role: 'user',
+            content: content.trim() || '(attachment)',
+            attachments: pendingAttachments.length > 0 ? pendingAttachments.map(a => a.storageId) : undefined,
+            attachmentNames: pendingAttachments.length > 0 ? pendingAttachments.map(a => a.name) : undefined,
+        };
 
         // ─── OPTIMISTIC UI ──────────────────────────────────────────────
         // Paired UUIDs: the user message and the (empty) model response
@@ -661,6 +703,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         (newUserMsg as any).piiResult = piiResult.totalStripped > 0 ? piiResult : undefined;
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
         if (!overrideContent) setTextInput('');
+        // Clear attachments after sending
+        const sentAttachments = [...pendingAttachments];
+        setPendingAttachments([]);
 
         // Show "Thinking…" immediately so the user sees activity even if
         // the request is queued behind a previous one.
@@ -1283,6 +1328,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {msg.content && (
                                         <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }} />
                                     )}
+                                    {/* Attachment thumbnails/files */}
+                                    {msg.attachments && msg.attachments.length > 0 && (
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            {msg.attachments.map((storageId: string, idx: number) => {
+                                                const fileName = msg.attachmentNames?.[idx] || `File ${idx + 1}`;
+                                                const isImage = /\.(jpg|jpeg|png|gif|webp|bmp)$/i.test(fileName);
+                                                const convexFileUrl = `${import.meta.env.VITE_CONVEX_URL || ''}/api/storage/${storageId}`;
+                                                if (isImage) {
+                                                    return (
+                                                        <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className="block rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700">
+                                                            <img src={convexFileUrl} alt={fileName} className="w-full h-24 object-cover" />
+                                                        </a>
+                                                    );
+                                                }
+                                                return (
+                                                    <a key={storageId + idx} href={convexFileUrl} target="_blank" rel="noopener noreferrer" className={`rounded-lg flex items-center gap-2 px-2.5 py-2 ${msg.role === 'user' ? 'bg-primary-500/30' : 'bg-slate-100 dark:bg-zinc-700'} hover:opacity-80 transition-opacity`}>
+                                                        <svg className="w-4 h-4 flex-shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                                        </svg>
+                                                        <span className="text-xs truncate flex-1 text-slate-600 dark:text-zinc-300">{fileName}</span>
+                                                    </a>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                     {/* Streaming cursor — shows blinking cursor when AI is actively writing this message */}
                                     {isLoading && msg.role === 'model' && idx === messages.length - 1 && !msg.content && (
                                         <div className="flex items-center gap-1 py-1">
@@ -1368,6 +1438,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             </div>
 
             <footer className="flex-shrink-0 p-4 sm:p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+                {/* Pending attachment chips */}
+                {pendingAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2 px-1">
+                        {pendingAttachments.map((att, i) => (
+                            <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-800 rounded-lg px-2.5 py-1.5 text-xs border border-slate-200 dark:border-zinc-700">
+                                <svg className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                                </svg>
+                                <span className="max-w-[140px] truncate text-slate-700 dark:text-zinc-300">{att.name}</span>
+                                <button
+                                    onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))}
+                                    className="text-slate-400 hover:text-red-500 ml-0.5 flex-shrink-0"
+                                >
+                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 <form
                     onSubmit={(e) => {
                         e.preventDefault();
@@ -1380,10 +1471,43 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             <TrashIcon className="w-4 h-4" />
                         </button>
                     )}
+                    {/* Hidden file input */}
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                        multiple
+                        className="hidden"
+                    />
+                    {/* Attach button */}
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="p-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex-shrink-0 disabled:opacity-50"
+                        title="Attach files"
+                    >
+                        {isUploading ? (
+                            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.693 7.693" />
+                            </svg>
+                        )}
+                    </button>
                     <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
                         <input autoComplete="off" data-lpignore="true"
                             value={textInput}
                             onChange={e => setTextInput(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSend();
+                                }
+                            }}
                             placeholder={
                                 isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
                             }
@@ -1391,7 +1515,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         />
                         <button
                             type="submit"
-                            disabled={!textInput.trim()}
+                            disabled={!textInput.trim() && pendingAttachments.length === 0}
                             className={`p-2.5 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white flex-shrink-0`}
                         >
                             <SendIcon />
