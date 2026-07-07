@@ -15,6 +15,15 @@ import { initPostHog } from './utils/analytics';
 initSentry();
 initPostHog();
 
+// ─── Global unhandled promise rejection handler ─────────────────────────
+// Safari/iOS shows "Application Error" and resets the app when a promise
+// rejection is unhandled. This catches ALL unhandled rejections and logs
+// them silently instead of crashing the app.
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('[Unhandled Promise Rejection]', event.reason);
+    event.preventDefault(); // Prevents the "Application Error" crash
+});
+
 // --- DATABASE CONNECTION CONFIGURATION ---
 // Prefers the environment variable; falls back to the live production instance.
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud";

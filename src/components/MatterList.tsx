@@ -425,26 +425,25 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                     />
                 </div>
             ) : (
-                <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
-                    {/* Select all row — styled to match the Properties page's
-                        custom checkbox for visual consistency across list views. */}
-                    {filteredMatters.length > 0 && (
-                        <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-lg bg-slate-50 dark:bg-zinc-900/50">
-                            <div
-                                onClick={toggleSelectAll}
-                                className="flex items-center gap-2 cursor-pointer group"
-                            >
-                                <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${allSelected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
-                                    {allSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
-                                    {!allSelected && selectedIds.size > 0 && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
-                                </div>
-                                <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
+                <>
+                {/* Select all row — unified with Properties page:
+                    sticky header OUTSIDE the scroll container, same padding/border. */}
+                {filteredMatters.length > 0 && (
+                    <div className="bg-slate-50 dark:bg-zinc-900/50 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                        <div
+                            onClick={toggleSelectAll}
+                            className="flex items-center gap-2 cursor-pointer group"
+                        >
+                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${allSelected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
+                                {allSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                                {!allSelected && selectedIds.size > 0 && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
                             </div>
-                            <div className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                                {filteredMatters.length} Total Matters
-                            </div>
+                            <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
                         </div>
-                    )}
+                        <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredMatters.length} Total Matters</span>
+                    </div>
+                )}
+                <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
                     {filteredMatters.length > 0 ? (
                         filteredMatters.map(m => (
                             <MatterCardItem
@@ -476,6 +475,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                         </div>
                     )}
                 </div>
+                </>
             )}
         </div>
     );

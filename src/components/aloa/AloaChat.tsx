@@ -712,7 +712,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // AbortSignal for timeout cancellation. All references inside
         // use the captured context (capturedMessages, capturedAiContext,
         // capturedActiveConvId) so queued tasks don't drift.
-        void aiQueueRef.current.enqueue({
+        // Use .catch() to prevent unhandled promise rejection on Safari/iOS
+        // which causes "Application Error" and a full app reset.
+        // The onError handler already deals with errors — the .catch()
+        // just silently swallows the promise rejection.
+        aiQueueRef.current.enqueue({
             id: streamMsgId,
             execute: async (signal: AbortSignal) => {
                 let currentConvId = capturedActiveConvId;
@@ -932,6 +936,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                 setMessages(prev => [...prev.filter(m => m.id !== streamMsgId), errorMsgObj]);
             },
+        }).catch(() => {
+            // Silently swallow promise rejection — onError handler already
+            // deals with the error. This prevents Safari/iOS from showing
+            // "Application Error" due to unhandled promise rejection.
         });
     };
 

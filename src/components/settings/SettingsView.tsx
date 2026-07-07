@@ -537,7 +537,7 @@ export const SettingsView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden">
+        <div className="h-[100dvh] flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden">
             {/* ─── Header (sticky, consistent across breakpoints) ─────────────── */}
             <header className="sticky top-0 z-30 flex-shrink-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl border-b border-slate-200 dark:border-zinc-800">
                 <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
@@ -652,7 +652,7 @@ export const SettingsView: React.FC = () => {
                 {/* Content Area */}
                 <main
                     id="settings-content-scroll"
-                    className="flex-1 min-w-0 bg-white dark:bg-zinc-900/50 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-y-auto custom-scrollbar"
+                    className="flex-1 min-w-0 min-h-0 bg-white dark:bg-zinc-900/50 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-y-auto custom-scrollbar"
                 >
                     <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-12">
                         {/* Mobile: show a small "back to menu" hint at the top of long content */}
