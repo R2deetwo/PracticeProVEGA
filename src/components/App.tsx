@@ -841,6 +841,10 @@ export const App: React.FC = () => {
             // Don't auto-start the tour for portal users (Client/Tenant)
             const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
             if (isPortal) return;
+            // Don't auto-start the tour on mobile portrait — it's designed for
+            // desktop/landscape. Mobile users can still start it manually from
+            // Settings → Help if they want.
+            if (window.innerWidth < 768 && window.innerHeight > window.innerWidth) return;
             const hasCompletedTour = localStorage.getItem('practicepro_tour_completed');
             if (hasCompletedTour !== 'true') {
                 const timer = setTimeout(() => startTour(), 800);

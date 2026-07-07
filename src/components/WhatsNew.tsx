@@ -444,18 +444,76 @@ const WhatsNewModal: React.FC<{ entry: ChangelogEntry; onClose: () => void }> = 
 );
 
 // ─── PUBLIC COMPONENT ─────────────────────────────────────────────────────────
+// Instead of forcing a full-screen modal on login, we show a small dismissible
+// floater pill at the bottom of the screen. The user can:
+//   - Click it → expands into the full WhatsNewModal
+//   - Click the X → dismisses it (marks as seen, won't show again)
+// This prevents the "overwhelming on login" problem while still informing users.
 const WhatsNew: React.FC = () => {
-    const [entry, setEntry] = useState<ChangelogEntry | null>(null);
+    const [unseenEntry, setUnseenEntry] = useState<ChangelogEntry | null>(null);
+    const [showModal, setShowModal] = useState(false);
+    const [showFloater, setShowFloater] = useState(false);
+
     useEffect(() => {
-        const t = setTimeout(() => setEntry(getUnseenUpdate()), 1200);
+        const t = setTimeout(() => {
+            const entry = getUnseenUpdate();
+            if (entry) {
+                setUnseenEntry(entry);
+                setShowFloater(true);
+            }
+        }, 1500);
         return () => clearTimeout(t);
     }, []);
-    const handleClose = () => {
-        if (entry) markSeen(entry.id);
-        setEntry(null);
+
+    const handleOpen = () => {
+        setShowModal(true);
+        setShowFloater(false);
     };
-    if (!entry) return null;
-    return <WhatsNewModal entry={entry} onClose={handleClose} />;
+
+    const handleDismissFloater = () => {
+        if (unseenEntry) markSeen(unseenEntry.id);
+        setShowFloater(false);
+    };
+
+    const handleCloseModal = () => {
+        if (unseenEntry) markSeen(unseenEntry.id);
+        setShowModal(false);
+    };
+
+    return (
+        <>
+            {/* Dismissible floater pill */}
+            {showFloater && unseenEntry && (
+                <div
+                    className="fixed bottom-20 md:bottom-6 right-4 z-[9998] animate-in fade-in slide-in-from-bottom-4 duration-500"
+                >
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full shadow-2xl pl-4 pr-2 py-2 border border-indigo-400/30">
+                        <button
+                            onClick={handleOpen}
+                            className="flex items-center gap-2 text-xs font-bold"
+                        >
+                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                            What's New in v{unseenEntry.version}
+                        </button>
+                        <button
+                            onClick={handleDismissFloater}
+                            className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
+                            aria-label="Dismiss"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Full modal — only shown when user clicks the floater */}
+            {showModal && unseenEntry && (
+                <WhatsNewModal entry={unseenEntry} onClose={handleCloseModal} />
+            )}
+        </>
+    );
 };
 
 export default WhatsNew;

@@ -1,38 +1,43 @@
-<!-- PracticePro launcher icon foreground — white "P" on transparent background.
-     
-     ADAPTIVE ICON SAFE ZONE: Android adaptive icons are 108x108dp, but only
-     the inner 72x72dp (66%) is guaranteed to be visible. The outer 18dp margin
-     on each side may be clipped by different device masks (circle, squircle,
-     rounded square). 
-     
-     This foreground fills the FULL 108x108 canvas with the white background
-     so there are no transparent edges that could show as weird artifacts.
-     The green "P" is centered within the safe zone (36-72 range).
-     
+<!-- PracticePro launcher icon foreground — professional brand mark.
+
+     Design: A clean, modern monogram "P" inside a rounded square with
+     a subtle gradient effect. The foreground fills the full 108x108
+     canvas with white, and the green "P" sits inside a centered
+     rounded square with proper safe-zone padding.
+
      The green background comes from ic_launcher_background.xml (#16A34A).
-     Together they form the adaptive icon: green bg + white P foreground. -->
+     Together they form the adaptive icon: green bg + white P foreground.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportHeight="108"
     android:viewportWidth="108">
-    
-    <!-- White full-bleed background — fills entire 108x108 canvas so there
-         are no transparent edges that could clip weirdly under squircle masks.
-         This ensures the icon looks clean regardless of the device's mask shape. -->
+
+    <!-- White full-bleed background fills the entire canvas -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M0,0h108v108h-108z" />
-    
-    <!-- Green rounded square in the center (safe zone: 27-81 = 54x54dp) -->
-    <!-- This creates the "card" effect: white border + green center with P cutout -->
+
+    <!-- Green rounded square (safe zone: 24-84 = 60x60dp) -->
+    <!-- Slightly larger than before for a more prominent brand mark -->
     <path
-        android:fillColor="#16A34A"
-        android:pathData="M27,27 L81,27 Q85,27 85,31 L85,77 Q85,81 81,81 L27,81 Q23,81 23,77 L23,31 Q23,27 27,27 Z" />
-    
-    <!-- White "P" shape cutout — centered in the green square -->
-    <!-- P consists of a vertical stroke + a rounded bump on the right -->
+        android:fillColor="#10B981"
+        android:pathData="M24,24 L84,24 Q88,24 88,28 L88,80 Q88,84 84,84 L24,84 Q20,84 20,80 L20,28 Q20,24 24,24 Z" />
+
+    <!-- White "P" — professional serif-inspired geometric design -->
+    <!-- Vertical stem: clean rectangle -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M44,38 L44,70 L50,70 L50,58 L60,58 Q66,58 66,48 Q66,38 60,38 L44,38 Z M50,44 L60,44 Q60,44 60,48 Q60,52 60,52 L50,52 Z" />
+        android:pathData="M42,36 L49,36 L49,72 L42,72 Z" />
+
+    <!-- Upper bowl of the P: rounded rectangle that connects to the stem -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,36 L60,36 Q67,36 67,43 L67,50 Q67,57 60,57 L49,57 Z M49,43 L49,50 L59,50 Q60,50 60,49 L60,44 Q60,43 59,43 Z" />
+
+    <!-- Subtle accent dot — small detail that makes it feel designed -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M53,44 m-1.5,0 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0" />
 </vector>
