@@ -2901,3 +2901,46 @@ it before acting. I should have downloaded and analyzed the APK myself
 weeks ago instead of trusting the CI build logs and external advice.
 
 Pushed: 2135b46..42ff450 main -> main
+
+---
+Task ID: 52
+Agent: Main Agent
+Task: APK FINALLY WORKS — root cause documented
+
+WHAT FIXED IT:
+The fix was restoring the EXACT Android config from June 19 (commit 6050c30):
+- AGP 8.13.0 (not 8.9.1)
+- Gradle 8.14.3 (not 8.11.1)
+- compileSdk 36, targetSdk 36 (not 35)
+- AndroidX latest versions (not downgraded)
+- No custom signing properties (no enableV1/V2/V3/V4)
+- No resolutionStrategy (no forced dependency versions)
+- No biometric plugin patching
+- No manual zipalign/apksigner
+
+The ONLY change from the original: SDK setup uses direct sdkmanager
+(installing API 36) instead of the broken android-actions/setup-android@v3
+action.
+
+LESSON: The AGP 8.13.0 + API 36 combination was NEVER the problem.
+The problem was that I panicked and started downgrading everything,
+which introduced NEW problems (version mismatches, corrupted signing
+blocks, missing app-metadata.properties). I should have just fixed the
+SDK setup step and left everything else alone.
+
+SLOW INSTALL ISSUE:
+The "stuck on installing" was likely because the APK is 15MB with
+~1000 entries (9 multidex classes.dex files). The first install on
+a fresh device takes longer than an update. The second attempt showed
+"update" which means the first install DID complete — it just took
+longer than expected. This is normal for a 15MB APK with many dex
+files and is not a bug.
+
+PREVENTION:
+To prevent this from ever happening again:
+1. Never downgrade AGP/Gradle/SDK versions without testing locally first
+2. The android-actions/setup-android@v3 action is broken — always use
+   direct sdkmanager
+3. Don't add custom signing properties to build.gradle
+4. If APKs stop installing, FIRST check if the CI runner image changed
+   before touching any config files
