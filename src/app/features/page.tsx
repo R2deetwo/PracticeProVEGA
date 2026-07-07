@@ -98,7 +98,7 @@ const vegaFeatures = [
     items: [
       {
         title: 'Legal Billing',
-        desc: 'Generate professional invoices with sequential numbering (INV-[FirmInitials][ManagerInitials]-[Seq]). Track billable hours, apply court-aligned rates, and manage trust accounts.',
+        desc: 'Generate professional invoices with sequential numbering (INV-[FirmInitials][ManagerInitials]-[Seq]). Track billable hours, apply court-aligned rates, and automate retainer billing.',
         icon: Receipt,
       },
       {

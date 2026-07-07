@@ -77,7 +77,6 @@ export const useFeatures = () => {
         canUseCourtIntelligence: isGrowthOrAbove && isLegalFirm,  // Court rules & procedural intelligence
 
         // Billing & Financials
-        canUseTrustAccounting: true,
         canUseAdvancedBilling: isProOrAbove,           // Advanced billing & analytics (Pro+)
         canUseReportGenerator: isGrowthOrAbove,        // Report Generator (Growth+) — Core gets basic billing only
 
@@ -112,7 +111,7 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'trust' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling') => {
             switch (feature) {
                 case 'ai':                return isGrowthOrAbove;
                 case 'automation':        return isEnterpriseOrAbove;
@@ -121,7 +120,6 @@ export const useFeatures = () => {
                 case 'property':          return canUsePropertyManager;
                 case 'research':          return isLegalFirm;
                 case 'researchStudio':    return isLegalFirm && isGrowthOrAbove;
-                case 'trust':             return true;
                 case 'audit':             return isEnterpriseOrAbove;
                 case 'security':          return isEnterpriseOrAbove;
                 case 'clientPortal':      return isGrowthOrAbove;

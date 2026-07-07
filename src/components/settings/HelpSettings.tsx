@@ -104,7 +104,7 @@ export const HelpSettings: React.FC = () => {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-lg">Compliance Reports</h4>
-                                    <p>Stay on top of your professional obligations. This report provides a summary of your {isProperty ? <strong>Operating Account</strong> : <strong>Trust Account</strong>} balances, flagging any overdrawn accounts. It also {isProperty ? 'helps managers track compliance, including the status of regulatory requirements and health & safety obligations across the portfolio' : 'helps lawyers track their <strong>Professional Standards</strong>, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings → My Profile</code>)'}.</p>
+                                    <p>Stay on top of your professional obligations. This report provides a summary of your <strong>{isProperty ? 'Operating Account' : 'Client Account'}</strong> balances, flagging any overdue matters. It also {isProperty ? 'helps managers track compliance, including the status of regulatory requirements and health & safety obligations across the portfolio' : 'helps lawyers track their <strong>Professional Standards</strong>, including the status of their Annual Practicing Fees and progress towards their mandatory CPD hours. (CPD hours can be updated in <code>Settings \u2192 My Profile</code>)'}.</p>
                                 </div>
                             </div>
                         </AccordionItem>

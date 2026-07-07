@@ -72,7 +72,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
         });
     };
 
-    const handleUpgrade = () => openUIModal('upgradePlan', null, { featureName: 'Trust Accounting' });
+    const handleUpgrade = () => openUIModal('upgradePlan', null, { featureName: 'Advanced Billing & Analytics' });
 
     return (
         <div className="space-y-8">
