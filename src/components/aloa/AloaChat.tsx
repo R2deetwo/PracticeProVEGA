@@ -28,6 +28,7 @@ import { api } from '../../../convex/_generated/api';
 import { decode, decodeAudioData } from '../../utils/audioUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
 import { getGlobalAIQueue, validateAPIKey } from '../../utils/aiRequestQueue';
+import PIIShieldBadge from './PIIShieldBadge';
 import Tooltip from '../Tooltip';
 import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
@@ -629,14 +630,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
 
         // ─── PII Scan — check the user's message for PII before sending ──
-        // Show a visible indicator if PII was detected and stripped
         const { stripPIIWithReport } = await import('../../utils/aiUtils');
         const piiResult = stripPIIWithReport(content);
-        let piiNotice: string | null = null;
-        if (piiResult.totalStripped > 0) {
-            const types = [...new Set(piiResult.found.map(f => f.type))].join(', ');
-            piiNotice = `🛡️ ${piiResult.totalStripped} PII item(s) detected and stripped (${types}) before sending to AI.`;
-        }
 
         const userMessagesCount = messages.filter(m => m.role === 'user').length;
         if (isDemo && userMessagesCount >= 5) {
@@ -657,21 +652,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         const newUserMsg: AloaMessage = { id: uuidv4(), role: 'user', content: piiResult.sanitized };
 
-        // If PII was stripped, show a system notice before the user's message
-        if (piiNotice) {
-            setMessages(prev => [...prev, {
-                id: uuidv4(),
-                role: 'model',
-                content: piiNotice,
-                isSystemNotice: true,
-            }]);
-        }
-
         // ─── OPTIMISTIC UI ──────────────────────────────────────────────
         // Paired UUIDs: the user message and the (empty) model response
         // card are created together. The input tray clears instantly for
         // responsive feedback. The actual AI call is enqueued below.
         const streamMsgId = uuidv4();
+        // Store PII result on the user message so PIIShieldBadge can render
+        (newUserMsg as any).piiResult = piiResult.totalStripped > 0 ? piiResult : undefined;
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
         if (!overrideContent) setTextInput('');
 
@@ -1279,7 +1266,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
 
                     {messages.map((msg, idx) => (
-                        <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group animate-in zoom-in-95 duration-300`}>
+                        <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} group animate-in zoom-in-95 duration-300`}>
+                            {/* PII Shield Badge — shows above user messages when PII was stripped */}
+                            {msg.role === 'user' && (msg as any).piiResult && (
+                                <PIIShieldBadge result={(msg as any).piiResult} />
+                            )}
+                            <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}>
                             <div className={`max-w-[88%] ${msg.role === 'user' ? '' : 'w-full relative'}`}>
                                 <div className={`px-5 py-4 rounded-3xl text-[14px] leading-relaxed break-words shadow-sm transition-all
                                 ${msg.role === 'user'
@@ -1351,6 +1343,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         )}
                                     </div>
                                 </div>
+                            </div>
                             </div>
                         </div>
                     ))}
