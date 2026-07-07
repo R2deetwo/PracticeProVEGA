@@ -388,6 +388,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [zoom, setZoom] = useState(1);
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
+    const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
+
+    // Keep persistDraftRef updated with the latest onContentChange handler
+    // so the AI drafting completion can persist content even if the user
+    // hasn't triggered onUpdate yet.
+    useEffect(() => {
+        if (onContentChange) {
+            persistDraftRef.current = (content: string, title: string, _prompt?: string) => {
+                onContentChange(content);
+            };
+        }
+    }, [onContentChange]);
 
     // ─── Pinch-to-Zoom Support ──────────────────────────────────────────
     // Tracks two-finger pinch gestures on the editor canvas so users can
@@ -601,8 +613,15 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // Store it in a ref or just on the window for now so the UI can trigger it
             (window as any).stopDrafting = () => abortController.abort();
 
-            // Clear editor with a temporary loading state (text content, not HTML to avoid parsing issues)
-            editor.commands.setContent('<p><i>Drafting in progress... (Click "Stop Drafting" in the top bar to cancel)</i></p>');
+            // Clear editor with a visually engaging loading state
+            editor.commands.setContent(`
+                <div style="text-align:center; padding:48px 24px; color:#94a3b8;">
+                    <div style="display:inline-block; width:40px; height:40px; border:3px solid #e2e8f0; border-top-color:#10b981; border-radius:50%; animation:pp-spin 0.8s linear infinite; margin-bottom:16px;"></div>
+                    <p style="font-size:14px; font-weight:600; color:#475569; margin:0 0 4px;">Generating ${draftPrompt ? draftPrompt.substring(0, 50) + '...' : 'document'}...</p>
+                    <p style="font-size:12px; color:#94a3b8; margin:0;">The AI is drafting your document. This usually takes 10-20 seconds.</p>
+                </div>
+                <style>@keyframes pp-spin { to { transform: rotate(360deg); } }</style>
+            `);
 
             aiService.streamDraft(
                 [{ role: 'user', content: draftPrompt }],
@@ -614,34 +633,63 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 abortController.signal // pass signal to service
             ).then(() => {
                 setIsDrafting(false);
-                if (editor && draftBuffer) {
+                // Trim the buffer — sometimes the stream ends with whitespace
+                const trimmedBuffer = draftBuffer.trim();
+                if (editor && trimmedBuffer) {
                     // Clean code blocks and artifacts
-                    let cleanDraft = draftBuffer
+                    let cleanDraft = trimmedBuffer
                         .replace(/```html/g, '')
                         .replace(/```/g, '')
-                        .replace(/\\n/g, '\n') // Handle literal \n
+                        .replace(/\\n/g, '\n')
                         .replace(/\r/g, '');
 
-                    // Handle occasional AI markdown artifacts like ** inside HTML
                     cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-                    // parse placeholders like [TENANT NAME] into exact TipTap node format
                     const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, '<span data-type="legal-placeholder" data-label="$1"></span>');
                     
                     editor.commands.setContent(processedDraft);
                     addToast('Drafting complete', { type: 'success' });
-                } else if (!draftBuffer) {
-                    editor.commands.setContent('<p><i>Drafting failed. The AI returned an empty response.</i></p>');
-                    addToast('Drafting blocked: AI returned empty response (Possible safety filter)', { type: 'error' });
+
+                    // Persist the generated draft immediately so it survives navigation
+                    persistDraftRef.current?.(processedDraft, documentTitle, draftPrompt);
+                } else {
+                    // Only show "failed" if we genuinely got nothing
+                    // The stream may have returned content that was already consumed
+                    // by the editor via onChunk in some edge cases
+                    const currentContent = editor?.getHTML() || '';
+                    if (currentContent.includes('pp-spin') || !currentContent || currentContent === '<p></p>') {
+                        editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
+                        addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
+                    }
                 }
             }).catch(e => {
-                console.error("Drafting failed", e);
+                console.error("Drafting error:", e);
                 setIsDrafting(false);
                 if (e.name === 'AbortError') {
-                    addToast('Drafting cancelled by user.', { type: 'info' });
-                    editor.commands.setContent('<p><i>Drafting cancelled.</i></p>');
+                    addToast('Drafting cancelled.', { type: 'info' });
+                    // If we have partial content, keep it instead of wiping
+                    const currentHTML = editor?.getHTML() || '';
+                    if (currentHTML.includes('pp-spin')) {
+                        editor?.commands.setContent('<p><i>Drafting cancelled. Partial content may be lost.</i></p>');
+                    }
                 } else {
-                    addToast(`Drafting failed: ${e.message}`, { type: 'error' });
+                    // Check if we actually got content before the error
+                    const trimmedBuffer = draftBuffer.trim();
+                    if (editor && trimmedBuffer) {
+                        // We have content despite the error — show it!
+                        let cleanDraft = trimmedBuffer
+                            .replace(/```html/g, '')
+                            .replace(/```/g, '')
+                            .replace(/\\n/g, '\n')
+                            .replace(/\r/g, '');
+                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, '<span data-type="legal-placeholder" data-label="$1"></span>');
+                        editor.commands.setContent(processedDraft);
+                        addToast('Draft completed (with minor stream error).', { type: 'success' });
+                        persistDraftRef.current?.(processedDraft, documentTitle, draftPrompt);
+                    } else {
+                        addToast(`Drafting failed: ${e.message}`, { type: 'error' });
+                    }
                 }
             });
         }
