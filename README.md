@@ -31,7 +31,6 @@ A purpose-built legal word processor integrated directly into the browser.
 - **Retainer Billing:** Automated recurring retainer invoicing with a staged outbox system (Staged → Queued → Sent → Failed).
 - **Billing Monitor:** Real-time outbox tracking with retry and failure management.
 - **Tax Compliance:** AI-powered expense deductibility analysis (VAT 7.5%, Withholding Tax 5/10%).
-- **Scale Fee Analysis:** AI analyzes land transactions against the *Legal Practitioners (Remuneration for Legal Documentation and Other Land Matters) Order 2023* and suggests appropriate scale-fee invoice line items.
 - **Multi-Plan Gating:** Financials locked to Pro+ for legal firms.
 
 ### Research Studio
@@ -121,7 +120,6 @@ PracticePro utilizes a multi-agent AI architecture powered by Google Gemini. The
 | **Tax Compliance** | Nigerian tax analysis on expenses | Vega |
 | **Ingestion Agent** | AI matter intake from uploaded documents | Vega |
 | **Jurisdiction Scout** | Analyzes facts to determine court venue | Vega |
-| **Scale of Charges** | Analyzes land transactions against the 2023 Remuneration Order | Vega |
 | **Property Management** | Atrium system instruction for property-specific AI responses | Atrium |
 
 ### AI Features

@@ -8,7 +8,6 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { useProduct } from '../../contexts/ProductContext';
-import { calculateScaleIFees } from '../../utils/remunerationScale';
 import NairaSymbol from '../NairaSymbol';
 import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
 
@@ -138,7 +137,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
   const addLineItem = () => setLineItems([...lineItems, { description: '', total: 0, hours: 0, rate: 0 }]);
   const removeLineItem = (index: number) => lineItems.length > 1 && setLineItems(lineItems.filter((_, i) => i !== index));
-  const addScaleFeeItem = (amount: number) => setLineItems([...lineItems, { description: isProperty ? 'Service Fees (Scale)' : 'Legal Fees (Scale)', total: amount, hours: 0, rate: 0 }]);
 
   const subTotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
   const vatAmount = applyVat ? subTotal * vatRate : 0;
@@ -146,14 +144,6 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const invoiceTotal = subTotal + vatAmount;
   const netReceivable = subTotal + vatAmount - whtAmount;
   const selectedMatter = matters.find(m => m.id === matterId);
-
-  const complianceWarning = useMemo(() => {
-    if (selectedMatter?.propertyValue) {
-      const expectedFee = calculateScaleIFees(selectedMatter.propertyValue);
-      if (subTotal < expectedFee.minFee * 0.9) return { type: 'warning', message: `Low Bill Alert: Scale I minimum is ₦${formatNaira(expectedFee.minFee)}.` };
-    }
-    return null;
-  }, [selectedMatter, subTotal]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

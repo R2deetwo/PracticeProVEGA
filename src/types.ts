@@ -207,6 +207,7 @@ export interface FirmDetails { id: string; name: string; address: string; logoUr
     legalFormLibrary?: LegalFormTemplate[]; // Versioned statutory form templates
     product?: Product;
     automationSettings?: any;
+    trustAccountingEnabled?: boolean;        // Toggle: enable trust accounting
 }
 export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
 export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }

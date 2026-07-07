@@ -261,7 +261,31 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                 </div>
             </SettingsCard>
 
-            {/* JOIN / SWITCH FIRM SECTION */}
+            {/* TRUST ACCOUNTING TOGGLE — Legal firms only */}
+            {!isProperty && (
+                <SettingsCard title="Trust Accounting" id="trust-accounting">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                            <p className="font-semibold text-slate-900 dark:text-white text-sm">Enable Trust Account</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+                                Track client funds held in trust separately from your operating account. Adds a "Trust Account" tab to your Financials page where you can record deposits, withdrawals, and transfers with running balance tracking.
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-2">
+                                Required for compliance in many Nigerian jurisdictions. You can turn this off anytime — existing trust transactions are preserved.
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => onUpdateFirmDetails({
+                                ...firmDetails,
+                                trustAccountingEnabled: !firmDetails.trustAccountingEnabled,
+                            })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${firmDetails.trustAccountingEnabled ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-zinc-600'}`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${firmDetails.trustAccountingEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                </SettingsCard>
+            )}
             <SettingsCard title={isProperty ? "Portfolio Switching" : "Firm Switching"} id="firm-switching">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="text-sm text-slate-600 dark:text-zinc-400">

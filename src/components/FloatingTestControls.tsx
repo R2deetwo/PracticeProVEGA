@@ -276,50 +276,6 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
         addToast("Research Notebook Created. Navigate to Research Studio to test Q&A.", { type: 'success' });
         setTimeout(() => navigateTo('research', null, { selectedResearchNotebookId: notebook.id }), 100);
     };
-    
-    const testScaleFeeIntake = () => {
-        // Create a unique mock ID to avoid collisions
-        const mockId = `sim_lead_${Date.now()}`;
-        const mockLead = {
-            id: mockId,
-            firmId: coreState.firmDetails.id,
-            name: "Chief Alaba (Scale Fee Test)",
-            email: "chief@realestate.ng",
-            status: 'Intake Submitted' as any,
-            createdAt: new Date().toISOString(),
-            intakeRecordings: [], // Required by type but empty for this test
-            intakeAnalysis: {
-                summary: "Client wants to sell a property at Banana Island.",
-                areaOfLaw: "Real Estate",
-                matterType: "Real Estate",
-                subCategory: "Conveyancing",
-                informationGaps: [],
-                draftResponse: "",
-                lawyerChecklist: [],
-                clientNextSteps: [],
-                suggestedMatterTitle: "Sale of Plot 4, Banana Island",
-                isNewPracticeArea: false,
-                applicableLaws: [],
-                financialContext: {
-                    estimatedValue: 150000000,
-                    transactionType: 'Sale',
-                    currency: 'NGN',
-                    extractedQuote: "I am selling the land for 150 million naira."
-                }
-            }
-        };
-        
-        // Inject into state directly via updateItem to bypass async creation flow for test
-        // Using 'any' cast to bypass strict Lead type check during dev simulation if fields missing
-        updateItem('leads', mockLead, 'Simulated Lead');
-        
-        addToast("Simulated Lead with N150m Property Sale created.", { type: 'success' });
-        
-        // Navigate to contact detail with delay to ensure state update has propagated
-        setTimeout(() => {
-             navigateTo('contactDetail', mockId);
-        }, 800);
-    };
 
     const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
          if ((e.target as HTMLElement).closest('button, input, select')) return;
@@ -380,9 +336,6 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
                         </DevButton>
                          <DevButton onClick={testResearch} icon={ResearchIcon} colorClass="bg-indigo-600">
                              Test Research Agent
-                        </DevButton>
-                         <DevButton onClick={testScaleFeeIntake} icon={CalculatorIcon} colorClass="bg-teal-600">
-                             Test Scale Fee (Intake)
                         </DevButton>
                      </div>
                 </AccordionSection>

@@ -16,6 +16,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { useFeatures } from '../hooks/useFeatures';
 import EmptyState from './EmptyState';
 import { BillingMonitorView } from './BillingMonitorView';
+import TrustAccountTab from './details/TrustAccountTab';
 // Atrium revenue modules — conditionally rendered for property/unified firms
 import ServiceChargeMonitor from './atrium/ServiceChargeMonitor';
 import LedgerManager from './atrium/LedgerManager';
@@ -260,7 +261,7 @@ export const BillingView: React.FC = () => {
     //
     // UNIFIED (Komplete) firms see ALL of the above — clearly marked with
     // Legal/Property badges so users always know which context they're in.
-    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'monitor';
+    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'monitor' | 'trust';
     const [activeTab, setActiveTab] = useState<FinancialsTab>('invoices');
 
     // Build the tab list based on product + tier
@@ -289,6 +290,9 @@ export const BillingView: React.FC = () => {
     }
     if (features.canUseRetainerAutoBilling) {
         tabs.push({ id: 'monitor', label: 'Billing Monitor', productTag: 'Legal' });
+    }
+    if (coreState.firmDetails?.trustAccountingEnabled) {
+        tabs.push({ id: 'trust', label: 'Trust Account', productTag: 'Legal' });
     }
 
     // KPI strip — unified metrics across legal + property
@@ -438,6 +442,12 @@ export const BillingView: React.FC = () => {
                 )}
 
                 {activeTab === 'monitor' && <BillingMonitorView />}
+
+                {activeTab === 'trust' && coreState.firmDetails?.trustAccountingEnabled && (
+                    <div className="max-w-3xl mx-auto">
+                        <TrustAccountTab />
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -45,6 +45,7 @@ export default defineSchema({
     whatsappMessagesSent: nullableNumber,
     whatsappLimit: nullableNumber,
     setupFeePaid: nullableBoolean,
+    trustAccountingEnabled: v.optional(v.boolean()),  // Toggle: enable trust accounting for this firm
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
@@ -1594,5 +1595,32 @@ export default defineSchema({
     .index("by_property_code",       ["propertyId", "tokenCode"])
     .index("by_expires",             ["expiresAt"])
     .index("by_firm_resident",       ["firmId", "residentId"]),
+
+  // ─── TRUST ACCOUNT TRANSACTIONS ────────────────────────────────────────
+  // Trust accounting for legal firms that have it enabled. Tracks client
+  // funds held in trust (deposits, withdrawals, transfers).
+  // Feature-gated by firmDetails.trustAccountingEnabled.
+  trust_transactions: defineTable({
+    firmId: v.string(),
+    matterId: v.optional(v.string()),     // linked matter (which client's money)
+    clientName: v.optional(v.string()),   // denormalized for display
+    type: v.union(
+      v.literal("deposit"),              // money received into trust
+      v.literal("withdrawal"),           // money paid out of trust
+      v.literal("transfer"),             // transfer to operating account
+    ),
+    amount: v.number(),
+    description: v.string(),             // what was this for?
+    reference: v.optional(v.string()),   // bank reference / cheque number
+    recordedBy: v.optional(v.string()),  // userId
+    recordedByName: v.optional(v.string()),
+    balanceAfter: v.number(),            // running balance after this transaction
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm",            ["firmId"])
+    .index("by_matter",          ["matterId"])
+    .index("by_firm_created",    ["firmId", "createdAt"])
+    .index("by_type",            ["type"]),
 
 }, { schemaValidation: false });

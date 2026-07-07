@@ -2,10 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Matter } from '../../types';
 import { useUI } from '../../contexts/UIContext';
-import { SparklesIcon, CalendarIcon, ChevronDownIcon, CalculatorIcon } from '../../constants';
-import { calculateScaleIFees, calculateScaleIIFees } from '../../utils/remunerationScale';
-import { formatNaira } from '../../utils/formatting';
-import NairaSymbol from '../NairaSymbol';
+import { SparklesIcon, CalendarIcon, ChevronDownIcon } from '../../constants';
 
 interface AiIntakeAnalysisProps {
     matter?: Matter;
@@ -33,18 +30,6 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
         });
     };
     
-    // Scale Expert Calculation
-    const scaleFeeResult = useMemo(() => {
-        if (!financialContext || !financialContext.estimatedValue) return null;
-        
-        const val = financialContext.estimatedValue;
-        if (financialContext.transactionType === 'Lease') {
-             return calculateScaleIIFees(val); // Default 1 year for estimation
-        } else {
-             return calculateScaleIFees(val);
-        }
-    }, [financialContext]);
-
     // Safety checks for arrays to prevent crashes on partial data
     const safeSteps = Array.isArray(clientNextSteps) ? clientNextSteps : [];
     const safeLaws = Array.isArray(applicableLaws) ? applicableLaws : [];
@@ -79,28 +64,6 @@ export const AiIntakeAnalysis: React.FC<AiIntakeAnalysisProps> = ({ matter, lead
                         </div>
                     )}
                     
-                    {/* Scale Expert Recommendation */}
-                    {scaleFeeResult && financialContext && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
-                            <div className="flex items-center gap-2 mb-2">
-                                <CalculatorIcon className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                                <h4 className="font-bold text-amber-800 dark:text-amber-200 text-sm uppercase tracking-wide">Scale Expert Recommendation</h4>
-                            </div>
-                            <p className="text-sm text-amber-900 dark:text-amber-100 mb-2">
-                                Detected Transaction: <strong>{financialContext.transactionType}</strong> of <NairaSymbol/>{formatNaira(financialContext.estimatedValue)}.
-                            </p>
-                            <div className="bg-white dark:bg-zinc-800 p-3 rounded border border-amber-200 dark:border-amber-800 text-sm">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-slate-500 dark:text-zinc-400">Minimum Scale Fee ({scaleFeeResult.scale}):</span>
-                                    <span className="font-bold text-lg text-slate-900 dark:text-white"><NairaSymbol/>{formatNaira(scaleFeeResult.minFee)}</span>
-                                </div>
-                                <p className="text-xs text-slate-400 dark:text-zinc-500 italic">
-                                    "Based on the Remuneration Order 2023. Ensure your retainer or final bill does not fall below this threshold."
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Action Plan */}
                         {safeSteps.length > 0 && (
