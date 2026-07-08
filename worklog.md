@@ -3421,3 +3421,45 @@ Stage Summary:
 - Upload an image → AI sees it natively (inlineData)
 - Upload a TXT/MD/CSV → AI reads the content
 - Status shows 'Reading N documents…' during processing
+
+---
+Task ID: 61
+Agent: Main Agent
+Task: Splash green phase + DraftPro ribbon slimming + tab title
+
+Work Log:
+
+1. SPLASH SCREEN (SplashScreen.tsx + App.tsx)
+   - Skip splash for DraftPro tabs: when ?draftKey= is in the URL, the
+     splash is bypassed entirely (user is authenticated, wants the doc)
+   - New 3-phase color sequence: black → amber → green
+     * Phase 1 (500ms): Emergence — black logo fades in
+     * Phase 2 (600ms): Amber — loading signal
+     * Phase 3 (400ms): Green — 'green light' signal (emerald-600 with glow)
+       onComplete fires HERE so app loads underneath, no dead time
+     * Exit (300ms): clean fade-out
+   - Total duration ~1.8s (down from ~2.8s)
+   - Text: 'Vega' during amber, 'Ready' during green
+
+2. DRAFTPRO RIBBON (DraftProEditor.tsx)
+   - Slimmer: word/char count moved to bottom status bar (h-7)
+   - Strict label baseline: [buttons flex-1 items-end] + [fixed h-[11px] label]
+     Every group's label on the EXACT same horizontal line
+   - Better New Document icon: blank page with folded corner
+   - Redraft button stands out: own 'AI' group, gradient blue-to-indigo,
+     white text, custom sparkle icon
+   - Zoom controls moved to status bar
+   - Shorter labels: 'Fill Blanks (3)' → 'Fill (3)', etc.
+
+3. CANVAS DETACHMENT
+   - Top padding pt-12 (48px) → pt-16 (64px) for premium gap
+
+4. DRAFTPRO TAB TITLE (WordProcessor.tsx)
+   - 'Vega — Editor' → 'DraftPro — <draft name>'
+   - Derives short name from title (strips 'Draft' prefix, dash suffix)
+   - Restores original title on unmount
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (28s)
+- Committed + pushed: b0b0894..068acf1 main -> main
