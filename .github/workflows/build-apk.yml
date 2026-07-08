@@ -22,6 +22,9 @@ jobs:
     # cannot reference `secrets.*` directly in step `if` conditions.
     env:
       HAS_CONVEX_KEY: ${{ secrets.CONVEX_DEPLOY_KEY != '' }}
+      HAS_VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN != '' }}
+      HAS_VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID != '' }}
+      HAS_VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID != '' }}
 
     steps:
       - name: Checkout code
@@ -100,6 +103,62 @@ jobs:
 
       - name: Build web app (bundled into APK)
         run: npx vite build
+
+      # ─── Vercel Production Deploy ─────────────────────────────────────────
+      # Deploys to the production Vercel project (practice-pro-vega) using the
+      # Vercel CLI. This runs IN ADDITION to Vercel's native GitHub integration
+      # (which deploys to the dev/preview project) — so every push updates BOTH
+      # projects simultaneously.
+      #
+      # Uses the official Vercel CI/CD pattern:
+      #   1. vercel pull  → downloads project settings + env vars
+      #   2. vercel build → builds using Vercel's build system
+      #   3. vercel deploy --prebuilt → deploys the built output
+      #
+      # Requires three GitHub secrets:
+      #   - VERCEL_TOKEN        → personal access token from vercel.com/account/tokens
+      #   - VERCEL_ORG_ID       → team/org ID (team_xxx) from project Settings → General
+      #   - VERCEL_PROJECT_ID   → project ID (prj_xxx) of the PRODUCTION project
+      #
+      # CRITICAL: `continue-on-error: true` ensures the APK build still
+      # proceeds even if Vercel deploy fails.
+      - name: Deploy to Vercel (production project)
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Installing Vercel CLI..."
+          npm install -g vercel@latest
+          echo ""
+          echo "Pulling project settings from Vercel..."
+          echo "  ORG_ID:      ${VERCEL_ORG_ID}"
+          echo "  PROJECT_ID:  ${VERCEL_PROJECT_ID:0:12}..."
+          vercel pull --yes --environment=production --token "${VERCEL_TOKEN}"
+          echo ""
+          echo "Building project with Vercel..."
+          vercel build --prod --token "${VERCEL_TOKEN}"
+          echo ""
+          echo "Deploying to production..."
+          vercel deploy --prebuilt --prod --yes --token "${VERCEL_TOKEN}" 2>&1 | tee vercel-deploy.log
+          echo ""
+          echo "✓ Vercel production deploy complete"
+          DEPLOY_URL=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
+          if [ -n "$DEPLOY_URL" ]; then
+            echo "Production deployment URL: $DEPLOY_URL"
+          fi
+
+      - name: Vercel deploy skipped (missing secrets)
+        if: ${{ env.HAS_VERCEL_TOKEN != 'true' || env.HAS_VERCEL_ORG_ID != 'true' || env.HAS_VERCEL_PROJECT_ID != 'true' }}
+        run: |
+          echo "⚠️  Vercel production deploy SKIPPED — missing one or more secrets:"
+          echo "  - VERCEL_TOKEN:      ${{ env.HAS_VERCEL_TOKEN == 'true' && 'set' || 'MISSING' }}"
+          echo "  - VERCEL_ORG_ID:     ${{ env.HAS_VERCEL_ORG_ID == 'true' && 'set' || 'MISSING' }}"
+          echo "  - VERCEL_PROJECT_ID: ${{ env.HAS_VERCEL_PROJECT_ID == 'true' && 'set' || 'MISSING' }}"
+          echo ""
+          echo "Add them at: https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions"
 
       - name: Sync Capacitor (bundles dist/ into APK)
         run: |
