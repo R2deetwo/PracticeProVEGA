@@ -109,7 +109,7 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        <AccordionItem title="Using {assistantName} (AI Assistant)">
+                        <AccordionItem title={`Using ${assistantName} (AI Assistant)`}>
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg">What is {assistantName}?</h4>

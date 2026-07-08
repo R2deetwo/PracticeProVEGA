@@ -244,11 +244,42 @@ jobs:
             console.log('Updated version.json:', JSON.stringify(v, null, 2));
           "
 
-          # Re-deploy version.json to Vercel (quick deploy of just the updated file)
-          # We use `vercel deploy` with the .vercel/ config that was pulled earlier.
+          # ─── Copy updated version.json into the Vercel build output ──────
+          # CRITICAL: `vercel deploy --prebuilt` uses the .vercel/output/
+          # directory that was built BEFORE the smoke test ran. The updated
+          # version.json in public/ is NOT in the build output yet, so we
+          # must copy it into .vercel/output/static/ before redeploying.
+          # Without this, the deployed version.json stays at status="building"
+          # and the refresh floater never shows.
+          if [ -d '.vercel/output/static' ]; then
+            echo "Copying updated version.json into .vercel/output/static/"
+            cp public/version.json .vercel/output/static/version.json
+            echo "✓ version.json copied to build output"
+          else
+            echo "⚠️  .vercel/output/static/ not found — trying alternate paths"
+            # If the output structure is different, try .vercel/output/public/
+            if [ -d '.vercel/output/public' ]; then
+              cp public/version.json .vercel/output/public/version.json
+            fi
+          fi
+
+          # Re-deploy with the updated build output (now containing healthy version.json)
           if [ -d '.vercel' ]; then
             echo "Re-deploying with healthy version.json..."
-            vercel deploy --prod --yes --prebuilt --token "${{ secrets.VERCEL_TOKEN }}" 2>&1 | tail -5 || true
+            vercel deploy --prod --yes --prebuilt --token "${{ secrets.VERCEL_TOKEN }}" 2>&1 | tee redeploy.log | tail -5 || true
+            # Verify the deployed version.json is now healthy
+            DEPLOY_URL=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' redeploy.log | tail -1 || true)
+            if [ -n "$DEPLOY_URL" ]; then
+              echo "Verifying deployed version.json..."
+              sleep 5
+              DEPLOYED_STATUS=$(curl -s "$DEPLOY_URL/version.json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+              echo "  Deployed version.json status: $DEPLOYED_STATUS"
+              if [ "$DEPLOYED_STATUS" = "healthy" ]; then
+                echo "✓ version.json successfully marked healthy on production"
+              else
+                echo "⚠️  version.json still shows status=$DEPLOYED_STATUS — users may not see refresh prompt yet"
+              fi
+            fi
           fi
 
           echo ""

@@ -90,8 +90,13 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     const isVega = product === "vega";
     const isUnified = product === "unified";
 
-    // In unified mode, both legal and property features are available
-    const isProperty = isAtrium || isUnified;
+    // isProperty controls the assistant name (ALOA vs ARIA) and some UI.
+    // Komplete (unified) defaults to ALOA (legal) — the user explicitly
+    // requested this. Only pure Atrium mode uses ARIA.
+    // Both legal and property FEATURES remain available in unified mode
+    // (gated by isLegal and isAtrium checks elsewhere); this flag only
+    // affects the default assistant name and terminology.
+    const isProperty = isAtrium;
     const isLegal = isVega || isUnified;
 
     // Terminology: Atrium-exclusive gets property language; everything else (including Unified) stays neutral

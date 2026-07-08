@@ -1,8 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { FirmActivity, User, UserRole } from '../../types';
 import { SearchIcon, LockClosedIcon, ShieldCheckIcon, DownloadIcon, TrashIcon, RevertIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
+import { biometricAuth } from '../../utils/biometric';
+import { Capacitor } from '@capacitor/core';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
@@ -239,6 +241,12 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                 </div>
             </div>
 
+            {/* CONTENT PROTECTION */}
+            <ContentProtectionSection />
+
+            {/* BIOMETRIC UNLOCK */}
+            <BiometricSection currentUser={currentUser} />
+
             {/* EMERGENCY DATA RESCUE */}
             <div 
                 onClick={() => {
@@ -329,3 +337,174 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
 };
 
 export default SecuritySettings;
+
+// ─── Content Protection Section ──────────────────────────────────────────────
+const ContentProtectionSection: React.FC = () => {
+    const [enabled, setEnabled] = useState(() => {
+        try { return localStorage.getItem('practicepro_content_protection') !== 'false'; }
+        catch { return true; }
+    });
+
+    const toggle = (val: boolean) => {
+        setEnabled(val);
+        try {
+            localStorage.setItem('practicepro_content_protection', val ? 'true' : 'false');
+            // Dispatch a synthetic storage event so useContentProtection picks it up
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'practicepro_content_protection',
+                newValue: val ? 'true' : 'false',
+            }));
+        } catch { /* ignore */ }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-teal-50 dark:bg-teal-900/30 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-teal-600 dark:text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Content Protection</h3>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">
+                            Prevents screenshots and screen recording on mobile. Blocks copy-paste of sensitive content.
+                        </p>
+                    </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={enabled} onChange={(e) => toggle(e.target.checked)} />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-teal-600"></div>
+                </label>
+            </div>
+        </div>
+    );
+};
+
+// ─── Biometric Unlock Section ────────────────────────────────────────────────
+const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+    const { addToast } = useUI();
+    const [isNative] = useState(() => Capacitor.isNativePlatform());
+    const [registered, setRegistered] = useState(() => biometricAuth.isRegistered());
+    const [available, setAvailable] = useState(false);
+    const [checking, setChecking] = useState(false);
+
+    useEffect(() => {
+        const check = async () => {
+            try {
+                const avail = await biometricAuth.isAvailable();
+                setAvailable(avail);
+            } catch { setAvailable(false); }
+        };
+        check();
+    }, []);
+
+    const handleRegister = async () => {
+        if (!currentUser?.email) return;
+        setChecking(true);
+        try {
+            const result = await biometricAuth.register(currentUser.email);
+            if (result) {
+                setRegistered(true);
+                addToast('Biometric unlock enabled. You can now use Face ID / fingerprint to log in.', { type: 'success' });
+            } else {
+                addToast('Biometric authentication failed. Please try again.', { type: 'error' });
+            }
+        } catch (e: any) {
+            addToast('Could not enable biometrics: ' + (e.message || 'Unknown error'), { type: 'error' });
+        } finally {
+            setChecking(false);
+        }
+    };
+
+    const handleUnregister = () => {
+        biometricAuth.unregister();
+        setRegistered(false);
+        addToast('Biometric unlock disabled.', { type: 'info' });
+    };
+
+    // On web, show a different message
+    if (!isNative) {
+        return (
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-50 dark:bg-zinc-700 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.568 8.268m9.14-9.14a3 3 0 11-4.243 4.243M3 3l18 18" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">
+                            Available on the mobile app (APK). Install the app on your phone to enable fingerprint / Face ID login.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Native but biometrics not available
+    if (!available) {
+        return (
+            <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">
+                            Your device doesn't support biometric authentication, or it hasn't been set up in your phone's settings.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Native + available
+    return (
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-md overflow-hidden p-6">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004.5 10.5a7.464 7.464 0 01-1.568 8.268m9.14-9.14a3 3 0 11-4.243 4.243M3 3l18 18" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <p className="text-sm text-slate-500 dark:text-zinc-400">
+                            Use fingerprint or Face ID to log in without typing your password.
+                        </p>
+                    </div>
+                </div>
+                {registered ? (
+                    <button
+                        onClick={handleUnregister}
+                        className="px-4 py-2 text-sm font-bold text-red-600 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                        Disable
+                    </button>
+                ) : (
+                    <button
+                        onClick={handleRegister}
+                        disabled={checking}
+                        className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                    >
+                        {checking ? 'Enabling...' : 'Enable'}
+                    </button>
+                )}
+            </div>
+            {registered && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-3 font-medium">
+                    ✓ Biometric unlock is enabled for {biometricAuth.getEmail()}
+                </p>
+            )}
+        </div>
+    );
+};

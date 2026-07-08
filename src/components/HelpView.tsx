@@ -40,7 +40,17 @@ const HelpView: React.FC = () => {
     };
 
     const handleAskAloa = () => {
-        togglePanel(); // Opens the assistant panel
+        // Opens the assistant panel with a pre-filled context message so the
+        // user knows they're asking the AI about how to use the app (not
+        // searching online). The AI has full knowledge of the app's features.
+        togglePanel();
+        // Inject context after a short delay so the panel is open
+        setTimeout(() => {
+            const event = new CustomEvent('practicepro:inject-chat-context', {
+                detail: { message: `I have a question about how to use PracticePro. ` }
+            });
+            window.dispatchEvent(event);
+        }, 300);
     };
 
     // ─── Search filtering ──────────────────────────────────────────────
@@ -112,12 +122,16 @@ const HelpView: React.FC = () => {
                         </div>
                         <button
                             onClick={handleAskAloa}
-                            className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-full hover:shadow-lg transition-all flex items-center gap-2 hover:scale-105 whitespace-nowrap"
+                            title={`Ask ${assistantName} about how to use PracticePro — the AI has built-in knowledge of all app features`}
+                            className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-full hover:shadow-lg transition-all flex items-center gap-2 hover:scale-105 whitespace-nowrap"
                         >
                             <SparklesIcon className="w-5 h-5" />
                             Ask {assistantName}
                         </button>
                     </div>
+                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 text-center">
+                        Searches practice-pro documentation only — no online results. Ask {assistantName} for personalized guidance on any feature.
+                    </p>
                 </header>
 
                 {/* Quick Access Cards */}
@@ -187,7 +201,7 @@ const HelpView: React.FC = () => {
 
                         <AccordionItem
                             id="aloa-tips"
-                            title="Mastering {assistantName} (AI Assistant)"
+                            title={`Mastering ${assistantName} (AI Assistant)`}
                             isOpen={isSectionOpen('aloa-tips')}
                             onToggle={() => handleSectionToggle('aloa-tips')}
                         >

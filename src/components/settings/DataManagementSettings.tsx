@@ -592,25 +592,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                 </div>
             </SettingsCard>
 
-            {/* ── TASK 19: Content Protection Toggle ── */}
-            <SettingsCard>
-                <div className="p-5 sm:p-6">
-                    <div className="flex items-start justify-between gap-4 mb-4">
-                        <div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                                Content Protection
-                            </h3>
-                            <p className="text-sm text-slate-500 dark:text-zinc-400 leading-relaxed">
-                                When enabled, copy/paste and right-click are blocked in the app. Turn this off if you need to take screenshots (e.g. for support).
-                            </p>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 italic">
-                                Note: OS-level screenshots cannot be blocked by any web app. Use the toggle to control copy/paste protection.
-                            </p>
-                        </div>
-                    </div>
-                    <ContentProtectionToggle />
-                </div>
-            </SettingsCard>
+            {/* Content Protection has been moved to Settings → Security */}
         </div>
     );
 };

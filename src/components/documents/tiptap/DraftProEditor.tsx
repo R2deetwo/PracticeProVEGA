@@ -411,7 +411,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 }) => {
     const { addToast } = useUI();
     const { appState } = useDataState();
-    const { handleUpdateFirmDetails } = useDataActions();
+    const { handleUpdateFirmDetails, addItem } = useDataActions();
     const { currentUser } = useAuth();
     const { isProperty, isUnified } = useProduct();
     const signerContext = useSignerContext();
@@ -914,14 +914,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             placeholders: Array.from(new Set(placeholders))
         };
 
-        const actions: any = (window as any).dataActions;
-        if (actions?.addItem) {
-            actions.addItem('documentTemplates', newTemplate, 'Document Template');
-            addToast('Template saved successfully', { type: 'success' });
+        // Use the React context action (not the non-existent window.dataActions)
+        if (addItem) {
+            addItem('documentTemplates', newTemplate, 'Document Template');
+            addToast(`Template "${name}" saved — you can reuse it via ALOA/ARIA or the Templates section in Settings.`, { type: 'success' });
             setActiveModal(null);
             setModalInput('');
         } else {
-            addToast('Storage service unavailable', { type: 'error' });
+            addToast('Storage service unavailable. Please try again.', { type: 'error' });
         }
     };
 
@@ -1220,7 +1220,33 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     <ToolbarGroup label={isProperty ? 'Drafting' : 'Legal Tools'}>
                         <ToolbarBtn icon={DocumentHeaderIcon} label="Header" onClick={() => setIsHeaderDesignerOpen(true)} size="lg" />
                         <ToolbarBtn icon={Scissors} label={`Fill (${placeholderCount})`} onClick={() => setActiveModal('fill_placeholders')} size="lg" className="text-amber-600 dark:text-amber-400" />
-                        <ToolbarBtn icon={Plus} label="Parties" onClick={() => editor?.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run()} size="lg" className="text-indigo-600" />
+                        <ToolbarBtn
+                            icon={Plus}
+                            label="Parties"
+                            onClick={() => {
+                                if (!editor) return;
+                                // Detect if this is a court process (litigation) or a letter/notice
+                                const docTitle = (title || '').toLowerCase();
+                                const html = editor.getHTML().toLowerCase();
+                                const isCourtProcess = /suit|motion|affidavit|pleading|originating|summons|petition|court|in the high court|in the magistrate|in the federal high court/.test(docTitle + html);
+
+                                if (isCourtProcess) {
+                                    // For court processes: insert a parties group (CLAIMANTS/DEFENDANTS bracket)
+                                    editor.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run();
+                                } else {
+                                    // For letters/notices: insert a signature block
+                                    editor.chain().focus().insertContent(
+                                        '<p style="text-align: right;"><br></p>' +
+                                        '<p style="text-align: right;"><strong>Yours faithfully,</strong></p>' +
+                                        '<p style="text-align: right;"><br></p>' +
+                                        '<p style="text-align: right;">_______________________________</p>' +
+                                        '<p style="text-align: right;"><strong>[SIGNATORY NAME]</strong></p>' +
+                                        '<p style="text-align: right;">[SIGNATORY TITLE]</p>' +
+                                        '<p style="text-align: right;">[FIRM NAME]</p>'
+                                    ).run();
+                                }
+                            }}
+                            size="lg" className="text-indigo-600" />
                         <ToolbarBtn icon={Save} label="Template" onClick={() => { setModalInput(title || ''); setActiveModal('save_template'); }} size="lg" className="text-primary-600" />
                     </ToolbarGroup>
 
@@ -1263,13 +1289,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
                  *
-                 * The pt-16 (64px top padding) DETACHES the first page from the
+                 * The pt-20 (80px top padding) DETACHES the first page from the
                  * ribbon so it floats independently in "center stage" — like a
                  * real document on a desk, not glued to the toolbar. The generous
-                 * gap gives a premium, breathable layout.
+                 * gap gives a premium, breathable layout with clear visual
+                 * separation between the ribbon and the document.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0 pt-16"
+                    className="flex justify-center mb-20 shrink-0 pt-20"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,
@@ -1633,8 +1660,8 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             {activeModal === 'save_template' && (
                                 <div className="space-y-4">
                                     <div className="bg-primary-50 dark:bg-primary-900/20 p-3 rounded-lg border border-primary-100 dark:border-primary-800 mb-2">
-                                        <p className="text-[11px] text-primary-700 dark:text-primary-300">
-                                            Saving this document as a template will preserve all placeholders for future automated filling.
+                                        <p className="text-[11px] text-primary-700 dark:text-primary-300 leading-relaxed">
+                                            Save this document as a reusable template. The content, formatting, and all <strong>[PLACEHOLDER]</strong> fields will be preserved. Next time you need a similar document, {getAssistantName(isProperty)} can start from this template instead of drafting from scratch — just ask "{getAssistantName(isProperty)}, draft a document using my [template name] template."
                                         </p>
                                     </div>
                                     <div>

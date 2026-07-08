@@ -47,7 +47,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import ProfileSettings from './ProfileSettings';
 import FirmSettings from './FirmSettings';
 import TemplatesSettings, { TemplateSubTab, CategorySubTab } from './TemplatesSettings';
-import { HelpSettings } from './HelpSettings';
+import HelpView from '../HelpView';
 import AutomationSettings from './AutomationSettings';
 import SubscriptionSettings from './SubscriptionSettings';
 import SecuritySettings from './SecuritySettings';
@@ -507,7 +507,7 @@ export const SettingsView: React.FC = () => {
                     onDeleteDocumentCategory={props.onDeleteDocumentCategory}
                     automationRules={coreState.automationRules}
                 />;
-            case 'help': return <HelpSettings />;
+            case 'help': return <HelpView />;
             case 'changelog': return <ChangelogSettings />;
             case 'legalIntel': return <LegalIntelligenceHub firmId={props.firmDetails?.id || ''} />;
             case 'recovery': return <AccountRecoverySettings />;
