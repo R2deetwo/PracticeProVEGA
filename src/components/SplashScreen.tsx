@@ -91,33 +91,41 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
         // ── PHASE 3: GREEN (400ms) — The "Green Light" ──────────────────
         // This is the psychological "go" signal. The app is ready.
-        // We signal onComplete HERE so the app starts loading underneath
-        // the green phase — no dead time between green and usability.
-        if (onComplete) onComplete();
-
         setPhase('green');
         await textControls.start({ opacity: 0, y: -8, transition: { duration: 0.2 } });
 
-        logoControls.start({
+        // Animate the logo to green and WAIT for the color transition to complete
+        // before signaling onComplete. This ensures the user actually SEES the green
+        // phase before the exit fade begins.
+        await logoControls.start({
             color: 'rgb(22, 163, 74)', // emerald-600 — brand green
             filter: 'drop-shadow(0 0 35px rgba(22,163,74,0.35))',
-            scale: [1.0, 1.04, 1.0],
             transition: {
                 color: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
                 filter: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
-                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
             }
         });
 
+        // Show "Ready" text in green
         await textControls.start({
             opacity: [0, 1],
             y: [8, 0],
             transition: { duration: 0.3, ease: "easeOut" }
         });
 
-        // Green phase plays while the app loads underneath. The exit
-        // animation is triggered by isVisible becoming false (when
-        // isDataLoaded is true in App.tsx).
+        // Hold green briefly so the user registers the "ready" signal
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // NOW signal onComplete — the green phase has fully played.
+        // The exit animation (triggered by isVisible becoming false)
+        // will fade the splash out, revealing the app underneath.
+        if (onComplete) onComplete();
+
+        // Start the gentle breathing scale loop (runs until exit)
+        logoControls.start({
+            scale: [1.0, 1.04, 1.0],
+            transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
+        });
     };
 
     const handleExitSequence = async () => {

@@ -197,9 +197,22 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     }
                 }, 8000);
 
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Recording Engine failed:", err);
-                addToast("Could not access microphone.", { type: 'error' });
+                // Provide specific, actionable guidance based on the error type
+                if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+                    addToast("Microphone access denied. Please enable it in your browser settings and try again.", { type: 'error' });
+                } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+                    addToast("No microphone found. Please connect a microphone and try again.", { type: 'error' });
+                } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+                    addToast("Microphone is in use by another app. Please close it and try again.", { type: 'error' });
+                } else if (err?.name === 'OverconstrainedError') {
+                    addToast("Microphone doesn't meet the required constraints. Try a different device.", { type: 'error' });
+                } else if (err?.name === 'SecurityError') {
+                    addToast("Microphone access blocked for security. Ensure you're on HTTPS and the site has permission.", { type: 'error' });
+                } else {
+                    addToast("Could not access microphone: " + (err?.message || "Unknown error"), { type: 'error' });
+                }
                 setIsRecording(false);
             }
         };

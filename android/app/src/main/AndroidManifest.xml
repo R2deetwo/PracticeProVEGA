@@ -44,4 +44,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- POST_NOTIFICATIONS — required for Android 13+ (API 33+) push notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- RECORD_AUDIO — required for voice notes, ALOA voice chat, and client intake recording -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- CAMERA — required for document scanning and photo capture (future use) -->
+    <uses-permission android:name="android.permission.CAMERA" />
 </manifest>

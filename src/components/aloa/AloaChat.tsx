@@ -1494,11 +1494,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     )}
 
-                                    {/* Action buttons row — Copy AND Save are hidden for messages
-                                        that have a toolAction (the output is a structured document
-                                        opened in DraftPro or a modal — not copyable/saveable text).
-                                        Edit remains for user messages. */}
-                                    <div className={`flex gap-0.5 mt-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {/* Action buttons row — hover-only on desktop, tap-to-reveal on touch.
+                                        Copy AND Save are hidden for messages that have a toolAction
+                                        (the output is a structured document opened in DraftPro or a
+                                        modal — not copyable/saveable text). Edit remains for user messages. */}
+                                    <div className={`flex gap-0.5 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {!msg.toolAction && (
                                             <button
                                                 onClick={() => handleCopyMessage(msg.id, msg.content || '')}
@@ -1569,11 +1569,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </div>
                             <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400">{aloaStatus}</p>
                         </div>
-                    )}
-                    {pendingQueueCount > 0 && (
-                        <p className="text-[10px] font-medium text-amber-600 dark:text-amber-400 px-2 animate-pulse">
-                            {pendingQueueCount} request{pendingQueueCount > 1 ? 's' : ''} queued…
-                        </p>
                     )}
                     <div ref={messagesEndRef} />
                 </main>
