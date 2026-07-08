@@ -3175,3 +3175,31 @@ Stage Summary:
 - Cache headers from Task 54 are working (immutable for assets, no-cache
   for HTML)
 - version.json is serving correctly for the in-app refresh banner
+
+---
+Task ID: 57
+Agent: Main Agent
+Task: Fix WhatsNew floater obscuring ALOA/ARIA FAB
+
+Work Log:
+- User reported the What's New floater pill was covering the ALOA/ARIA
+  FAB so they couldn't see or tap it.
+
+ROOT CAUSE:
+- Both elements were positioned at the bottom-RIGHT of the screen:
+  - ALOA FAB:     fixed bottom-20 md:bottom-8 right-6 z-[1001]
+  - WhatsNew:     fixed bottom-20 md:bottom-6 right-4 z-[9998]
+- WhatsNew had the higher z-index (9998 > 1001), so it rendered on top
+  of the ALOA FAB and blocked it.
+
+FIX:
+- Moved WhatsNew floater from right-4 to LEFT-4.
+- ALOA/ARIA FAB stays at bottom-right (conventional primary FAB location).
+- WhatsNew floater now appears at bottom-left (out of the way).
+- Both are visible and tappable simultaneously.
+- No z-index changes needed — they no longer overlap.
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (28s)
+- Committed + pushed: 67e1dd9..38fa204 main -> main
