@@ -172,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
     const { isSidebarRetracted, openModal } = useUI();
-    const { isLegal, isProperty, isUnified, product } = useProduct();
+    const { isLegal, isProperty, isUnified, product, hasPropertyFeatures } = useProduct();
     const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
 
     // Data fetching for workspaces
@@ -351,8 +351,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         item={{ view: 'dashboard', text: 'Home', icon: <DashboardIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
-                    {/* Property-First Navigation for Atrium Users */}
-                    {isProperty && (
+                    {/* Property Navigation — shown for Atrium AND Komplete (unified) */}
+                    {hasPropertyFeatures && (
                         <>
                             <NavItemLink
                                 item={{ view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon /> }}
