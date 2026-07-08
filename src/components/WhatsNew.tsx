@@ -135,6 +135,23 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // Use 'icon' to pick from FEATURE_ICONS above.
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.16.0',
+        version: '1.16.0',
+        date: '2026-07-08',
+        title: 'AI Upgrades, Trust Accounting & Visitor Management',
+        description: 'Major AI improvements including file uploads in chat, PII Shield visibility, color-coded placeholders, and litigation document skeletons. New Trust Account module and Visitor Management System for gated estates.',
+        features: [
+            { icon: 'chat', label: 'File Uploads in AI Chat', text: 'Attach documents, images, and PDFs directly in ALOA/ARIA chat. Files render as thumbnails or file chips in the conversation.' },
+            { icon: 'shield', label: 'PII Shield Badge', text: 'When PII is detected and stripped before AI processing, a visible badge shows exactly what was removed — with expandable details showing masked originals and replacements.' },
+            { icon: 'pen', label: 'Color-Coded Placeholders', text: 'DraftPro placeholders are now color-coded by category: blue (parties), purple (dates), green (financial), teal (location), rose (court), indigo (firm), amber (free text).' },
+            { icon: 'bolt', label: 'Auto-Fill from Matter', text: 'Fill Blanks modal now has an "Auto-fill from matter" button that pulls client name, suit number, court name, and firm details automatically.' },
+            { icon: 'document', label: 'Litigation Skeletons', text: '8 Nigerian litigation document templates with mandatory boilerplate, section ordering, and never-omit checklists: Affidavit, Motion on Notice, Motion Ex Parte, Statement of Claim/Defence, Witness Statement, Written Address, Recovery of Premises.' },
+            { icon: 'shield', label: 'Trust Accounting', text: 'Toggleable trust account ledger in Financials. Record deposits, withdrawals, and transfers with running balance tracking. Enable in Settings → Firm.' },
+            { icon: 'portal', label: 'Visitor Management System', text: 'Gated estate residents generate 6-digit visitor access codes. Gatekeepers verify at the gate with a lightweight interface. Dual WhatsApp delivery, offline fallback, grace periods.' },
+            { icon: 'bolt', label: 'AI Request Queue', text: 'Deterministic sequential processing — no more race conditions or out-of-order responses. 15-second timeout prevents UI freezes on mobile.' },
+        ],
+    },
+    {
         id: 'v1.15.0',
         version: '1.15.0',
         date: '2026-06-23',
