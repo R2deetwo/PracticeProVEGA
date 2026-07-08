@@ -3656,3 +3656,45 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (29s)
 - Committed + pushed: cddc389..bffe297 main -> main
+
+---
+Task ID: 66
+Agent: Main Agent
+Task: Property features restore + Terms acceptance + Jurisdiction override
+
+Work Log:
+
+1. URGENT: RESTORED PROPERTY FEATURES IN KOMPLETE MODE
+   - Root cause: previous change set isProperty = isAtrium (was isAtrium || isUnified)
+     to make Komplete default to ALOA. But isProperty was ALSO used for
+     feature gating (Sidebar Properties nav item) — so Komplete lost property features.
+   - Fix: separated concerns:
+     * isProperty: assistant name only (isAtrium) — Komplete → ALOA
+     * hasPropertyFeatures: feature availability (isAtrium || isUnified) — Komplete gets both
+     * hasLegalFeatures: legal features (isVega || isUnified)
+   - Sidebar now uses hasPropertyFeatures for the Properties nav item
+   - Pushed immediately as urgent fix
+
+2. TERMS & CONDITIONS ACCEPTANCE FLOW
+   - New TermsAcceptance component with:
+     * Collapsible summaries of Terms + Privacy Policy
+     * 'Open full page' links to full documents
+     * Two checkboxes (must check both to proceed)
+     * 'Decline & Exit' logs user out
+     * 'Accept & Continue' stores version in localStorage
+   - Versioned (TERMS_VERSION) — bumping re-prompts all users
+   - Shows after splash + data load for authenticated users
+   - Includes note: 'Continued use constitutes acceptance. If you do
+     not agree, uninstall the app or stop using it.'
+
+3. JURISDICTION OVERRIDE + SESSION LOCK
+   - JurisdictionReasoning card now has 'Change jurisdiction' button
+   - User selects state (16 states) + court tier (High/Magistrate/Federal/Customary)
+   - 'Apply & Lock' sets jurisdiction and locks it for the session
+   - Lock icon shows when locked; redrafts preserve the jurisdiction
+   - Only court caption + procedural rules change, not document content
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (27s)
+- Committed + pushed: b68ab47..db4628e main -> main
