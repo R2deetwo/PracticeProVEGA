@@ -499,10 +499,11 @@ const WhatsNew: React.FC = () => {
 
     return (
         <>
-            {/* Dismissible floater pill */}
+            {/* Dismissible floater pill — bottom-LEFT to avoid obscuring the
+                ALOA/ARIA FAB which lives at bottom-right. */}
             {showFloater && unseenEntry && (
                 <div
-                    className="fixed bottom-20 md:bottom-6 right-4 z-[9998] animate-in fade-in slide-in-from-bottom-4 duration-500"
+                    className="fixed bottom-20 md:bottom-6 left-4 z-[9998] animate-in fade-in slide-in-from-bottom-4 duration-500"
                 >
                     <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full shadow-2xl pl-4 pr-2 py-2 border border-indigo-400/30">
                         <button
