@@ -1,0 +1,322 @@
+/**
+ * attachmentProcessor — extracts text content from uploaded documents so the
+ * AI can read and analyze them.
+ *
+ * PROBLEM
+ * =======
+ * When a user uploads a PDF/DOCX/TXT to ALOA, the file is stored in Convex
+ * storage. The previous approach fetched the file and passed it to Gemini as
+ * `inlineData` — but this only works reliably for images. For PDFs:
+ *   - Gemini's inlineData has size limits (~20MB but practically fails earlier)
+ *   - btoa() fails on large binary strings
+ *   - The mimeType from Convex storage is often empty or octet-stream
+ *
+ * SOLUTION
+ * ========
+ * Extract text client-side from the fetched blob:
+ *   - PDF  → pdfjs-dist (already in the codebase, used by AloaXView)
+ *   - DOCX → JSZip (already in IngestionAgent)
+ *   - TXT/MD/CSV → FileReader.readAsText
+ *   - Images (PNG/JPG) → pass as inlineData (Gemini handles natively)
+ *
+ * The extracted text is prepended to the message content as a context block:
+ *   "--- ATTACHED DOCUMENT: filename.pdf ---\n<extracted text>\n--- END ---"
+ *
+ * This way the AI can read, analyze, and answer questions about the document.
+ */
+
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure the worker. pdfjs-dist v5+ uses a .mjs worker.
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
+
+export interface ProcessedAttachment {
+  /** The original filename */
+  name: string;
+  /** The detected mimeType */
+  mimeType: string;
+  /** Extracted text content (null for images / binary-only files) */
+  extractedText: string | null;
+  /** Base64 data for inline pass-through (images only) */
+  inlineData?: { mimeType: string; data: string };
+  /** Whether text extraction succeeded */
+  extracted: boolean;
+  /** Error message if extraction failed */
+  error?: string;
+}
+
+/**
+ * Detect the true mimeType from a filename, falling back to the blob's type.
+ */
+function detectMimeType(filename: string, blobType: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  const extMap: Record<string, string> = {
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    doc: 'application/msword',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    csv: 'text/csv',
+    json: 'application/json',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+  };
+  return extMap[ext] || blobType || 'application/octet-stream';
+}
+
+/**
+ * Extract text from a PDF blob using pdfjs-dist.
+ * Returns up to 50,000 characters (roughly 8,000 words / 20 pages).
+ */
+async function extractTextFromPdf(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const pdfDoc = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    disableRange: true,
+    disableStream: true,
+  }).promise;
+
+  let fullText = '';
+  const maxPages = Math.min(pdfDoc.numPages, 50); // Cap at 50 pages
+  for (let i = 1; i <= maxPages; i++) {
+    const page = await pdfDoc.getPage(i);
+    const textContent = await page.getTextContent();
+    const pageText = textContent.items
+      .map((item: any) => item.str)
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (pageText) {
+      fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+    }
+  }
+
+  await pdfDoc.destroy();
+
+  // Cap at 50k chars to stay within Gemini context limits
+  if (fullText.length > 50000) {
+    fullText = fullText.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
+  }
+
+  return fullText;
+}
+
+/**
+ * Extract text from a DOCX blob using JSZip.
+ */
+async function extractTextFromDocx(blob: Blob): Promise<string> {
+  const { default: JSZip } = await import('jszip');
+  const zip = await JSZip.loadAsync(blob);
+  const documentXml = zip.file('word/document.xml');
+  if (!documentXml) return '';
+
+  const xmlText = await documentXml.async('text');
+  const paragraphs = xmlText.match(/<w:p.*?>.*?<\/w:p>/g) || [];
+
+  let extractedText = '';
+  for (const p of paragraphs) {
+    const textNodes = p.match(/<w:t.*?>.*?<\/w:t>/g) || [];
+    if (textNodes.length > 0) {
+      const pText = textNodes.map(t => t.replace(/<[^>]+>/g, '')).join('');
+      extractedText += pText + '\n';
+    }
+  }
+
+  if (extractedText.length > 50000) {
+    extractedText = extractedText.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
+  }
+
+  return extractedText;
+}
+
+/**
+ * Extract text from a plain-text blob (TXT, MD, CSV, JSON).
+ */
+async function extractTextFromPlain(blob: Blob): Promise<string> {
+  const text = await blob.text();
+  if (text.length > 50000) {
+    return text.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
+  }
+  return text;
+}
+
+/**
+ * Convert a blob to base64 (for images passed as inlineData).
+ * Uses chunked processing to avoid btoa() string length limits.
+ */
+async function blobToBase64(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000; // 32KB chunks
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, Array.from(chunk) as any);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Process a single attachment: fetch from Convex storage, extract text or
+ * convert to inlineData as appropriate.
+ *
+ * @param storageId The Convex storage ID
+ * @param name The original filename
+ * @param convexUrl The Convex backend URL
+ */
+export async function processAttachment(
+  storageId: string,
+  name: string,
+  convexUrl: string
+): Promise<ProcessedAttachment> {
+  const fileUrl = `${convexUrl}/api/storage/${storageId}`;
+  const fileRes = await fetch(fileUrl);
+  if (!fileRes.ok) {
+    return {
+      name,
+      mimeType: 'unknown',
+      extractedText: null,
+      extracted: false,
+      error: `Failed to fetch (HTTP ${fileRes.status})`,
+    };
+  }
+
+  const blob = await fileRes.blob();
+  const mimeType = detectMimeType(name, blob.type);
+
+  try {
+    // ── Images: pass as inlineData ──────────────────────────────────
+    if (mimeType.startsWith('image/')) {
+      const base64 = await blobToBase64(blob);
+      return {
+        name,
+        mimeType,
+        extractedText: null,
+        inlineData: { mimeType, data: base64 },
+        extracted: true,
+      };
+    }
+
+    // ── PDF: extract text with pdfjs ────────────────────────────────
+    if (mimeType === 'application/pdf') {
+      const text = await extractTextFromPdf(blob);
+      if (text.trim()) {
+        return { name, mimeType, extractedText: text, extracted: true };
+      }
+      // PDF had no extractable text (scanned/image PDF) — try inlineData
+      // as a fallback (Gemini can OCR some scanned PDFs)
+      const base64 = await blobToBase64(blob);
+      if (base64.length < 15_000_000) { // ~20MB base64 limit safety
+        return {
+          name,
+          mimeType,
+          extractedText: null,
+          inlineData: { mimeType, data: base64 },
+          extracted: true,
+        };
+      }
+      return {
+        name,
+        mimeType,
+        extractedText: null,
+        extracted: false,
+        error: 'PDF appears to be scanned (no text layer) and is too large for inline processing.',
+      };
+    }
+
+    // ── DOCX: extract text with JSZip ───────────────────────────────
+    if (mimeType.includes('wordprocessingml.document') || mimeType === 'application/msword') {
+      const text = await extractTextFromDocx(blob);
+      if (text.trim()) {
+        return { name, mimeType, extractedText: text, extracted: true };
+      }
+      return {
+        name,
+        mimeType,
+        extractedText: null,
+        extracted: false,
+        error: 'No text could be extracted from this DOCX file.',
+      };
+    }
+
+    // ── Plain text formats ──────────────────────────────────────────
+    if (mimeType.startsWith('text/') || mimeType === 'application/json') {
+      const text = await extractTextFromPlain(blob);
+      return { name, mimeType, extractedText: text, extracted: true };
+    }
+
+    // ── Unknown type: try plain text extraction as a last resort ────
+    try {
+      const text = await extractTextFromPlain(blob);
+      if (text.trim() && !text.includes('\ufffd')) {
+        return { name, mimeType, extractedText: text, extracted: true };
+      }
+    } catch { /* fall through */ }
+
+    return {
+      name,
+      mimeType,
+      extractedText: null,
+      extracted: false,
+      error: `Unsupported file type: ${mimeType}`,
+    };
+  } catch (err: any) {
+    return {
+      name,
+      mimeType,
+      extractedText: null,
+      extracted: false,
+      error: err.message || 'Unknown extraction error',
+    };
+  }
+}
+
+/**
+ * Process all attachments for a message and return Gemini-ready parts.
+ *
+ * Returns an object with:
+ *   - textParts: array of text strings to be added to the message content
+ *   - inlineParts: array of inlineData objects (for images / scanned PDFs)
+ *   - errors: array of error messages for failed attachments
+ */
+export async function processAttachments(
+  storageIds: string[],
+  attachmentNames: string[] | undefined,
+  convexUrl: string
+): Promise<{
+  textParts: string[];
+  inlineParts: { inlineData: { mimeType: string; data: string } }[];
+  errors: string[];
+}> {
+  const results = await Promise.all(
+    storageIds.map((id, i) =>
+      processAttachment(id, attachmentNames?.[i] || `attachment-${i}`, convexUrl)
+    )
+  );
+
+  const textParts: string[] = [];
+  const inlineParts: { inlineData: { mimeType: string; data: string } }[] = [];
+  const errors: string[] = [];
+
+  for (const r of results) {
+    if (r.extractedText) {
+      textParts.push(
+        `--- ATTACHED DOCUMENT: ${r.name} ---\n${r.extractedText}\n--- END OF DOCUMENT: ${r.name} ---`
+      );
+    }
+    if (r.inlineData) {
+      inlineParts.push({ inlineData: r.inlineData });
+    }
+    if (!r.extracted && r.error) {
+      errors.push(`${r.name}: ${r.error}`);
+    }
+  }
+
+  return { textParts, inlineParts, errors };
+}

@@ -7,6 +7,7 @@ import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, getAloaProtoco
 import { validateAIResponse } from '../config/identityGuardrails';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
+import { processAttachments } from '../utils/attachmentProcessor';
 
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 const convex = new ConvexHttpClient(CONVEX_URL);
@@ -311,34 +312,43 @@ export const sendMessage = async (
 
         const text = typeof msg.content === 'string' ? stripPII(msg.content) : '';
         const attachments = (msg as any).attachments as string[] | undefined;
+        const attachmentNames = (msg as any).attachmentNames as string[] | undefined;
 
         if (!text && !attachments?.length) continue;
 
         const parts: any[] = [];
         if (text) parts.push({ text });
 
-        // Fetch attachments and include as inlineData
+        // ─── Process attachments with the new attachmentProcessor ───────
+        // This extracts text from PDFs/DOCX/TXT and passes images as
+        // inlineData. The old approach (raw inlineData for all types)
+        // failed for PDFs because btoa() can't handle large binaries and
+        // Gemini's inlineData has practical size limits.
         if (attachments && attachments.length > 0) {
-            for (const storageId of attachments) {
-                try {
-                    const fileUrl = `${CONVEX_URL}/api/storage/${storageId}`;
-                    const fileRes = await fetch(fileUrl);
-                    if (!fileRes.ok) continue;
-                    const blob = await fileRes.blob();
-                    const arrayBuffer = await blob.arrayBuffer();
-                    const bytes = new Uint8Array(arrayBuffer);
-                    let binary = '';
-                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                    const base64 = btoa(binary);
+            try {
+                const { textParts, inlineParts, errors } = await processAttachments(
+                    attachments,
+                    attachmentNames,
+                    CONVEX_URL
+                );
+                // Prepend extracted document text to the message
+                if (textParts.length > 0) {
+                    const docContext = textParts.join('\n\n');
                     parts.push({
-                        inlineData: {
-                            mimeType: blob.type || 'application/octet-stream',
-                            data: base64,
-                        }
+                        text: `The user has uploaded ${textParts.length} document(s). ` +
+                              `Here is the extracted text content for your analysis:\n\n${docContext}`,
                     });
-                } catch (e) {
-                    console.warn('[sendMessage] Failed to fetch attachment:', storageId, e);
                 }
+                // Add images / scanned PDFs as inlineData
+                parts.push(...inlineParts);
+                // If there were extraction errors, add a note so the AI knows
+                if (errors.length > 0) {
+                    parts.push({
+                        text: `Note: Some attachments could not be processed: ${errors.join('; ')}`,
+                    });
+                }
+            } catch (e) {
+                console.warn('[sendMessage] Attachment processing failed:', e);
             }
         }
 
@@ -488,35 +498,38 @@ export const streamMessage = async (
     const contents: Content[] = [];
     for (const msg of history) {
         const text = typeof msg.content === 'string' ? stripPII(msg.content) : '';
-        if (msg.role === 'tool' || (!text && !(msg as any).attachments?.length)) continue;
+        const attachments = (msg as any).attachments as string[] | undefined;
+        const attachmentNames = (msg as any).attachmentNames as string[] | undefined;
+        if (msg.role === 'tool' || (!text && !attachments?.length)) continue;
 
         const parts: any[] = [];
         if (text) parts.push({ text });
 
-        // If the message has file attachments, fetch and include them as inlineData
-        const attachments = (msg as any).attachments as string[] | undefined;
+        // ─── Process attachments with the new attachmentProcessor ───────
+        // (same logic as sendMessage — extracts text from PDFs/DOCX/TXT,
+        // passes images as inlineData)
         if (attachments && attachments.length > 0) {
-            for (const storageId of attachments) {
-                try {
-                    const fileUrl = `${CONVEX_URL}/api/storage/${storageId}`;
-                    const fileRes = await fetch(fileUrl);
-                    if (!fileRes.ok) continue;
-                    const blob = await fileRes.blob();
-                    const arrayBuffer = await blob.arrayBuffer();
-                    // Convert to base64
-                    const bytes = new Uint8Array(arrayBuffer);
-                    let binary = '';
-                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                    const base64 = btoa(binary);
+            try {
+                const { textParts, inlineParts, errors } = await processAttachments(
+                    attachments,
+                    attachmentNames,
+                    CONVEX_URL
+                );
+                if (textParts.length > 0) {
+                    const docContext = textParts.join('\n\n');
                     parts.push({
-                        inlineData: {
-                            mimeType: blob.type || 'application/octet-stream',
-                            data: base64,
-                        }
+                        text: `The user has uploaded ${textParts.length} document(s). ` +
+                              `Here is the extracted text content for your analysis:\n\n${docContext}`,
                     });
-                } catch (e) {
-                    console.warn('[Stream] Failed to fetch attachment:', storageId, e);
                 }
+                parts.push(...inlineParts);
+                if (errors.length > 0) {
+                    parts.push({
+                        text: `Note: Some attachments could not be processed: ${errors.join('; ')}`,
+                    });
+                }
+            } catch (e) {
+                console.warn('[Stream] Attachment processing failed:', e);
             }
         }
 

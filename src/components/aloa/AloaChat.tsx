@@ -747,7 +747,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         // Show "Thinking…" immediately so the user sees activity even if
         // the request is queued behind a previous one.
-        setAloaStatus(pendingAttachments.length > 0 ? 'Reading document…' : 'Thinking…');
+        setAloaStatus(pendingAttachments.length > 0 ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…` : 'Thinking…');
 
         // ─── DETERMINISTIC REQUEST QUEUE ────────────────────────────────
         // The AI execution is enqueued in a global sequential queue.
@@ -877,7 +877,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                     }
 
-                    setAloaStatus(pendingAttachments.length > 0 ? 'Reading document…' : 'Thinking…');
+                    setAloaStatus(pendingAttachments.length > 0 ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…` : 'Thinking…');
                     setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
 
                     const response = await aiService.sendMessage(
