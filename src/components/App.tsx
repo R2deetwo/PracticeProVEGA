@@ -812,6 +812,10 @@ export const App: React.FC = () => {
                 safetyTimeoutRef.current = setTimeout(() => {
                     if (import.meta.env.DEV) console.warn("[App] Data load timeout - forcing entry.");
                     setForceEntry(true);
+                    // CRITICAL: also dismiss the splash so the user isn't stuck
+                    // staring at the green "Ready" phase when data load failed.
+                    setSplashAnimationComplete(true);
+                    setHasInitialSplashFinished(true);
                     safetyTimeoutRef.current = null;
                 }, timeoutMs);
             }
@@ -1243,6 +1247,7 @@ export const App: React.FC = () => {
                         try { localStorage.removeItem('practicepro_portal_session'); } catch {}
                         window.location.href = '/';
                     }}
+                    onClose={() => setNeedsTermsAcceptance(false)}
                 />
             )}
             {/* Detects new deploys and prompts the user to refresh — bypasses

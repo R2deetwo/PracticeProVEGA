@@ -26,14 +26,20 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
+import { Capacitor } from '@capacitor/core';
 
 interface TermsAcceptanceProps {
     onAccepted: () => void;
     onDeclined: () => void;
+    /** Called when the user opens a full-page legal document — closes the
+     * modal without logging out. The user will see the modal again when
+     * they return to the app (if they haven't accepted yet). */
+    onClose?: () => void;
 }
 
 const TERMS_VERSION = '2026-07-01-v1';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
+const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 
 export function hasAcceptedCurrentTerms(): boolean {
     try {
@@ -50,7 +56,25 @@ export function markTermsAccepted() {
     } catch { /* ignore */ }
 }
 
-const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDeclined }) => {
+/**
+ * Opens the legal document in the appropriate way:
+ * - On web: navigates to the clean /terms-of-service or /privacy-policy route
+ *   (which renders without the app sidebar/layout)
+ * - On APK: opens in the device's external default browser via Capacitor Browser
+ */
+async function openLegalDocument(doc: 'terms' | 'privacy') {
+    const path = doc === 'terms' ? '/terms-of-service' : '/privacy-policy';
+    if (Capacitor.isNativePlatform()) {
+        // On APK: open in the device's external default browser.
+        // window.open with _blank triggers the system browser on Android.
+        window.open(`${PRODUCTION_URL}${path}`, '_blank');
+    } else {
+        // On web: navigate to the route (the parent modal will close via onClose)
+        window.location.href = path;
+    }
+}
+
+const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDeclined, onClose }) => {
     const [agreedTerms, setAgreedTerms] = useState(false);
     const [agreedPrivacy, setAgreedPrivacy] = useState(false);
     const [showTerms, setShowTerms] = useState(false);
@@ -105,7 +129,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                             </span>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); navigateTo('termsOfService'); }}
+                                    onClick={(e) => { e.stopPropagation(); openLegalDocument('terms'); onClose?.(); }}
                                     className="text-xs text-primary-600 dark:text-primary-400 font-bold hover:underline"
                                 >
                                     Open full page →
@@ -142,7 +166,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                             </span>
                             <div className="flex items-center gap-2">
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); navigateTo('privacyPolicy'); }}
+                                    onClick={(e) => { e.stopPropagation(); openLegalDocument('privacy'); onClose?.(); }}
                                     className="text-xs text-teal-600 dark:text-teal-400 font-bold hover:underline"
                                 >
                                     Open full page →
@@ -175,7 +199,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-700 dark:text-zinc-300">
-                                I have read and agree to the <button onClick={() => navigateTo('termsOfService')} className="text-primary-600 dark:text-primary-400 font-bold hover:underline">Terms of Service</button>
+                                I have read and agree to the <button onClick={() => { openLegalDocument('terms'); onClose?.(); }} className="text-primary-600 dark:text-primary-400 font-bold hover:underline">Terms of Service</button>
                             </span>
                         </label>
                         <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
@@ -186,7 +210,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                             />
                             <span className="text-sm text-slate-700 dark:text-zinc-300">
-                                I have read and agree to the <button onClick={() => navigateTo('privacyPolicy')} className="text-teal-600 dark:text-teal-400 font-bold hover:underline">Privacy Policy</button>
+                                I have read and agree to the <button onClick={() => { openLegalDocument('privacy'); onClose?.(); }} className="text-teal-600 dark:text-teal-400 font-bold hover:underline">Privacy Policy</button>
                             </span>
                         </label>
                     </div>

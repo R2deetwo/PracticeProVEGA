@@ -1640,25 +1640,36 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </svg>
                         )}
                     </button>
-                    <div className={`flex-1 rounded-2xl flex items-center border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
-                        <input autoComplete="off" data-lpignore="true"
+                    <div className={`flex-1 rounded-2xl flex items-end border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
+                        <textarea
+                            autoComplete="off"
+                            data-lpignore="true"
                             value={textInput}
-                            onChange={e => setTextInput(e.target.value)}
+                            onChange={e => {
+                                setTextInput(e.target.value);
+                                // Auto-resize: reset height then set to scrollHeight
+                                e.target.style.height = 'auto';
+                                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                            }}
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
+                                // Enter = newline (default textarea behavior)
+                                // Ctrl+Enter OR Cmd+Enter = send
+                                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
                                     e.preventDefault();
                                     handleSend();
                                 }
                             }}
+                            rows={1}
                             placeholder={
                                 isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
                             }
-                            className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0"
+                            className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0 resize-none overflow-hidden"
+                            style={{ maxHeight: '120px' }}
                         />
                         <button
                             type="submit"
                             disabled={!textInput.trim() && pendingAttachments.length === 0}
-                            className={`p-2 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white flex-shrink-0`}
+                            className={`p-2 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white flex-shrink-0 mb-1`}
                         >
                             <SendIcon />
                         </button>

@@ -178,12 +178,13 @@ const CommandPalette: React.FC = () => {
         return () => window.removeEventListener('keydown', handleNav);
     }, [isCommandPaletteOpen, results, selectedIndex, setCommandPaletteOpen]);
 
-    // Ensure selected item is visible
+    // Ensure selected item is visible — use querySelector with data-index
+    // to avoid off-by-one issues from wrapper divs
     useEffect(() => {
         if (listRef.current) {
-            const selectedElement = listRef.current.children[selectedIndex] as HTMLElement;
+            const selectedElement = listRef.current.querySelector(`[data-index="${selectedIndex}"]`) as HTMLElement;
             if (selectedElement) {
-                selectedElement.scrollIntoView({ block: 'nearest' });
+                selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }
         }
     }, [selectedIndex]);
@@ -219,6 +220,7 @@ const CommandPalette: React.FC = () => {
                             {results.map((result: SearchResult, index: number) => (
                                 <button
                                     key={result.id}
+                                    data-index={index}
                                     onClick={() => { result.action(); setCommandPaletteOpen(false); }}
                                     className={`w-full flex items-center justify-between p-3 rounded-lg text-left transition-colors group ${index === selectedIndex ? 'bg-primary-600 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-700'}`}
                                 >
