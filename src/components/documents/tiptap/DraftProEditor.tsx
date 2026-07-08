@@ -46,6 +46,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 import LegalPlaceholder, { resolveCategory } from './extensions/LegalPlaceholder';
 import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
+import { getAssistantName } from '../../../utils/assistantIdentity';
 import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
@@ -1228,7 +1229,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         <button
                             onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
                             disabled={!editor || isDrafting}
-                            title="Redraft with AI — regenerate the document with optional improvement instructions"
+                            title={`Redraft with ${getAssistantName(isProperty)} — regenerate the document with optional improvement instructions`}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             <RedraftIcon className="w-4 h-4" />
@@ -1429,7 +1430,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 {activeModal === 'image' && <><ImageIcon className="w-5 h-5 text-emerald-500" /> Insert Image</>}
                                 {activeModal === 'table' && <><TableIcon className="w-5 h-5 text-slate-500" /> Create Table</>}
                                 {activeModal === 'auto_format_rules' && <><Wand className="w-5 h-5 text-emerald-500" /> Auto-Format Rules</>}
-                                {activeModal === 'redraft' && <><Redo className="w-5 h-5 text-blue-500" /> Redraft with AI</>}
+                                {activeModal === 'redraft' && <><Redo className="w-5 h-5 text-blue-500" /> Redraft with {getAssistantName(isProperty)}</>}
                             </h3>
 
                             {activeModal === 'placeholder' && (
@@ -1464,14 +1465,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                     return acc;
                                 }, {} as Record<PlaceholderCategory, string[]>);
                                 const categoryOrder: PlaceholderCategory[] = ['parties', 'dates', 'financial', 'location', 'court', 'firm', 'freetext'];
-                                const categoryMeta: Record<PlaceholderCategory, { name: string; abbr: string; color: string; border: string; bg: string; ring: string }> = {
-                                    parties:   { name: 'Parties',   abbr: 'P', color: 'text-blue-500',   border: 'border-l-blue-500',   bg: 'bg-blue-50/30 dark:bg-blue-900/10',   ring: 'focus:ring-blue-500' },
-                                    dates:     { name: 'Dates',     abbr: 'D', color: 'text-purple-500', border: 'border-l-purple-500', bg: 'bg-purple-50/30 dark:bg-purple-900/10', ring: 'focus:ring-purple-500' },
-                                    financial: { name: 'Financial', abbr: '$', color: 'text-green-500',  border: 'border-l-green-500',  bg: 'bg-green-50/30 dark:bg-green-900/10',  ring: 'focus:ring-green-500' },
-                                    location:  { name: 'Location',  abbr: 'A', color: 'text-teal-500',   border: 'border-l-teal-500',   bg: 'bg-teal-50/30 dark:bg-teal-900/10',   ring: 'focus:ring-teal-500' },
-                                    court:     { name: 'Court',     abbr: 'C', color: 'text-rose-500',   border: 'border-l-rose-500',   bg: 'bg-rose-50/30 dark:bg-rose-900/10',   ring: 'focus:ring-rose-500' },
-                                    firm:      { name: 'Firm',      abbr: 'F', color: 'text-indigo-500', border: 'border-l-indigo-500', bg: 'bg-indigo-50/30 dark:bg-indigo-900/10', ring: 'focus:ring-indigo-500' },
-                                    freetext:  { name: 'Free Text', abbr: 'T', color: 'text-amber-500',  border: 'border-l-amber-500',  bg: 'bg-amber-50/30 dark:bg-amber-900/10',  ring: 'focus:ring-amber-500' },
+                                const categoryMeta: Record<PlaceholderCategory, { name: string; color: string; border: string; bg: string; ring: string }> = {
+                                    parties:   { name: 'Parties',   color: 'text-blue-500',   border: 'border-l-blue-500',   bg: 'bg-blue-50/30 dark:bg-blue-900/10',   ring: 'focus:ring-blue-500' },
+                                    dates:     { name: 'Dates',     color: 'text-purple-500', border: 'border-l-purple-500', bg: 'bg-purple-50/30 dark:bg-purple-900/10', ring: 'focus:ring-purple-500' },
+                                    financial: { name: 'Financial', color: 'text-green-500',  border: 'border-l-green-500',  bg: 'bg-green-50/30 dark:bg-green-900/10',  ring: 'focus:ring-green-500' },
+                                    location:  { name: 'Location',  color: 'text-teal-500',   border: 'border-l-teal-500',   bg: 'bg-teal-50/30 dark:bg-teal-900/10',   ring: 'focus:ring-teal-500' },
+                                    court:     { name: 'Court',     color: 'text-rose-500',   border: 'border-l-rose-500',   bg: 'bg-rose-50/30 dark:bg-rose-900/10',   ring: 'focus:ring-rose-500' },
+                                    firm:      { name: 'Firm',      color: 'text-indigo-500', border: 'border-l-indigo-500', bg: 'bg-indigo-50/30 dark:bg-indigo-900/10', ring: 'focus:ring-indigo-500' },
+                                    freetext:  { name: 'Free Text', color: 'text-amber-500',  border: 'border-l-amber-500',  bg: 'bg-amber-50/30 dark:bg-amber-900/10',  ring: 'focus:ring-amber-500' },
                                 };
 
                                 const handleAutoFill = () => {
@@ -1571,34 +1572,26 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                                 return (
                                                     <div key={cat}>
                                                         <div className="flex items-center gap-1.5 mb-2">
-                                                            <span className={`text-[10px] font-black ${meta.color}`}>{meta.abbr}</span>
+                                                            <span className={`w-2 h-2 rounded-full ${meta.color.replace('text-', 'bg-')}`}></span>
                                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{meta.name}</span>
                                                             <span className="text-[10px] text-slate-300">({labels.length})</span>
                                                         </div>
                                                         <div className="space-y-2">
                                                             {labels.map(label => {
-                                                                // Determine if this is a date placeholder → use date picker
-                                                                const isDatePlaceholder = cat === 'dates' || /DATE|DAY|MONTH|YEAR/i.test(label);
+                                                                // Only show date picker for actual calendar dates — NOT for
+                                                                // durations like "number of days", "weeks", "lease term in years"
+                                                                const n = label.toUpperCase();
+                                                                const isDuration = /\b(NUMBER|COUNT|QUANTITY|DURATION|PERIOD|TERM|LENGTH)\b/.test(n)
+                                                                    || /\b(DAYS|WEEKS|MONTHS|YEARS|HOURS|MINUTES)\b/.test(n);
+                                                                const isDatePlaceholder = cat === 'dates' && !isDuration;
                                                                 const todayStr = new Date().toISOString().split('T')[0];
+                                                                const def = getPlaceholderDef(label);
+                                                                const tooltip = def?.description || `${meta.name} — ${label.replace(/[\[\]]/g, '')}`;
                                                                 return (
-                                                                <div key={label} className={`flex flex-col gap-1 ${meta.bg} rounded-lg p-2 border-l-2 ${meta.border}`}>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 flex items-center gap-1.5">
-                                                                            <span className={`text-[9px] font-black ${meta.color}`}>{meta.abbr}</span>
-                                                                            {label}
-                                                                        </label>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleAiHelpForPlaceholder(label)}
-                                                                            disabled={aiHelpLoading && aiHelpLabel === label}
-                                                                            className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
-                                                                        >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                                                                            </svg>
-                                                                            {aiHelpLoading && aiHelpLabel === label ? '...' : `Ask AI`}
-                                                                        </button>
-                                                                    </div>
+                                                                <div key={label} className={`flex flex-col gap-1 ${meta.bg} rounded-lg p-2 border-l-2 ${meta.border}`} title={tooltip}>
+                                                                    <label className="text-xs font-bold text-slate-600 dark:text-zinc-400">
+                                                                        {label}
+                                                                    </label>
                                                                     {isDatePlaceholder ? (
                                                                         <input
                                                                             type="date"
@@ -1711,7 +1704,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
                                         <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
-                                            The AI will regenerate the entire document from scratch using the original prompt. Your current content will be replaced. Add specific instructions below to guide the improvement — e.g. <em>"make it more formal", "add a termination clause", "shorten the recitals"</em>.
+                                            {getAssistantName(isProperty)} will regenerate the entire document from scratch using the original prompt. Your current content will be replaced. Add specific instructions below to guide the improvement — e.g. <em>"make it more formal", "add a termination clause", "shorten the recitals"</em>.
                                         </p>
                                     </div>
                                     <div>
@@ -1728,7 +1721,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                         <button onClick={() => { setActiveModal(null); setRedraftContext(''); }} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
                                         <button onClick={handleRedraft} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center gap-2">
                                             <Redo className="w-4 h-4" />
-                                            Redraft Document
+                                            Redraft with {getAssistantName(isProperty)}
                                         </button>
                                     </div>
                                 </div>

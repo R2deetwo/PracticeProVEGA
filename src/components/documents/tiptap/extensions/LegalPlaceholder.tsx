@@ -20,6 +20,11 @@ export function resolveCategory(label: string, explicit?: string | null): Placeh
   if (def) return def.category;
   // 2. Pattern-based fallback for placeholders not in the registry
   const n = label.trim().toUpperCase();
+  // Duration/count labels should NOT be dates — they're quantities, not calendar dates
+  // e.g. [NUMBER OF DAYS], [NOTICE PERIOD IN WEEKS], [LEASE TERM IN YEARS]
+  const isDuration = /\b(NUMBER|COUNT|QUANTITY|DURATION|PERIOD|TERM|LENGTH)\b/.test(n)
+    || /\b(DAYS|WEEKS|MONTHS|YEARS|HOURS|MINUTES)\b/.test(n);
+  if (isDuration) return 'freetext';
   if (/(NAME|PARTY|COUNSEL|TENANT|LANDLORD|GUARANTOR|DEPONENT|JUDGE|WITNESS|CLAIMANT|DEFENDANT|APPLICANT|RESPONDENT|PETITIONER|TRUSTEE|BENEFICIARY|DIRECTOR|SHAREHOLDER|EXECUTOR|ADMINISTRATOR|GUARDIAN|ATTORNEY|SOLICITOR|BARRISTER|NOTARY)/.test(n)) return 'parties';
   if (/(DATE|DAY|MONTH|YEAR|TIME|DEADLINE|HEARING|EXPIR|COMMENCEMENT|TERMINATION|EFFECTIVE)/.test(n)) return 'dates';
   if (/(AMOUNT|FEE|CHARGE|RENT|DEPOSIT|PAYMENT|COST|PRICE|SUM|MONEY|NAIRA|DOLLAR|PENALTY|RATE|SALARY|WAGE|INCOME|REVENUE|TAX|VAT|DISCOUNT|BALANCE|TOTAL)/.test(n)) return 'financial';

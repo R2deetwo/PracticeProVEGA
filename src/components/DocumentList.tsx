@@ -63,7 +63,7 @@ const DocumentRow: React.FC<{
     return (
         <div
             onClick={() => onViewDetails(doc.id)}
-            className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-colors"
+            className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
         >
             <div className="flex items-center gap-3 min-w-0 flex-grow pr-2">
                 <div className="relative flex-shrink-0">
@@ -101,31 +101,32 @@ const DocumentRow: React.FC<{
                 </div>
             </div>
 
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {/* Action buttons — always visible (not hover-only) so they work on touch devices */}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
                 <Tooltip text="View">
-                    <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
                         <EyeIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 {doc.file && (
                     <Tooltip text="Download">
-                        <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
+                        <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
                             <DownloadIcon className="w-4 h-4" />
                         </button>
                     </Tooltip>
                 )}
                 <Tooltip text="Share">
-                    <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
                         <ShareIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 <Tooltip text="Edit">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
                         <EditIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
                 <Tooltip text="Delete">
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
                         <TrashIcon className="w-4 h-4" />
                     </button>
                 </Tooltip>
@@ -360,16 +361,16 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     <div className="flex gap-2 items-center">
                         <button
                             onClick={() => openEditor()}
-                            className="h-8 px-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-[10px] font-bold whitespace-nowrap shrink-0"
+                            className="h-9 px-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
                             title="Open DraftPro Editor"
                         >
-                            <SparklesIcon className="w-3 h-3" /> DraftPro <span className="opacity-60 font-normal text-[9px]">β</span>
+                            <SparklesIcon className="w-3.5 h-3.5" /> DraftPro <span className="opacity-60 font-normal text-[9px]">β</span>
                         </button>
                         <button
                             onClick={() => openModal('newDocument')}
-                            className="p-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-2 text-xs font-bold"
+                            className="h-9 px-3 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
                         >
-                            <PlusIcon className="w-4 h-4" /> Upload
+                            <PlusIcon className="w-3.5 h-3.5" /> Upload
                         </button>
                     </div>
                 </div>
