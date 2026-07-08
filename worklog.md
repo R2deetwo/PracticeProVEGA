@@ -3514,3 +3514,47 @@ NOT YET IMPLEMENTED (deferred — complex, needs more design):
   sequential numbering protocol)
 These require deeper refactoring of the HeaderDesigner/HeaderRenderer
 system and will be addressed in a follow-up task.
+
+---
+Task ID: 63
+Agent: Main Agent
+Task: Date placeholders, Kanban fix, ALOA buttons, color bars
+
+Work Log:
+
+1. DATE PLACEHOLDER FIXES
+   - [MONTH] category bug: added MONTH to dates regex in resolveCategory()
+     (LegalPlaceholder.tsx). [MONTH] was falling through to 'freetext'
+     → orange color. Now correctly 'dates' → purple.
+   - Unified date placeholders: AI prompt no longer splits [DAY]/[MONTH]/
+     [YEAR]. Uses single [DATE] placeholder. Updated aloaPrompts.ts
+     (VEGA + ATRIUM) + geminiService.ts system instruction.
+   - Date picker: fill modal renders <input type="date"> for date
+     placeholders — native calendar dropdown.
+
+2. CATEGORY COLOR BARS IN FILL MODAL
+   - Each input has colored left border (border-l-2) matching category
+   - Subtle category-tinted background on each input card
+   - Category abbreviation badge (P/D/$/A/C/F/T) next to label
+   - Focus ring matches category color
+   - Visual reinforcement: user sees color → links to information type
+
+3. KANBAN TASK BOARD FIX (disappearing tasks)
+   - Root cause: checklist-applied tasks had status='Pending' (capital P)
+     which didn't match any column filter ('todo'/'in_progress'/'done')
+   - Fix 1: tasksByStatus normalizes — non-standard statuses → 'todo'
+   - Fix 2: useTasks.ts creates tasks with status='todo' not 'Pending'
+
+4. ALOA ACTION BUTTONS
+   - Save button hidden for toolAction messages (drafts/modals)
+   - All buttons shrunk: px-1.5 py-0.5, text-[9px], rounded-md,
+     w-2.5 h-2.5 icons, gap-0.5
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (29s)
+- Committed + pushed: bff4dfd..f7e72f4 main -> main
+
+DEFERRED (still pending — needs deeper refactoring):
+- Unified Heading Section Component (corporate vs court process headings)
+- GitHub/Vercel Agents tab question (answered in chat, no code change)
