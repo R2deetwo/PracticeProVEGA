@@ -112,13 +112,16 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
 
 const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, propertyRevenue = 0, activeLeasesCount = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
     const isAdmin = currentUser.role === UserRole.Admin;
-    const { isLegal, isProperty } = useProduct();
+    // Use hasPropertyFeatures (not isProperty) so Komplete (unified) mode
+    // shows the Managed Units card. isProperty only controls the assistant
+    // name (ALOA vs ARIA), not feature availability.
+    const { isLegal, hasPropertyFeatures } = useProduct();
 
-    const showFinanceCard = isAdmin && (isLegal || isProperty);
+    const showFinanceCard = isAdmin && (isLegal || hasPropertyFeatures);
 
     const totalCards =
         (isLegal ? 1 : 0) +
-        (isProperty ? 1 : 0) +
+        (hasPropertyFeatures ? 1 : 0) +
         1 +
         (showFinanceCard ? 1 : 0);
 
@@ -144,7 +147,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
                 </div>
             )}
 
-            {isProperty && (
+            {hasPropertyFeatures && (
                 <div className="h-24 relative overflow-hidden rounded-2xl isolate transform-gpu">
                     <StatCard
                         title="Managed Units"
@@ -171,7 +174,7 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
                     outstandingRevenue={outstandingRevenue}
                     propertyRevenue={propertyRevenue}
                     showInvoices={isLegal}
-                    showRent={isProperty}
+                    showRent={hasPropertyFeatures}
                     isLoading={isLoading}
                     navigateTo={navigateTo}
                 />

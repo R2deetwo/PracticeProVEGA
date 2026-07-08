@@ -5,6 +5,7 @@ import { MicrophoneIcon, StopIcon, TrashIcon, PlusIcon } from '../../constants';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
+import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../../utils/microphonePermission';
 
 const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 const isSpeechRecognitionSupported = !!SpeechRecognition;
@@ -55,8 +56,15 @@ export const ClientIntakeRecorder: React.FC<{ lead: Lead }> = ({ lead }) => {
 
     const handleStartRecording = async () => {
         if (status === 'submitted' || lead.intakeRecordings || recordings.length >= MAX_RECORDINGS) return;
-        
+
         try {
+            // Pre-request microphone permission at the OS level (native APK)
+            const hasPermission = await requestMicrophonePermission();
+            if (!hasPermission) {
+                addToast("Microphone access denied. Please grant permission and try again.", { type: 'error' });
+                return;
+            }
+
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
             // Prefer WebM for compatibility
@@ -122,18 +130,7 @@ export const ClientIntakeRecorder: React.FC<{ lead: Lead }> = ({ lead }) => {
 
         } catch (err: any) {
             console.error("Error accessing microphone:", err);
-            // Provide specific, actionable guidance based on the error type
-            if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-                addToast("Microphone access denied. Please enable it in your browser/app settings and try again.", { type: 'error' });
-            } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
-                addToast("No microphone found. Please connect a microphone and try again.", { type: 'error' });
-            } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
-                addToast("Microphone is in use by another app. Please close it and try again.", { type: 'error' });
-            } else if (err?.name === 'SecurityError') {
-                addToast("Microphone access blocked for security. Ensure you're on HTTPS and the site has permission.", { type: 'error' });
-            } else {
-                addToast("Could not access microphone: " + (err?.message || "Unknown error"), { type: 'error' });
-            }
+            addToast(getMicrophoneErrorMessage(err), { type: 'error' });
         }
     };
     

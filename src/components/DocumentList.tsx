@@ -355,7 +355,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                             <DocumentIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Documents</h2>
+                            <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Documents</h2>
                             <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium hidden sm:block">Manage firm documents and files</p>
                         </div>
                     </div>

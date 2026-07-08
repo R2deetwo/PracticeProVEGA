@@ -578,8 +578,6 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         try { clearSentryUser(); resetAnalyticsUser(); } catch {}
 
         // Fire-and-forget tracking — NEVER block logout on analytics.
-        // If the Convex connection is stale or the network is slow, awaiting
-        // this mutation can cause the logout button to appear unresponsive.
         if (currentUser && currentUser.email !== 'demo@practicepro.ng') {
             trackEventMutation({
                 firmId: currentUser.firmId || 'none',
@@ -589,68 +587,61 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }).catch(e => console.warn("[Auth] Logout tracking failed:", e));
         }
 
-        // Clear in-memory React state FIRST so the UI immediately stops rendering
-        // as an authenticated user — this prevents stale renders on slow devices
+        // TASK: Clear ALL matter drafts so a different user logging in doesn't
+        // see the previous user's form data.
+        try {
+            const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('draft_newMatter_'));
+            keysToRemove.forEach(k => localStorage.removeItem(k));
+        } catch { /* Non-critical */ }
+
+        // SECURITY: When a portal user logs out, only clear the PORTAL session.
+        if (isPortalUser) {
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+            sessionStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_cached_user');
+        } else {
+            sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
+            sessionStorage.removeItem(PORTAL_SESSION_KEY);
+            localStorage.removeItem(PORTAL_SESSION_KEY);
+            sessionStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_portal_type');
+            localStorage.removeItem('practicepro_cached_user');
+        }
+        localStorage.removeItem('practicepro_session_locked');
+
+        // Clear in-memory React state AFTER clearing storage but BEFORE navigation.
+        // This ensures the UI immediately stops rendering as authenticated.
         setSessionToken(null);
         if (originalSessionToken) {
             setOriginalSessionToken(null);
             sessionStorage.removeItem('practicepro_original_session');
         }
-        // Clear any stale impersonation role override so it doesn't leak
-        // into a future session on the same tab.
         if (impersonationRoleOverride) {
             setImpersonationRoleOverride(null);
             sessionStorage.removeItem('practicepro_impersonation_role');
         }
-        // TASK: Clear ALL matter drafts so a different user logging in doesn't
-        // see the previous user's form data. The draft key format is:
-        // draft_newMatter_${userId} — but we don't know the next user's ID,
-        // so we clear ALL keys that start with 'draft_newMatter_'.
-        try {
-            const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('draft_newMatter_'));
-            keysToRemove.forEach(k => localStorage.removeItem(k));
-        } catch {
-            // Non-critical
-        }
 
-        // SECURITY: When a portal user logs out, only clear the PORTAL session.
-        // NEVER clear practicepro_user_session — that's the admin's session and
-        // clearing it from localStorage would kill the admin's session on any
-        // other open tab, which can cause cross-session contamination.
-        if (isPortalUser) {
-            sessionStorage.removeItem(PORTAL_SESSION_KEY);
-            localStorage.removeItem(PORTAL_SESSION_KEY);
-            sessionStorage.removeItem('practicepro_portal_type');
-            localStorage.removeItem('practicepro_portal_type');
-            // Clear cached user so offline mode doesn't restore a logged-out portal user
-            localStorage.removeItem('practicepro_cached_user');
-            // Do NOT clear LOCAL_STORAGE_USER_KEY — that belongs to the admin
-        } else {
-            // Admin logout — clear only the admin session
-            sessionStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-            localStorage.removeItem(LOCAL_STORAGE_USER_KEY);
-            // Also clear any stale portal session since admin is fully logging out
-            sessionStorage.removeItem(PORTAL_SESSION_KEY);
-            localStorage.removeItem(PORTAL_SESSION_KEY);
-            sessionStorage.removeItem('practicepro_portal_type');
-            localStorage.removeItem('practicepro_portal_type');
-            // Clear cached user for offline mode
-            localStorage.removeItem('practicepro_cached_user');
-        }
-        localStorage.removeItem('practicepro_session_locked');
+        // Use location.replace() instead of location.href to avoid the
+        // browser's "Leave site?" beforeunload dialog. replace() replaces
+        // the current history entry, so the user can't press Back to
+        // return to the authenticated state. This is the correct behavior
+        // for logout — there's no reason to keep the authenticated page
+        // in history.
+        const redirectUrl = isPortalUser
+            ? (portalType === 'client' || currentUser?.role === 'Client'
+                ? '/portal/client/login'
+                : portalType === 'tenant' || currentUser?.role === 'Tenant'
+                    ? '/portal/tenant/login'
+                    : '/')
+            : '/';
 
-        // Redirect portal users to their specific login page, not the main landing page
-        if (isPortalUser) {
-            if (portalType === 'client' || currentUser?.role === 'Client') {
-                window.location.href = '/portal/client/login';
-            } else if (portalType === 'tenant' || currentUser?.role === 'Tenant') {
-                window.location.href = '/portal/tenant/login';
-            } else {
-                window.location.href = '/';
-            }
-        } else {
-            window.location.href = '/';
-        }
+        // Small delay to let React flush the state change before navigating
+        setTimeout(() => {
+            window.location.replace(redirectUrl);
+        }, 50);
     };
 
     const markOnboardingComplete = (firmId: string) => {
