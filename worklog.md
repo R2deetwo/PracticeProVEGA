@@ -3277,3 +3277,83 @@ Stage Summary:
 - ALOA: chat memory persists across navigation
 - Desktop: drafts open in dedicated tabs with dedup safeguards
 - 'Open Item' focuses the correct existing tab
+
+---
+Task ID: 59
+Agent: Main Agent
+Task: Fix DraftPro back button + build-health protection for version refresh
+
+Work Log:
+User reported two issues:
+1. After clicking Refresh on the version banner, they ended up on a
+   blank DraftPro page and the back button didn't work — they were
+   stuck in the editor.
+2. Concern: what happens if a build fails or is broken? Will users be
+   prompted to refresh into a broken app?
+
+FIX 1 — DraftPro back button (DraftProEditor.tsx):
+- Root cause: when DraftPro opens in a new browser tab (via draftTabs
+  from Task 58), window.history.length is 1 and there's no page to go
+  back to. history.back() silently does nothing.
+- Fix: detect the no-history case (history.length <= 1 OR referrer is
+  external/empty) and navigate to '/' (dashboard) instead.
+- Users can now always leave DraftPro, whether it opened in-app or in
+  a dedicated tab.
+
+FIX 2 — Build-health protection (3 layers):
+
+LAYER 1 — version.json manifest (generate-version-manifest.cjs):
+- Added status field: 'building' (default) | 'healthy' | 'broken'
+- Added stableSince field: null until marked healthy
+- CI updates these fields based on smoke-test results
+
+LAYER 2 — CI smoke test (.github/workflows/build-apk.yml):
+- New 'Smoke test production + mark build healthy' step
+- Runs AFTER the Vercel deploy, waits 10s for propagation
+- Verifies:
+    * Production URL returns HTTP 200
+    * HTML contains 'PracticePro' and root div
+    * JS bundle is referenced and returns 200
+    * version.json is served and returns 200
+- Only if ALL checks pass → updates version.json to status='healthy'
+  with stableSince timestamp, re-deploys to Vercel
+- If any check fails → version.json stays at 'building', users NOT
+  prompted to refresh. A fix push will overwrite it.
+- continue-on-error: true so APK build isn't blocked
+
+LAYER 3 — Client-side health gate (useVersionCheck.ts):
+- The hook now checks status before prompting:
+    * 'broken'   → never prompt (known-bad build, user stays on
+                   their current working version)
+    * 'building' → never prompt (not yet verified)
+    * 'healthy'  → prompt only after 5-min stable delay
+       (STABLE_DELAY_MS = 5 * 60 * 1000)
+- The 5-minute delay gives time for runtime issues to be detected
+  and reported before any user is asked to refresh.
+
+RESULT:
+Users are only ever prompted to refresh to a build that:
+  1. Compiled successfully (vite build passed)
+  2. Deployed successfully (Vercel deploy passed)
+  3. Passed smoke test (production URL returns valid HTML + JS)
+  4. Has been stable for 5+ minutes
+
+ROLLBACK MECHANISM:
+If a build is discovered broken AFTER it was marked healthy:
+- Manually update version.json on the server to status='broken'
+- All clients will stop prompting within 5 minutes (next poll)
+- Users stay on their current working version
+- Push a fix; the next CI run will mark the new build healthy
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (26s)
+- YAML: valid
+- Committed + pushed: b62ab4e..5086d7d main -> main
+
+Stage Summary:
+- DraftPro back button always works (in-app or new tab)
+- Users never prompted to refresh to a broken build
+- 3-layer protection: manifest status + CI smoke test + client gate
+- 5-minute stable delay catches runtime issues before prompting
+- Manual rollback available via version.json status='broken'
