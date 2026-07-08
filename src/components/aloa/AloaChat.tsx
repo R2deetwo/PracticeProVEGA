@@ -1390,7 +1390,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     )}
 
-                                    <div className={`absolute bottom-0 translate-y-1/2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 z-10 ${msg.role === 'user' ? '-left-2' : '-right-2'}`}>
+                                    <div className={`absolute bottom-0 translate-y-1/2 flex gap-1.5 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-all transform scale-90 md:group-hover:scale-100 z-10 ${msg.role === 'user' ? '-left-2' : '-right-2'}`}>
                                         <button
                                             onClick={() => handleCopyMessage(msg.id, msg.content || '')}
                                             className={`${copiedMessageId === msg.id ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-zinc-800 text-slate-400 hover:text-primary-600'} border border-slate-200 dark:border-zinc-700 rounded-lg p-1.5 shadow-lg transition-all flex items-center gap-1.5`}
@@ -1408,6 +1408,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 </>
                                             )}
                                         </button>
+
+                                        {msg.role === 'user' && (
+                                            <button
+                                                onClick={() => {
+                                                    setTextInput(msg.content || '');
+                                                    // Remove the user message and any response after it
+                                                    const msgIdx = messages.findIndex(m => m.id === msg.id);
+                                                    if (msgIdx >= 0) {
+                                                        setMessages(prev => prev.slice(0, msgIdx));
+                                                    }
+                                                    setTextInput(msg.content || '');
+                                                    setTimeout(() => {
+                                                        const input = document.querySelector('input[data-lpignore="true"]') as HTMLInputElement;
+                                                        input?.focus();
+                                                    }, 100);
+                                                }}
+                                                className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-1.5 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 shadow-lg flex items-center gap-1.5 pr-2"
+                                                title="Edit & resend"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                                </svg>
+                                                <span className="text-[8px] font-bold uppercase tracking-tight">Edit</span>
+                                            </button>
+                                        )}
 
                                         {msg.role === 'model' && !msg.isError && (
                                             <button
