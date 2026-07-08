@@ -3778,3 +3778,42 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (28s)
 - Committed + pushed: 8112e0d..a98c10d main -> main
+
+---
+Task ID: 70
+Agent: Main Agent
+Task: Fix build failure — middleware.ts recreated, blocking Vercel deploy
+
+Work Log:
+- User reported the last build failed at APK and Vercel/web level
+- Investigation: CI run 28964461227 (commit a98c10d5) showed:
+  * APK: BUILD SUCCESSFUL (PracticePro-v1.0.109.apk uploaded)
+  * Vercel: FAILED — middleware.ts(42,30): error TS2307: Cannot find
+    module '@vercel/edge'
+  * Smoke test: passed (but checked the OLD production URL, not the
+    new build which failed)
+  * version.json: status="error" (because the new build never deployed)
+
+Root cause:
+- middleware.ts was deleted in Task 56 but got recreated (likely during
+  a git rebase or merge). It imports from @vercel/edge which doesn't
+  exist in this Vite project.
+- The Vercel build step has continue-on-error: true, so the build
+  failure didn't block the APK build — but it meant the Vercel
+  production deploy never updated.
+
+Fix:
+- Deleted middleware.ts permanently
+- Pushed commit 68148c85
+
+Verification (CI run 28966815544, commit 68148c85):
+- APK: BUILD SUCCESSFUL (PracticePro-v1.0.110.apk uploaded)
+- Vercel: production deploy complete, no errors
+- Smoke test: PASSED
+- version.json: status = "healthy" (refresh floater will show)
+- All steps: success
+
+Stage Summary:
+- Both APK and Vercel builds are now working
+- The refresh floater should now appear for users on the old version
+- version.json is correctly marked as "healthy" on production
