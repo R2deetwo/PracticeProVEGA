@@ -46,6 +46,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 import LegalPlaceholder from './extensions/LegalPlaceholder';
 import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
+import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
 import { FontSize } from './extensions/FontSize';
@@ -516,7 +517,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             handleKeyDown: (view, event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
-                    handleManualSave();
+                    if (!isDrafting) handleManualSave();
                     return true;
                 }
                 return false;
@@ -614,15 +615,8 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // Store it in a ref or just on the window for now so the UI can trigger it
             (window as any).stopDrafting = () => abortController.abort();
 
-            // Clear editor with a visually engaging loading state
-            editor.commands.setContent(`
-                <div style="text-align:center; padding:48px 24px; color:#94a3b8;">
-                    <div style="display:inline-block; width:40px; height:40px; border:3px solid #e2e8f0; border-top-color:#10b981; border-radius:50%; animation:pp-spin 0.8s linear infinite; margin-bottom:16px;"></div>
-                    <p style="font-size:14px; font-weight:600; color:#475569; margin:0 0 4px;">Generating ${draftPrompt ? draftPrompt.substring(0, 50) + '...' : 'document'}...</p>
-                    <p style="font-size:12px; color:#94a3b8; margin:0;">The AI is drafting your document. This usually takes 10-20 seconds.</p>
-                </div>
-                <style>@keyframes pp-spin { to { transform: rotate(360deg); } }</style>
-            `);
+            // Clear editor content and show overlay (overlay is separate from editor content)
+            editor.commands.setContent('<p></p>');
 
             aiService.streamDraft(
                 [{ role: 'user', content: draftPrompt }],
@@ -960,7 +954,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 <div className="flex items-stretch gap-0 px-1 py-1 overflow-x-auto custom-scrollbar no-scrollbar">
 
                     <ToolbarGroup label="File">
-                        <ToolbarBtn icon={Save} label="Save" onClick={handleManualSave} size="lg" disabled={isSaved || !editor} />
+                        <ToolbarBtn icon={Save} label="Save" onClick={handleManualSave} size="lg" disabled={isSaved || !editor || isDrafting} />
                         <div className="flex flex-col gap-0.5">
                             <ToolbarBtn icon={Undo} onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} size="sm" label="Undo" />
                             <ToolbarBtn icon={Redo} onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} size="sm" label="Redo" />
@@ -1256,6 +1250,9 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                     </div>
                                 )}
                                 <EditorContent editor={editor} />
+                                {isDrafting && (
+                                    <GenerationOverlay label={`Generating ${draftPrompt ? draftPrompt.substring(0, 40) + '...' : 'document'}...`} />
+                                )}
                             </div>
                         </div>
                     </div>

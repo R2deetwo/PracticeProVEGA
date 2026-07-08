@@ -112,6 +112,11 @@ const vegaFeatures = [
         desc: 'Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your practice\'s account.',
         icon: CreditCard,
       },
+      {
+        title: 'Trust Accounting',
+        desc: 'Toggleable trust account ledger in Financials. Record client deposits, withdrawals, and transfers with running balance tracking. Enable in Settings → Firm when needed.',
+        icon: Scale,
+      },
     ],
   },
 ]
@@ -194,6 +199,18 @@ const atriumFeatures = [
         title: 'Legal Document Generation',
         desc: 'Pro plan includes automated generation of notices, demands, and other legal documents tailored to Nigerian property law.',
         icon: FileText,
+        badge: 'Pro',
+      },
+      {
+        title: 'Visitor Management System',
+        desc: 'Gated estate residents generate 6-digit visitor access codes. Gatekeepers verify at the gate with a lightweight mobile interface. Dual WhatsApp delivery, offline fallback, and configurable grace periods.',
+        icon: Shield,
+        badge: 'Growth+',
+      },
+      {
+        title: 'Automated Communications',
+        desc: 'WhatsApp and email automation for rent reminders, late notices, service charge alerts, and payment receipts. Custom message templates with variable substitution.',
+        icon: MessageSquare,
         badge: 'Pro',
       },
     ],

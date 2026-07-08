@@ -278,6 +278,100 @@ export const HelpSettings: React.FC = () => {
                             </div>
                         </AccordionItem>
 
+                        <AccordionItem title="AI Chat Features" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">File Uploads</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Click the paperclip icon next to the text input to attach documents, images, or PDFs to your message. Files upload to secure storage and appear as thumbnails or file chips in the conversation. You can attach multiple files at once (max 20MB each).
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">PII Shield</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        When you send a message containing private information (emails, phone numbers, NIN, BVN, bank account numbers), the PII Shield automatically strips them before sending to the AI. A green badge appears above your message showing what was removed. Click the badge to see exactly what was detected and replaced.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Edit & Resend</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Hover over any message you sent to see Copy and Edit buttons. Click Edit to put the message back in the input field, remove the old message and response, and resend with changes.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">AI Request Queue</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Messages are processed sequentially — if you send multiple messages quickly, they queue up and process one at a time. A pending count indicator shows how many requests are queued. Each request has a 15-second timeout to prevent UI freezes on slow connections.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem title="DraftPro & Placeholders" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Color-Coded Placeholders</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        When the AI generates a document, blank fields appear as color-coded pills. Each color represents a category: <span className="text-blue-600 font-semibold">blue</span> (parties/names), <span className="text-purple-600 font-semibold">purple</span> (dates), <span className="text-green-600 font-semibold">green</span> (financial), <span className="text-teal-600 font-semibold">teal</span> (addresses), <span className="text-rose-600 font-semibold">rose</span> (court/legal), <span className="text-indigo-600 font-semibold">indigo</span> (firm details), <span className="text-amber-600 font-semibold">amber</span> (free text).
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Fill Blanks</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Click "Fill Blanks" in the toolbar to open a modal listing all placeholders, grouped by category. Use the "Auto-fill from matter" button to automatically pull client name, suit number, court name, and firm details from the linked matter. You can also ask the AI for suggestions per placeholder.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Litigation Skeletons</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        When drafting litigation documents (Affidavits, Motions, Statements of Claim/Defence, etc.), the AI follows Nigerian legal document structures with mandatory boilerplate sections. Each document type has a "never omit" checklist that the AI self-checks before returning the draft.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        {isProperty && (
+                        <AccordionItem title="Visitor Management System" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">How VMS Works</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Residents generate 6-digit access codes for their visitors from the Resident Portal (Visitors tab). They choose an expiry window (2h, 6h, 12h, or 24h) and a delivery method: share via their own WhatsApp (free) or have the portal send it automatically via WhatsApp API.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Gatekeeper Interface</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Gatekeepers use a lightweight verification interface optimized for gate tablets/phones. They enter the 6-digit code, see instant verification (green for valid, red for invalid/expired), and check visitors in/out. The interface works offline — the last 100 verifications are cached locally.
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Admin Configuration</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Enable VMS in Settings → Portal Access. Configure gatekeeper notifications (WhatsApp alert on visitor arrival), resident notifications, grace periods (0-60 min), and default validity windows. VMS requires Atrium Growth+ plan.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+                        )}
+
+                        <AccordionItem title="Trust Accounting" defaultOpen={false}>
+                            <div className="space-y-4">
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">What is Trust Accounting?</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Trust accounts hold client funds separately from your firm's operating money. This is required for compliance in many Nigerian jurisdictions. PracticePro's trust ledger tracks deposits (money received into trust), withdrawals (money paid out), and transfers (moving earned fees to your operating account).
+                                    </p>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-2">Enabling Trust Accounting</h4>
+                                    <p className="text-sm text-slate-600 dark:text-zinc-400 leading-relaxed">
+                                        Go to Settings → Firm → Trust Accounting and toggle it on. A new "Trust Account" tab appears in your Financials page. The ledger shows a running balance after each transaction and prevents withdrawals that would make the balance negative. You can turn it off anytime — existing transactions are preserved.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
                         <AccordionItem title="Beta Features & Feedback" defaultOpen={false}>
                             <div className="space-y-6">
                                 <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl">
