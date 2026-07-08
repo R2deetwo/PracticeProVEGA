@@ -2944,3 +2944,76 @@ To prevent this from ever happening again:
 3. Don't add custom signing properties to build.gradle
 4. If APKs stop installing, FIRST check if the CI runner image changed
    before touching any config files
+
+---
+Task ID: 53
+Agent: Main Agent
+Task: DraftPro — clean prep overlay, persist drafts on chat reopen, add Redraft button
+
+Work Log:
+- Read DraftProEditor.tsx, GenerationOverlay.tsx, WordProcessor.tsx,
+  AloaChat.tsx, draftSession.ts, UIContext.tsx to map the drafting flow
+- Identified three issues reported by user:
+  1. Overlay label leaked draftPrompt content ("Generating GENERATING
+     DATE: to NAME OF TENANT: of...")
+  2. Clicking "Open item" on a draft action card in chat re-drafted
+     instead of opening the persisted draft
+  3. No way to ask the AI to improve an existing draft
+
+FIX 1 — Generic overlay label:
+- DraftProEditor.tsx line ~1254: changed label from
+  `Generating ${draftPrompt.substring(0,40)}...` to a static
+  "Preparing your document..."
+- GenerationOverlay.tsx: updated default label and subtitle to be
+  user-friendly and not expose internal state
+
+FIX 2 — Drafts persist (no re-draft on chat reopen):
+- Root cause: draftSessionKey() ignored the `title` parameter and
+  always passed undefined as documentType to getDraftKey(). This
+  meant every ALOA-started draft (no matterId, no documentId)
+  collapsed onto the same key `draft:general:untitled` and they
+  overwrote each other.
+- Fix in draftSession.ts: added slugifyTitle() helper that converts
+  "Tenancy Agreement (Lagos)" → "tenancy-agreement-lagos" (lowercase,
+  non-alphanumerics → dashes, max 60 chars). draftSessionKey() now
+  passes the slug as documentType, so each ALOA draft gets its own
+  persistence key.
+- Defensive check in AloaChat.executeStoredAction: when user clicks
+  "Open item" on a draft action card, look up stored content via
+  loadDraftSession(). If found, open the editor with disableAutoDraft
+  = true, draftContent = stored.content, and draftPrompt = undefined.
+  This guarantees no re-draft even if there's a key mismatch.
+
+FIX 3 — Redraft button:
+- Added `autoStartDrafting` prop to DraftProEditor (default true).
+  WordProcessor passes `!disableAutoDraft` so reopened drafts don't
+  auto-trigger.
+- Refactored drafting engine: introduced `activeDraftPrompt` state
+  that the AI Drafting useEffect depends on (instead of the prop).
+  The prop syncs to state ONLY when autoStartDrafting is true.
+- Added `originalDraftPromptRef` to keep the original prompt around
+  even after draftPrompt prop is cleared (so Redraft can reuse it).
+- Added Redraft button (Redo icon, blue) to the Drafting/Legal Tools
+  toolbar group. Disabled while drafting is in progress.
+- Added Redraft modal with a textarea for improvement instructions
+  ("make it more formal", "add a termination clause", etc.) and
+  Cancel/Redraft buttons.
+- handleRedraft() combines original prompt + user context, resets
+  draftingPromptRef to force the useEffect to trigger, and sets
+  activeDraftPrompt to the new combined prompt.
+- Updated WordProcessor: draftPrompt is now ALWAYS passed (not gated
+  by disableAutoDraft) so the Redraft button has access even on
+  reopened drafts. The autoStartDrafting prop handles gating.
+
+VERIFICATION:
+- tsc: clean for all modified files (only pre-existing error in
+  src/app/page.tsx — missing comma, unrelated)
+- vite build: succeeds (39s)
+- Committed + pushed: 4287b96..c349fd9 main -> main
+
+Stage Summary:
+- DraftPro overlay now shows a clean "Preparing your document..." status
+- Clicking "Open item" on a draft in chat loads the persisted draft
+  instead of regenerating it from scratch
+- New Redraft toolbar button lets users ask the AI to improve the
+  document with optional context instructions
