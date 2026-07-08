@@ -18,6 +18,8 @@ export const PLACEHOLDER_REGISTRY: PlaceholderDef[] = [
   { label: '[JUDGE NAME]', category: 'parties', dataPath: null },
   { label: '[WITNESS NAME]', category: 'parties', dataPath: null },
   { label: '[OATH COMMISSIONER]', category: 'parties', dataPath: null },
+  { label: '[CLAIMANT NAME]', category: 'parties', dataPath: 'matter.clientName' },
+  { label: '[DEFENDANT NAME]', category: 'parties', dataPath: 'matter.opposingPartyName' },
   // DATES
   { label: "[TODAY'S DATE]", category: 'dates', dataPath: 'system.currentDate' },
   { label: '[LEASE START DATE]', category: 'dates', dataPath: 'tenancy.startDate' },
@@ -49,6 +51,9 @@ export const PLACEHOLDER_REGISTRY: PlaceholderDef[] = [
   { label: '[CAUSE OF ACTION]', category: 'court', dataPath: null },
   { label: '[RELIEF SOUGHT]', category: 'court', dataPath: null },
   { label: '[EXHIBIT REFERENCE]', category: 'court', dataPath: null },
+  { label: '[ORDER AND RULE]', category: 'court', dataPath: null },
+  { label: '[GROUNDS OF APPLICATION]', category: 'court', dataPath: null },
+  { label: '[COURT TIER]', category: 'court', dataPath: 'matter.courtTier' },
   // FIRM
   { label: '[FIRM NAME]', category: 'firm', dataPath: 'firm.name' },
   { label: '[FIRM ADDRESS]', category: 'firm', dataPath: 'firm.address' },

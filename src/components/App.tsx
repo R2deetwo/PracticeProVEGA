@@ -100,7 +100,8 @@ import { isNativePlatform } from '../utils/capacitor';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 
-const IDLE_TIMEOUT = 15 * 60 * 1000;
+const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes
+const IDLE_TIMEOUT_REMEMBER = 7 * 24 * 60 * 60 * 1000; // 7 days when Remember Me is on
 
 type FlowState = 'splash' | 'setup' | 'app';
 
@@ -582,8 +583,14 @@ export const App: React.FC = () => {
     }, []);
 
 
+    // Check if Remember Me was set — if so, use a much longer idle timeout
+    const hasRememberMe = localStorage.getItem('practicepro_user_session') !== null;
+    const idleTimeout = hasRememberMe ? IDLE_TIMEOUT_REMEMBER : IDLE_TIMEOUT_DEFAULT;
+
     useIdleTimer(() => {
         if (!isAuthenticated || isSessionLocked) return;
+        // If Remember Me is active, don't lock on idle — just let the session continue
+        if (hasRememberMe) return;
         // Portal users (Tenant/Client) should be logged out on inactivity,
         // not locked — they get a clear message and a fresh login.
         const isPortalUser = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
@@ -605,7 +612,7 @@ export const App: React.FC = () => {
             // Admin users: show lock screen (re-enter password to unlock)
             setIsSessionLocked(true);
         }
-    }, IDLE_TIMEOUT);
+    }, idleTimeout);
     const [isToolkitOpen, setIsToolkitOpen] = useState(false);
 
     if (import.meta.env.DEV) console.log("[App] Rendering App...", { flowState, isSessionLocked, currentUser: currentUser?.email });

@@ -79,7 +79,6 @@ const LegalPlaceholderComponent = (props: any) => {
         contentEditable={false}
         title={`Click to Fill — ${category}`}
       >
-        <span style={{ fontSize: '0.65em', opacity: 0.7 }}>{style.abbr}</span>
         {label}
       </span>
     </NodeViewWrapper>

@@ -30,7 +30,9 @@ const config: CapacitorConfig = {
   // Convex backend is still remote (requires network for data).
   android: {
     allowMixedContent: true,
-    captureInput: true,
+    // captureInput was true — this disables predictive text/autocorrect
+    // on Android keyboards. Set to false so users get normal keyboard behavior.
+    captureInput: false,
     webContentsDebuggingEnabled: false,
   },
   plugins: {

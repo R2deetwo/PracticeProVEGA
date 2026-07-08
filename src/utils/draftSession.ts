@@ -4,33 +4,59 @@ export interface DraftSessionData {
   draftPrompt?: string;
   matterId?: string | null;
   documentId?: string | null;
+  documentType?: string | null;
   updatedAt: string;
+  savedAt: number;
 }
 
 function storageKey(firmId: string, sessionKey: string) {
   return `draftpro:${firmId}:${sessionKey}`;
 }
 
+/**
+ * Canonical draft key strategy:
+ * - If documentId exists (editing a saved draft): use `draft:doc:${documentId}`
+ * - Else: use `draft:${matterId}:${documentType}` — documentType is stable
+ *   (e.g. "notice_to_quit", "affidavit") and known before generation starts.
+ * - Fallback: `draft:general:untitled`
+ */
+export function getDraftKey(
+  matterId?: string | null,
+  documentType?: string | null,
+  documentId?: string | null,
+): string {
+  if (documentId) return `draft:doc:${documentId}`;
+  const m = matterId || 'general';
+  const t = documentType || 'untitled';
+  return `draft:${m}:${t}`;
+}
+
+/** @deprecated Use getDraftKey() instead — kept for backward compat */
 export function draftSessionKey(opts: {
   matterId?: string | null;
   title?: string;
   documentId?: string | null;
-}) {
-  const base = opts.documentId || `${opts.matterId || 'general'}:${(opts.title || 'untitled').slice(0, 80).replace(/\s+/g, '-')}`;
-  return base;
+}): string {
+  return getDraftKey(opts.matterId, undefined, opts.documentId);
 }
 
-export function saveDraftSession(firmId: string, sessionKey: string, data: DraftSessionData): void {
+export function saveDraft(key: string, data: DraftSessionData, firmId: string): void {
   try {
-    localStorage.setItem(storageKey(firmId, sessionKey), JSON.stringify(data));
+    const full = { ...data, savedAt: Date.now() };
+    localStorage.setItem(storageKey(firmId, key), JSON.stringify(full));
   } catch (e) {
     console.warn('[draftSession] save failed', e);
   }
 }
 
-export function loadDraftSession(firmId: string, sessionKey: string): DraftSessionData | null {
+/** @deprecated Use saveDraft() instead */
+export function saveDraftSession(firmId: string, sessionKey: string, data: DraftSessionData): void {
+  saveDraft(sessionKey, data, firmId);
+}
+
+export function loadDraft(key: string, firmId: string): DraftSessionData | null {
   try {
-    const raw = localStorage.getItem(storageKey(firmId, sessionKey));
+    const raw = localStorage.getItem(storageKey(firmId, key));
     if (!raw) return null;
     return JSON.parse(raw) as DraftSessionData;
   } catch {
@@ -38,10 +64,51 @@ export function loadDraftSession(firmId: string, sessionKey: string): DraftSessi
   }
 }
 
-export function clearDraftSession(firmId: string, sessionKey: string): void {
+/** @deprecated Use loadDraft() instead */
+export function loadDraftSession(firmId: string, sessionKey: string): DraftSessionData | null {
+  return loadDraft(sessionKey, firmId);
+}
+
+export function clearDraft(key: string, firmId: string): void {
   try {
-    localStorage.removeItem(storageKey(firmId, sessionKey));
+    localStorage.removeItem(storageKey(firmId, key));
   } catch {
     /* ignore */
   }
+}
+
+/** @deprecated Use clearDraft() instead */
+export function clearDraftSession(firmId: string, sessionKey: string): void {
+  clearDraft(sessionKey, firmId);
+}
+
+/**
+ * Auto-cleanup: scan localStorage for draftpro:* keys older than 7 days.
+ * Call on app load to prevent stale drafts from accumulating.
+ */
+export function pruneStaleDrafts(firmId: string): number {
+  const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+  const now = Date.now();
+  let pruned = 0;
+  try {
+    const prefix = `draftpro:${firmId}:`;
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(prefix)) continue;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const data = JSON.parse(raw);
+        if (data.savedAt && (now - data.savedAt) > MAX_AGE_MS) {
+          localStorage.removeItem(key);
+          pruned++;
+        }
+      } catch {
+        // Can't parse — leave it alone
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return pruned;
 }
