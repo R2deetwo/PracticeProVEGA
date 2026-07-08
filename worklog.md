@@ -3017,3 +3017,67 @@ Stage Summary:
   instead of regenerating it from scratch
 - New Redraft toolbar button lets users ask the AI to improve the
   document with optional context instructions
+
+---
+Task ID: 54
+Agent: Main Agent
+Task: Force web app to pick up new deploys on refresh
+
+Work Log:
+- User reported web app at practice-pro-vega.vercel.app was not
+  reflecting new pushes. APK updated fine, but web app stayed stale
+  even on refresh.
+- Investigated caching stack:
+  - No service worker in the codebase (verified via grep)
+  - vercel.json had only rewrites, no cache headers
+  - Vercel's DEFAULT behavior is to cache ALL static files
+    (including index.html) for 1 year at the edge — this is the
+    root cause. Even a hard browser refresh hits Vercel's edge
+    cache and gets the stale HTML.
+- "Remember Me" auth flow was checked and is NOT the cause — it
+  only stores auth tokens in localStorage, doesn't cache code.
+
+FIX 1 — vercel.json cache headers:
+- /assets/* (Vite hashed output) → 1-year immutable cache
+- Other static extensions (*.js, *.css, fonts, images) → 1-year immutable
+- / and /index.html → no-cache, no-store, must-revalidate
+- This forces the browser to fetch fresh HTML on every navigation
+  while still benefiting from cached hashed assets.
+
+FIX 2 — Build-time version manifest:
+- scripts/generate-version-manifest.cjs writes public/version.json
+  with { sha, branch, builtAt, commitTime } before every build.
+- Added 'prebuild' npm script so it runs automatically.
+- vite.config.ts bakes the same SHA into the bundle via
+  import.meta.env.VITE_BUILD_SHA define.
+- Vite copies public/version.json → dist/version.json; Vercel
+  serves it as a static asset.
+- Added public/version.json to .gitignore (it's a build artifact).
+
+FIX 3 — In-app version check (safety net):
+- src/hooks/useVersionCheck.ts polls /version.json every 5 min
+  (plus on window focus and online events) with cache-busting.
+- Compares remote SHA against baked-in SHA. If different, sets
+  updateAvailable=true.
+- No-op in dev mode (vite dev) and on Capacitor native platforms.
+- src/components/VersionRefreshBanner.tsx renders a non-intrusive
+  banner at the bottom of the screen when updateAvailable is true:
+  'A new version is available — Refresh (abc1234 → def5678)'.
+- The Refresh button clears caches and does location.replace() with
+  a cache-busting query param to force a fresh load.
+- Wired into App.tsx so it appears app-wide.
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (35s)
+- Confirmed version.json is generated with correct SHA
+- Confirmed VITE_BUILD_SHA is baked into the bundle
+- Committed + pushed: 9e9f72d → 465983a main -> main
+
+Stage Summary:
+- Web app will now always serve fresh HTML on refresh (no-cache headers)
+- Hashed assets still cached for performance
+- In-app banner catches any stale load within 5 minutes and prompts
+  the user to refresh with one click
+- The same build pipeline also works for the APK (Capacitor bundle
+  ignores the version check at runtime)
