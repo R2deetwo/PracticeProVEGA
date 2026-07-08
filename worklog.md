@@ -3126,3 +3126,52 @@ VERIFICATION:
 - Committed + pushed: 8ea4ba1..bf841c7 main -> main
 - Next CI run will show whether the Vercel deploy succeeds — check
   the Actions log for the 'Deploy to Vercel (production project)' step.
+
+---
+Task ID: 56
+Agent: Main Agent
+Task: Fix white screen on production Vercel deploy
+
+Work Log:
+- User reported https://practice-pro-vega.vercel.app showing white screen
+  after the Vercel production deploy started working (Task 55).
+
+ROOT CAUSE:
+- The middleware.ts file I rewrote in Task 55 was the culprit.
+- Original code used NextResponse.next() from @vercel/edge to pass through
+  non-crawler requests to the SPA.
+- My rewrite returned new Response(null, { status: 200 }) for non-crawler
+  requests — which gives the browser an EMPTY BODY instead of serving
+  index.html.
+- Every normal browser visit got an empty 200 response → white screen.
+- The previous production deploy (before Task 55) never had this issue
+  because the Vercel build failed on the @vercel/edge import, so the
+  broken middleware never went live.
+
+FIX:
+- Deleted middleware.ts entirely.
+- Edge Middleware for dynamic OG tags is overkill on a Vite SPA anyway.
+  The static OG tags in index.html already cover the default case.
+- Committed + pushed: 1d993ff (after rebase from build-149 tag bump).
+
+VERIFICATION:
+- CI run 28917249550 completed: success
+- Vercel deploy log shows:
+    Deploying practicepros-projects/practice-pro-vega
+    Production  https://practice-pro-vega-1egtrsiqr-practicepros-projects.vercel.app
+    Aliased     https://practice-pro-vega.vercel.app
+    ✓ Vercel production deploy complete
+- curl https://practice-pro-vega.vercel.app → HTTP 200, 9910 bytes HTML
+- JS bundle /assets/index-DfpZFK6a.js → HTTP 200, 2.26MB
+  Cache-Control: public, max-age=31536000, immutable (cache headers working)
+- version.json → sha: 67e1dd946496, builtAt: 2026-07-08T04:22:10Z
+
+Stage Summary:
+- Production site https://practice-pro-vega.vercel.app is live and serving
+  the latest code (commit 1d993ff, build SHA 67e1dd94).
+- Both Vercel projects now update simultaneously on every push:
+  - Dev project (pp): via Vercel's native GitHub integration
+  - Production project (practice-pro-vega): via the CI Vercel CLI step
+- Cache headers from Task 54 are working (immutable for assets, no-cache
+  for HTML)
+- version.json is serving correctly for the in-app refresh banner
