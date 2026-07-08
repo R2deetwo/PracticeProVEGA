@@ -3558,3 +3558,51 @@ VERIFICATION:
 DEFERRED (still pending — needs deeper refactoring):
 - Unified Heading Section Component (corporate vs court process headings)
 - GitHub/Vercel Agents tab question (answered in chat, no code change)
+
+---
+Task ID: 64
+Agent: Main Agent
+Task: Placeholder filler cleanup, redraft naming, documents page UI
+
+Work Log:
+
+1. PLACEHOLDER FILLER — REMOVED 'Ask ALOA/ARIA' BUTTONS
+   - Per-placeholder 'Ask AI' buttons removed entirely (user said it's
+     up to the user to fill this info, the buttons were noise)
+
+2. REDRAFT MODAL — USES ALOA/ARIA NAME
+   - Imported getAssistantName from assistantIdentity
+   - 'The AI will regenerate...' → '{ALOA/ARIA} will regenerate...'
+   - 'Redraft with AI' → 'Redraft with {ALOA/ARIA}' (modal header + button)
+   - ALOA for legal (Vega), ARIA for property (Atrium) — matches user's
+     expectation that legal documents use ALOA
+
+3. DATE PLACEHOLDER — SMARTER DETECTION
+   - Duration labels (NUMBER OF DAYS, WEEKS, MONTHS, YEARS, DURATION,
+     PERIOD, TERM, LENGTH) no longer trigger date picker
+   - They get plain text input + amber (freetext) color coding
+   - Only actual calendar dates get the date picker
+   - Fixed in both resolveCategory() and the fill modal
+
+4. REMOVED SINGLE-LETTER ABBREVIATION BADGES
+   - Removed P/D/$/A/C/F/T spans from category header + per-placeholder label
+   - Replaced with small colored dot (w-2 h-2 rounded-full) next to
+     category name — cleaner visual cue using just color
+
+5. HOVER TOOLTIPS WITH DESCRIPTIONS
+   - Added description field to PlaceholderDef interface
+   - Populated all 41 registry entries with human-readable descriptions
+   - Fill modal shows description as native HTML title tooltip on hover
+   - Helps when filling multiple dates/addresses/parties
+
+6. DOCUMENTS PAGE UI IMPROVEMENTS
+   - Action buttons now ALWAYS VISIBLE (not hover-only) — works on touch
+   - Document rows: rounded-xl + hover border for modern card look
+   - Header buttons (DraftPro + Upload): matching h-9 height, consistent
+     padding — were misaligned before
+   - Button icons: w-3.5 h-3.5 for consistency
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (30s)
+- Committed + pushed: f7e72f4..cddc389 main -> main
