@@ -1,18 +1,27 @@
 /**
- * useVersionCheck — detects new deploys and prompts the user to refresh.
+ * useVersionCheck — detects new deploys and prompts the user to refresh,
+ * WITH BUILD-HEALTH PROTECTION.
  *
  * HOW IT WORKS
  * ------------
- * 1. At build time, `scripts/generate-version-manifest.js` writes
- *    `public/version.json` with the git SHA of the build. Vite then
- *    copies it to `dist/version.json` and Vercel serves it as a static
- *    asset.
- * 2. The build SHA is also baked into the JS bundle via the
- *    `import.meta.env.VITE_BUILD_SHA` define in vite.config.ts.
+ * 1. At build time, `scripts/generate-version-manifest.cjs` writes
+ *    `public/version.json` with the git SHA + status + stableSince.
+ * 2. The build SHA is also baked into the JS bundle via
+ *    `import.meta.env.VITE_BUILD_SHA`.
  * 3. At runtime, this hook periodically fetches `/version.json` (with
  *    cache-busting) and compares its `sha` against the baked-in SHA.
- * 4. If they differ, a non-dismissable toast is shown prompting the
- *    user to refresh. The user can refresh immediately or defer.
+ * 4. If they differ, the hook checks:
+ *      a. `status === 'healthy'`  — build passed smoke test
+ *      b. `stableSince` is > 5 minutes ago  — stable delay
+ *    Only if BOTH are true does it prompt the user to refresh.
+ * 5. If `status === 'broken'`, the hook NEVER prompts — this lets us
+ *    roll back a bad build by updating version.json on the server.
+ *
+ * BUILD HEALTH STATES
+ * ------------------
+ *   'building' → build in progress or not yet verified — don't prompt
+ *   'healthy'  → build verified, prompt after 5-min stable delay
+ *   'broken'   → build known to be broken — never prompt
  *
  * TRIGGERS
  * --------
@@ -22,19 +31,17 @@
  *
  * NOTES
  * -----
- * - In dev mode (VITE_DEV), the hook is a no-op — version.json is
- *   stale/non-existent during `vite dev` and would constantly fire.
- * - In Capacitor (native app), the hook is a no-op — the APK bundle
- *   is updated only when the user installs a new APK, so a runtime
- *   version check would always mismatch the baked-in SHA against the
- *   server's latest deploy.
+ * - In dev mode (VITE_DEV), the hook is a no-op.
+ * - In Capacitor (native app), the hook is a no-op — APK updates are
+ *   install-time, not runtime.
  */
 import { useEffect, useRef, useState } from 'react';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const STABLE_DELAY_MS = 5 * 60 * 1000;  // 5 minutes after stableSince
 
 export interface VersionCheckState {
-  /** True when a new deploy has been detected and the user hasn't refreshed yet. */
+  /** True when a new deploy has been detected, verified healthy, AND stable for 5 min. */
   updateAvailable: boolean;
   /** The SHA of the new deploy (for display). */
   remoteSha?: string;
@@ -57,8 +64,6 @@ export function useVersionCheck(): VersionCheckState {
   const [remoteSha, setRemoteSha] = useState<string | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const localShaRef = useRef<string | undefined>(undefined);
-  // Stash the baked-in SHA once. Reading import.meta.env at module load is
-  // fine because Vite inlines it as a string constant at build time.
   if (localShaRef.current === undefined) {
     localShaRef.current = (import.meta as any).env?.VITE_BUILD_SHA || 'unknown';
   }
@@ -87,11 +92,45 @@ export function useVersionCheck(): VersionCheckState {
         // meaningfully compare.
         if (!local || local === 'unknown') return;
 
-        if (data.sha !== local) {
-          setRemoteSha(data.sha);
-          setUpdateAvailable(true);
-          setDismissed(false);
+        // Same SHA → no update needed.
+        if (data.sha === local) {
+          setUpdateAvailable(false);
+          return;
         }
+
+        // Different SHA → potential update. Check health before prompting.
+        // ── BUILD HEALTH GATE ──────────────────────────────────────────
+        // Only prompt if the remote build is marked 'healthy' AND has been
+        // stable for at least 5 minutes. This prevents:
+        //   - Prompting to a build that's still being verified
+        //   - Prompting to a build that was just deployed and may have
+        //     runtime issues not yet detected
+        //   - Prompting to a known-broken build (status === 'broken')
+        const status = data.status || 'building';
+        if (status === 'broken') {
+          // Known-broken build — never prompt, even if SHA differs.
+          // User stays on their current (working) version.
+          return;
+        }
+        if (status === 'building') {
+          // Build not yet verified — wait.
+          return;
+        }
+        if (status === 'healthy') {
+          // Healthy — but wait for the stable delay to elapse.
+          const stableSince = data.stableSince ? new Date(data.stableSince).getTime() : 0;
+          const elapsed = Date.now() - stableSince;
+          if (elapsed < STABLE_DELAY_MS) {
+            // Build is healthy but too fresh — wait for the delay.
+            // (Will be re-checked on next poll.)
+            return;
+          }
+        }
+
+        // All gates passed — safe to prompt.
+        setRemoteSha(data.sha);
+        setUpdateAvailable(true);
+        setDismissed(false);
       } catch {
         // Network error — silently ignore. We'll retry on next interval.
       }
@@ -117,17 +156,11 @@ export function useVersionCheck(): VersionCheckState {
 
   const refresh = () => {
     // Bypass any bfcache by appending a cache-bust query, then reload.
-    // Most modern browsers honor `location.reload()` with a fresh fetch
-    // when cache-control headers say no-cache — but to be safe we force
-    // it with `true` (legacy arg, ignored by some browsers but harmless).
     try {
-      // Clear any cached service-worker-like state.
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
     } catch { /* ignore */ }
-    // Hard reload: navigate to the same URL with a fresh query param so
-    // even cached HTML is bypassed.
     const url = new URL(window.location.href);
     url.searchParams.set('_refresh', String(Date.now()));
     window.location.replace(url.toString());

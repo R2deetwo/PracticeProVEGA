@@ -160,6 +160,100 @@ jobs:
           echo ""
           echo "Add them at: https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions"
 
+      # ─── Build Health Verification + version.json Update ────────────────
+      # After the Vercel deploy, run a smoke test against the production URL.
+      # Only if the smoke test passes do we mark the build as 'healthy' in
+      # version.json. This prevents users from being prompted to refresh to
+      # a broken build.
+      #
+      # The smoke test:
+      #   1. Fetches the production URL
+      #   2. Verifies HTTP 200
+      #   3. Checks the HTML contains expected markers (title, root div)
+      #   4. Checks that the main JS bundle is referenced and fetchable
+      #
+      # If the smoke test fails, version.json stays at status='building'
+      # and users are NOT prompted to refresh. A subsequent fix push will
+      # overwrite it.
+      - name: Smoke test production + mark build healthy
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
+        continue-on-error: true
+        env:
+          PRODUCTION_URL: https://practice-pro-vega.vercel.app
+        run: |
+          echo "Waiting 10s for Vercel deploy to propagate..."
+          sleep 10
+
+          echo "Running smoke test against $PRODUCTION_URL..."
+
+          # 1. Fetch the production HTML
+          HTTP_STATUS=$(curl -s -o /tmp/prod_smoke.html -w "%{http_code}" "$PRODUCTION_URL" || echo "000")
+          echo "  HTTP status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ SMOKE TEST FAILED: production URL returned $HTTP_STATUS"
+            echo "   version.json remains at status='building' — users will NOT be prompted to refresh"
+            exit 0
+          fi
+
+          # 2. Check for expected HTML markers
+          if ! grep -q "PracticePro" /tmp/prod_smoke.html; then
+            echo "❌ SMOKE TEST FAILED: HTML does not contain 'PracticePro'"
+            exit 0
+          fi
+          if ! grep -q 'id="root"' /tmp/prod_smoke.html; then
+            echo "❌ SMOKE TEST FAILED: HTML does not contain root div"
+            exit 0
+          fi
+
+          # 3. Check that the main JS bundle is referenced and fetchable
+          JS_BUNDLE=$(grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' /tmp/prod_smoke.html | head -1 || true)
+          if [ -z "$JS_BUNDLE" ]; then
+            echo "❌ SMOKE TEST FAILED: no JS bundle reference found in HTML"
+            exit 0
+          fi
+          echo "  JS bundle: $JS_BUNDLE"
+
+          JS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL$JS_BUNDLE" || echo "000")
+          echo "  JS bundle HTTP status: $JS_STATUS"
+          if [ "$JS_STATUS" != "200" ]; then
+            echo "❌ SMOKE TEST FAILED: JS bundle returned $JS_STATUS"
+            exit 0
+          fi
+
+          # 4. Check version.json is served
+          VERSION_STATUS=$(curl -s -o /tmp/version_smoke.json -w "%{http_code}" "$PRODUCTION_URL/version.json" || echo "000")
+          echo "  version.json HTTP status: $VERSION_STATUS"
+          if [ "$VERSION_STATUS" != "200" ]; then
+            echo "❌ SMOKE TEST FAILED: version.json returned $VERSION_STATUS"
+            exit 0
+          fi
+
+          echo ""
+          echo "✅ SMOKE TEST PASSED — marking build as healthy"
+
+          # Update version.json to status='healthy' with stableSince timestamp.
+          # This is what tells the client it's safe to prompt users to refresh.
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            const v = JSON.parse(fs.readFileSync('public/version.json', 'utf8'));
+            v.status = 'healthy';
+            v.stableSince = new Date().toISOString();
+            fs.writeFileSync('public/version.json', JSON.stringify(v, null, 2) + '\n');
+            console.log('Updated version.json:', JSON.stringify(v, null, 2));
+          "
+
+          # Re-deploy version.json to Vercel (quick deploy of just the updated file)
+          # We use `vercel deploy` with the .vercel/ config that was pulled earlier.
+          if [ -d '.vercel' ]; then
+            echo "Re-deploying with healthy version.json..."
+            vercel deploy --prod --yes --prebuilt --token "${{ secrets.VERCEL_TOKEN }}" 2>&1 | tail -5 || true
+          fi
+
+          echo ""
+          echo "✓ Build marked healthy. Users will be prompted to refresh after 5-min stable delay."
+
       - name: Sync Capacitor (bundles dist/ into APK)
         run: |
           npx cap sync android

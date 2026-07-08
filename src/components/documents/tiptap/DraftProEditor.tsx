@@ -990,7 +990,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             <div className="flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 h-12 flex items-center justify-between z-[60] no-print">
                 <div className="flex items-center gap-3 min-w-0">
                     <button
-                        onClick={() => onBack ? onBack() : window.history.back()}
+                        onClick={() => {
+                            // If we have a custom onBack handler (in-app nav), use it.
+                            if (onBack) { onBack(); return; }
+                            // Otherwise: if there's history in this tab, go back.
+                            // If not (e.g. opened in a new tab via draftTabs), go to
+                            // the dashboard so the user isn't stuck on the editor.
+                            if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.origin)) {
+                                window.history.back();
+                            } else {
+                                window.location.href = '/';
+                            }
+                        }}
                         className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white text-xs font-bold transition-colors"
                     >
                         <ChevronDown className="w-4 h-4 rotate-90" />
