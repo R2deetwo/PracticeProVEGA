@@ -7,6 +7,7 @@
     "dev": "vite --host",
     "dev:staging": "vite --host --mode staging",
     "dev:prod": "vite --host --mode production",
+    "prebuild": "node scripts/generate-version-manifest.cjs",
     "build": "vite build",
     "build:staging": "vite build --mode staging",
     "build:prod": "vite build --mode production",

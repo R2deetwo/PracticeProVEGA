@@ -61,6 +61,7 @@ import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
 import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
+import VersionRefreshBanner from './VersionRefreshBanner';
 import DemoProductSwitcher from './DemoProductSwitcher';
 
 import { LandingPage } from './LandingPage';
@@ -1202,6 +1203,9 @@ export const App: React.FC = () => {
             {/* What's New only for admin/firm users, not portal users */}
             {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
             <CookieConsent />
+            {/* Detects new deploys and prompts the user to refresh — bypasses
+                browser/CDN caches that may serve stale HTML/JS. */}
+            <VersionRefreshBanner />
             {/* In-app confirmation dialog — replaces browser window.confirm() */}
             {confirmDialogNode}
         </div>
