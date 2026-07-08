@@ -8,6 +8,7 @@ import { validateAIResponse } from '../config/identityGuardrails';
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../convex/_generated/api";
 import { processAttachments } from '../utils/attachmentProcessor';
+import { buildJurisdictionContextBlock, buildJurisdictionalReasoning } from '../utils/jurisdictionConfig';
 
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 const convex = new ConvexHttpClient(CONVEX_URL);
@@ -615,9 +616,16 @@ export const streamDraft = async (
     // KOMPLETE (unified) mode: use the user's actual profile role, never guess.
     // VEGA mode: always "legal practitioner / Solicitor".
     // ATRIUM mode: always "property manager / real estate professional".
+    //
+    // JURISDICTIONAL INTELLIGENCE: The firm's `defaultStateOfPractice` is now
+    // read from appState.firmDetails and injected via buildJurisdictionContextBlock.
+    // This replaces the old hardcoded "Asaba, Delta State" / "Delta State Civil
+    // Procedure Rules" strings.
     const isUnified = !!context.signerContext;
     const firmProduct = context.appState.firmDetails?.product;
     const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
+    const firmState = context.appState.firmDetails?.defaultStateOfPractice;
+    const jurisdictionBlock = buildJurisdictionContextBlock(firmState);
 
     const aloaProtocol = getAloaProtocol(isUnified, context.signerContext, firmProduct);
 
@@ -628,30 +636,38 @@ export const streamDraft = async (
         roleContextBlock = `CONTEXT: The user is ${sc.signerName || 'the account holder'}, a ${sc.signerTitle || 'professional'}.
 Unless explicitly instructed otherwise, ALL drafts must be signed and authored as "${sc.signerName || '[SIGNER NAME]'}" with the title "${sc.signerTitle || '[SIGNER TITLE]'}".
 Do NOT assume the user is a "Lawyer" or "Property Manager" — use their actual profile title: "${sc.signerTitle}".
-If you need more context about the user's practice area, include [BRACKETED PLACEHOLDERS] rather than guessing.
-Jurisdiction: Tailor to Nigerian law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).`;
+If you need more context about the user's practice area, include [BRACKETED PLACEHOLDERS] rather than guessing.`;
     } else if (isPropertyFirm) {
         // ATRIUM — property management professional
-        roleContextBlock = `CONTEXT: The user is a property management professional based in Asaba, Delta State, Nigeria. They manage real estate portfolios, handle tenant relations, oversee service charge administration, and ensure regulatory compliance.
+        roleContextBlock = `CONTEXT: The user is a property management professional. They manage real estate portfolios, handle tenant relations, oversee service charge administration, and ensure regulatory compliance.
 The user is ALWAYS the Property Manager. Sign documents accordingly.
 Unless explicitly instructed otherwise, ALL drafts must be tailored to relevant Nigerian property and tenancy law.`;
     } else {
         // VEGA — legal practitioner
-        roleContextBlock = `CONTEXT: The user is a legal practitioner based in Asaba, Delta State, Nigeria. 
-Unless explicitly instructed otherwise (e.g., "Lagos High Court"), ALL drafts must be tailored to the jurisdiction of the High Court of Delta State or relevant Delta State laws.
+        roleContextBlock = `CONTEXT: The user is a legal practitioner.
 The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     }
 
     const systemInstruction = `
     ${aloaProtocol}
-    
+
     ${DRAFTPRO_HTML_FORMATTING_RULES}
 
     ${roleContextBlock}
-    
+
+    ${jurisdictionBlock}
+
     TASK: Write a perfectly formatted, authoritative ${isPropertyFirm ? 'professional property document' : 'legal document'}.
-    
-    ${isPropertyFirm ? 'Adhere strictly to Nigerian Law, specifically relevant property and tenancy legislation (Land Use Act, Tenancy Law, Service Charge Regulations) where applicable.' : 'Adhere strictly to Nigerian Law, specifically Delta State Civil Procedure Rules where applicable for litigation, or general Nigerian statutes (CAMA 2020, Land Use Act).'}
+
+    ${isPropertyFirm ? 'Adhere strictly to Nigerian Law, specifically relevant property and tenancy legislation (Land Use Act, Tenancy Law, Service Charge Regulations) where applicable.' : 'Adhere strictly to Nigerian Law, applying the correct state procedural rules per the JURISDICTIONAL CONTEXT above, or general Nigerian statutes (CAMA 2020, Land Use Act) where applicable.'}
+
+    ATTESTATION BLOCK RULE:
+    For all affidavits and sworn statements, the attestation block reading
+    "BEFORE ME, ____ COMMISSIONER FOR OATHS" must be CENTER-ALIGNED on the
+    page, conforming to standard litigation practice. Use:
+    <p style="text-align: center;"><strong>BEFORE ME,</strong></p>
+    <p style="text-align: center;">_______________________________</p>
+    <p style="text-align: center;"><strong>COMMISSIONER FOR OATHS</strong></p>
     `;
 
     const modelsToTry = AI_CONFIG.gemini.fallbackPlan;

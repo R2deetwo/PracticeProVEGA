@@ -19,6 +19,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
+import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
+import JurisdictionReasoning from './JurisdictionReasoning';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -317,6 +319,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             draftTitle: args.title || 'New Draft',
                             draftPrompt: args.prompt
                         };
+
+                        // ─── Jurisdictional Reasoning ─────────────────────────────
+                        // Compute the jurisdictional analysis before drafting so we can
+                        // show the user WHY a particular court was selected.
+                        const jurisdictionAnalysis = buildJurisdictionalReasoning(
+                            args.prompt || draftConfig.draftTitle || '',
+                            coreState?.firmDetails?.defaultStateOfPractice
+                        );
+
                         // On desktop, open the draft in a new browser tab so the
                         // user can keep the ALOA chat open alongside the editor.
                         // Dedup: if a tab is already open for this draft, focus it.
@@ -351,9 +362,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         actionData = {
                             type: 'draft',
                             config: draftConfig,
-                            label: 'Resume Drafting'
+                            label: 'Resume Drafting',
+                            jurisdictionAnalysis,  // attach for the UI
                         };
-                        if (!feedbackMessage) feedbackMessage = "Starting drafting engine...";
+                        if (!feedbackMessage) feedbackMessage = `Drafting in **${jurisdictionAnalysis.jurisdiction}** — ${jurisdictionAnalysis.court}`;
                         isTerminal = true;
 
                     } else if (name === 'draft_workflow') {
@@ -1460,6 +1472,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         />
                                     )}
 
+                                    {/* ─── Jurisdictional Reasoning (for draft actions) ─── */}
+                                    {msg.toolAction?.jurisdictionAnalysis && (
+                                        <JurisdictionReasoning
+                                            court={msg.toolAction.jurisdictionAnalysis.court}
+                                            jurisdiction={msg.toolAction.jurisdictionAnalysis.jurisdiction}
+                                            reasoning={msg.toolAction.jurisdictionAnalysis.reasoning}
+                                        />
+                                    )}
+
                                     {msg.toolAction && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                                             <ActionCard
@@ -1473,16 +1494,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     )}
 
+                                    {/* Action buttons row — Copy is hidden for messages that
+                                        have a toolAction (the output is a structured document,
+                                        not copyable text). Edit/Save-to-Notes remain. */}
                                     <div className={`flex gap-1 mt-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <button
-                                            onClick={() => handleCopyMessage(msg.id, msg.content || '')}
-                                            className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-1`}
-                                            title="Copy text"
-                                        >
-                                            {copiedMessageId === msg.id ? (
-                                                <>
-                                                    <CheckIcon className="w-3 h-3" />
-                                                    Copied
+                                        {!msg.toolAction && (
+                                            <button
+                                                onClick={() => handleCopyMessage(msg.id, msg.content || '')}
+                                                className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-1`}
+                                                title="Copy text"
+                                            >
+                                                {copiedMessageId === msg.id ? (
+                                                    <>
+                                                        <CheckIcon className="w-3 h-3" />
+                                                        Copied
                                                 </>
                                             ) : (
                                                 <>
@@ -1491,6 +1516,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 </>
                                             )}
                                         </button>
+                                        )}
 
                                         {msg.role === 'user' && (
                                             <button

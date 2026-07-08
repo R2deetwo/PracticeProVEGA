@@ -13,9 +13,16 @@ When asked to draft a litigation document, first identify the docType against th
 
 Available skeleton types: ${Object.keys(LITIGATION_SKELETONS).join(', ')}
 
-Before generating a caption, check the matter's court tier:
-- "magistrate": Use "IN THE MAGISTRATE COURT OF LAGOS STATE, HOLDEN AT [DISTRICT]" and cite Magistrate Court (Civil Procedure) Rules.
-- "high_court" (or unset): Use "IN THE HIGH COURT OF LAGOS STATE, IN THE [JUDICIAL DIVISION] JUDICIAL DIVISION" and cite High Court of Lagos State (Civil Procedure) Rules.
+JURISDICTIONAL INTELLIGENCE — COURT CAPTION RULES:
+The JURISDICTIONAL CONTEXT block (injected separately) specifies the firm's
+default State of Practice, the correct High Court/Magistrate Court/Federal
+High Court captions, and the procedural rules to cite. ALWAYS use those
+captions and rules — do NOT hardcode "Lagos State" or any specific state.
+
+Court tier selection logic:
+- "magistrate": Use the Magistrate Court caption from the JURISDICTIONAL CONTEXT block. Cite the Magistrate Court procedural rules specified there.
+- "high_court" (or unset): Use the High Court caption from the JURISDICTIONAL CONTEXT block. Cite the High Court procedural rules specified there.
+- "federal": Use the Federal High Court caption from the JURISDICTIONAL CONTEXT block.
 If court tier is unknown, insert [COURT TIER] placeholder and default to High Court format.
 `;
 
@@ -103,6 +110,11 @@ I, [FULL NAME], [Gender], [Religion], [Occupation/Position], Nigerian Citizen of
 
 SWORN TO at the High Court Registry, [LOCATION]
 this [DAY] day of [MONTH], [YEAR]
+
+NOTE: The attestation block below MUST be center-aligned on the page.
+Use: <p style="text-align: center;"><strong>BEFORE ME,</strong></p>
+     <p style="text-align: center;">_______________________________</p>
+     <p style="text-align: center;"><strong>COMMISSIONER FOR OATHS</strong></p>
 
 BEFORE ME,
 
@@ -306,6 +318,11 @@ I, [FULL NAME], [Gender], [Religion], [Occupation/Position], Nigerian Citizen of
 
 SWORN TO at the High Court Registry, [LOCATION]
 this [DAY] day of [MONTH], [YEAR]
+
+NOTE: The attestation block below MUST be center-aligned on the page.
+Use: <p style="text-align: center;"><strong>BEFORE ME,</strong></p>
+     <p style="text-align: center;">_______________________________</p>
+     <p style="text-align: center;"><strong>COMMISSIONER FOR OATHS</strong></p>
 
 BEFORE ME,
 

@@ -208,6 +208,7 @@ export interface FirmDetails { id: string; name: string; address: string; logoUr
     product?: Product;
     automationSettings?: any;
     trustAccountingEnabled?: boolean;        // Toggle: enable trust accounting
+    defaultStateOfPractice?: string;          // Default jurisdiction for all drafts (e.g., "Lagos", "Delta", "FCT")
 }
 export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
 export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }

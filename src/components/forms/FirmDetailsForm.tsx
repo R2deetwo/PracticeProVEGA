@@ -19,6 +19,7 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
   const [revenueTarget, setRevenueTarget] = useState(firmDetails.monthlyRevenueTarget || 5000000);
   const [headerTextColor, setHeaderTextColor] = useState(firmDetails.headerTextColor || '#111827'); // Default dark slate
   const [vatRateInput, setVatRateInput] = useState(firmDetails.taxSettings?.vatRate ? (firmDetails.taxSettings.vatRate * 100).toString() : '7.5');
+  const [defaultStateOfPractice, setDefaultStateOfPractice] = useState(firmDetails.defaultStateOfPractice || 'Lagos');
 
   // Hidden file inputs refs
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +51,7 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
         letterheadUrl, 
         monthlyRevenueTarget: revenueTarget,
         headerTextColor,
+        defaultStateOfPractice,
         taxSettings: {
             ...firmDetails.taxSettings,
             vatRate: newVatRate
@@ -183,6 +185,35 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
                     className={commonInputClass} 
                 />
                 <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">Default tax rate applied to new invoices.</p>
+              </div>
+
+              {/* ─── Default State of Practice ─── */}
+              <div>
+                <label htmlFor="defaultStateOfPractice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Default State of Practice</label>
+                <select
+                    id="defaultStateOfPractice"
+                    value={defaultStateOfPractice}
+                    onChange={e => setDefaultStateOfPractice(e.target.value)}
+                    className={commonInputClass}
+                >
+                    <option value="Lagos">Lagos State</option>
+                    <option value="Delta">Delta State</option>
+                    <option value="FCT">Federal Capital Territory (FCT)</option>
+                    <option value="Rivers">Rivers State</option>
+                    <option value="Abia">Abia State</option>
+                    <option value="Anambra">Anambra State</option>
+                    <option value="Enugu">Enugu State</option>
+                    <option value="Imo">Imo State</option>
+                    <option value="Oyo">Oyo State</option>
+                    <option value="Kano">Kano State</option>
+                    <option value="Kaduna">Kaduna State</option>
+                    <option value="Edo">Edo State</option>
+                    <option value="Ogun">Ogun State</option>
+                    <option value="Ondo">Ondo State</option>
+                    <option value="Cross River">Cross River State</option>
+                    <option value="Akwa Ibom">Akwa Ibom State</option>
+                </select>
+                <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1">All AI-generated drafts will default to this jurisdiction's court hierarchy and procedural rules unless explicitly specified otherwise.</p>
               </div>
           </div>
 
