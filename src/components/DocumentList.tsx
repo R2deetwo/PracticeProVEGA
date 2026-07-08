@@ -347,18 +347,10 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                 accept=".pdf,.docx,.doc,.txt"
             />
 
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-3 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-800">
-                {/* Top row: title + action buttons */}
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex-shrink-0">
-                            <DocumentIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Documents</h2>
-                            <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium hidden sm:block">Manage firm documents and files</p>
-                        </div>
-                    </div>
+            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800 space-y-3">
+                {/* Title row — matches Matters/Tasks/Contacts exactly */}
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>
                     <div className="flex gap-2 items-center flex-shrink-0">
                         <button
                             onClick={() => openEditor()}
@@ -376,7 +368,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     </div>
                 </div>
 
-                {/* Bottom row: search + view toggle — single line, responsive */}
+                {/* Search + toggles row */}
                 <div className="flex items-center gap-2">
                     {viewMode === 'documents' && (
                         <div className="relative flex-1 min-w-0">
