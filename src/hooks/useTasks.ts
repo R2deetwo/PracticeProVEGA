@@ -43,7 +43,7 @@ export const useTasks = (appState: AppState, actions: any) => {
         const template = appState.checklistTemplates.find(t => t.id === templateId);
         if (!template) return;
         const promises = template.items.map((item: any) => actions.addItem('tasks', {
-            title: item.text, status: 'Pending', matterId, stage, 
+            title: item.text, status: 'todo', matterId, stage,
             dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
             isSharedWithClient: shareWithClient, createdAt: new Date().toISOString()
         }, 'Task'));

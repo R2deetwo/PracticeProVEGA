@@ -109,17 +109,20 @@ I, [FULL NAME], [Gender], [Religion], [Occupation/Position], Nigerian Citizen of
 3. [Conclusion paragraphs]
 
 SWORN TO at the High Court Registry, [LOCATION]
-this [DAY] day of [MONTH], [YEAR]
+this [DATE]
 
 NOTE: The attestation block below MUST be center-aligned on the page.
 Use: <p style="text-align: center;"><strong>BEFORE ME,</strong></p>
      <p style="text-align: center;">_______________________________</p>
      <p style="text-align: center;"><strong>COMMISSIONER FOR OATHS</strong></p>
 
-BEFORE ME,
-
-_____________________
-COMMISSIONER FOR OATHS
+DATE PLACEHOLDER RULE:
+Do NOT split dates into separate [DAY], [MONTH], [YEAR] placeholders.
+Always use a SINGLE [DATE] placeholder for any date. The fill modal
+provides a calendar date picker for [DATE] placeholders, so the user
+can select the full date at once. For 'this ___ day of ___, 20___'
+phrasing, use a single [DATE] placeholder and let the fill modal handle
+the formatting.
 
 
 ### 3. MOTION/COURT PROCESS
@@ -317,7 +320,7 @@ I, [FULL NAME], [Gender], [Religion], [Occupation/Position], Nigerian Citizen of
 3. [Conclusion paragraphs]
 
 SWORN TO at the High Court Registry, [LOCATION]
-this [DAY] day of [MONTH], [YEAR]
+this [DATE]
 
 NOTE: The attestation block below MUST be center-aligned on the page.
 Use: <p style="text-align: center;"><strong>BEFORE ME,</strong></p>

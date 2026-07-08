@@ -668,6 +668,13 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     <p style="text-align: center;"><strong>BEFORE ME,</strong></p>
     <p style="text-align: center;">_______________________________</p>
     <p style="text-align: center;"><strong>COMMISSIONER FOR OATHS</strong></p>
+
+    DATE PLACEHOLDER RULE:
+    NEVER split dates into separate [DAY], [MONTH], [YEAR] placeholders.
+    Always use a SINGLE [DATE] placeholder for any date in the document.
+    The fill modal provides a calendar date picker for [DATE] placeholders.
+    For 'this ___ day of ___, 20___' phrasing, use a single [DATE]
+    placeholder — the fill modal will format it correctly.
     `;
 
     const modelsToTry = AI_CONFIG.gemini.fallbackPlan;

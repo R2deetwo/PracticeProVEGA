@@ -1494,24 +1494,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     )}
 
-                                    {/* Action buttons row — Copy is hidden for messages that
-                                        have a toolAction (the output is a structured document,
-                                        not copyable text). Edit/Save-to-Notes remain. */}
-                                    <div className={`flex gap-1 mt-1.5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    {/* Action buttons row — Copy AND Save are hidden for messages
+                                        that have a toolAction (the output is a structured document
+                                        opened in DraftPro or a modal — not copyable/saveable text).
+                                        Edit remains for user messages. */}
+                                    <div className={`flex gap-0.5 mt-1 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {!msg.toolAction && (
                                             <button
                                                 onClick={() => handleCopyMessage(msg.id, msg.content || '')}
-                                                className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-1`}
+                                                className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5`}
                                                 title="Copy text"
                                             >
                                                 {copiedMessageId === msg.id ? (
                                                     <>
-                                                        <CheckIcon className="w-3 h-3" />
+                                                        <CheckIcon className="w-2.5 h-2.5" />
                                                         Copied
                                                 </>
                                             ) : (
                                                 <>
-                                                    <ClipboardIcon className="w-3 h-3" />
+                                                    <ClipboardIcon className="w-2.5 h-2.5" />
                                                     Copy
                                                 </>
                                             )}
@@ -1531,23 +1532,24 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                         input?.focus();
                                                     }, 100);
                                                 }}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-1"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
                                                 title="Edit & resend"
                                             >
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
                                                 </svg>
                                                 Edit
                                             </button>
                                         )}
 
-                                        {msg.role === 'model' && !msg.isError && (
+                                        {/* Save to Notes — hidden for toolAction messages (drafts/modals) */}
+                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && (
                                             <button
                                                 onClick={() => handleSaveMessage(msg.content || '')}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg px-2 py-1 text-[10px] font-bold transition-all flex items-center gap-1"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
                                                 title="Save to Notes"
                                             >
-                                                <BookmarkIcon className="w-3 h-3" />
+                                                <BookmarkIcon className="w-2.5 h-2.5" />
                                                 Save
                                             </button>
                                         )}

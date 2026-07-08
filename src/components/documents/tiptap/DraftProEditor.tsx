@@ -1464,14 +1464,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                     return acc;
                                 }, {} as Record<PlaceholderCategory, string[]>);
                                 const categoryOrder: PlaceholderCategory[] = ['parties', 'dates', 'financial', 'location', 'court', 'firm', 'freetext'];
-                                const categoryMeta: Record<PlaceholderCategory, { name: string; abbr: string; color: string }> = {
-                                    parties:   { name: 'Parties',   abbr: 'P', color: 'text-blue-500' },
-                                    dates:     { name: 'Dates',     abbr: 'D', color: 'text-purple-500' },
-                                    financial: { name: 'Financial', abbr: '$', color: 'text-green-500' },
-                                    location:  { name: 'Location',  abbr: 'A', color: 'text-teal-500' },
-                                    court:     { name: 'Court',     abbr: 'C', color: 'text-rose-500' },
-                                    firm:      { name: 'Firm',      abbr: 'F', color: 'text-indigo-500' },
-                                    freetext:  { name: 'Free Text', abbr: 'T', color: 'text-amber-500' },
+                                const categoryMeta: Record<PlaceholderCategory, { name: string; abbr: string; color: string; border: string; bg: string; ring: string }> = {
+                                    parties:   { name: 'Parties',   abbr: 'P', color: 'text-blue-500',   border: 'border-l-blue-500',   bg: 'bg-blue-50/30 dark:bg-blue-900/10',   ring: 'focus:ring-blue-500' },
+                                    dates:     { name: 'Dates',     abbr: 'D', color: 'text-purple-500', border: 'border-l-purple-500', bg: 'bg-purple-50/30 dark:bg-purple-900/10', ring: 'focus:ring-purple-500' },
+                                    financial: { name: 'Financial', abbr: '$', color: 'text-green-500',  border: 'border-l-green-500',  bg: 'bg-green-50/30 dark:bg-green-900/10',  ring: 'focus:ring-green-500' },
+                                    location:  { name: 'Location',  abbr: 'A', color: 'text-teal-500',   border: 'border-l-teal-500',   bg: 'bg-teal-50/30 dark:bg-teal-900/10',   ring: 'focus:ring-teal-500' },
+                                    court:     { name: 'Court',     abbr: 'C', color: 'text-rose-500',   border: 'border-l-rose-500',   bg: 'bg-rose-50/30 dark:bg-rose-900/10',   ring: 'focus:ring-rose-500' },
+                                    firm:      { name: 'Firm',      abbr: 'F', color: 'text-indigo-500', border: 'border-l-indigo-500', bg: 'bg-indigo-50/30 dark:bg-indigo-900/10', ring: 'focus:ring-indigo-500' },
+                                    freetext:  { name: 'Free Text', abbr: 'T', color: 'text-amber-500',  border: 'border-l-amber-500',  bg: 'bg-amber-50/30 dark:bg-amber-900/10',  ring: 'focus:ring-amber-500' },
                                 };
 
                                 const handleAutoFill = () => {
@@ -1576,34 +1576,54 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                                             <span className="text-[10px] text-slate-300">({labels.length})</span>
                                                         </div>
                                                         <div className="space-y-2">
-                                                            {labels.map(label => (
-                                                                <div key={label} className="flex flex-col gap-1">
+                                                            {labels.map(label => {
+                                                                // Determine if this is a date placeholder → use date picker
+                                                                const isDatePlaceholder = cat === 'dates' || /DATE|DAY|MONTH|YEAR/i.test(label);
+                                                                const todayStr = new Date().toISOString().split('T')[0];
+                                                                return (
+                                                                <div key={label} className={`flex flex-col gap-1 ${meta.bg} rounded-lg p-2 border-l-2 ${meta.border}`}>
                                                                     <div className="flex items-center justify-between">
-                                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400">{label}</label>
+                                                                        <label className="text-xs font-bold text-slate-600 dark:text-zinc-400 flex items-center gap-1.5">
+                                                                            <span className={`text-[9px] font-black ${meta.color}`}>{meta.abbr}</span>
+                                                                            {label}
+                                                                        </label>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleAiHelpForPlaceholder(label)}
                                                                             disabled={aiHelpLoading && aiHelpLabel === label}
-                                                                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
+                                                                            className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-tight rounded-md transition-all border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-50"
                                                                         >
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                                                                             </svg>
-                                                                            {aiHelpLoading && aiHelpLabel === label ? 'Asking...' : `Ask ${isProperty ? 'ARIA' : 'ALOA'}`}
+                                                                            {aiHelpLoading && aiHelpLabel === label ? '...' : `Ask AI`}
                                                                         </button>
                                                                     </div>
-                                                                    <input autoComplete="off" data-lpignore="true"
-                                                                        name={label}
-                                                                        autoFocus={targetPlaceholderLabel === label}
-                                                                        className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500"
-                                                                        placeholder={aiHelpResult[label] || `Enter ${label.toLowerCase()}...`}
-                                                                        defaultValue={aiHelpResult[label] || ''}
-                                                                    />
+                                                                    {isDatePlaceholder ? (
+                                                                        <input
+                                                                            type="date"
+                                                                            autoComplete="off"
+                                                                            data-lpignore="true"
+                                                                            name={label}
+                                                                            autoFocus={targetPlaceholderLabel === label}
+                                                                            defaultValue={aiHelpResult[label] || todayStr}
+                                                                            className={`w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 ${meta.ring}`}
+                                                                        />
+                                                                    ) : (
+                                                                        <input autoComplete="off" data-lpignore="true"
+                                                                            name={label}
+                                                                            autoFocus={targetPlaceholderLabel === label}
+                                                                            className={`w-full bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 ${meta.ring}`}
+                                                                            placeholder={aiHelpResult[label] || `Enter ${label.toLowerCase().replace(/[\[\]]/g, '')}...`}
+                                                                            defaultValue={aiHelpResult[label] || ''}
+                                                                        />
+                                                                    )}
                                                                     {aiHelpResult[label] && (
                                                                         <p className="text-[10px] text-violet-500 dark:text-violet-400">AI suggested — edit or accept</p>
                                                                     )}
                                                                 </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     </div>
                                                 );
