@@ -98,8 +98,13 @@ const PageBreakIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns
 // letterhead / page header, NOT a settings gear)
 const DocumentHeaderIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9.75v4.5m15 0v3a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25v-3m15 0H4.5" /><rect x="6.5" y="6" width="11" height="3.5" rx="0.5" fill="currentColor" fillOpacity="0.18" stroke="none" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 16h8M8 18.5h5" strokeWidth={1} /></svg>;
 
-// New Document icon — a page with a plus sign
-const NewDocumentIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9.75v4.5m15 0v3a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25v-3m15 0H4.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" strokeWidth={2} /></svg>;
+// New Document icon — a clean blank page with a folded corner (standard
+// "new document" affordance, like Word/Google Docs)
+const NewDocumentIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 2h8l6 6v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" /><line x1="8" y1="13" x2="16" y2="13" strokeWidth={1} /><line x1="8" y1="17" x2="13" y2="17" strokeWidth={1} /></svg>;
+
+// Redraft / AI Sparkle icon — stands out as an AI feature
+const RedraftIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.5 3.5L9 9l-3-1.5L3 10.5l3 1.5L9 18l6.5-6.5L21 9l-3-1.5L15.5 3.5z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9 9l6.5 6.5" strokeWidth={1.2} /><circle cx="18" cy="6" r="1.5" fill="currentColor" stroke="none" /></svg>;
+
 
 
 // ─── A4 Page Dimensions at 96 dpi ────────────────────────────────────────────
@@ -212,15 +217,24 @@ const HIGHLIGHTS = [
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
-// Slimmer toolbar: items top-aligned, single uniform label baseline at the bottom.
+// Ultra-slim toolbar with STRICT label baseline alignment.
+// Structure: [buttons area (flex-1, items-end)] + [fixed-height label row]
+// This ensures every group's label sits on the exact same horizontal line
+// regardless of how many buttons or rows the group has.
 const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
-    <div className={`flex flex-col items-stretch border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${className}`}>
-        {/* Buttons row — items-top so variable-height groups still align */}
-        <div className="flex items-start gap-0.5 py-1">
+    <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${className}`}>
+        {/* Buttons area — items-end so all groups align at the bottom */}
+        <div className="flex items-end gap-0.5 py-0.5 flex-1 min-h-[28px]">
             {children}
         </div>
-        {/* Uniform baseline label — same vertical position for every group */}
-        {label && <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tighter leading-none pb-0.5 h-[12px] flex items-center justify-center">{label}</span>}
+        {/* Strict baseline label — fixed height, perfectly level across all groups */}
+        {label && (
+            <span className="text-[8px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5">
+                {label}
+            </span>
+        )}
+        {/* Spacer for groups without a label — keeps the baseline consistent */}
+        {!label && <span className="h-[11px] block" />}
     </div>
 );
 
@@ -236,7 +250,7 @@ const ToolbarBtn: React.FC<{
     const sizeClasses = {
         sm: 'p-0.5',
         md: 'p-1',
-        lg: 'p-1 flex-col gap-0.5 min-w-[42px]'
+        lg: 'p-1 flex-col gap-0.5 min-w-[38px]'
     };
 
     return (
@@ -256,7 +270,7 @@ const ToolbarBtn: React.FC<{
       `}
         >
             <Icon className="w-4 h-4" />
-            {size === 'lg' && label && <span className="text-[9px] font-medium leading-none">{label}</span>}
+            {size === 'lg' && label && <span className="text-[8px] font-medium leading-none">{label}</span>}
         </button>
     );
 };
@@ -1204,14 +1218,22 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
                     <ToolbarGroup label={isProperty ? 'Drafting' : 'Legal Tools'}>
                         <ToolbarBtn icon={DocumentHeaderIcon} label="Header" onClick={() => setIsHeaderDesignerOpen(true)} size="lg" />
-                        <ToolbarBtn icon={Scissors} label={`Fill Blanks (${placeholderCount})`} onClick={() => setActiveModal('fill_placeholders')} size="lg" className="text-amber-600 dark:text-amber-400" />
-                        <ToolbarBtn icon={Plus} label="Group Parties" onClick={() => editor?.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run()} size="lg" className="text-indigo-600" />
-                        <ToolbarBtn icon={Redo} label="Redraft" onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }} size="lg" className="text-blue-600 dark:text-blue-400" disabled={!editor || isDrafting} />
-                        <ToolbarBtn icon={Save} label="Save Template" onClick={() => { setModalInput(title || ''); setActiveModal('save_template'); }} size="lg" className="text-primary-600" />
-                        <div className="flex flex-col gap-0.5 justify-center ml-2">
-                            <div className="text-[10px] font-bold text-slate-400">Words: {editor?.storage.characterCount.words() || 0}</div>
-                            <div className="text-[10px] font-bold text-slate-400">Chars: {editor?.storage.characterCount.characters() || 0}</div>
-                        </div>
+                        <ToolbarBtn icon={Scissors} label={`Fill (${placeholderCount})`} onClick={() => setActiveModal('fill_placeholders')} size="lg" className="text-amber-600 dark:text-amber-400" />
+                        <ToolbarBtn icon={Plus} label="Parties" onClick={() => editor?.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run()} size="lg" className="text-indigo-600" />
+                        <ToolbarBtn icon={Save} label="Template" onClick={() => { setModalInput(title || ''); setActiveModal('save_template'); }} size="lg" className="text-primary-600" />
+                    </ToolbarGroup>
+
+                    {/* ── Redraft — AI feature, stands out ── */}
+                    <ToolbarGroup label="AI">
+                        <button
+                            onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
+                            disabled={!editor || isDrafting}
+                            title="Redraft with AI — regenerate the document with optional improvement instructions"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                            <RedraftIcon className="w-4 h-4" />
+                            <span>Redraft</span>
+                        </button>
                     </ToolbarGroup>
 
                     {/* Agentic Ribbon — legal context only */}
@@ -1222,17 +1244,6 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     )}
 
                     <div className="flex-1" />
-
-                    <ToolbarGroup className="items-end">
-                        <div className="flex items-center gap-1 p-1 bg-slate-50 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
-                            <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="p-1 text-slate-400 hover:text-slate-600" title="Zoom Out"><Minimize2 className="w-3 h-3" /></button>
-                            <button onClick={() => {
-                                const scrollArea = document.getElementById('draftpro-scroll-area');
-                                if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
-                            }} className="text-[10px] font-bold w-12 text-center hover:text-blue-600" title="Fit to Width">{Math.round(zoom * 100)}%</button>
-                            <button onClick={() => setZoom(Math.min(2.0, zoom + 0.1))} className="p-1 text-slate-400 hover:text-slate-600" title="Zoom In"><Maximize2 className="w-3 h-3" /></button>
-                        </div>
-                    </ToolbarGroup>
 
                 </div>
             </div>
@@ -1251,12 +1262,13 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
                  *
-                 * The pt-12 (48px top padding) DETACHES the first page from the
+                 * The pt-16 (64px top padding) DETACHES the first page from the
                  * ribbon so it floats independently in "center stage" — like a
-                 * real document on a desk, not glued to the toolbar.
+                 * real document on a desk, not glued to the toolbar. The generous
+                 * gap gives a premium, breathable layout.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0 pt-12"
+                    className="flex justify-center mb-20 shrink-0 pt-16"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,
@@ -1355,6 +1367,51 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 )}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Bottom Status Bar ──────────────────────────────────────────
+                Slim status bar with word/char count + zoom controls.
+                Keeps the ribbon thin by moving these readouts here. */}
+            <div className="flex-shrink-0 h-7 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between px-4 text-[10px] text-slate-500 dark:text-zinc-500 no-print">
+                <div className="flex items-center gap-4">
+                    <span className="font-medium">
+                        {editor?.storage.characterCount.words() || 0} words
+                    </span>
+                    <span className="text-slate-300 dark:text-zinc-700">·</span>
+                    <span className="font-medium">
+                        {editor?.storage.characterCount.characters() || 0} chars
+                    </span>
+                    {placeholderCount > 0 && (
+                        <>
+                            <span className="text-slate-300 dark:text-zinc-700">·</span>
+                            <span className="font-medium text-amber-600 dark:text-amber-400">
+                                {placeholderCount} placeholder{placeholderCount !== 1 ? 's' : ''}
+                            </span>
+                        </>
+                    )}
+                </div>
+                <div className="flex items-center gap-3">
+                    <span className="font-medium">Page 1 of {pageCount}</span>
+                    <span className="text-slate-300 dark:text-zinc-700">·</span>
+                    <div className="flex items-center gap-1">
+                        <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out">
+                            <Minimize2 className="w-3 h-3" />
+                        </button>
+                        <button
+                            onClick={() => {
+                                const scrollArea = document.getElementById('draftpro-scroll-area');
+                                if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
+                            }}
+                            className="font-bold w-10 text-center hover:text-blue-600"
+                            title="Fit to Width"
+                        >
+                            {Math.round(zoom * 100)}%
+                        </button>
+                        <button onClick={() => setZoom(Math.min(2.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom In">
+                            <Maximize2 className="w-3 h-3" />
+                        </button>
                     </div>
                 </div>
             </div>

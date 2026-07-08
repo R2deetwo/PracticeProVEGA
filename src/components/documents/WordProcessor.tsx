@@ -84,6 +84,23 @@ export const WordProcessor: React.FC = () => {
         });
     };
 
+    // ─── Dynamic tab title ──────────────────────────────────────────────
+    // Sets the browser tab title to "DraftPro — <draft name>" so users can
+    // identify their draft tabs at a glance. Restores the original title
+    // when the component unmounts.
+    useEffect(() => {
+        const previousTitle = document.title;
+        // Derive a short draft name from the title:
+        // "Tenancy Agreement - Lagos Property" → "Tenancy Agreement"
+        const shortName = documentTitle
+            .replace(/^Draft\s+/i, '')
+            .replace(/\s*[-–—]\s*.*$/, '') // strip anything after a dash
+            .trim()
+            || 'Untitled';
+        document.title = `DraftPro — ${shortName}`;
+        return () => { document.title = previousTitle; };
+    }, [documentTitle]);
+
     const handleSave = (content: string) => {
         const litigationKeywords = [
             'suit', 'motion', 'affidavit', 'brief', 'pleading',

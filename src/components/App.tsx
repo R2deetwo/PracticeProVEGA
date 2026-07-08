@@ -525,6 +525,17 @@ export const App: React.FC = () => {
 
     const hasSavedSession = React.useMemo(() => {
         try {
+            // ─── DraftPro tab bypass ────────────────────────────────────
+            // When a DraftPro draft opens in a new browser tab (via draftTabs),
+            // the URL contains ?draftKey=... We skip the splash entirely for
+            // these tabs because:
+            //   1. The user is already authenticated (session is in localStorage)
+            //   2. The splash delays access to the document the user just asked for
+            //   3. The tab has no history, so the splash serves no navigation purpose
+            const urlParams = new URLSearchParams(window.location.search);
+            const isDraftProTab = !!urlParams.get('draftKey');
+            if (isDraftProTab) return false;
+
             // Check both app session and portal session keys
             // Portal users need the splash screen too when their session is being restored
             const appSession = localStorage.getItem('practicepro_user_session');

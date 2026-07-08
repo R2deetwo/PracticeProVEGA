@@ -15,6 +15,23 @@ interface SplashScreenProps {
     onComplete?: () => void;
 }
 
+/**
+ * SplashScreen — cinematic brand reveal.
+ *
+ * PHASES (Golden Ratio timing):
+ *   1. EMERGENCE  (500ms) — black logo fades in (stealth, premium)
+ *   2. AMBER      (600ms) — logo morphs to amber/yellow (loading signal)
+ *   3. GREEN      (400ms) — logo morphs to brand green (the "green light"
+ *                            signal — waiting is over, app is ready)
+ *   4. EXIT       (300ms) — clean fade-out
+ *
+ * The green phase is the psychological "go" signal. The app becomes
+ * interactive immediately when green appears — the exit animation plays
+ * in parallel with the app loading underneath, so there's no dead time
+ * between green and the app being usable.
+ *
+ * Total visible duration: ~1.8s (down from ~2.8s previously).
+ */
 const SplashScreen: React.FC<SplashScreenProps> = ({
     isVisible,
     statusMessage = "Initializing System...",
@@ -22,16 +39,14 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     onForceEnter,
     onComplete
 }) => {
-    // Phase management for Golden Ratio timing
-    const [phase, setPhase] = useState<'emergence' | 'vega' | 'atrium'>('emergence');
+    const [phase, setPhase] = useState<'emergence' | 'amber' | 'green'>('emergence');
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
-    
+
     const logoControls = useAnimation();
     const textControls = useAnimation();
     const containerControls = useAnimation();
     const bgImageControls = useAnimation();
 
-    // Track initialization to avoid re-running sequence
     const hasStarted = useRef(false);
 
     useEffect(() => {
@@ -45,70 +60,71 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     }, [isVisible]);
 
     const orchestrateSequence = async () => {
-        // PHASE 1: EMERGENCE (600ms) - Stealth Black
+        // ── PHASE 1: EMERGENCE (500ms) — Stealth Black ──────────────────
         setPhase('emergence');
         await logoControls.start({
             opacity: [0, 1],
             scale: [0.8, 1.0],
             color: '#000000',
             filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.05))',
-            transition: { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }
+            transition: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }
         });
 
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        // PHASE 2: VEGA MORPH (800ms) - Yellow Brand
-        setPhase('vega');
+        // ── PHASE 2: AMBER (600ms) — Loading Signal ─────────────────────
+        setPhase('amber');
         logoControls.start({
             color: '#EAB308',
-            filter: 'drop-shadow(0 0 25px rgba(234,179,8,0.2))',
-            transition: { duration: 0.8, ease: [0.65, 0, 0.35, 1] }
+            filter: 'drop-shadow(0 0 25px rgba(234,179,8,0.25))',
+            transition: { duration: 0.6, ease: [0.65, 0, 0.35, 1] }
         });
-        
+
         await textControls.start({
             opacity: [0, 1],
             y: [10, 0],
-            transition: { duration: 0.5, ease: "easeOut" }
+            transition: { duration: 0.4, ease: "easeOut" }
         });
 
-        // Signal app-ready here — Atrium phase plays as a branded exit,
-        // not as a loading gate. Data can sync in parallel.
+        // Hold amber briefly so the color registers
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // ── PHASE 3: GREEN (400ms) — The "Green Light" ──────────────────
+        // This is the psychological "go" signal. The app is ready.
+        // We signal onComplete HERE so the app starts loading underneath
+        // the green phase — no dead time between green and usability.
         if (onComplete) onComplete();
 
-        await new Promise(resolve => setTimeout(resolve, 400));
+        setPhase('green');
+        await textControls.start({ opacity: 0, y: -8, transition: { duration: 0.2 } });
 
-        // PHASE 3: ATRIUM MORPH (800ms) - Teal Brand (plays while app loads)
-        await textControls.start({ opacity: 0, y: -10, transition: { duration: 0.25 } });
-        
-        setPhase('atrium');
         logoControls.start({
-            color: 'rgb(82, 121, 111)',
-            filter: 'drop-shadow(0 0 30px rgba(82,121,111,0.25))',
-            scale: [1.0, 1.03, 1.0],
-            transition: { 
-                duration: 0.8, 
-                ease: [0.65, 0, 0.35, 1],
-                scale: { duration: 3, repeat: Infinity, ease: "easeInOut" }
+            color: 'rgb(22, 163, 74)', // emerald-600 — brand green
+            filter: 'drop-shadow(0 0 35px rgba(22,163,74,0.35))',
+            scale: [1.0, 1.04, 1.0],
+            transition: {
+                color: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
+                filter: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
+                scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
             }
         });
 
-        bgImageControls.start({
-            opacity: 0.25,
-            transition: { duration: 0.8 }
-        });
-
         await textControls.start({
             opacity: [0, 1],
-            y: [10, 0],
-            transition: { duration: 0.5, ease: "easeOut" }
+            y: [8, 0],
+            transition: { duration: 0.3, ease: "easeOut" }
         });
+
+        // Green phase plays while the app loads underneath. The exit
+        // animation is triggered by isVisible becoming false (when
+        // isDataLoaded is true in App.tsx).
     };
 
     const handleExitSequence = async () => {
         // Exit is a clean opacity fade of the whole screen
         await containerControls.start({
             opacity: 0,
-            transition: { duration: 0.6, ease: [0.32, 0, 0.67, 0] }
+            transition: { duration: 0.4, ease: [0.32, 0, 0.67, 0] }
         });
 
         setIsActuallyMounted(false);
@@ -120,15 +136,15 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         <motion.div
             className="splash-screen"
             animate={containerControls}
-            style={{ 
-                backgroundColor: '#0e0e11', 
-                opacity: 1, // Ensure fully opaque during sequence
+            style={{
+                backgroundColor: '#0e0e11',
+                opacity: 1,
                 pointerEvents: isVisible ? 'auto' : 'none',
-                zIndex: 9999 
+                zIndex: 9999
             }}
         >
             {/* Cinematic Background Layer */}
-            <motion.div 
+            <motion.div
                 className="splash-bg-image"
                 animate={bgImageControls}
                 initial={{ opacity: 0 }}
@@ -147,16 +163,16 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
                 <div className="splash-text-container">
                     <motion.span
-                        key={phase} // Triggers re-animation on word change
+                        key={phase}
                         className="splash-text"
                         animate={textControls}
                         initial={{ opacity: 0 }}
-                        style={{ 
-                            color: phase === 'atrium' ? 'rgb(82, 121, 111)' : '#EAB308',
+                        style={{
+                            color: phase === 'green' ? 'rgb(22, 163, 74)' : '#EAB308',
                             display: phase === 'emergence' ? 'none' : 'block'
                         }}
                     >
-                        {phase === 'vega' ? 'Vega' : phase === 'atrium' ? 'Atrium' : ''}
+                        {phase === 'amber' ? 'Vega' : phase === 'green' ? 'Ready' : ''}
                     </motion.span>
                 </div>
             </div>
@@ -164,10 +180,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             {/* Status Feedback */}
             {isVisible && (
                 <div className="absolute bottom-20 flex flex-col items-center gap-4 px-10">
-                    <motion.p 
+                    <motion.p
                         className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700"
                         animate={{ opacity: [0.4, 0.7, 0.4] }}
-                        transition={{ duration: 2.5, repeat: Infinity }}
+                        transition={{ duration: 2, repeat: Infinity }}
                     >
                         {statusMessage}
                     </motion.p>
