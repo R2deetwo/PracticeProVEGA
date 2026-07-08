@@ -36,14 +36,20 @@ export const WordProcessor: React.FC = () => {
             setInitialContent(content);
             setIsSaved(false);
         }
-        if (ctx.disableAutoDraft || stored?.content) {
-            setDisableAutoDraft(true);
-            setDraftPrompt(undefined);
-        } else if (ctx.draftPrompt) {
-            setDraftPrompt(ctx.draftPrompt);
-        } else if (stored?.draftPrompt) {
-            setDraftPrompt(stored.draftPrompt);
-        }
+        // Determine whether auto-drafting should be suppressed (persisted
+        // content exists, or the caller explicitly disabled it). We no
+        // longer clear `draftPrompt` when suppressing — it's kept around
+        // so the Redraft button in DraftProEditor can reuse the original
+        // prompt. The `autoStartDrafting` prop on DraftProEditor is what
+        // actually prevents auto-triggering.
+        const shouldSuppress = ctx.disableAutoDraft || !!stored?.content;
+        setDisableAutoDraft(shouldSuppress);
+
+        // Prefer the explicit ctx.draftPrompt; fall back to the stored one.
+        // This keeps the prompt available for Redraft even on a reopened draft.
+        const resolvedPrompt = ctx.draftPrompt || stored?.draftPrompt || undefined;
+        setDraftPrompt(resolvedPrompt);
+
         if (ctx.draftTitle || stored?.title) {
             setDocumentTitle(ctx.draftTitle || stored?.title || 'Untitled Draft');
         }
@@ -88,7 +94,8 @@ export const WordProcessor: React.FC = () => {
             <div className="flex-1 overflow-hidden">
                 <DraftProEditor
                     initialContent={initialContent}
-                    draftPrompt={disableAutoDraft ? undefined : draftPrompt}
+                    draftPrompt={draftPrompt}
+                    autoStartDrafting={!disableAutoDraft}
                     onSave={handleSave}
                     title={documentTitle}
                     onTitleChange={(t) => {

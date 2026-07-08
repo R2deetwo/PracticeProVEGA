@@ -17,6 +17,7 @@ import { tools } from '../../services/geminiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -1026,6 +1027,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         } else if (action.type === 'navigate') {
             navigateToRef.current(action.target, null, action.context);
         } else if (action.type === 'draft') {
+            // Defensive persistence check: if a draft was already generated
+            // and saved to localStorage for this config, open the editor with
+            // the saved content and auto-draft DISABLED. This prevents the
+            // "click Open item in chat → re-drafts from scratch" bug.
+            const cfg = action.config || {};
+            try {
+                const fid = coreState?.firmDetails?.id || '';
+                if (fid && cfg.draftTitle) {
+                    const key = draftSessionKey({
+                        matterId: cfg.matterId,
+                        title: cfg.draftTitle,
+                        documentId: cfg.documentId,
+                    });
+                    const stored = loadDraftSession(fid, key);
+                    if (stored?.content && stored.content.trim().length > 0) {
+                        openEditorRef.current(null, {
+                            ...cfg,
+                            draftContent: stored.content,
+                            disableAutoDraft: true,
+                            draftPrompt: undefined, // do NOT re-trigger drafting
+                        });
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[executeStoredAction] draft lookup failed', e);
+            }
             openEditorRef.current(null, action.config);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);

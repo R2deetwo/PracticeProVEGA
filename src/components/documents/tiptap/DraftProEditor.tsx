@@ -355,7 +355,13 @@ import * as aiService from '../../../services/aiService';
 
 export interface DraftProEditorProps {
     initialContent?: string;
+    /** The original prompt used to generate (or last redraft of) this document.
+     *  Always passed by WordProcessor so the Redraft button has access even when
+     *  auto-drafting is disabled. */
     draftPrompt?: string;
+    /** When false, opening the editor will NOT auto-start drafting even if
+     *  draftPrompt is set. Used when reopening a persisted draft. */
+    autoStartDrafting?: boolean;
     onSave?: (html: string) => void;
     title?: string;
     onTitleChange?: (title: string) => void;
@@ -370,6 +376,7 @@ export type DocumentEditorProps = DraftProEditorProps;
 export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     initialContent,
     draftPrompt,
+    autoStartDrafting = true,
     onSave,
     title,
     onTitleChange,
@@ -391,6 +398,27 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
+
+    // The prompt currently being drafted against. Synced from the `draftPrompt`
+    // prop ONLY when autoStartDrafting is true. Redraft updates this state to
+    // trigger a new drafting cycle (with optional additional context).
+    const [activeDraftPrompt, setActiveDraftPrompt] = useState<string | undefined>(undefined);
+    // Persist the original prompt so the Redraft button can reuse it even
+    // after the first draft completes (at which point draftPrompt may be
+    // cleared by WordProcessor).
+    const originalDraftPromptRef = useRef<string | undefined>(undefined);
+    if (draftPrompt && !originalDraftPromptRef.current) {
+        originalDraftPromptRef.current = draftPrompt;
+    }
+
+    // Sync prop → activeDraftPrompt, but only when auto-start is allowed.
+    // This way reopening a persisted draft (autoStartDrafting=false) does NOT
+    // re-trigger drafting, while Redraft can still set activeDraftPrompt itself.
+    useEffect(() => {
+        if (autoStartDrafting && draftPrompt && draftingPromptRef.current !== draftPrompt) {
+            setActiveDraftPrompt(draftPrompt);
+        }
+    }, [draftPrompt, autoStartDrafting]);
 
     // Keep persistDraftRef updated with the latest onContentChange handler
     // so the AI drafting completion can persist content even if the user
@@ -436,12 +464,13 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [placeholderCount, setPlaceholderCount] = useState(0);
 
     // Modals
-    const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | null>(null);
+    const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | 'redraft' | null>(null);
     const [modalInput, setModalInput] = useState('');
     const [targetPlaceholderLabel, setTargetPlaceholderLabel] = useState<string | null>(null);
     const [aiHelpLabel, setAiHelpLabel] = useState<string | null>(null);
     const [aiHelpLoading, setAiHelpLoading] = useState(false);
     const [aiHelpResult, setAiHelpResult] = useState<Record<string, string>>({});
+    const [redraftContext, setRedraftContext] = useState('');
     const isFillingRef = useRef(false);
     const [formatRules, setFormatRules] = useState({
         suitTitleFormat: true,
@@ -600,10 +629,10 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         setPlaceholderCount(count);
     }, [editor]);
 
-    // AI Drafting Engine
+    // AI Drafting Engine — triggers whenever activeDraftPrompt changes (initial draft OR redraft)
     useEffect(() => {
-        if (editor && draftPrompt && draftingPromptRef.current !== draftPrompt) {
-            draftingPromptRef.current = draftPrompt;
+        if (editor && activeDraftPrompt && draftingPromptRef.current !== activeDraftPrompt) {
+            draftingPromptRef.current = activeDraftPrompt;
             setIsDrafting(true);
             setIsSaved(false);
 
@@ -619,7 +648,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             editor.commands.setContent('<p></p>');
 
             aiService.streamDraft(
-                [{ role: 'user', content: draftPrompt }],
+                [{ role: 'user', content: activeDraftPrompt }],
                 { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
                     // Accumulate chunks ONLY
@@ -650,7 +679,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     addToast('Drafting complete', { type: 'success' });
 
                     // Persist the generated draft immediately so it survives navigation
-                    persistDraftRef.current?.(processedDraft, documentTitle, draftPrompt);
+                    persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                 } else {
                     // Only show "failed" if we genuinely got nothing
                     // The stream may have returned content that was already consumed
@@ -689,14 +718,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         });
                         editor.commands.setContent(processedDraft);
                         addToast('Draft completed (with minor stream error).', { type: 'success' });
-                        persistDraftRef.current?.(processedDraft, documentTitle, draftPrompt);
+                        persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                     } else {
                         addToast(`Drafting failed: ${e.message}`, { type: 'error' });
                     }
                 }
             });
         }
-    }, [editor, draftPrompt, appState]);
+    }, [editor, activeDraftPrompt, appState]);
 
     // Load/Sync content when it changes (especially from AI Drafting)
     useEffect(() => {
@@ -756,6 +785,29 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         }
         window.print();
     }, [editor, addToast]);
+
+    // ─── Redraft Handler ──────────────────────────────────────────────────
+    // Re-triggers the AI drafting engine using the original prompt plus any
+    // additional context the user supplies in the Redraft modal. The current
+    // editor content is cleared and replaced with the new draft when it
+    // completes. We force the trigger by resetting draftingPromptRef so the
+    // useEffect detects a change even if the new prompt happens to match the
+    // last one (e.g. user clicks Redraft with no extra context).
+    const handleRedraft = useCallback(() => {
+        const ctx = redraftContext.trim();
+        const base = (originalDraftPromptRef.current || activeDraftPrompt || draftPrompt || `Draft a ${title || 'legal'} document.`).trim();
+        const newPrompt = ctx
+            ? `${base}\n\n---\nADDITIONAL CONTEXT FOR IMPROVEMENT:\n${ctx}\n\nPlease generate a complete, improved version of the document incorporating the above.`
+            : `${base}\n\n---\nPlease generate a complete, improved version of the document. Refine the structure, tone, and clarity.`;
+
+        setActiveModal(null);
+        setRedraftContext('');
+        // Force the drafting useEffect to fire even if newPrompt matches the
+        // previously drafted one.
+        draftingPromptRef.current = null;
+        setActiveDraftPrompt(newPrompt);
+        addToast('Redrafting your document...', { type: 'info' });
+    }, [redraftContext, activeDraftPrompt, draftPrompt, title, addToast]);
 
     // Page count derived from structural pageBreak nodes OR dynamic content height
     const calculatedPages = Math.max(pageBreakCount + 1, Math.ceil(contentHeight / PAGE_HEIGHT_PX));
@@ -1107,6 +1159,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         <ToolbarBtn icon={Settings} label="Header" onClick={() => setIsHeaderDesignerOpen(true)} size="lg" />
                         <ToolbarBtn icon={Scissors} label={`Fill Blanks (${placeholderCount})`} onClick={() => setActiveModal('fill_placeholders')} size="lg" className="text-amber-600 dark:text-amber-400" />
                         <ToolbarBtn icon={Plus} label="Group Parties" onClick={() => editor?.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run()} size="lg" className="text-indigo-600" />
+                        <ToolbarBtn icon={Redo} label="Redraft" onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }} size="lg" className="text-blue-600 dark:text-blue-400" disabled={!editor || isDrafting} />
                         <ToolbarBtn icon={Save} label="Save Template" onClick={() => { setModalInput(title || ''); setActiveModal('save_template'); }} size="lg" className="text-primary-600" />
                         <div className="flex flex-col gap-0.5 justify-center ml-2">
                             <div className="text-[10px] font-bold text-slate-400">Words: {editor?.storage.characterCount.words() || 0}</div>
@@ -1251,7 +1304,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 )}
                                 <EditorContent editor={editor} />
                                 {isDrafting && (
-                                    <GenerationOverlay label={`Generating ${draftPrompt ? draftPrompt.substring(0, 40) + '...' : 'document'}...`} />
+                                    <GenerationOverlay label="Preparing your document..." />
                                 )}
                             </div>
                         </div>
@@ -1264,7 +1317,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 activeModal && (
                     <div className="fixed inset-0 z-[1000] flex items-center justify-center">
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
-                        <div className={`relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 w-full ${activeModal === 'fill_placeholders' ? 'max-w-md' : activeModal === 'auto_format_rules' ? 'max-w-lg' : 'max-w-sm'} mx-4 animate-in zoom-in-95 duration-200`}>
+                        <div className={`relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 w-full ${activeModal === 'fill_placeholders' ? 'max-w-md' : activeModal === 'auto_format_rules' ? 'max-w-lg' : activeModal === 'redraft' ? 'max-w-lg' : 'max-w-sm'} mx-4 animate-in zoom-in-95 duration-200`}>
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                 {activeModal === 'placeholder' && <><Type className="w-5 h-5 text-amber-500" /> Insert Placeholder</>}
                                 {activeModal === 'fill_placeholders' && <><Scissors className="w-5 h-5 text-amber-500" /> Smart Fill Placeholders</>}
@@ -1272,6 +1325,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 {activeModal === 'image' && <><ImageIcon className="w-5 h-5 text-emerald-500" /> Insert Image</>}
                                 {activeModal === 'table' && <><TableIcon className="w-5 h-5 text-slate-500" /> Create Table</>}
                                 {activeModal === 'auto_format_rules' && <><Wand className="w-5 h-5 text-emerald-500" /> Auto-Format Rules</>}
+                                {activeModal === 'redraft' && <><Redo className="w-5 h-5 text-blue-500" /> Redraft with AI</>}
                             </h3>
 
                             {activeModal === 'placeholder' && (
@@ -1526,6 +1580,33 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 <div className="space-y-4">
                                     <p className="text-sm text-slate-500">This will insert a 3x3 table with a header row.</p>
                                     <button onClick={insertTable} className="w-full bg-slate-800 text-white font-bold py-2 rounded-lg hover:bg-black transition-colors">Insert Table</button>
+                                </div>
+                            )}
+
+                            {activeModal === 'redraft' && (
+                                <div className="space-y-4">
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
+                                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                                            The AI will regenerate the entire document from scratch using the original prompt. Your current content will be replaced. Add specific instructions below to guide the improvement — e.g. <em>"make it more formal", "add a termination clause", "shorten the recitals"</em>.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500 mb-1 block">Additional context (optional)</label>
+                                        <textarea
+                                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-y"
+                                            placeholder="e.g. Make the tone more formal. Add a clause about late-payment penalties. Use Lagos State tenancy law formatting."
+                                            value={redraftContext}
+                                            onChange={e => setRedraftContext(e.target.value)}
+                                            autoFocus
+                                        />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => { setActiveModal(null); setRedraftContext(''); }} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors">Cancel</button>
+                                        <button onClick={handleRedraft} className="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-lg flex items-center justify-center gap-2">
+                                            <Redo className="w-4 h-4" />
+                                            Redraft Document
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 

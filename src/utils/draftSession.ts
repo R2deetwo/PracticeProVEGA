@@ -31,13 +31,33 @@ export function getDraftKey(
   return `draft:${m}:${t}`;
 }
 
+/**
+ * Slugify a free-form title into a stable documentType token.
+ * "Tenancy Agreement (Lagos)" → "tenancy-agreement-lagos"
+ * Returns undefined for empty/whitespace titles so the caller can fall back.
+ */
+function slugifyTitle(title?: string | null): string | undefined {
+  if (!title) return undefined;
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  return slug || undefined;
+}
+
 /** @deprecated Use getDraftKey() instead — kept for backward compat */
 export function draftSessionKey(opts: {
   matterId?: string | null;
   title?: string;
   documentId?: string | null;
 }): string {
-  return getDraftKey(opts.matterId, undefined, opts.documentId);
+  // IMPORTANT: include the slugified title so each ALOA-started draft gets
+  // its own persistence key. Without this, all drafts without a matterId
+  // collapse onto `draft:general:untitled` and overwrite each other —
+  // which is also why "Open item in chat" used to re-draft instead of
+  // loading the saved content.
+  return getDraftKey(opts.matterId, slugifyTitle(opts.title), opts.documentId);
 }
 
 export function saveDraft(key: string, data: DraftSessionData, firmId: string): void {
