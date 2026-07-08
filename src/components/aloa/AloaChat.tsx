@@ -18,6 +18,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
+import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -316,13 +317,43 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             draftTitle: args.title || 'New Draft',
                             draftPrompt: args.prompt
                         };
-                        openEditorRef.current(null, draftConfig);
+                        // On desktop, open the draft in a new browser tab so the
+                        // user can keep the ALOA chat open alongside the editor.
+                        // Dedup: if a tab is already open for this draft, focus it.
+                        try {
+                            const fid = coreState?.firmDetails?.id || '';
+                            const draftKey = draftSessionKey({
+                                matterId: undefined,
+                                title: draftConfig.draftTitle,
+                            });
+                            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}&prompt=${encodeURIComponent(draftConfig.draftPrompt || '')}`;
+                                const result = openDraftInTab({
+                                    key: draftKey,
+                                    url,
+                                    title: draftConfig.draftTitle,
+                                });
+                                if (result === 'existing-tab') {
+                                    feedbackMessage = `Opened the existing draft tab for "${draftConfig.draftTitle}".`;
+                                } else if (result === 'new-tab') {
+                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
+                                } else {
+                                    // in-place fallback (mobile or popup blocked)
+                                    openEditorRef.current(null, draftConfig);
+                                }
+                            } else {
+                                openEditorRef.current(null, draftConfig);
+                            }
+                        } catch (e) {
+                            console.warn('[start_drafting] tab open failed', e);
+                            openEditorRef.current(null, draftConfig);
+                        }
                         actionData = {
                             type: 'draft',
                             config: draftConfig,
                             label: 'Resume Drafting'
                         };
-                        feedbackMessage = "Starting drafting engine...";
+                        if (!feedbackMessage) feedbackMessage = "Starting drafting engine...";
                         isTerminal = true;
 
                     } else if (name === 'draft_workflow') {
@@ -1041,7 +1072,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         documentId: cfg.documentId,
                     });
                     const stored = loadDraftSession(fid, key);
+
+                    // ─── Tab-driven desktop workflow ───────────────────────
+                    // On desktop, if a tab is already open for this draft,
+                    // focus it instead of navigating in-place. This preserves
+                    // the user's workspace across multiple drafts.
+                    if (isDraftTabOpen(key)) {
+                        openDraftInTab({
+                            key,
+                            url: `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`,
+                            title: cfg.draftTitle,
+                        });
+                        return;
+                    }
+
                     if (stored?.content && stored.content.trim().length > 0) {
+                        // On desktop, open in a new tab so the user can keep
+                        // the chat open alongside the draft.
+                        if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                            const result = openDraftInTab({
+                                key,
+                                url: `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`,
+                                title: cfg.draftTitle,
+                            });
+                            if (result !== 'in-place') return;
+                        }
                         openEditorRef.current(null, {
                             ...cfg,
                             draftContent: stored.content,

@@ -2,14 +2,14 @@
  * VersionRefreshBanner — non-intrusive banner shown at the bottom of the
  * screen when useVersionCheck detects that a new deploy has shipped.
  *
- * The banner is intentionally small and stays out of the way: it slides
- * up from the bottom, offers a single "Refresh now" button, and a tiny
- * dismiss link for users who want to finish what they're doing first.
+ * Animation lifecycle:
+ *   Entrance:  slides UP from below the viewport (pop-up)
+ *   Dismissal: slides DOWN out of the viewport (pop-down)
  *
  * The banner will re-appear after the next poll interval (5 min) if the
  * user dismisses it, because the running bundle is still stale.
  */
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useVersionCheck } from '../hooks/useVersionCheck';
 
 const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -19,18 +19,56 @@ const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const VersionRefreshBanner: React.FC = () => {
-  const { updateAvailable, remoteSha, localSha, refresh, dismiss } = useVersionCheck();
+  const { updateAvailable, refresh, dismiss } = useVersionCheck();
+  // Track whether the banner is actively visible (for exit animation).
+  // When updateAvailable becomes true → show with entrance animation.
+  // When user dismisses (or updateAvailable goes false) → play exit
+  // animation, then unmount after the transition completes.
+  const [visible, setVisible] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
-  if (!updateAvailable) return null;
+  useEffect(() => {
+    if (updateAvailable) {
+      setExiting(false);
+      // Defer the visibility flip by one frame so the entrance transition
+      // (from translate-y-full/opacity-0 → translate-y-0/opacity-100) plays.
+      const t = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(t);
+    } else if (visible) {
+      // Update no longer available (e.g. after refresh) — animate out.
+      setExiting(true);
+      const t = setTimeout(() => { setVisible(false); setExiting(false); }, 350);
+      return () => clearTimeout(t);
+    }
+  }, [updateAvailable]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shortRemote = remoteSha ? remoteSha.slice(0, 7) : 'unknown';
-  const shortLocal = localSha && localSha !== 'unknown' ? localSha.slice(0, 7) : 'unknown';
+  const handleDismiss = () => {
+    setExiting(true);
+    setTimeout(() => { setVisible(false); setExiting(false); dismiss(); }, 350);
+  };
+
+  const handleRefresh = () => {
+    setExiting(true);
+    // Give the exit animation a moment, then trigger the hard refresh.
+    setTimeout(() => refresh(), 200);
+  };
+
+  if (!visible && !exiting) return null;
+
+  // Animation classes:
+  //   Entrance (visible=true, exiting=false):  slide UP into view
+  //   Exit     (exiting=true):                 slide DOWN out of view
+  const animationClass = exiting
+    ? 'translate-y-[120%] opacity-0'
+    : visible
+      ? 'translate-y-0 opacity-100'
+      : 'translate-y-[120%] opacity-0';
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md animate-in slide-in-from-bottom-4 duration-300"
+      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] w-[calc(100vw-2rem)] max-w-md transition-all duration-300 ease-out ${animationClass}`}
     >
       <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-2xl shadow-2xl border border-emerald-500/30 overflow-hidden">
         <div className="px-4 py-3 flex items-center gap-3">
@@ -38,19 +76,19 @@ const VersionRefreshBanner: React.FC = () => {
             <RefreshIcon className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold leading-tight">A new version is available</p>
-            <p className="text-[11px] text-emerald-100 leading-tight mt-0.5 truncate">
-              Refresh to get the latest updates ({shortLocal} → {shortRemote})
+            <p className="text-sm font-bold leading-tight">A new version is available.</p>
+            <p className="text-[11px] text-emerald-100 leading-tight mt-0.5">
+              Refresh to get the latest updates.
             </p>
           </div>
           <button
-            onClick={refresh}
+            onClick={handleRefresh}
             className="flex-shrink-0 bg-white text-emerald-700 font-bold text-xs px-3 py-2 rounded-lg hover:bg-emerald-50 active:bg-emerald-100 transition-colors shadow-md"
           >
             Refresh
           </button>
           <button
-            onClick={dismiss}
+            onClick={handleDismiss}
             aria-label="Dismiss"
             className="flex-shrink-0 text-emerald-100 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
             title="Not now"

@@ -44,7 +44,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
-import LegalPlaceholder from './extensions/LegalPlaceholder';
+import LegalPlaceholder, { resolveCategory } from './extensions/LegalPlaceholder';
 import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
 import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
@@ -93,6 +93,14 @@ const SubscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns
 const SuperscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.5h-3V6l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 2.25 17.25 3" strokeWidth={1.2} /></svg>;
 const StrikethroughIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M6.75 6.75c0-1.257.933-2.25 2.25-2.25 1.257 0 2.25.933 2.25 2.25 0 1.257-.933 2.25-2.25 2.25M17.25 6.75c0-1.257-.933-2.25-2.25-2.25-1.257 0-2.25.933-2.25 2.25 0 1.257.933 2.25 2.25 2.25M6.75 17.25c0 1.257.933 2.25 2.25 2.25 1.257 0 2.25-.933 2.25-2.25 0-1.257-.933-2.25-2.25-2.25M17.25 17.25c0 1.257-.933 2.25-2.25 2.25-1.257 0-2.25-.933-2.25-2.25 0-1.257.933-2.25 2.25-2.25" /></svg>;
 const PageBreakIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={1.2} /><line x1="3" y1="12" x2="21" y2="12" strokeDasharray="3 3" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 9l-2 3 2 3M16 9l2 3-2 3" /></svg>;
+
+// Document Header icon — a page with a highlighted top section (represents
+// letterhead / page header, NOT a settings gear)
+const DocumentHeaderIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9.75v4.5m15 0v3a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25v-3m15 0H4.5" /><rect x="6.5" y="6" width="11" height="3.5" rx="0.5" fill="currentColor" fillOpacity="0.18" stroke="none" /><path strokeLinecap="round" strokeLinejoin="round" d="M8 16h8M8 18.5h5" strokeWidth={1} /></svg>;
+
+// New Document icon — a page with a plus sign
+const NewDocumentIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9.75v4.5m15 0v3a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25v-3m15 0H4.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 11v4m-2-2h4" strokeWidth={2} /></svg>;
+
 
 // ─── A4 Page Dimensions at 96 dpi ────────────────────────────────────────────
 const PAGE_WIDTH_PX  = 794;   // 210 mm
@@ -204,12 +212,15 @@ const HIGHLIGHTS = [
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
+// Slimmer toolbar: items top-aligned, single uniform label baseline at the bottom.
 const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
-    <div className={`flex flex-col items-center border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${className}`}>
-        <div className="flex items-center gap-0.5 mb-1">
+    <div className={`flex flex-col items-stretch border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${className}`}>
+        {/* Buttons row — items-top so variable-height groups still align */}
+        <div className="flex items-start gap-0.5 py-1">
             {children}
         </div>
-        {label && <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tighter">{label}</span>}
+        {/* Uniform baseline label — same vertical position for every group */}
+        {label && <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tighter leading-none pb-0.5 h-[12px] flex items-center justify-center">{label}</span>}
     </div>
 );
 
@@ -630,37 +641,56 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     }, [editor]);
 
     // AI Drafting Engine — triggers whenever activeDraftPrompt changes (initial draft OR redraft)
+    // Streams text DIRECTLY onto the white page as it generates (no dark overlay).
     useEffect(() => {
         if (editor && activeDraftPrompt && draftingPromptRef.current !== activeDraftPrompt) {
             draftingPromptRef.current = activeDraftPrompt;
             setIsDrafting(true);
             setIsSaved(false);
 
-            // Buffer for the AI draft to prevent partial HTML injection
+            // Buffer for the final cleanup pass (placeholder conversion, etc.)
+            // but we ALSO stream into the editor live so the user sees progress.
             let draftBuffer = '';
-            
+            let lastStreamUpdate = 0;
+
             // Setup AbortController to allow user to stop the draft
             const abortController = new AbortController();
-            // Store it in a ref or just on the window for now so the UI can trigger it
             (window as any).stopDrafting = () => abortController.abort();
 
-            // Clear editor content and show overlay (overlay is separate from editor content)
+            // Clear editor content — canvas stays white, overlay indicator shows on top
             editor.commands.setContent('<p></p>');
 
             aiService.streamDraft(
                 [{ role: 'user', content: activeDraftPrompt }],
                 { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
-                    // Accumulate chunks ONLY
                     draftBuffer += chunk;
+                    // Stream text directly into the editor so the user sees it
+                    // appear in real-time on the white page. We throttle updates
+                    // to ~4 per second to avoid ProseMirror thrashing.
+                    const now = Date.now();
+                    if (now - lastStreamUpdate > 250) {
+                        lastStreamUpdate = now;
+                        // Show the raw streaming text (no placeholder conversion yet —
+                        // that happens in the final pass to avoid mid-stream flicker
+                        // as partial [LABEL] tokens are completed).
+                        let preview = draftBuffer
+                            .replace(/```html/g, '')
+                            .replace(/```/g, '')
+                            .replace(/\\n/g, '\n')
+                            .replace(/\r/g, '');
+                        preview = preview.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        if (preview.trim()) {
+                            editor.commands.setContent(preview);
+                        }
+                    }
                 },
-                abortController.signal // pass signal to service
+                abortController.signal
             ).then(() => {
                 setIsDrafting(false);
-                // Trim the buffer — sometimes the stream ends with whitespace
                 const trimmedBuffer = draftBuffer.trim();
                 if (editor && trimmedBuffer) {
-                    // Clean code blocks and artifacts
+                    // Final cleanup pass — convert [LABEL] tokens to color-coded placeholders
                     let cleanDraft = trimmedBuffer
                         .replace(/```html/g, '')
                         .replace(/```/g, '')
@@ -670,22 +700,17 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
                     const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                        const def = getPlaceholderDef(label);
-                        const cat = def?.category ?? 'freetext';
+                        const cat = resolveCategory(label);
                         return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
                     });
 
                     editor.commands.setContent(processedDraft);
                     addToast('Drafting complete', { type: 'success' });
 
-                    // Persist the generated draft immediately so it survives navigation
                     persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                 } else {
-                    // Only show "failed" if we genuinely got nothing
-                    // The stream may have returned content that was already consumed
-                    // by the editor via onChunk in some edge cases
                     const currentContent = editor?.getHTML() || '';
-                    if (currentContent.includes('pp-spin') || !currentContent || currentContent === '<p></p>') {
+                    if (currentContent === '<p></p>' || !currentContent) {
                         editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
                         addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
                     }
@@ -695,16 +720,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 setIsDrafting(false);
                 if (e.name === 'AbortError') {
                     addToast('Drafting cancelled.', { type: 'info' });
-                    // If we have partial content, keep it instead of wiping
-                    const currentHTML = editor?.getHTML() || '';
-                    if (currentHTML.includes('pp-spin')) {
-                        editor?.commands.setContent('<p><i>Drafting cancelled. Partial content may be lost.</i></p>');
-                    }
+                    // Keep whatever was streamed so far — don't wipe it
                 } else {
-                    // Check if we actually got content before the error
                     const trimmedBuffer = draftBuffer.trim();
                     if (editor && trimmedBuffer) {
-                        // We have content despite the error — show it!
+                        // We have content despite the error — finalize it
                         let cleanDraft = trimmedBuffer
                             .replace(/```html/g, '')
                             .replace(/```/g, '')
@@ -712,8 +732,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             .replace(/\r/g, '');
                         cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                         const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                            const def = getPlaceholderDef(label);
-                            const cat = def?.category ?? 'freetext';
+                            const cat = resolveCategory(label);
                             return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
                         });
                         editor.commands.setContent(processedDraft);
@@ -771,6 +790,23 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         }
     }, [editor, onSave, addToast]);
 
+    // Clears the editor and resets the title for a fresh start.
+    const handleNewDocument = useCallback(() => {
+        if (!editor) return;
+        // Confirm if there's unsaved content
+        const hasContent = editor.getHTML().replace(/<[^>]*>/g, '').trim().length > 0;
+        if (hasContent && !isSaved) {
+            if (!window.confirm('Start a new document? Unsaved changes will be lost.')) return;
+        }
+        editor.commands.clearContent();
+        editor.commands.setContent('<p></p>');
+        onTitleChange?.('Untitled Document');
+        setIsSaved(true);
+        originalDraftPromptRef.current = undefined;
+        setActiveDraftPrompt(undefined);
+        addToast('New document created', { type: 'success' });
+    }, [editor, isSaved, onTitleChange, addToast]);
+
     const handlePrint = useCallback(() => {
         if (!editor) return;
         let hasPlaceholders = false;
@@ -817,8 +853,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const insertPlaceholder = () => {
         const val = modalInput.trim().toUpperCase();
         if (val && editor) {
-            const def = getPlaceholderDef(val);
-            const cat = def?.category ?? 'freetext';
+            const cat = resolveCategory(val);
             editor.chain().focus().insertContent([{
                 type: 'legalPlaceholder',
                 attrs: { label: val, category: cat }
@@ -1006,6 +1041,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 <div className="flex items-stretch gap-0 px-1 py-1 overflow-x-auto custom-scrollbar no-scrollbar">
 
                     <ToolbarGroup label="File">
+                        <ToolbarBtn icon={NewDocumentIcon} label="New" onClick={handleNewDocument} size="lg" disabled={!editor || isDrafting} />
                         <ToolbarBtn icon={Save} label="Save" onClick={handleManualSave} size="lg" disabled={isSaved || !editor || isDrafting} />
                         <div className="flex flex-col gap-0.5">
                             <ToolbarBtn icon={Undo} onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} size="sm" label="Undo" />
@@ -1156,7 +1192,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     </ToolbarGroup>
 
                     <ToolbarGroup label={isProperty ? 'Drafting' : 'Legal Tools'}>
-                        <ToolbarBtn icon={Settings} label="Header" onClick={() => setIsHeaderDesignerOpen(true)} size="lg" />
+                        <ToolbarBtn icon={DocumentHeaderIcon} label="Header" onClick={() => setIsHeaderDesignerOpen(true)} size="lg" />
                         <ToolbarBtn icon={Scissors} label={`Fill Blanks (${placeholderCount})`} onClick={() => setActiveModal('fill_placeholders')} size="lg" className="text-amber-600 dark:text-amber-400" />
                         <ToolbarBtn icon={Plus} label="Group Parties" onClick={() => editor?.chain().focus().insertContent('<div data-type="legal-parties-group"><p>Party Name</p></div>').run()} size="lg" className="text-indigo-600" />
                         <ToolbarBtn icon={Redo} label="Redraft" onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }} size="lg" className="text-blue-600 dark:text-blue-400" disabled={!editor || isDrafting} />
@@ -1204,12 +1240,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
                  *
-                 * The pt-6 (24px top padding) DETACHES the first page from the
-                 * ribbon so it floats independently — like a real document on a
-                 * desk, not glued to the toolbar.
+                 * The pt-12 (48px top padding) DETACHES the first page from the
+                 * ribbon so it floats independently in "center stage" — like a
+                 * real document on a desk, not glued to the toolbar.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0 pt-6"
+                    className="flex justify-center mb-20 shrink-0 pt-12"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,
@@ -1348,7 +1384,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 editor?.state.doc.descendants((node) => {
                                     if (node.type.name === 'legalPlaceholder') {
                                         const def = getPlaceholderDef(node.attrs.label);
-                                        const cat = (node.attrs.category as PlaceholderCategory) || def?.category || 'freetext';
+                                        const cat = resolveCategory(node.attrs.label, node.attrs.category);
                                         nodesForUI.push({ label: node.attrs.label, category: cat });
                                     }
                                 });

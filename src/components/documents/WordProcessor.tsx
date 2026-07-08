@@ -5,6 +5,7 @@ import { DraftProEditor } from './tiptap/DraftProEditor';
 import { ChevronLeftIcon as BackIcon, CheckIcon as SaveIcon } from '../../constants';
 import { useCoreState } from '../../contexts/CoreContext';
 import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession } from '../../utils/draftSession';
+import { registerDraftTab } from '../../utils/draftTabs';
 
 export const WordProcessor: React.FC = () => {
     const { currentHistoryEntry, openModal, goBack } = useUI();
@@ -22,10 +23,19 @@ export const WordProcessor: React.FC = () => {
     const firmId = coreState.firmDetails?.id || '';
 
     useEffect(() => {
+        // Parse URL query params (when opened in a new tab via draftTabs)
+        const searchParams = new URLSearchParams(location.search);
+        const urlDraftKey = searchParams.get('draftKey');
+        const urlTitle = searchParams.get('title');
+        const urlPrompt = searchParams.get('prompt');
+
         const ctx = (location.state as any) || currentHistoryEntry?.context || {};
-        const key = draftSessionKey({
+
+        // Determine the draft key: URL param takes priority (tab-driven),
+        // then context-based (in-app navigation)
+        const key = urlDraftKey || draftSessionKey({
             matterId: ctx.matterId,
-            title: ctx.draftTitle,
+            title: ctx.draftTitle || urlTitle,
             documentId: ctx.documentId,
         });
         setSessionKey(key);
@@ -36,24 +46,32 @@ export const WordProcessor: React.FC = () => {
             setInitialContent(content);
             setIsSaved(false);
         }
-        // Determine whether auto-drafting should be suppressed (persisted
-        // content exists, or the caller explicitly disabled it). We no
-        // longer clear `draftPrompt` when suppressing — it's kept around
-        // so the Redraft button in DraftProEditor can reuse the original
-        // prompt. The `autoStartDrafting` prop on DraftProEditor is what
-        // actually prevents auto-triggering.
+
+        // Determine whether auto-drafting should be suppressed
         const shouldSuppress = ctx.disableAutoDraft || !!stored?.content;
         setDisableAutoDraft(shouldSuppress);
 
-        // Prefer the explicit ctx.draftPrompt; fall back to the stored one.
-        // This keeps the prompt available for Redraft even on a reopened draft.
-        const resolvedPrompt = ctx.draftPrompt || stored?.draftPrompt || undefined;
-        setDraftPrompt(resolvedPrompt);
+        // Resolve the prompt: URL param, context, or stored
+        const resolvedPrompt = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || undefined;
+        // URL-decode the prompt if it came from query params
+        setDraftPrompt(resolvedPrompt ? decodeURIComponent(resolvedPrompt) : undefined);
 
-        if (ctx.draftTitle || stored?.title) {
-            setDocumentTitle(ctx.draftTitle || stored?.title || 'Untitled Draft');
-        }
-    }, [location.state, currentHistoryEntry, firmId]);
+        // Resolve the title: URL param, context, or stored
+        const resolvedTitle = urlTitle ? decodeURIComponent(urlTitle) : ctx.draftTitle || stored?.title || 'Untitled Draft';
+        setDocumentTitle(resolvedTitle);
+    }, [location.state, location.search, currentHistoryEntry, firmId]);
+
+    // ─── Register with the tab manager (desktop only) ────────────────────
+    // This lets ALOA's "Open Item" button focus this tab instead of spawning
+    // a duplicate. On mobile it's a no-op.
+    useEffect(() => {
+        if (!sessionKey) return;
+        const cleanup = registerDraftTab({
+            key: sessionKey,
+            title: documentTitle,
+        });
+        return cleanup;
+    }, [sessionKey, documentTitle]);
 
     const persistDraft = (content: string, title: string, prompt?: string) => {
         if (!firmId || !sessionKey) return;

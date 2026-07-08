@@ -4,6 +4,7 @@ import { AloaMessage, AriaChatContext } from '../types';
 import { useLocalFileSystem, LocalFile } from '../hooks/useLocalFileSystem';
 import { useDataState } from './DataContext';
 import { FileText, Building2 } from 'lucide-react';
+import { saveAloaSession, loadAloaSession, loadGlobalAloaSession, deriveAloaContextKey } from '../utils/aloaSession';
 
 export type UrgencyStatus = 'none' | 'important' | 'urgent';
 export type AloaState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking';
@@ -109,6 +110,33 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         } catch (error) {
             console.error("Could not access localStorage for briefing status:", error);
         }
+    }, []);
+
+    // ─── ALOA Session Persistence ────────────────────────────────────────
+    // When activeConversationId changes, persist it to localStorage so the
+    // user can navigate away and come back to the same conversation.
+    // On mount, restore the last active conversation (if any).
+    React.useEffect(() => {
+        if (activeConversationId) {
+            saveAloaSession('global', {
+                conversationId: activeConversationId,
+                lastMessageAt: Date.now(),
+            });
+        }
+    }, [activeConversationId]);
+
+    // On mount, try to restore the last active conversation
+    const restoredRef = React.useRef(false);
+    React.useEffect(() => {
+        if (restoredRef.current) return;
+        restoredRef.current = true;
+        try {
+            const session = loadGlobalAloaSession();
+            // Only restore if the session is recent (< 1 hour old)
+            if (session && Date.now() - session.lastMessageAt < 60 * 60 * 1000) {
+                setActiveConversationId(session.conversationId);
+            }
+        } catch { /* ignore */ }
     }, []);
 
     const markAsBriefedToday = React.useCallback(() => {

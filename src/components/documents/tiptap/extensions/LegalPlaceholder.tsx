@@ -13,9 +13,20 @@ const CATEGORY_STYLES: Record<PlaceholderCategory, { border: string; bg: string;
   freetext:  { border: 'border-amber-500',  bg: 'bg-amber-100/50',  text: 'text-amber-900 dark:text-amber-200',  abbr: 'T' },
 };
 
-function resolveCategory(label: string, explicit?: string | null): PlaceholderCategory {
+export function resolveCategory(label: string, explicit?: string | null): PlaceholderCategory {
   if (explicit && CATEGORY_STYLES[explicit as PlaceholderCategory]) return explicit as PlaceholderCategory;
-  return getPlaceholderDef(label)?.category ?? 'freetext';
+  // 1. Check the explicit registry first
+  const def = getPlaceholderDef(label);
+  if (def) return def.category;
+  // 2. Pattern-based fallback for placeholders not in the registry
+  const n = label.trim().toUpperCase();
+  if (/(NAME|PARTY|COUNSEL|TENANT|LANDLORD|GUARANTOR|DEPONENT|JUDGE|WITNESS|CLAIMANT|DEFENDANT|APPLICANT|RESPONDENT|PETITIONER|TRUSTEE|BENEFICIARY|DIRECTOR|SHAREHOLDER|EXECUTOR|ADMINISTRATOR|GUARDIAN|ATTORNEY|SOLICITOR|BARRISTER|NOTARY)/.test(n)) return 'parties';
+  if (/(DATE|DAY|YEAR|TIME|DEADLINE|HEARING|EXPIR|COMMENCEMENT|TERMINATION|EFFECTIVE)/.test(n)) return 'dates';
+  if (/(AMOUNT|FEE|CHARGE|RENT|DEPOSIT|PAYMENT|COST|PRICE|SUM|MONEY|NAIRA|DOLLAR|PENALTY|RATE|SALARY|WAGE|INCOME|REVENUE|TAX|VAT|DISCOUNT|BALANCE|TOTAL)/.test(n)) return 'financial';
+  if (/(ADDRESS|LOCATION|STREET|AVENUE|ROAD|CITY|STATE|COUNTRY|LGA|PLOT|ZONE|DISTRICT|REGION|AREA)/.test(n)) return 'location';
+  if (/(COURT|SUIT|CASE|MATTER|JURISDICTION|CAUSE|RELIEF|EXHIBIT|ORDER|RULE|GROUND|TRIBUNAL|CHAMBER|REGISTRY)/.test(n)) return 'court';
+  if (/(FIRM|SOLICITOR|PRACTICE|CHAMBERS|OFFICE|REG|REGISTRATION)/.test(n)) return 'firm';
+  return 'freetext';
 }
 
 export default Node.create({
