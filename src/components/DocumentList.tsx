@@ -354,26 +354,26 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     <div className="flex gap-2 items-center flex-shrink-0">
                         <button
                             onClick={() => openEditor()}
-                            className="h-8 px-2.5 sm:h-9 sm:px-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-bold whitespace-nowrap shrink-0"
+                            className="h-9 px-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
                             title="Open DraftPro Editor"
                         >
                             <SparklesIcon className="w-3.5 h-3.5" /> DraftPro <span className="opacity-60 font-normal text-[9px]">β</span>
                         </button>
                         <button
                             onClick={() => openModal('newDocument')}
-                            className="h-8 px-2.5 sm:h-9 sm:px-3 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-[11px] sm:text-xs font-bold whitespace-nowrap shrink-0"
+                            className="h-9 px-3 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
                         >
                             <PlusIcon className="w-3.5 h-3.5" /> Upload
                         </button>
                     </div>
                 </div>
 
-                {/* Search + toggles row */}
+                {/* Search + Cloud/Local toggle — clean single row, no overflow */}
                 <div className="flex items-center gap-2">
                     {viewMode === 'documents' && (
                         <div className="relative flex-1 min-w-0">
                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
-                            <input autoComplete="off" data-lpignore="true" 
+                            <input autoComplete="off" data-lpignore="true"
                                 type="text"
                                 placeholder="Search documents..."
                                 value={searchTerm}
@@ -382,57 +382,22 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                             />
                         </div>
                     )}
-                    {/* Cloud/Local toggle — compact pill */}
+                    {/* Cloud/Local toggle — compact, never overflows */}
                     <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 flex-shrink-0">
                         <button
                             onClick={() => { setViewMode('documents'); setSelectedCategory(null); }}
-                            className={`px-2.5 py-1.5 text-[11px] font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'documents' ? 'bg-white dark:bg-zinc-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'documents' ? 'bg-white dark:bg-zinc-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
                         >
                             Cloud
                         </button>
                         <button
                             onClick={() => setViewMode('local')}
-                            className={`px-2.5 py-1.5 text-[11px] font-bold rounded-md flex items-center gap-1 transition-all whitespace-nowrap ${viewMode === 'local' ? 'bg-white dark:bg-zinc-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1 transition-all whitespace-nowrap ${viewMode === 'local' ? 'bg-white dark:bg-zinc-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
                         >
                             <ComputerDesktopIcon className="w-3.5 h-3.5" /> Local
                         </button>
                     </div>
-                    {/* Firm-wide / My Files filter — only on documents view, compact */}
-                    {viewMode === 'documents' && (
-                        <div className="hidden sm:flex bg-slate-100/50 dark:bg-zinc-800/50 rounded-lg p-0.5 border border-slate-200 dark:border-zinc-700/50 flex-shrink-0">
-                            <button
-                                onClick={() => setAssignmentFilter('all')}
-                                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${assignmentFilter === 'all' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
-                            >
-                                Firm
-                            </button>
-                            <button
-                                onClick={() => setAssignmentFilter('my')}
-                                className={`px-2.5 py-1.5 text-[10px] font-bold rounded-md transition-all whitespace-nowrap ${assignmentFilter === 'my' ? 'bg-white dark:bg-zinc-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
-                            >
-                                Mine
-                            </button>
-                        </div>
-                    )}
                 </div>
-
-                {/* Mobile-only Firm/Mine filter (below search row) */}
-                {viewMode === 'documents' && (
-                    <div className="sm:hidden mt-2 flex bg-slate-100/50 dark:bg-zinc-800/50 rounded-lg p-0.5 border border-slate-200 dark:border-zinc-700/50">
-                        <button
-                            onClick={() => setAssignmentFilter('all')}
-                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${assignmentFilter === 'all' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400'}`}
-                        >
-                            Firm-wide
-                        </button>
-                        <button
-                            onClick={() => setAssignmentFilter('my')}
-                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${assignmentFilter === 'my' ? 'bg-white dark:bg-zinc-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-slate-500 dark:text-zinc-400'}`}
-                        >
-                            My Files
-                        </button>
-                    </div>
-                )}
             </div>
 
             <div className="flex flex-grow overflow-hidden">
