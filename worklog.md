@@ -3463,3 +3463,54 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (28s)
 - Committed + pushed: b0b0894..068acf1 main -> main
+
+---
+Task ID: 62
+Agent: Main Agent
+Task: Jurisdictional intelligence, attestation centering, ALOA panel refinements
+
+Work Log:
+
+1. JURISDICTIONAL & STATE CONTEXT INTELLIGENCE
+   - FirmDetails.defaultStateOfPractice field added (types.ts)
+   - FirmDetailsForm: State of Practice dropdown (16 states + FCT)
+   - New src/utils/jurisdictionConfig.ts — central registry with court
+     captions, procedural rules, judicial divisions for each state
+   - buildJurisdictionContextBlock() injects firm jurisdiction into AI prompt
+   - buildJurisdictionalReasoning() determines court hierarchy from prompt
+
+2. AI AUTO-DETERMINES COURT HIERARCHY
+   - geminiService.ts streamDraft: reads firmDetails.defaultStateOfPractice
+     and injects full jurisdiction context (replaces hardcoded Delta/Lagos)
+   - aloaPrompts.ts: parameterized LITIGATION_SKELETON_INSTRUCTION to
+     reference the JURISDICTIONAL CONTEXT block instead of hardcoding Lagos
+
+3. JURISDICTIONAL REASONING IN CHAT
+   - New JurisdictionReasoning component — collapsible card showing
+     selected court + jurisdiction + expandable reasoning
+   - Attached to model messages when start_drafting fires
+   - Status now shows: 'Drafting in Lagos — IN THE HIGH COURT OF LAGOS'
+
+4. ATTESTATION BLOCK CENTER-ALIGNMENT
+   - aloaPrompts.ts: explicit center-alignment instruction for
+     'BEFORE ME, ____ COMMISSIONER FOR OATHS' in VEGA + ATRIUM protocols
+   - geminiService.ts: global ATTESTATION BLOCK RULE in system instruction
+
+5. ALOA PANEL UI REFINEMENTS
+   - Panel width: 480px → 400px, corner radius 32px → 28px
+   - Copy button removed from toolAction messages (output is a structured
+     document, not copyable text). Edit/Save-to-Notes remain.
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (28s)
+- Committed + pushed: 068acf1..bff4dfd main -> main
+
+NOT YET IMPLEMENTED (deferred — complex, needs more design):
+- Unified Heading Section Component (corporate vs court process headings
+  in HeaderDesigner/HeaderRenderer)
+- Dynamic Court Heading Margin Rules (top margin fix for court processes)
+- Multi-Process Document Bundling (sync headings across bundled docs +
+  sequential numbering protocol)
+These require deeper refactoring of the HeaderDesigner/HeaderRenderer
+system and will be addressed in a follow-up task.
