@@ -3357,3 +3357,67 @@ Stage Summary:
 - 3-layer protection: manifest status + CI smoke test + client gate
 - 5-minute stable delay catches runtime issues before prompting
 - Manual rollback available via version.json status='broken'
+
+---
+Task ID: 60
+Agent: Main Agent
+Task: Fix AI cannot read uploaded documents (PDF/DOCX/TXT)
+
+Work Log:
+User reported: when uploading a document to ALOA, the AI still asks
+for the document to be specified — meaning attachments were not being
+passed to Gemini. User noted 'Aldia does this so there should be a
+clear link of features.'
+
+ROOT CAUSE:
+The old attachment handling in geminiService.ts fetched files from
+Convex storage and passed them to Gemini as inlineData. This failed
+for PDFs because:
+  1. btoa() throws on large binary strings (>~10MB)
+  2. Gemini's inlineData has practical size limits
+  3. The mimeType from Convex storage was often empty or octet-stream
+  4. PDFs need text extraction, not raw binary passthrough
+
+FIX — New attachmentProcessor utility:
+src/utils/attachmentProcessor.ts
+
+Extracts text client-side from uploaded documents before sending to
+Gemini:
+  - PDF  → pdfjs-dist (already in codebase, used by AloaXView)
+           Extracts text from all pages (cap: 50 pages / 50k chars)
+           Falls back to inlineData for scanned/image PDFs
+  - DOCX → JSZip (already in IngestionAgent)
+           Extracts text from word/document.xml
+  - TXT/MD/CSV/JSON → FileReader.readAsText
+  - Images (PNG/JPG) → passed as inlineData (Gemini handles natively)
+
+The extracted text is prepended to the message as a context block:
+  'The user has uploaded N document(s). Here is the extracted text
+   content for your analysis: --- ATTACHED DOCUMENT: filename.pdf ---
+   <text> --- END OF DOCUMENT ---'
+
+WIRING:
+- geminiService.ts sendMessage: replaced old btoa() loop with
+  processAttachments() call
+- geminiService.ts streamMessage: same replacement
+- Both paths now pass attachmentNames so the AI knows filenames
+- AloaChat status now shows 'Reading N documents…' (plural-aware)
+
+ERROR HANDLING:
+- If text extraction fails (e.g. scanned PDF too large), the AI is
+  told: 'Some attachments could not be processed: filename: reason'
+- If a PDF has no text layer, it's passed as inlineData so Gemini
+  can attempt OCR
+- Unsupported file types are reported to the AI so it can tell the user
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (28s)
+- Committed + pushed: 5086d7d..b0b0894 main -> main
+
+Stage Summary:
+- Upload a PDF → AI reads the full text and can answer questions
+- Upload a DOCX → AI reads the extracted text
+- Upload an image → AI sees it natively (inlineData)
+- Upload a TXT/MD/CSV → AI reads the content
+- Status shows 'Reading N documents…' during processing
