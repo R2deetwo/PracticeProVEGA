@@ -3203,3 +3203,77 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (28s)
 - Committed + pushed: 67e1dd9..38fa204 main -> main
+
+---
+Task ID: 58
+Agent: Main Agent
+Task: DraftPro system optimization & UI refinement
+
+Work Log:
+Comprehensive DraftPro enhancements across 5 areas per user spec.
+
+1. VERSION TOAST (VersionRefreshBanner.tsx)
+   - Removed commit hash from text → clean:
+     'A new version is available. Refresh to get the latest updates.'
+   - Smooth slide-up entrance (translate-y-[120%] → translate-y-0, 300ms)
+   - Smooth slide-down dismissal (reverse, on dismiss AND natural clear)
+   - Uses visible/exiting state machine for animation lifecycle
+
+2. CANVAS & LAYOUT SPACING (DraftProEditor.tsx)
+   - Top padding pt-6 (24px) → pt-12 (48px) — sheet floats in center stage
+   - Placeholder color-coding: enhanced resolveCategory() in
+     LegalPlaceholder.tsx with pattern-based fallback (NAME→parties,
+     DATE→dates, AMOUNT→financial, ADDRESS→location, COURT→court,
+     FIRM→firm). Exported and used in DraftProEditor's draft processing
+     so AI-generated placeholders get correct colors even when not in
+     the explicit registry.
+
+3. RIBBON TOOLBAR REFINEMENTS (DraftProEditor.tsx)
+   - Slimmer profile: items-start alignment, py-1 button row
+   - Uniform h-[12px] label baseline — all section labels on same line
+   - New Document button (NewDocumentIcon) in FILE group — clears
+     editor, resets title, confirms unsaved changes
+   - Replaced gear icon on Header button with DocumentHeaderIcon
+     (page with highlighted top section — represents letterhead)
+   - Redraft modal verified clean (from Task 53)
+
+4. DOCUMENT GENERATION LIFECYCLE (DraftProEditor.tsx + GenerationOverlay.tsx)
+   - Removed dark/grey overlay — canvas stays crisp white
+   - GenerationOverlay is now a small pill at top-center (spinner + label)
+   - Text streams DIRECTLY onto the page as it generates (throttled 4/sec)
+   - Final cleanup pass converts [LABEL] → color-coded placeholders
+   - Idempotent loading verified (from Task 53)
+
+5. ALOA/ARIA SESSION PERSISTENCE & TAB-DRIVEN DESKTOP WORKFLOW
+   - New src/utils/aloaSession.ts:
+     * saveAloaSession/loadAloaSession — persists activeConversationId
+     * Restores on mount within 1-hour window
+   - New src/utils/draftTabs.ts:
+     * openDraftInTab() — opens in new tab on desktop (≥768px),
+       navigates in-place on mobile
+     * registerDraftTab() — heartbeat (5s) + beforeunload cleanup
+     * isDraftTabOpen() — dedup check before spawning
+     * Dead tabs pruned after 15s
+   - AloaProvider.tsx: persists activeConversationId on change,
+     restores last active on mount
+   - AloaChat.tsx start_drafting: opens in new tab on desktop,
+     focuses existing tab if already open
+   - AloaChat.tsx executeStoredAction: focuses existing tab for
+     'Open Item' instead of navigating in-place
+   - WordProcessor.tsx: parses URL query params (draftKey, title,
+     prompt) for tab-driven opens, registers with tab manager
+
+VERIFICATION:
+- tsc: clean for all modified files
+- vite build: succeeds (25s)
+- Committed + pushed: 38fa204..b62ab4e main -> main
+
+Stage Summary:
+- Version toast: clean text, smooth pop-up/pop-down animations
+- Canvas: elegant spacing, crisp white during generation
+- Placeholders: correct color-coding across all categories
+- Ribbon: slimmer, aligned labels, New button, proper Header icon
+- Generation: streams text live on white canvas, no dark overlay
+- ALOA: chat memory persists across navigation
+- Desktop: drafts open in dedicated tabs with dedup safeguards
+- 'Open Item' focuses the correct existing tab
