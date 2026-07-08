@@ -196,7 +196,7 @@ const HelpView: React.FC = () => {
                                     <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
                                     <div>
                                         <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is {assistantName}?</h4>
-                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? ' () is your AI-powered assistant and portfolio manager' : ' () is your AI-powered paralegal and practice manager'}. She drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
+                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? ' () is your AI-powered assistant and portfolio manager' : ' () is your AI-powered paralegal and practice manager'}. It drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
                                     </div>
                                 </div>
 
@@ -224,7 +224,7 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">The Integrated Note Taker</h4>
-                                    <p className="mb-2">{assistantName} includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within her chat panel.</p>
+                                    <p className="mb-2">{assistantName} includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within its chat panel.</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
                                         <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts perfectly transcribed into text.</li>
                                         <li><strong>Quick Save:</strong> Use the "Save to Matter" feature in the generated note to instantly store your typed or dictated memo safely into a Matter's Notebook.</li>
@@ -234,7 +234,7 @@ const HelpView: React.FC = () => {
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">{isProperty ? "Portfolio Brain (RAG)" : "Firm-Wide Brain (RAG)"}</h4>
-                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and she will cross-reference your specific uploaded documents to generate accurate results.</p>
+                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and it will cross-reference your specific uploaded documents to generate accurate results.</p>
                                 </div>
 
                                 <div>

@@ -284,32 +284,67 @@ export const sendMessage = async (
         modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel : 
         AI_CONFIG.gemini.defaultModel;
 
-    const contents: Content[] = history.map((msg): Content | null => {
+    const contents: Content[] = [];
+    for (const msg of history) {
         if (msg.role === 'tool' && msg.toolResult) {
-            return {
-                role: 'user', 
+            contents.push({
+                role: 'user',
                 parts: [{
                     functionResponse: {
                         name: msg.toolResult.toolName,
                         response: { result: msg.toolResult.output }
                     }
                 }]
-            };
+            });
+            continue;
         }
 
         if (msg.role === 'model' && msg.toolCalls) {
-            return {
+            contents.push({
                 role: 'model',
                 parts: msg.toolCalls.map(tc => ({
                     functionCall: { name: tc.name, args: tc.args }
                 }))
-            };
+            });
+            continue;
         }
 
         const text = typeof msg.content === 'string' ? stripPII(msg.content) : '';
-        if (!text) return null;
-        return { role: msg.role === 'user' ? 'user' : 'model', parts: [{ text }] };
-    }).filter((c): c is Content => c !== null);
+        const attachments = (msg as any).attachments as string[] | undefined;
+
+        if (!text && !attachments?.length) continue;
+
+        const parts: any[] = [];
+        if (text) parts.push({ text });
+
+        // Fetch attachments and include as inlineData
+        if (attachments && attachments.length > 0) {
+            for (const storageId of attachments) {
+                try {
+                    const fileUrl = `${CONVEX_URL}/api/storage/${storageId}`;
+                    const fileRes = await fetch(fileUrl);
+                    if (!fileRes.ok) continue;
+                    const blob = await fileRes.blob();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    const base64 = btoa(binary);
+                    parts.push({
+                        inlineData: {
+                            mimeType: blob.type || 'application/octet-stream',
+                            data: base64,
+                        }
+                    });
+                } catch (e) {
+                    console.warn('[sendMessage] Failed to fetch attachment:', storageId, e);
+                }
+            }
+        }
+
+        if (parts.length === 0) continue;
+        contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts });
+    }
 
     const modelsToTry = [preferredModelName, ...AI_CONFIG.gemini.fallbackPlan.filter(m => m !== preferredModelName)];
     let lastError = null;
@@ -450,11 +485,44 @@ export const streamMessage = async (
         modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel :
         (AI_CONFIG.gemini as any).flashModel || AI_CONFIG.gemini.defaultModel;
 
-    const contents: Content[] = history.map((msg): Content | null => {
+    const contents: Content[] = [];
+    for (const msg of history) {
         const text = typeof msg.content === 'string' ? stripPII(msg.content) : '';
-        if (!text || msg.role === 'tool') return null;
-        return { role: msg.role === 'user' ? 'user' : 'model', parts: [{ text }] };
-    }).filter((c): c is Content => c !== null);
+        if (msg.role === 'tool' || (!text && !(msg as any).attachments?.length)) continue;
+
+        const parts: any[] = [];
+        if (text) parts.push({ text });
+
+        // If the message has file attachments, fetch and include them as inlineData
+        const attachments = (msg as any).attachments as string[] | undefined;
+        if (attachments && attachments.length > 0) {
+            for (const storageId of attachments) {
+                try {
+                    const fileUrl = `${CONVEX_URL}/api/storage/${storageId}`;
+                    const fileRes = await fetch(fileUrl);
+                    if (!fileRes.ok) continue;
+                    const blob = await fileRes.blob();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    // Convert to base64
+                    const bytes = new Uint8Array(arrayBuffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    const base64 = btoa(binary);
+                    parts.push({
+                        inlineData: {
+                            mimeType: blob.type || 'application/octet-stream',
+                            data: base64,
+                        }
+                    });
+                } catch (e) {
+                    console.warn('[Stream] Failed to fetch attachment:', storageId, e);
+                }
+            }
+        }
+
+        if (parts.length === 0) continue;
+        contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts });
+    }
 
     const clientKey = firmKey || getGeminiApiKey();
     if (!clientKey) throw new Error('No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration');

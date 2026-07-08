@@ -213,7 +213,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         description: 'PracticePro now features a production-grade Procedural Intelligence engine. We have unified our architecture to bring court rules, statutes, and case law directly into your firm\'s database for fast, bandwidth-efficient research.',
         features: [
             { icon: 'shield', label: 'Unified Legal Repository', text: 'All legal modules (Lagos HC Rules, FHC Rules, NWLR) are now hosted natively in your firm\'s Convex environment. Reduced cross-service latency and significantly lower data bandwidth usage.' },
-            { icon: 'brain', label: 'Procedural Awareness', text: 'ARIA is now aware of specific Nigerian court rules. She can provide step-by-step guidance for originating processes, motions, and enforcement based on verified legal modules.' },
+            { icon: 'brain', label: 'Procedural Awareness', text: 'ARIA is now aware of specific Nigerian court rules. It can provide step-by-step guidance for originating processes, motions, and enforcement based on verified legal modules.' },
             { icon: 'search', label: 'Usage Analytics & Tracking', text: 'Firm administrators can now track module usage and AI token consumption via the new Legal Intelligence tab in the ppIndex dashboard.' },
         ],
     },
@@ -222,11 +222,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.10.0',
         date: '2026-03-24',
         title: 'ARIA: Your Administrative Assistant',
-        description: 'ARIA is stepping out of the library and into the office. She now understands your entire firm\'s schedule and can assist with team availability, tasks, and scheduling.',
+        description: 'ARIA is stepping out of the library and into the office. It now understands your entire firm\'s schedule and can assist with team availability, tasks, and scheduling.',
         features: [
-            { icon: 'calendar', label: 'Top-Level Scheduling Intelligence', text: 'ARIA now has a 14-day chronological radar. Ask "Who is free next week?" and she will cross-reference your team\'s calendar and provide availability insights.' },
-            { icon: 'bolt', label: 'Instant Task Delegation', text: 'Ask ARIA to schedule a meeting with a client or delegate a task to a team member based on their schedule, and she will immediately prep the required workflow forms for you.' },
-            { icon: 'brain', label: 'Contextual Matter Awareness', text: 'When you talk to ARIA while viewing a Matter Dashboard, she automatically pulls in all relevant pending tasks, events, and documents to give you hyper-specific insights without you having to ask.' },
+            { icon: 'calendar', label: 'Top-Level Scheduling Intelligence', text: 'ARIA now has a 14-day chronological radar. Ask "Who is free next week?" and it will cross-reference your team\'s calendar and provide availability insights.' },
+            { icon: 'bolt', label: 'Instant Task Delegation', text: 'Ask ARIA to schedule a meeting with a client or delegate a task to a team member based on their schedule, and it will immediately prep the required workflow forms for you.' },
+            { icon: 'brain', label: 'Contextual Matter Awareness', text: 'When you talk to ARIA while viewing a Matter Dashboard, it automatically pulls in all relevant pending tasks, events, and documents to give you hyper-specific insights without you having to ask.' },
         ],
     },
     {
@@ -271,7 +271,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.6.0',
         date: '2026-03-04',
         title: 'Deep Intelligence & Temporal Awareness',
-        description: 'ARIA is now significantly smarter. She can read full documents via ALDIA and understands exactly what date it is today to help with your schedule.',
+        description: 'ARIA is now significantly smarter. It can read full documents via ALDIA and understands exactly what date it is today to help with your schedule.',
         features: [
             { icon: 'document', label: 'ALDIA Integration', text: 'ARIA can now call the ALDIA agent tool to provide deep semantic summaries and risk analysis of your documents.' },
             { icon: 'calendar', label: 'Time Awareness', text: 'Fixed chronological context: ARIA now knows the current date and time to correctly identify upcoming matters.' },
@@ -283,7 +283,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.5.0',
         date: '2026-03-04',
         title: 'ARIA Brain — Semantic Memory',
-        description: 'ARIA now has long-term memory. She searches your firm\'s documents and notes semantically, giving answers grounded in your real case files.',
+        description: 'ARIA now has long-term memory. It searches your firm\'s documents and notes semantically, giving answers grounded in your real case files.',
         features: [
             { icon: 'brain', label: 'AI Brain', text: 'Vector-powered semantic memory. ARIA retrieves only the most relevant context.' },
             { icon: 'search', label: 'Smart Search', text: 'Firm data is indexed automatically. Ask ARIA anything about your documents.' },
