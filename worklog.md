@@ -3742,3 +3742,39 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (29s)
 - Committed + pushed: db4628e..fbf022c main -> main
+
+---
+Task ID: 69
+Agent: Main Agent
+Task: Fix documents header, units overview, logout, mic permission, ALOA modals
+
+Work Log:
+
+1. DOCUMENTS PAGE HEADER
+   - Changed text-lg sm:text-2xl → text-xl sm:text-3xl to match Matters/Tasks/Contacts
+
+2. UNITS OVERVIEW RESTORED IN KOMPLETE
+   - StatsWidget used isProperty (isAtrium) for feature gating
+   - Replaced with hasPropertyFeatures (isAtrium || isUnified)
+   - Managed Units card now shows in Komplete mode
+
+3. LOGOUT — NO 'LEAVE PAGE?' DIALOG
+   - window.location.href → window.location.replace()
+   - replace() doesn't trigger beforeunload, replaces history entry
+   - 50ms delay for React flush
+
+4. MICROPHONE PERMISSION
+   - New microphonePermission.ts utility
+   - Native-app-themed error messages for APK
+   - Browser-themed error messages for web
+   - Pre-request flow before getUserMedia
+
+5. ALOA MODAL OPENING — DOCKED MODAL VISIBLE
+   - DockedModal z-index raised from z-[120] to z-[2100]/z-[2101]
+   - Now renders above ALOA panel (z-[2000])
+   - Modals triggered by ALOA are now visible
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (28s)
+- Committed + pushed: 8112e0d..a98c10d main -> main
