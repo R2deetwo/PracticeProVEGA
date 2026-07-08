@@ -3081,3 +3081,48 @@ Stage Summary:
   the user to refresh with one click
 - The same build pipeline also works for the APK (Capacitor bundle
   ignores the version check at runtime)
+
+---
+Task ID: 55
+Agent: Main Agent
+Task: Wire up Vercel production deploy in CI (parallel to dev auto-deploy)
+
+Work Log:
+- User reported pushes were landing on the dev Vercel project, not the
+  production project (practice-pro-vega). Both projects exist; the
+  native Vercel-GitHub integration was wired to the dev project.
+- User wants both projects to update simultaneously on every push.
+- User added three GitHub secrets: VERCEL_TOKEN, VERCEL_ORG_ID,
+  VERCEL_PROJECT_ID (the production project's IDs).
+
+CI WORKFLOW CHANGE (.github/workflows/build-apk.yml):
+- Added three HAS_VERCEL_* env booleans at the job level so step
+  if-conditions can reference them.
+- Added 'Deploy to Vercel (production project)' step using the
+  official Vercel CI/CD pattern:
+    1. npm install -g vercel@latest
+    2. vercel pull --yes --environment=production (downloads settings + env vars)
+    3. vercel build --prod (builds using Vercel's build system)
+    4. vercel deploy --prebuilt --prod --yes (deploys the built output)
+- The VERCEL_ORG_ID and VERCEL_PROJECT_ID env vars tell the CLI which
+  project to target — this targets the PRODUCTION project regardless
+  of any local .vercel/ link file.
+- continue-on-error: true so APK builds are never blocked.
+- Added a diagnostic 'Vercel deploy skipped' step that prints which
+  secrets are missing if any are absent.
+- The step runs AFTER 'Build web app' and BEFORE 'Sync Capacitor' so
+  the APK pipeline isn't delayed by Vercel.
+
+RESULT:
+- Every push to main now triggers:
+  1. Vercel native auto-deploy → dev/preview project (unchanged)
+  2. Vercel CLI deploy → production project (practice-pro-vega) (new)
+  3. Convex backend deploy (unchanged)
+  4. APK build (unchanged)
+- Both Vercel projects update simultaneously as the user requested.
+
+VERIFICATION:
+- YAML syntax: valid
+- Committed + pushed: 8ea4ba1..bf841c7 main -> main
+- Next CI run will show whether the Vercel deploy succeeds — check
+  the Actions log for the 'Deploy to Vercel (production project)' step.
