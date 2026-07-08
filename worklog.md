@@ -3698,3 +3698,47 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (27s)
 - Committed + pushed: b68ab47..db4628e main -> main
+
+---
+Task ID: 67
+Agent: Main Agent
+Task: Search scroll, legal modal, ALOA widen+textarea, splash fix
+
+Work Log:
+
+1. GLOBAL SEARCH ARROW KEY SCROLL FIX
+   - Root cause: listRef.current.children[selectedIndex] was off-by-one
+     due to wrapper <div className="space-y-1">
+   - Fix: data-index attribute + querySelector for correct element
+   - Smooth scrollIntoView with block: 'nearest'
+
+2. LEGAL MODAL — CLEAN NAVIGATION
+   - 'Open Full Page' closes modal (onClose) before navigating
+   - Web: navigates to /terms-of-service or /privacy-policy (clean, no sidebar)
+   - APK: opens in external browser via window.open(url, '_blank')
+   - Versioned acceptance (TERMS_VERSION) — only triggers on first login
+     OR version change, not every login
+
+3. ALOA PANEL WIDENED
+   - Desktop: 400px → 520px
+   - Shift amount: 520px (matches new width)
+
+4. ALOA CHAT INPUT — TEXTAREA
+   - Converted <input> → <textarea> with auto-grow
+   - Enter = newline (drafting structured queries)
+   - Ctrl+Enter OR Cmd+Enter = send
+   - Send button still works
+   - Max height 120px, then internal scroll
+
+5. SPLASH SCREEN STUCK FIX
+   - Root cause: if isDataLoaded never became true, splash stayed on
+     screen because hasInitialSplashFinished required both
+     splashAnimationComplete AND isDataLoaded
+   - Fix: 12s safety timeout now also sets splashAnimationComplete=true
+     and hasInitialSplashFinished=true — splash dismisses even if
+     data load fails
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (29s)
+- Committed + pushed: db4628e..fbf022c main -> main
