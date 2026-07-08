@@ -62,6 +62,7 @@ import SplashScreen from './SplashScreen';
 import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
+import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 import DemoProductSwitcher from './DemoProductSwitcher';
 
 import { LandingPage } from './LandingPage';
@@ -558,6 +559,10 @@ export const App: React.FC = () => {
     const [portalRememberTimedOut, setPortalRememberTimedOut] = useState(false);
     const [hasInitialSplashFinished, setHasInitialSplashFinished] = useState(false);
     const [splashAnimationComplete, setSplashAnimationComplete] = useState(false);
+    // ─── Terms & Conditions acceptance gate ──────────────────────────────
+    // Shows on first app access. Once accepted, the user isn't prompted again
+    // unless the terms version changes (bump TERMS_VERSION in TermsAcceptance.tsx).
+    const [needsTermsAcceptance, setNeedsTermsAcceptance] = useState(false);
     const isEditorMode = view === 'editor';
 
     // #3 — Auto-open login modal when arriving via a password-reset magic link
@@ -1185,8 +1190,21 @@ export const App: React.FC = () => {
     useEffect(() => {
         if (splashAnimationComplete && isDataLoaded) {
             setHasInitialSplashFinished(true);
+            // After splash + data load, check if the user needs to accept
+            // the Terms & Conditions. Only show for authenticated users
+            // (not on the landing page or login screen).
+            if (currentUser && !hasAcceptedCurrentTerms()) {
+                setNeedsTermsAcceptance(true);
+            }
         }
-    }, [splashAnimationComplete, isDataLoaded]);
+    }, [splashAnimationComplete, isDataLoaded, currentUser]);
+
+    // Also check on login (when currentUser changes from null to a value)
+    useEffect(() => {
+        if (currentUser && hasInitialSplashFinished && !hasAcceptedCurrentTerms()) {
+            setNeedsTermsAcceptance(true);
+        }
+    }, [currentUser, hasInitialSplashFinished]);
 
     return (
         <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
@@ -1214,6 +1232,19 @@ export const App: React.FC = () => {
             {/* What's New only for admin/firm users, not portal users */}
             {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
             <CookieConsent />
+            {/* Terms & Conditions acceptance gate — shows on first access
+                or when the terms version changes. */}
+            {needsTermsAcceptance && (
+                <TermsAcceptance
+                    onAccepted={() => setNeedsTermsAcceptance(false)}
+                    onDeclined={() => {
+                        // Log the user out if they decline
+                        try { localStorage.removeItem('practicepro_user_session'); } catch {}
+                        try { localStorage.removeItem('practicepro_portal_session'); } catch {}
+                        window.location.href = '/';
+                    }}
+                />
+            )}
             {/* Detects new deploys and prompts the user to refresh — bypasses
                 browser/CDN caches that may serve stale HTML/JS. */}
             <VersionRefreshBanner />
