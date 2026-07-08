@@ -3606,3 +3606,53 @@ VERIFICATION:
 - tsc: clean
 - vite build: succeeds (30s)
 - Committed + pushed: f7e72f4..cddc389 main -> main
+
+---
+Task ID: 65
+Agent: Main Agent
+Task: Version.json health, page detachment, template saver, help merge, Komplete ALOA
+
+Work Log:
+
+1. VERSION.JSON HEALTH FIX (refresh floater not showing)
+   - Root cause: smoke test updated public/version.json to 'healthy' AFTER
+     the Vercel build. `vercel deploy --prebuilt` used the old build output
+     which still had status='building'.
+   - Fix: copy updated version.json into .vercel/output/static/ before
+     redeploying. Added verification step to confirm deployed status.
+
+2. PAGE DETACHMENT
+   - pt-16 (64px) → pt-20 (80px) for more generous gap
+
+3. TEMPLATE SAVER (was completely broken)
+   - Root cause: (window as any).dataActions was never assigned → always
+     failed with 'Storage service unavailable'
+   - Fix: use useDataActions() addItem() from React context
+   - Clarified modal text: explains what templates do + how to reuse via ALOA
+
+4. PARTIES BUTTON — CONTEXT-AWARE
+   - Court process: inserts LegalPartiesGroup (CLAIMANTS/DEFENDANTS)
+   - Letter/notice: inserts right-aligned signature block
+
+5. CONTENT PROTECTION MOVED
+   - From DataManagementSettings → SecuritySettings (below 2FA)
+
+6. BIOMETRICS UI ADDED
+   - New BiometricSection in SecuritySettings
+   - Web: 'available on mobile app' message
+   - Native: Enable/Disable button with availability check
+
+7. HELP SECTIONS MERGED
+   - Settings → Help now renders HelpView (Help Center)
+   - Fixed literal 'Mastering {assistantName}' → proper template literal
+   - Added 'Searches practice-pro docs only — no online results' note
+   - Ask button tooltip clarifies it asks AI about app features
+
+8. KOMPLETE DEFAULTS TO ALOA
+   - isProperty = isAtrium (was isAtrium || isUnified)
+   - Komplete now uses ALOA; ARIA only in pure Atrium mode
+
+VERIFICATION:
+- tsc: clean
+- vite build: succeeds (29s)
+- Committed + pushed: cddc389..bffe297 main -> main
