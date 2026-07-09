@@ -4,7 +4,6 @@ import { ResearchMessage, ResearchSource } from '../../types';
 import { ResearchIcon, SendIcon, UserCircleIcon } from '../../constants';
 import Tooltip from '../Tooltip';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
-import { format } from 'date-fns';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { sanitize } from '../../utils/sanitization';
@@ -18,9 +17,24 @@ interface ResearchChatProps {
     onSendMessage: (notebookId: string, content: string, sourceIds?: string[]) => void;
 }
 
+// Safe timestamp formatter — won't crash on invalid dates
+function safeFormatTime(timestamp: string | undefined): string {
+    try {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return '';
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    } catch {
+        return '';
+    }
+}
+
 const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[] }> = ({ message, sources }) => {
     const isUser = message.role === 'user';
-    const contentHtml = parseAloaMarkdown(message.content);
+    const isThinking = (message as any).isThinking === true;
+
+    // Don't parse markdown for thinking messages — just show a spinner
+    const contentHtml = isThinking ? '' : parseAloaMarkdown(message.content || '');
 
     return (
         <div className={`flex w-full mb-5 ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
@@ -43,11 +57,20 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                             : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm'
                         }
                     `}>
-                        <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }} />
+                        {isThinking ? (
+                            <div className="flex items-center gap-1.5 py-1">
+                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                <span className="text-xs text-slate-400 ml-1">Analyzing sources...</span>
+                            </div>
+                        ) : (
+                            <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }} />
+                        )}
                     </div>
 
                     {/* Citations Footer (AI Only) */}
-                    {!isUser && message.citations && message.citations.length > 0 && (
+                    {!isUser && !isThinking && message.citations && message.citations.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1.5 pl-1">
                             {message.citations.map((citation, index) => {
                                 const source = sources.find(s => s.id === citation.sourceId);
@@ -64,9 +87,9 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                         </div>
                     )}
 
-                    {/* Timestamp */}
+                    {/* Timestamp — safe formatted */}
                     <span className="text-[10px] text-slate-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {format(new Date(message.timestamp), 'h:mm a')}
+                        {safeFormatTime(message.timestamp)}
                     </span>
                 </div>
             </div>
@@ -125,6 +148,10 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
         e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`;
     };
 
+    // Check if the last message is a "thinking" AI message
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const isAiThinking = lastMessage?.role === 'model' && (lastMessage as any).isThinking === true;
+
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-zinc-900/50 relative overflow-hidden">
 
@@ -178,23 +205,8 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                     ) : (
                         <div className="pb-4">
                             {messages.map(msg => (
-                                <ChatBubble key={msg.id} message={msg} sources={sources} />
+                                <ChatBubble key={msg.id || Math.random()} message={msg} sources={sources} />
                             ))}
-                            {/* Typing indicator */}
-                            {messages.length > 0 && messages[messages.length - 1]?.role === 'user' && (
-                                <div className="flex w-full mb-5 justify-start animate-fade-in-up">
-                                    <div className="flex max-w-[85%] gap-2.5 flex-row">
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-blue-600">
-                                            <ResearchIcon className="w-4 h-4" />
-                                        </div>
-                                        <div className="px-4 py-3 rounded-2xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-tl-sm shadow-sm flex items-center gap-1.5">
-                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                            <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
@@ -209,13 +221,14 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             value={input}
                             onChange={handleInput}
                             onKeyDown={handleKeyDown}
-                            placeholder="Ask about your sources... (Enter to send)"
-                            className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 placeholder-slate-400 focus:ring-0 min-w-0 resize-none max-h-36 min-h-[36px] custom-scrollbar"
+                            placeholder={isAiThinking ? "AI is analyzing..." : "Ask about your sources... (Enter to send)"}
+                            disabled={isAiThinking}
+                            className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 placeholder-slate-400 focus:ring-0 min-w-0 resize-none max-h-36 min-h-[36px] custom-scrollbar disabled:opacity-50"
                             style={{ overflowY: input.split('\n').length > 1 ? 'auto' : 'hidden' }}
                         />
                         <button
                             onClick={handleSend}
-                            disabled={!input.trim()}
+                            disabled={!input.trim() || isAiThinking}
                             className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0 shadow-sm"
                         >
                             <SendIcon className="w-4 h-4" />

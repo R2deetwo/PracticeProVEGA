@@ -14,6 +14,7 @@ import { ResearchChat } from './research/ResearchChat';
 import { ResearchStudio } from './research/ResearchStudio';
 import LawReportsView from './research/LawReportsView';
 import NotesView from './NotesView';
+import ErrorBoundary from './ErrorBoundary';
 import { ChevronRightIcon, LockClosedIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
 
@@ -261,13 +262,15 @@ const ResearchView: React.FC = () => {
             </div>
 
             <div className="flex-grow min-h-0 overflow-hidden">
-                {activeTab === 'research_notes' && renderMyResearch()}
-                {activeTab === 'case_law' && <LawReportsView />}
-                {activeTab === 'notes' && (
-                    <div className="h-full overflow-hidden p-0 bg-transparent">
-                        <NotesView noBox={true} />
-                    </div>
-                )}
+                <ErrorBoundary>
+                    {activeTab === 'research_notes' && renderMyResearch()}
+                    {activeTab === 'case_law' && <LawReportsView />}
+                    {activeTab === 'notes' && (
+                        <div className="h-full overflow-hidden p-0 bg-transparent">
+                            <NotesView noBox={true} />
+                        </div>
+                    )}
+                </ErrorBoundary>
             </div>
         </div>
     );

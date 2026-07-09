@@ -132,13 +132,44 @@ SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on 
                 },
             });
 
-            const responseText = response.text || 'No response generated.';
+            const responseText = response.text || 'No response generated. Please try rephrasing your question.';
 
             // 5. Update the AI message with the response
-            await actions.updateItem('researchMessages', { id: aiMsgId, content: responseText, isThinking: false }, 'Message');
+            // Use try-catch in case updateItem fails — the message will still
+            // be in local state even if the Convex update fails
+            try {
+                await actions.updateItem('researchMessages', { id: aiMsgId, content: responseText, isThinking: false }, 'Message');
+            } catch (updateErr) {
+                console.warn('[Research] updateItem failed, message may be stuck in thinking state:', updateErr);
+                // Force-remove from local state and re-add with the response
+                actions.removeItemFromState('researchMessages', aiMsgId);
+                actions.addItem('researchMessages', {
+                    id: aiMsgId,
+                    firmId: currentUser?.firmId,
+                    notebookId,
+                    content: responseText,
+                    role: 'model',
+                    timestamp: new Date().toISOString(),
+                    isThinking: false,
+                }, 'Message');
+            }
         } catch (err: any) {
             console.error('[Research] AI query failed:', err);
-            await actions.updateItem('researchMessages', { id: aiMsgId, content: `Analysis failed: ${err.message || 'Unknown error'}`, isThinking: false }, 'Message');
+            const errorContent = `I couldn't analyze the sources. ${err.message || 'Please check your API key in Settings → AI Settings and try again.'}`;
+            try {
+                await actions.updateItem('researchMessages', { id: aiMsgId, content: errorContent, isThinking: false }, 'Message');
+            } catch (updateErr) {
+                actions.removeItemFromState('researchMessages', aiMsgId);
+                actions.addItem('researchMessages', {
+                    id: aiMsgId,
+                    firmId: currentUser?.firmId,
+                    notebookId,
+                    content: errorContent,
+                    role: 'model',
+                    timestamp: new Date().toISOString(),
+                    isThinking: false,
+                }, 'Message');
+            }
         }
     }, [currentUser, actions]);
 
