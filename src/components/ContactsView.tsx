@@ -6,6 +6,7 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useMatterState } from '../contexts/MatterContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useDataState } from '../contexts/DataContext';
+import { useTerminology } from '../contexts/ProductContext';
 import { PlusIcon, GoogleIcon, ContactsIcon, SearchIcon, RevertIcon } from '../constants';
 import { useHighlight } from '../hooks/useHighlight';
 import EmptyState from './EmptyState';
@@ -55,12 +56,15 @@ const ContactListContent: React.FC<{
     onCategoryChange: (category: string) => void;
     selectedId?: string | null;
     leads?: Lead[];
-}> = ({ contacts, contactCategories, openModal, onViewDetails, activeCategory, onCategoryChange, selectedId, leads }) => {
+    contactsLabel?: string;
+}> = ({ contacts, contactCategories, openModal, onViewDetails, activeCategory, onCategoryChange, selectedId, leads, contactsLabel }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'contacts');
     const { coreState, isDataLoaded } = useCoreState();
     const { handleSyncGoogleContacts } = useDataActions();
     const { openModal: openQuickLook, addToast } = useUI();
+    // Default to 'Contacts' if not passed (back-compat).
+    const label = contactsLabel || 'Contacts';
     const isGoogleContactsConnected = coreState?.firmDetails?.integrations?.googleContacts || false;
     const [searchTerm, setSearchTerm] = useState('');
     const [isSyncing, setIsSyncing] = useState(false);
@@ -119,7 +123,7 @@ const ContactListContent: React.FC<{
             {/* Header Section */}
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Contacts</h2>
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{label}</h2>
                     <div className="flex items-center gap-2">
                         {/* Import button removed — feature not yet implemented.
                             Re-add when CSV/vCard import is ready. */}
@@ -134,9 +138,9 @@ const ContactListContent: React.FC<{
 
                 <div className="relative mb-3">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input autoComplete="off" data-lpignore="true" 
+                    <input autoComplete="off" data-lpignore="true"
                         type="text"
-                        placeholder="Search contacts..."
+                        placeholder={`Search ${label.toLowerCase()}…`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
@@ -169,10 +173,10 @@ const ContactListContent: React.FC<{
                     </div>
                 ) : (
                     <EmptyState
-                        title="No Contacts"
+                        title={`No ${label}`}
                         description={searchTerm ? "No matches found." : "Your list is empty."}
                         icon={<ContactsIcon className="w-full h-full" />}
-                        actionLabel={!searchTerm ? "Create Contact" : undefined}
+                        actionLabel={!searchTerm ? `Add ${label.replace(/s$/, '')}` : undefined}
                         onAction={!searchTerm ? openModal : undefined}
                     />
                 )}
@@ -187,6 +191,10 @@ const ContactsView: React.FC = () => {
     const { matterState } = useMatterState();
     const { coreState } = useCoreState();
     const { openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
+    // Product-aware terminology: 'Clients' for Vega, 'Residents' for Atrium,
+    // 'Contacts' for Komplete (covers all three: owners, residents, legal clients).
+    const terminology = useTerminology();
+    const contactsLabel = terminology.clients;
 
     const activeContactCategory = currentHistoryEntry.activeContactCategory || 'All';
     const onContactCategoryChange = (cat: string) => updateCurrentHistoryEntry({ activeContactCategory: cat });
@@ -202,6 +210,7 @@ const ContactsView: React.FC = () => {
                 onCategoryChange={onContactCategoryChange}
                 selectedId={selectedId}
                 leads={coreState.leads}
+                contactsLabel={contactsLabel}
             />
         </div>
     );

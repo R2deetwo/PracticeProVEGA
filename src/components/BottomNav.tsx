@@ -128,10 +128,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         }).length;
     }, [coreState.notifications, currentUser]);
 
-    const { isProperty, isUnified } = useProduct();
+    const { isProperty, isUnified, terminology } = useProduct();
 
 
-    const filteredNavItems = navItemsList.filter(item => {
+    // Apply product-aware labels to nav items (override the static 'Contacts' / 'Matters' labels).
+    const labeledNavItems = navItemsList.map(item => {
+        if (item.view === 'contacts') return { ...item, text: terminology.clients };
+        if (item.view === 'matters') return { ...item, text: terminology.matters };
+        return item;
+    });
+
+    const filteredNavItems = labeledNavItems.filter(item => {
         // Revenue monitor standalone view: hidden from bottom nav — Revenue
         // Monitor is now a tab inside the Financials page. We keep the
         // 'atriumEngine' view registered for backward compat (deep links

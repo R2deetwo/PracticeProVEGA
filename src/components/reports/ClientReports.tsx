@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Contact, InvoiceStatus } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
+import { useProduct } from '../../contexts/ProductContext';
 import StatCard from '../StatCard';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
@@ -50,14 +51,20 @@ interface ClientReportData extends Contact {
 const ClientReports: React.FC<ClientReportsProps> = () => {
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
+    // Product-aware: include 'Client' (legal) plus 'Landlord'/'Tenant'/'Resident'
+    // (property) so Atrium/Komplete firms don't see an empty report.
+    const { hasPropertyFeatures } = useProduct();
+    const clientCategories = hasPropertyFeatures
+        ? ['Client', 'Landlord', 'Tenant', 'Resident']
+        : ['Client'];
     const [dateRangeOption, setDateRangeOption] = useState<DateRangeOption>('all_time');
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' }>({ key: 'totalBilled', direction: 'desc' });
-    
+
     const { kpis, chartData, tableData } = useMemo(() => {
         const { matters, contacts } = matterState;
         const { invoices } = financeState;
-        
-        const clientContacts = contacts.filter(c => c.category === 'Client');
+
+        const clientContacts = contacts.filter(c => clientCategories.includes(c.category));
         const clientData = new Map<string, ClientReportData>(clientContacts.map(c => [c.id, {
             ...c, totalMatters: 0, activeMatters: 0, totalBilled: 0, outstanding: 0
         }]));
@@ -113,7 +120,7 @@ const ClientReports: React.FC<ClientReportsProps> = () => {
             },
             tableData
         };
-    }, [matterState, financeState, sortConfig]);
+    }, [matterState, financeState, sortConfig, clientCategories]);
 
     const requestSort = (key: SortKey) => {
         let direction: 'asc' | 'desc' = 'asc';

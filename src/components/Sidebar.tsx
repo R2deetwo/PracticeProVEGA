@@ -172,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
     const { isSidebarRetracted, openModal } = useUI();
-    const { isLegal, isProperty, isUnified, product, hasPropertyFeatures } = useProduct();
+    const { isLegal, isProperty, isUnified, product, hasPropertyFeatures, terminology } = useProduct();
     const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
 
     // Data fetching for workspaces
@@ -402,7 +402,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
                     <NavItemLink
-                        item={{ view: 'contacts', text: 'Contacts', icon: <ContactsIcon /> }}
+                        item={{ view: 'contacts', text: terminology.clients, icon: <ContactsIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
                 </NavSection>
