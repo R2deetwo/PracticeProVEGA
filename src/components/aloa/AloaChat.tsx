@@ -92,7 +92,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const { documentState } = useDocumentState();
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { deleteItem } = useDataActions();
+    const { deleteItem, handleAddResearchNotebook, handleAddResearchSource } = useDataActions();
     const { currentUser } = useAuth();
     const { navigateTo, openModal, openEditor, currentHistoryEntry, isOnline } = useUI();
     const { isProperty, isAtrium } = useProduct();
@@ -1064,6 +1064,82 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         setTimeout(() => setCopiedMessageId(null), 2000);
     };
 
+    // ─── Send to Research Studio ──────────────────────────────────────────
+    // Takes an uploaded document from the ALOA chat and sends it to the
+    // Research Studio as a new source in a new (or existing) notebook.
+    // The user can then do deeper analysis in the Research Studio with
+    // the AI-powered research chat.
+    const handleSendToResearch = async (msg: AloaMessage) => {
+        if (!msg.attachments || msg.attachments.length === 0) return;
+        const attachmentNames = msg.attachmentNames || msg.attachments.map(() => 'Uploaded Document');
+        const notebookName = `ALOA Research — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+
+        try {
+            // 1. Create a new research notebook
+            const notebook = handleAddResearchNotebook({
+                name: notebookName,
+                firmId: coreState?.firmDetails?.id || '',
+                userId: currentUser?.id || '',
+            });
+
+            if (!notebook?.id) {
+                addToast('Could not create research notebook.', { type: 'error' });
+                return;
+            }
+
+            // 2. Add each attachment as a source in the notebook
+            for (let i = 0; i < msg.attachments!.length; i++) {
+                const storageId = msg.attachments![i];
+                const name = attachmentNames[i] || `Document ${i + 1}`;
+
+                // Fetch the file content from Convex storage
+                try {
+                    const fileUrl = await convex.query(api.myFunctions.getFileUrl, { storageId });
+                    if (fileUrl) {
+                        // Fetch the file to get its content
+                        const res = await fetch(fileUrl);
+                        const blob = await res.blob();
+                        const text = await blob.text();
+
+                        handleAddResearchSource(notebook.id, {
+                            name,
+                            type: 'text',
+                            content: text || `Document uploaded from ALOA chat. File: ${name}`,
+                            file: {
+                                name,
+                                type: blob.type,
+                                size: blob.size,
+                                filePath: fileUrl,
+                                storageId,
+                            },
+                        });
+                    } else {
+                        // Fallback: add as a reference without content
+                        handleAddResearchSource(notebook.id, {
+                            name,
+                            type: 'text',
+                            content: `Document uploaded from ALOA chat. Storage ID: ${storageId}`,
+                        });
+                    }
+                } catch (e) {
+                    console.warn('[Send to Research] Failed to fetch attachment:', e);
+                    handleAddResearchSource(notebook.id, {
+                        name,
+                        type: 'text',
+                        content: `Document uploaded from ALOA chat. File: ${name}`,
+                    });
+                }
+            }
+
+            // 3. Navigate to the Research Studio with the new notebook selected
+            addToast(`Sent ${msg.attachments!.length} document(s) to Research Studio.`, { type: 'success' });
+            navigateTo('research', null, { selectedNotebookId: notebook.id });
+        } catch (e: any) {
+            console.error('[Send to Research] Failed:', e);
+            addToast('Could not send to Research Studio: ' + (e.message || 'Unknown error'), { type: 'error' });
+        }
+    };
+
     const executeStoredAction = (action: any) => {
         if (action.type === 'modal') {
             openModalRef.current(action.modalType, null, action.context);
@@ -1551,6 +1627,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             >
                                                 <BookmarkIcon className="w-2.5 h-2.5" />
                                                 Save
+                                            </button>
+                                        )}
+
+                                        {/* Send to Research — shown for user messages with attachments */}
+                                        {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
+                                            <button
+                                                onClick={() => handleSendToResearch(msg)}
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
+                                                title="Send to Research Studio for deeper analysis"
+                                            >
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                                </svg>
+                                                Research
                                             </button>
                                         )}
                                     </div>
