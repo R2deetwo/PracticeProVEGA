@@ -3937,3 +3937,49 @@ Remaining lower-priority items (deferred):
 - DocumentDetailView per-document product context for Komplete
 - BusinessIntelligenceReports product-aware tab visibility
 - ClientReports product-aware category filter
+
+---
+Task ID: pre-launch-audit-and-cleanup
+Agent: main
+Task: Pre-launch audit — fix user-reported bugs, deep modal audit, refactor and remove dead code, continue deferred items
+
+WAVE 1 — User-reported bugs + P0 modal fixes (commit 9d03af4)
+1. DraftPro splash in new tab: added isDraftProTab bypass in App.tsx auth-loaded useEffect
+2. DraftPro back button dead in new tab: UIContext.goBack() now falls back to window.history.back() when historyIndex === 0
+3. AI Notebooks refuse to delete: added recentlyDeletedRef tracking in DataProvider.tsx; firmData re-merge now filters out items in that set for 60s. Also made trash button always visible on touch devices.
+4. DraftPro detach button: removed hidden md:flex, bumped contrast, added aria-label
+5. DraftPro ribbon tooltips: added label prop to all unlabeled ToolbarBtn (Bold, Italic, Underline, Strikethrough, Subscript, Superscript, Align Left/Center/Right/Justify, Bullet List, Numbered List, Outdent, Indent)
+6. Matter 'Brief' tab removed: dropped 'overview' from MatterTab union, removed TabButton, removed default render branch with MatterBrief + BacklinksPanel
+7. 'Initialize Document' modal title → 'New Document'
+8. Modal sizing: promoted 8 forms to lg, demoted 2 to sm, moved feedback to md
+9. ComposeEmailModal 'Discard' → 'Cancel'
+10. UserForm absurd labels rewritten (Security Protocol/Onboarding Authorization → Invite a Team Member, Resource Label → Name, Communications URI → Email, Initialize Placeholder → Add User, Sync Changes → Save, etc.)
+11. ContactForm Property Portfolio accordion now product-aware (hidden for Vega-only firms)
+12. copyPage broken modal: call sites remapped to openModal('newPage', null, { copyFromPageId })
+13. Deleted dead files: GoogleDrivePickerModal.tsx, SmartPasteBox.tsx
+
+WAVE 2 — Form pattern migration + product-aware terminology (commit 525d279)
+14. Migrated 11 form files from Pattern B labelClass to Pattern A (text-[10px] font-black uppercase tracking-[0.2em] → text-xs font-semibold)
+15. Removed 12 dual-label eyebrows across ContactForm, TaskForm, EventForm, MatterForm
+16. InvoiceForm: rounded-3xl → rounded-xl, text-[9px] → text-xs on column headers
+17. TimeEntryForm + ExpenseForm: 'Case Association' → product-aware '{Property|Case} Association'
+18. LinkMatterToContactForm: full rewrite to use terminology.matter and terminology.client
+19. MatterForm: 'Create Matter' → 'Create {terminology.matter}', 'Save Changes' → 'Save'
+20. ModalManager: product-aware titles for linkMatterToContact, aloaHelp, workspaceSetup, demoUpsell
+21. Fixed pre-existing syntax bug in src/app/page.tsx (missing comma)
+
+WAVE 3 — Product-aware ContactsView, Sidebar, BottomNav, BI Reports (commit 0242d90)
+22. ContactsView: heading/search/empty-state/Create button now use terminology.clients
+23. Sidebar: 'Contacts' nav label → terminology.clients
+24. BottomNav: 'Contacts' → terminology.clients, 'Matters' → terminology.matters
+25. BusinessIntelligenceReports: tabs now product-aware (Vega: Case+Client, Atrium: Client+Property, Komplete: all three)
+26. ClientReports: category filter now includes Landlord/Tenant/Resident for property-bearing firms
+
+AUDIT FINDINGS (documented for future work)
+- Bidirectional backlinks: partially implemented — link parsing utilities exist in src/utils/linkParser.ts but extractLinks() is never called on save, so note.links is never populated and BacklinksPanel always returns null. Wiring this up requires: (a) calling extractLinks in NoteEditor savePendingChanges, (b) adding a links field to convex/schema.ts notePages table, (c) ensuring DataProvider persists the links field. The BacklinksPanel was mounted inside the removed Brief tab — when backlinks are wired up, it should be re-mounted into the Endorsements tab.
+- DraftPro freeform page layout (pages sitting on canvas detached from the vertical stack): significant new feature requiring per-page TipTap editor instances or a different rendering strategy. Needs product design before implementation.
+- PropertyForm 'Vend' typo: 'Minimum Vend' is used 17 times and is persisted in the schema (convex/schema.ts and types.ts). Fixing it would require a data migration — left as-is for now.
+
+Total commits: 3 (9d03af4, 525d279→0242d90)
+Total files changed: ~25
+All builds pass. All changes pushed to main + force-synced to master.
