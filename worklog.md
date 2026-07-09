@@ -3817,3 +3817,42 @@ Stage Summary:
 - Both APK and Vercel builds are now working
 - The refresh floater should now appear for users on the old version
 - version.json is correctly marked as "healthy" on production
+
+---
+Task ID: deploy-fix-1
+Agent: main
+Task: Fix inconsistent Vercel deployments — user reports changes sometimes don't show in webapp
+
+Work Log:
+- Diagnosed root cause: dual-deploy system (Vercel native GitHub integration + Vercel CLI in GH Actions) racing each other
+- The CLI deploy step had `continue-on-error: true` so failures were silent
+- prebuild wrote version.json with status="building"; CLI deploy was supposed to overwrite with status="healthy"
+- When CLI deploy failed silently, version.json was stuck at "building" forever
+- Client useVersionCheck hook only prompts refresh when status==="healthy" → users never saw updates
+- Verified production was stuck: sha=7297776 status=building builtAt=12:49 UTC (stale by 30+ min)
+
+Fixes Applied:
+1. Added scripts/mark-healthy.cjs — post-build step that marks version.json as "healthy" atomically after a successful Vite build
+2. Updated vercel.json buildCommand to "npm run build && node scripts/mark-healthy.cjs" so native Vercel integration self-sufficiently produces healthy version.json
+3. mark-healthy.cjs updates BOTH public/version.json AND dist/version.json (Vite copies public→dist during build, so dist copy was stale)
+4. Removed fragile Vercel CLI deploy step from .github/workflows/build-apk.yml (was the source of silent failures)
+5. Replaced with read-only "Verify Vercel production deploy is healthy" step that polls production version.json
+6. Fixed master branch sync: now uses "git push origin origin/main:refs/heads/master --force" with explicit "git fetch origin main" first
+7. Reduced client-side STABLE_DELAY_MS from 5min to 1min (users see updates faster)
+8. Reduced POLL_INTERVAL_MS from 5min to 1min (faster update detection)
+
+Files Changed:
+- scripts/mark-healthy.cjs (NEW)
+- vercel.json (added buildCommand, framework, outputDirectory)
+- .github/workflows/build-apk.yml (removed CLI deploy, added verify step)
+- src/hooks/useVersionCheck.ts (1min poll/delay instead of 5min)
+
+Commit: d4a7f87 "Fix inconsistent Vercel deploys: eliminate dual-deploy race condition"
+Pushed to: main (and synced to master via git push origin origin/main:refs/heads/master --force)
+
+Stage Summary:
+- Architecture is now: ONE deploy system (Vercel native GitHub integration), ONE source of truth (version.json), no race conditions, no silent failures
+- The native integration runs vercel.json's buildCommand which atomically marks version.json healthy after build succeeds
+- If Vercel build fails, the deploy is rejected and production stays on the previous (working) deploy
+- User should still verify on Vercel dashboard (https://vercel.com/practice-pro-vega/practice-pro-vega/deployments) that deploys are triggering on push to main
+- If Vercel native integration is paused/broken, user may need to manually redeploy from Vercel dashboard
