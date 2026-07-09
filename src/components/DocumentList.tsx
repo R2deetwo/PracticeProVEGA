@@ -370,10 +370,19 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                             </button>
                         </div>
                         {/* DraftPro — icon only on small screens, full label on larger screens */}
+                        {/* DraftPro — opens in new tab on desktop, same tab on mobile */}
                         <button
-                            onClick={() => openEditor()}
-                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
+                            onClick={() => {
+                                if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                                    // Desktop: open in new tab
+                                    window.open('/editor?draftKey=new&title=New%20Document', 'draftpro-new');
+                                } else {
+                                    // Mobile: navigate in-place
+                                    openEditor();
+                                }
+                            }}
                             title="Open DraftPro Editor"
+                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
                         >
                             <SparklesIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DraftPro</span> <span className="opacity-60 font-normal text-[9px] hidden sm:inline">β</span>
                         </button>

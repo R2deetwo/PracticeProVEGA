@@ -330,6 +330,18 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                     >
                         ← Back to Chat
                     </button>
+
+                    {/* Open in new tab — desktop only */}
+                    <button
+                        onClick={() => window.open(window.location.href, '_blank')}
+                        className="hidden md:flex w-full items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-600 transition-colors py-2 border-t border-slate-100 dark:border-zinc-700/50 mt-2"
+                        title="Open Research Studio in a new tab"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                        </svg>
+                        Open in new tab
+                    </button>
                 </div>
             </div>
         </div>
