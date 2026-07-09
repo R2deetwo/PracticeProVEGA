@@ -179,9 +179,12 @@ export interface ComposeModalPrefill {
 }
 
 // ── Selectable Recipient type ────────────────────────────────────────────
+type RecipientType = 'tenant' | 'client' | 'team' | 'external';
+
 interface SelectableRecipient {
   id: string;
   label: string;
+  recipientType: RecipientType;
   tenantName?: string;
   tenantPhone?: string;
   tenantEmail?: string;
@@ -225,6 +228,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const [loading, setLoading] = useState(false);
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [recipientTab, setRecipientTab] = useState<RecipientType>('tenant');
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [upcomingLogs, setUpcomingLogs] = useState<any[]>([]);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
@@ -240,6 +244,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     flatUnits.filter(u => u.tenantName).map(u => ({
       id: u.id,
       label: u.label,
+      recipientType: 'tenant' as RecipientType,
       tenantName: u.tenantName,
       tenantPhone: u.tenantPhone,
       tenantEmail: u.tenantEmail,
@@ -261,6 +266,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       .map((c: any) => ({
         id: c.id || c._id,
         label: c.name || c.email || 'Client',
+        recipientType: 'client' as RecipientType,
         tenantName: c.name,
         tenantPhone: c.phone,
         tenantEmail: c.email,
@@ -274,10 +280,31 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     [coreState.contacts]
   );
 
-  // Combine tenant + client recipients
+  // Team members as recipients (for internal communication)
+  const teamRecipients = useMemo(() =>
+    (coreState.users || [])
+      .filter((u: any) => u.email)
+      .map((u: any) => ({
+        id: u.id || u._id,
+        label: u.name || u.email,
+        recipientType: 'team' as RecipientType,
+        tenantName: u.name,
+        tenantPhone: u.phone || '',
+        tenantEmail: u.email,
+        rentAmount: 0,
+        propertyAddress: '',
+        serviceCharge: 0,
+        legalFee: 0,
+        agencyFee: 0,
+        cautionDeposit: 0,
+      })),
+    [coreState.users]
+  );
+
+  // Combine all recipient types
   const selectableRecipients = useMemo(() =>
-    [...tenantRecipients, ...clientRecipients],
-    [tenantRecipients, clientRecipients]
+    [...tenantRecipients, ...clientRecipients, ...teamRecipients],
+    [tenantRecipients, clientRecipients, teamRecipients]
   );
 
   const tenantedRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);
@@ -415,16 +442,26 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     setSelectedRecipientIds(prev => prev.filter(x => x !== id));
   };
 
-  // ── Filtered recipients for dropdown search ──────────────────────────
+  // ── Filtered recipients for dropdown (filtered by tab + search) ─────
   const filteredRecipients = useMemo(() => {
-    if (!recipientSearch) return selectableRecipients;
-    const lower = recipientSearch.toLowerCase();
-    return selectableRecipients.filter(r => 
-      r.label.toLowerCase().includes(lower) || 
-      (r.tenantName && r.tenantName.toLowerCase().includes(lower)) ||
-      (r.propertyAddress && r.propertyAddress.toLowerCase().includes(lower))
-    );
-  }, [selectableRecipients, recipientSearch]);
+    let result = selectableRecipients.filter(r => r.recipientType === recipientTab);
+    if (recipientSearch) {
+      const lower = recipientSearch.toLowerCase();
+      result = result.filter(r =>
+        r.label.toLowerCase().includes(lower) ||
+        (r.tenantName && r.tenantName.toLowerCase().includes(lower)) ||
+        (r.propertyAddress && r.propertyAddress.toLowerCase().includes(lower))
+      );
+    }
+    return result;
+  }, [selectableRecipients, recipientSearch, recipientTab]);
+
+  // Count recipients per tab for the tab labels
+  const recipientCounts = useMemo(() => ({
+    tenant: tenantRecipients.length,
+    client: clientRecipients.length,
+    team: teamRecipients.length,
+  }), [tenantRecipients, clientRecipients, teamRecipients]);
 
   // ── Build per-recipient messages for preview ─────────────────────────
   const previewMessages = useMemo(() => {
@@ -699,12 +736,42 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 />
               </div>
 
-              {/* Dropdown list — grouped by building with collapsible sections */}
+              {/* Dropdown list — with recipient type tabs */}
               {showRecipientDropdown && (
-                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl max-h-64 overflow-y-auto custom-scrollbar">
-                  {filteredRecipients.length === 0 && (
-                    <div className="px-3 py-2 text-xs text-slate-400 dark:text-zinc-500">No recipients found</div>
-                  )}
+                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col">
+                  {/* Recipient type tabs */}
+                  <div className="flex border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
+                    {([
+                      { key: 'tenant' as RecipientType, label: 'Residents', count: recipientCounts.tenant },
+                      { key: 'client' as RecipientType, label: 'Clients', count: recipientCounts.client },
+                      { key: 'team' as RecipientType, label: 'Team', count: recipientCounts.team },
+                    ]).filter(t => t.count > 0 || t.key === 'tenant').map(tab => (
+                      <button
+                        key={tab.key}
+                        onClick={() => setRecipientTab(tab.key)}
+                        className={`flex-1 px-2 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                          recipientTab === tab.key
+                            ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
+                            : 'text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300'
+                        }`}
+                      >
+                        {tab.label}
+                        {tab.count > 0 && <span className="ml-1 opacity-50">({tab.count})</span>}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Recipient list */}
+                  <div className="overflow-y-auto custom-scrollbar flex-1">
+                    {filteredRecipients.length === 0 && (
+                      <div className="px-3 py-4 text-xs text-slate-400 dark:text-zinc-500 text-center">
+                        {recipientTab === 'tenant'
+                          ? 'No residents found. Add tenant names and contact info to your units.'
+                          : recipientTab === 'client'
+                            ? 'No clients with contact info found.'
+                            : 'No team members found.'}
+                      </div>
+                    )}
                   {(() => {
                     // Build grouped list from filtered recipients
                     const filteredSet = new Set(filteredRecipients.map(r => r.id));
@@ -831,6 +898,38 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                         );
                       });
                   })()}
+
+                  {/* For non-tenant tabs (clients, team), render a flat list */}
+                  {recipientTab !== 'tenant' && filteredRecipients.length > 0 && (
+                    <>
+                      {filteredRecipients.map(r => (
+                        <button
+                          key={r.id}
+                          onClick={() => { toggleRecipient(r.id); setRecipientSearch(''); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors flex items-center gap-2 ${
+                            selectedRecipientIds.includes(r.id) ? 'bg-primary-50 dark:bg-primary-900/20' : ''
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${
+                            selectedRecipientIds.includes(r.id) ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-600'
+                          }`}>
+                            {selectedRecipientIds.includes(r.id) && (
+                              <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-slate-800 dark:text-zinc-200 truncate">{r.tenantName || r.label}</p>
+                            <p className="text-[10px] text-slate-400 truncate">
+                              {r.tenantEmail || r.tenantPhone || 'No contact info'}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  </div>
                 </div>
               )}
 
