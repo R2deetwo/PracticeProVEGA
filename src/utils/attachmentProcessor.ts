@@ -175,7 +175,34 @@ export async function processAttachment(
   name: string,
   convexUrl: string
 ): Promise<ProcessedAttachment> {
-  const fileUrl = `${convexUrl}/api/storage/${storageId}`;
+  // CRITICAL FIX: Convex storage does NOT support direct HTTP GET to
+  // /api/storage/{storageId}. We must use the Convex client to call the
+  // getFileUrl query, which returns a signed URL that can be fetched.
+  let fileUrl: string;
+  try {
+    const { ConvexHttpClient } = await import('convex/browser');
+    const convexClient = new ConvexHttpClient(convexUrl);
+    const url = await convexClient.query('myFunctions:getFileUrl' as any, { storageId });
+    if (!url) {
+      return {
+        name,
+        mimeType: 'unknown',
+        extractedText: null,
+        extracted: false,
+        error: 'File not found in storage (storageId returned null URL)',
+      };
+    }
+    fileUrl = url as string;
+  } catch (e: any) {
+    return {
+      name,
+      mimeType: 'unknown',
+      extractedText: null,
+      extracted: false,
+      error: `Failed to get file URL from Convex: ${e.message || e}`,
+    };
+  }
+
   const fileRes = await fetch(fileUrl);
   if (!fileRes.ok) {
     return {
@@ -183,7 +210,7 @@ export async function processAttachment(
       mimeType: 'unknown',
       extractedText: null,
       extracted: false,
-      error: `Failed to fetch (HTTP ${fileRes.status})`,
+      error: `Failed to fetch file (HTTP ${fileRes.status})`,
     };
   }
 

@@ -210,7 +210,7 @@ const ResearchView: React.FC = () => {
                                 messages={messagesForNotebook}
                                 sources={sourcesForNotebook}
                                 selectedSourceIds={selectedSourceIds}
-                                onSendMessage={dataHandlers.handleSendResearchMessage}
+                                onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds, sourcesForNotebook)}
                             />
                         </div>
 
