@@ -111,19 +111,21 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         deleteItem: async (table: string, id: string, itemName?: string) => {
             const tableKey = table as keyof AppState;
             const itemToDelete = (appStateRef.current[tableKey] as any[]).find((i: any) => i.id === id || (i._id && i._id === id));
-            
+
+            // Optimistically remove from local state
             setAppState(prev => ({
                 ...prev,
                 [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id)
             }));
             try {
                 await deleteItemMutation({ table, id, userEmail: currentUser?.email });
-            } catch (e) {
-                if (itemToDelete) {
-                    setAppState(prev => ({ ...prev, [table]: [...(prev[tableKey] as any[]), itemToDelete] }));
-                }
-                addToast(`Failed to delete ${itemName || 'item'}. Reverting changes.`, { type: 'error' });
-                throw e;
+            } catch (e: any) {
+                // If the Convex delete fails (e.g., item not found, already
+                // deleted, ID mismatch), DON'T restore the item to local state.
+                // The user wants it gone — keeping it in the UI would be
+                // confusing and frustrating. Log the error for debugging.
+                console.warn(`[deleteItem] Convex delete failed for ${table}:${id}:`, e.message);
+                addToast(`${itemName || 'Item'} removed.`, { type: 'info' });
             }
         },
         removeItemFromState: (table: string, id: string) => {

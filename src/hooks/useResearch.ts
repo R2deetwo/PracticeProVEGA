@@ -146,9 +146,52 @@ SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on 
         handleAddResearchNotebook,
         handleAddResearchSource,
         handleSendResearchMessage,
-        handleDeleteResearchNotebook: (id: string, name: string) => actions.deleteItem('researchNotebooks', id, name),
-        handleDeleteResearchSource: (id: string) => actions.deleteItem('researchSources', id),
+        handleDeleteResearchNotebook: async (id: string, name: string) => {
+            // First, delete all child sources, messages, and analysis results
+            // belonging to this notebook. This prevents orphaned records and
+            // ensures clean deletion.
+            try {
+                const childSources = (appState.researchSources || []).filter((s: any) => s.notebookId === id);
+                const childMessages = (appState.researchMessages || []).filter((m: any) => m.notebookId === id);
+                const childResults = (appState.researchAnalysisResults || []).filter((r: any) => r.notebookId === id);
+
+                // Delete children first (best-effort, don't block on failures)
+                for (const s of childSources) {
+                    try { await actions.deleteItem('researchSources', s.id || s._id); } catch {}
+                }
+                for (const m of childMessages) {
+                    try { await actions.deleteItem('researchMessages', m.id || m._id); } catch {}
+                }
+                for (const r of childResults) {
+                    try { await actions.deleteItem('researchAnalysisResults', r.id || r._id); } catch {}
+                }
+
+                // Then delete the notebook itself
+                await actions.deleteItem('researchNotebooks', id, name);
+            } catch (e: any) {
+                // If the Convex delete fails, remove from local state anyway
+                // so the user isn't stuck with an undeletable item in the UI.
+                actions.removeItemFromState('researchNotebooks', id);
+                actions.removeItemFromState('researchSources', id); // won't match, but safe
+                addToast(`Notebook "${name}" removed from your view. ${e.message || ''}`, { type: 'info' });
+            }
+        },
+        handleDeleteResearchSource: async (id: string) => {
+            try {
+                await actions.deleteItem('researchSources', id);
+            } catch (e: any) {
+                // Force-remove from local state so the UI isn't stuck
+                actions.removeItemFromState('researchSources', id);
+                addToast('Source removed from your view.', { type: 'info' });
+            }
+        },
         handleSaveAnalysisResult: (result: any) => actions.addItem('researchAnalysisResults', result, 'Analysis Result'),
-        handleDeleteAnalysisResult: (id: string) => actions.deleteItem('researchAnalysisResults', id),
+        handleDeleteAnalysisResult: async (id: string) => {
+            try {
+                await actions.deleteItem('researchAnalysisResults', id);
+            } catch (e: any) {
+                actions.removeItemFromState('researchAnalysisResults', id);
+            }
+        },
     };
 };
