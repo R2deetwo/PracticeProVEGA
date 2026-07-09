@@ -11,8 +11,8 @@
  * 3. At runtime, this hook periodically fetches `/version.json` (with
  *    cache-busting) and compares its `sha` against the baked-in SHA.
  * 4. If they differ, the hook checks:
- *      a. `status === 'healthy'`  — build passed smoke test
- *      b. `stableSince` is > 5 minutes ago  — stable delay
+ *      a. `status === 'healthy'`  — build passed (marked by mark-healthy.cjs)
+ *      b. `stableSince` is > 1 minute ago  — stable delay
  *    Only if BOTH are true does it prompt the user to refresh.
  * 5. If `status === 'broken'`, the hook NEVER prompts — this lets us
  *    roll back a bad build by updating version.json on the server.
@@ -37,11 +37,11 @@
  */
 import { useEffect, useRef, useState } from 'react';
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-const STABLE_DELAY_MS = 5 * 60 * 1000;  // 5 minutes after stableSince
+const POLL_INTERVAL_MS = 60 * 1000; // 1 minute — check for updates frequently
+const STABLE_DELAY_MS = 60 * 1000;  // 1 minute after stableSince — quick but not instant
 
 export interface VersionCheckState {
-  /** True when a new deploy has been detected, verified healthy, AND stable for 5 min. */
+  /** True when a new deploy has been detected, verified healthy, AND stable for 1 min. */
   updateAvailable: boolean;
   /** The SHA of the new deploy (for display). */
   remoteSha?: string;

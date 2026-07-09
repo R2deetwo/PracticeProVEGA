@@ -104,20 +104,13 @@ jobs:
       - name: Build web app (bundled into APK)
         run: npx vite build
 
-      # NOTE: Vercel CLI deploy has been MOVED to the end of the workflow
-      # (after APK build) so that it runs AFTER Vercel's native GitHub
-      # integration finishes deploying. This ensures our CLI deploy
-      # overwrites the native integration's deploy (not the other way around).
-
-      - name: Vercel deploy skipped (missing secrets)
-        if: ${{ env.HAS_VERCEL_TOKEN != 'true' || env.HAS_VERCEL_ORG_ID != 'true' || env.HAS_VERCEL_PROJECT_ID != 'true' }}
-        run: |
-          echo "⚠️  Vercel production deploy SKIPPED — missing one or more secrets:"
-          echo "  - VERCEL_TOKEN:      ${{ env.HAS_VERCEL_TOKEN == 'true' && 'set' || 'MISSING' }}"
-          echo "  - VERCEL_ORG_ID:     ${{ env.HAS_VERCEL_ORG_ID == 'true' && 'set' || 'MISSING' }}"
-          echo "  - VERCEL_PROJECT_ID: ${{ env.HAS_VERCEL_PROJECT_ID == 'true' && 'set' || 'MISSING' }}"
-          echo ""
-          echo "Add them at: https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions"
+      # NOTE: Vercel CLI deploy has been REMOVED. The Vercel native GitHub
+      # integration handles production deploys automatically. vercel.json's
+      # buildCommand ("npm run build && node scripts/mark-healthy.cjs")
+      # atomically marks version.json as 'healthy' after a successful build.
+      # This eliminates the previous race condition where the CLI deploy
+      # would silently fail (continue-on-error: true) and leave version.json
+      # stuck at "building" status forever.
 
       - name: Sync Capacitor (bundles dist/ into APK)
         run: |
@@ -188,99 +181,66 @@ jobs:
 
       # ═════════════════════════════════════════════════════════════════════
       # SYNC MASTER BRANCH — Vercel's native GitHub integration deploys
-      # from the "master" branch, but our repo uses "main". We create
-      # and sync a "master" branch so Vercel's native integration deploys
-      # the correct code automatically.
+      # from the "master" branch, but our repo uses "main". We force-push
+      # main → master so Vercel's native integration deploys the correct
+      # code automatically.
       # ═════════════════════════════════════════════════════════════════════
       - name: Sync master branch with main (for Vercel native integration)
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git push origin origin/main:master --force 2>&1 || true
+          # Fetch latest main ref so origin/main is up to date in this clone
+          git fetch origin main
+          # Force-push main → master so Vercel native integration always
+          # deploys the exact same commit as main (no drift, no lag).
+          git push origin origin/main:refs/heads/master --force 2>&1 || true
           echo "✓ master branch synced with main — Vercel native integration will deploy correct code"
-      # GitHub integration deploy. The native integration deploys quickly
-      # (usually within 30-60s of the push), but our CLI deploy runs after
-      # the APK build (which takes ~4-5 min), so by the time our CLI deploy
-      # runs, the native integration has already finished. Our deploy then
-      # overwrites theirs with the correct version.json (status=healthy).
+
       # ═════════════════════════════════════════════════════════════════════
+      # VERIFY VERCEL DEPLOY (read-only check — no second deploy)
+      # ----------------------------------------------------------------
+      # The Vercel native GitHub integration handles the actual deploy.
+      # It runs vercel.json's buildCommand:
+      #   "npm run build && node scripts/mark-healthy.cjs"
+      # which atomically marks version.json as 'healthy' after a successful
+      # build. No second CLI deploy, no race condition, no silent failures.
+      #
+      # This step just waits and verifies that production came up healthy.
+      # It does NOT push another deploy — that was the source of the old
+      # race condition that left version.json stuck at "building".
       # ═════════════════════════════════════════════════════════════════════
-      - name: Deploy to Vercel (production — final, overwrites native integration)
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
-        continue-on-error: true
+      - name: Verify Vercel production deploy is healthy
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' || true }}
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           PRODUCTION_URL: https://practice-pro-vega.vercel.app
         run: |
-          echo "=== FINAL VERCEL DEPLOY (overwrites native integration) ==="
-          echo "Waiting 30s to ensure Vercel's native GitHub integration has finished..."
-          sleep 30
-
-          echo "Installing Vercel CLI..."
-          npm install -g vercel@latest
-
-          echo "Pulling project settings..."
-          vercel pull --yes --environment=production --token "${VERCEL_TOKEN}"
-
-          echo "Building project with Vercel..."
-          vercel build --prod --token "${VERCEL_TOKEN}"
-
-          echo "Deploying to production (this overwrites the native integration's deploy)..."
-          vercel deploy --prebuilt --prod --yes --token "${VERCEL_TOKEN}" 2>&1 | tee vercel-deploy.log
-          echo "✓ Vercel production deploy complete"
-
-          # Smoke test
+          echo "=== Verifying Vercel production deploy (read-only) ==="
+          echo "Vercel's native GitHub integration deploys automatically on push to master."
+          echo "vercel.json's buildCommand marks version.json healthy after a successful build."
           echo ""
-          echo "Running smoke test against $PRODUCTION_URL..."
-          sleep 10
-          HTTP_STATUS=$(curl -s -o /tmp/prod_smoke.html -w "%{http_code}" "$PRODUCTION_URL" || echo "000")
-          echo "  HTTP status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ SMOKE TEST FAILED"
-            exit 0
-          fi
-          JS_BUNDLE=$(grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' /tmp/prod_smoke.html | head -1 || true)
-          JS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL$JS_BUNDLE" || echo "000")
-          echo "  JS bundle: $JS_BUNDLE ($JS_STATUS)"
-          if [ "$JS_STATUS" != "200" ]; then
-            echo "❌ SMOKE TEST FAILED — JS bundle not accessible"
-            exit 0
-          fi
-          echo "✅ SMOKE TEST PASSED"
+          echo "Waiting 90s for native integration to finish deploying..."
+          sleep 90
 
-          # Mark version.json as healthy
-          node -e "
-            const fs = require('fs');
-            const v = JSON.parse(fs.readFileSync('public/version.json', 'utf8'));
-            v.status = 'healthy';
-            v.stableSince = new Date().toISOString();
-            fs.writeFileSync('public/version.json', JSON.stringify(v, null, 2) + '\n');
-            console.log('version.json marked healthy');
-          "
+          # Poll version.json for up to 4 minutes waiting for status=healthy
+          MAX_WAIT=240  # 4 minutes
+          WAITED=0
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$PRODUCTION_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] status=$STATUS sha=$SHA"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "✅ Production is healthy — version.json status=healthy"
+              echo "   Users will see refresh prompts within 1 minute."
+              exit 0
+            fi
+            sleep 15
+            WAITED=$((WAITED + 15))
+          done
 
-          # Copy healthy version.json into build output and redeploy
-          if [ -d '.vercel/output/static' ]; then
-            cp public/version.json .vercel/output/static/version.json
-            echo "Re-deploying with healthy version.json..."
-            vercel deploy --prod --yes --prebuilt --token "${VERCEL_TOKEN}" 2>&1 | tail -3
-          fi
-
-          # Verify
-          sleep 5
-          DEPLOYED_STATUS=$(curl -s "$PRODUCTION_URL/version.json?v=$(date +%s)" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
-          echo "  Deployed version.json status: $DEPLOYED_STATUS"
-          if [ "$DEPLOYED_STATUS" = "healthy" ]; then
-            echo "✓ version.json successfully marked healthy on production"
-          else
-            echo "⚠️  version.json status=$DEPLOYED_STATUS — will retry..."
-            sleep 10
-            vercel deploy --prod --yes --prebuilt --token "${VERCEL_TOKEN}" 2>&1 | tail -3
-            sleep 5
-            DEPLOYED_STATUS=$(curl -s "$PRODUCTION_URL/version.json?v=$(date +%s)" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
-            echo "  Final version.json status: $DEPLOYED_STATUS"
-          fi
-
-          echo ""
-          echo "✓ Final Vercel deploy complete. Users will see refresh prompt after 5-min stable delay."
+          echo "⚠️  Production version.json not marked healthy after ${MAX_WAIT}s."
+          echo "    This may indicate a build failure on Vercel — check:"
+          echo "    https://vercel.com/practice-pro-vega/practice-pro-vega/deployments"
+          echo "    The native integration will eventually mark it healthy once"
+          echo "    the build completes — no action needed from this workflow."
+          # Don't fail the workflow — the APK build still succeeded.

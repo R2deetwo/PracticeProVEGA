@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build && node scripts/mark-healthy.cjs",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",
