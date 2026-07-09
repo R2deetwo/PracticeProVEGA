@@ -231,7 +231,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
 
     return (
@@ -243,10 +243,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <CalendarIcon className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Matter Association</h3>
-                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Matter association</h3>
                     </div>
 
                     <div className="space-y-2 group">
@@ -290,10 +287,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                         <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
                             <ClockIcon className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Schedule</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Time & Dates</h3>
-                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Time & dates</h3>
                     </div>
 
                     <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
@@ -406,10 +400,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                             <div className="p-1.5 bg-amber-600 text-white rounded-lg shadow-sm ring-2 ring-amber-500/10">
                                 <MapPinIcon className="w-3.5 h-3.5" />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-amber-600/70 uppercase tracking-widest leading-none mb-0.5">Location</p>
-                                <h3 className="text-base font-black text-amber-900 dark:text-amber-200 tracking-tight">Court Details</h3>
-                            </div>
+                            <h3 className="text-base font-black text-amber-900 dark:text-amber-200 tracking-tight">Court details</h3>
                         </div>
                         <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">

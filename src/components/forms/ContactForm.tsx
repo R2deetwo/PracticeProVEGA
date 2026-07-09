@@ -235,7 +235,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
 
     // inputModern is now imported at top level
     const commonInputClass = inputModern + " group-hover:ring-primary-300 dark:group-hover:ring-primary-800";
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
 
     return (
@@ -247,10 +247,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                         <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
                             <UserCircleIcon className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Identity</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">General Info</h3>
-                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">General info</h3>
                         {pickerSupport.isSupported && !isEditing && (
                             <button 
                                 type="button"
@@ -409,7 +406,6 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                         <ShieldCheckIcon className="w-4 h-4" />
                                     </div>
                                     <div className="text-left">
-                                        <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Due Diligence</p>
                                         <h3 className="text-sm sm:text-base font-black text-slate-800 dark:text-white tracking-tight">Compliance & KYC</h3>
                                     </div>
                                 </div>
@@ -466,8 +462,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                         <OfficeBuildingIcon className="w-4 h-4" />
                                     </div>
                                     <div className="text-left">
-                                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest leading-none mb-1">Portfolio Control</p>
-                                        <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">Property Portfolio</h3>
+                                        <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">Property portfolio</h3>
                                     </div>
                                 </div>
                             </AccordionTrigger>

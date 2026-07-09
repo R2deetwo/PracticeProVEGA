@@ -37,7 +37,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
     };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     const normalForm = (
         <div className="space-y-2 sm:space-y-3">

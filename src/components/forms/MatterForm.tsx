@@ -44,7 +44,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const { addToast } = useUI();
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { isProperty } = useProduct();
+    const { isProperty, terminology } = useProduct();
     const features = useFeatures();
     const dataHandlers = useDataActions();
     const { handleAddContact } = dataHandlers;
@@ -567,7 +567,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     const updatePartyList = (side: 'claimants' | 'defendants', newList: LitigationParty[]) => {
         let newTitle = title;
@@ -669,10 +669,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         <div className="p-1 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
                             <BriefcaseIcon className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice Area'}</h3>
-                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice area'}</h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
@@ -852,10 +849,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         <div className="p-1 bg-emerald-600 text-white rounded-lg shadow-sm ring-2 ring-emerald-500/10">
                             <CurrencyDollarIcon className="w-3.5 h-3.5" />
                         </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Finance</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Billing Settings</h3>
-                        </div>
+                        <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Billing settings</h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 p-1">
@@ -1027,10 +1021,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             <div className={`p-1 rounded-lg shadow-sm transition-all ${isLitigation ? 'bg-rose-600 text-white ring-2 ring-rose-500/10' : 'bg-slate-200 dark:bg-zinc-700 text-slate-500 opacity-50'}`}>
                                 <GavelIconLarge className="w-3 h-3" />
                             </div>
-                            <div>
-                                <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">{isProperty ? 'Details' : 'Legal'}</p>
-                                <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Property Details' : 'Case Details'}</h3>
-                            </div>
+                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Property details' : 'Case details'}</h3>
                         </div>
                         <button
                             type="button"
@@ -1123,7 +1114,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     ) : (
                         <SaveIcon className="w-3.5 h-3.5" />
                     )}
-                    {isEditing ? 'Save Changes' : 'Create Matter'}
+                    {isEditing ? 'Save' : `Create ${terminology.matter}`}
                 </button>
             </div>
         </form>

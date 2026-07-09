@@ -208,7 +208,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   };
 
     const commonInputClass = inputModern;
-  const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+  const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
   return (
     <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
       <div className="flex flex-col gap-4 -m-2">
@@ -260,19 +260,19 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   {lineItems.map((item, index) => (
                       <div key={index} className="flex flex-wrap items-center gap-4 p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm transition-all group">
                           <div className="flex-1 min-w-[200px]">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Description</label>
+                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Description</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={item.description} onChange={e => handleLineItemChange(index, 'description', e.target.value)} placeholder="What is this charge for?" className={commonInputClass} />
                           </div>
                           <div className="w-24">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Qty</label>
+                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Qty</label>
                               <input autoComplete="off" data-lpignore="true"  type="number" value={item.hours || ''} onChange={e => handleLineItemChange(index, 'hours', parseFloat(e.target.value))} placeholder="0.0" className={commonInputClass} />
                           </div>
                           <div className="w-32">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Rate</label>
+                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Rate</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.rate)} onChange={e => handleLineItemChange(index, 'rate', parseFormattedNumber(e.target.value))} placeholder="0.00" className={commonInputClass} />
                           </div>
                           <div className="w-32">
-                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Amount</label>
+                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">Amount</label>
                               <input autoComplete="off" data-lpignore="true"  type="text" value={formatNumberWithCommas(item.total)} onChange={e => handleLineItemChange(index, 'total', parseFormattedNumber(e.target.value))} className={`${commonInputClass} font-bold text-primary-600`} />
                           </div>
                           <button type="button" onClick={() => removeLineItem(index)} className="p-2 text-rose-400 hover:text-rose-600 transition-colors mt-5">
@@ -330,7 +330,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
               </div>
 
               <div className="space-y-3">
-                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Dates</label>
                           <div className="grid grid-cols-2 gap-3 sm:gap-4">
@@ -346,7 +346,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                       </div>
                   </div>
                   
-                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-3xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
+                  <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-3">
                       <div>
                           <label className={labelClass}>Bank Account</label>
                           {safeBankAccounts.length > 0 ? (

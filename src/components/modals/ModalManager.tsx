@@ -11,7 +11,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useIsProperty } from '../../contexts/ProductContext';
+import { useIsProperty, useTerminology } from '../../contexts/ProductContext';
 import { ModalType, FileDetails } from '../../types';
 
 // Auth
@@ -257,6 +257,7 @@ const ModalManager: React.FC = () => {
     const dataHandlers = useDataActions();
     const { currentUser, appMode } = useAuth();
     const isProperty = useIsProperty();
+    const terminology = useTerminology();
 
     if (!modal) return null;
 
@@ -973,6 +974,21 @@ const ModalManager: React.FC = () => {
     }
     if (modal === 'composeEmail') {
         modalTitle = 'Compose Email';
+    }
+    // Product-aware title: 'Link Matter to Contact' → 'Link Property to Contact' for Atrium
+    if (modal === 'linkMatterToContact') {
+        modalTitle = `Link ${terminology.matter} to ${terminology.client}`;
+    }
+    // Product-aware title: 'ARIA Help' → 'ALOA Help' for Vega/Komplete
+    if (modal === 'aloaHelp') {
+        modalTitle = 'AI Assistant Help';
+    }
+    // Missing titles in getModalTitle switch
+    if (modal === 'workspaceSetup') {
+        modalTitle = 'Workspace Setup';
+    }
+    if (modal === 'demoUpsell') {
+        modalTitle = 'Upgrade to PracticePro';
     }
 
     // Size mapping based on form complexity:

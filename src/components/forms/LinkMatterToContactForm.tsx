@@ -4,6 +4,7 @@ import { UserIcon, GavelIconLarge, InfoIcon, XIcon, SaveIcon, LinkIcon } from '.
 import { Building2 as OfficeBuildingIcon, Link2Off as UnlinkIcon } from 'lucide-react';
 import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface LinkMatterToContactFormProps {
     contact: Contact;
@@ -14,13 +15,17 @@ interface LinkMatterToContactFormProps {
 
 export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = ({ contact, matters, onSave, onClose }) => {
     const { addToast } = useUI();
+    // Product-aware terminology: Atrium firms link Properties, Vega/Komplete link Matters.
+    const { terminology } = useProduct();
+    const matterNoun = terminology.matter;       // 'Matter' or 'Property'
+    const clientNoun = terminology.client;       // 'Client' or 'Resident'
     const [selectedMatterId, setSelectedMatterId] = useState<string>('');
     const [asClient, setAsClient] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedMatterId) {
-            addToast('Please select a matter to link.', { type: 'error' });
+            addToast(`Please select a ${matterNoun.toLowerCase()} to link.`, { type: 'error' });
             return;
         }
         onSave(contact.id, selectedMatterId, asClient);
@@ -32,12 +37,12 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
             <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">
-                Associate <strong>{contact.name}</strong> with an existing matter.
+                Associate <strong>{contact.name}</strong> with an existing {matterNoun.toLowerCase()}.
             </p>
 
             <div>
-                <label htmlFor="matter-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Select Matter
+                <label htmlFor="matter-select" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
+                    Select {matterNoun}
                 </label>
                 <select
                     id="matter-select"
@@ -46,7 +51,7 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
                     className={commonInputClass}
                     required
                 >
-                    <option value="" disabled>-- Select a Matter --</option>
+                    <option value="" disabled>-- Select a {matterNoun} --</option>
                     {matters.map((m) => (
                         <option key={m.id} value={m.id}>
                             {m.title} ({m.referenceNumber || 'No Ref'})
@@ -56,16 +61,16 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-slate-100 dark:bg-zinc-800 rounded-lg">
-                <input autoComplete="off" data-lpignore="true" 
+                <input autoComplete="off" data-lpignore="true"
                     type="checkbox"
                     id="as-client"
                     checked={asClient}
                     onChange={(e) => setAsClient(e.target.checked)}
-                    className="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                    className="h-5 w-5 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                 />
-                <label htmlFor="as-client" className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-                    <span className="font-bold block">Set as Primary Client</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">If unchecked, they will be added as an associated contact.</span>
+                <label htmlFor="as-client" className="text-sm text-slate-700 dark:text-zinc-300 cursor-pointer select-none">
+                    <span className="font-bold block">Set as Primary {clientNoun}</span>
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">If unchecked, they will be added as an associated contact.</span>
                 </label>
             </div>
 
@@ -73,15 +78,15 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+                    className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                 >
                     Cancel
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm"
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
                 >
-                    Link Matter
+                    Link {matterNoun}
                 </button>
             </div>
         </form>

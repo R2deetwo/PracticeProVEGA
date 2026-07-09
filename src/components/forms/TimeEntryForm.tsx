@@ -5,6 +5,7 @@ import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { ClockIcon, CalendarIcon, SaveIcon, XIcon, BillingIcon, OfficeBuildingIcon, TrashIcon } from '../../constants';
 import { inputModern } from '../../utils/formStyles';
 
@@ -20,6 +21,7 @@ interface TimeEntryFormProps {
 const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, onAddTimeEntry, onUpdateTimeEntry, onDelete, onClose }) => {
   const { currentUser } = useAuth();
   const { addToast, openModal } = useUI(); // Added openModal
+  const { hasPropertyFeatures } = useProduct();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [duration, setDuration] = useState(1);
   const [description, setDescription] = useState('');
@@ -67,7 +69,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
   };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
@@ -85,7 +87,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                     </div>
 
                     <div className="space-y-2 group">
-                        <label className={labelClass}>Case Association</label>
+                        <label className={labelClass}>{hasPropertyFeatures ? 'Property' : 'Case'} Association</label>
                         <div className="relative">
                             <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-900/50 flex items-center`}>

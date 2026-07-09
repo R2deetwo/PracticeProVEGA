@@ -6,6 +6,7 @@ import { ZapIcon, CalendarIcon, SaveIcon, XIcon, OfficeBuildingIcon, ShieldCheck
 import { Receipt } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import NairaSymbol from '../NairaSymbol';
 
 interface ExpenseFormProps {
@@ -18,6 +19,7 @@ interface ExpenseFormProps {
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddExpense, onUpdateExpense, onClose }) => {
   const { addToast } = useUI();
+  const { hasPropertyFeatures } = useProduct();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState('');
@@ -73,7 +75,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
   };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
@@ -91,7 +93,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                     </div>
 
                     <div className="space-y-2 group">
-                        <label className={labelClass}>Case Association</label>
+                        <label className={labelClass}>{hasPropertyFeatures ? 'Property' : 'Case'} Association</label>
                         <div className="relative">
                             <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <div className={`${commonInputClass} pl-11 bg-slate-50 dark:bg-zinc-900/50 flex items-center`}>

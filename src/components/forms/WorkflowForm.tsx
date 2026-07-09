@@ -155,7 +155,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
     };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">

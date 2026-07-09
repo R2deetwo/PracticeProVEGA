@@ -150,7 +150,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   };
 
     const commonInputClass = inputModern;
-  const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+  const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
   const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
 
   const uniqueUsers = useMemo(() => {
@@ -189,10 +189,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
             <TasksIcon className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Task Detail</p>
-              <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Information</h3>
-            </div>
+            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Details</h3>
           </div>
 
           <div className="space-y-2 group">
@@ -222,10 +219,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
               <CalendarIcon className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Timeline</p>
-              <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Schedule & Priority</h3>
-            </div>
+            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Schedule & priority</h3>
           </div>
 
           <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
@@ -281,10 +275,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                   <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
                       <UserCircleIcon className="w-3.5 h-3.5" />
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Personnel</p>
-                    <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Team Assignment</h3>
-                  </div>
+                  <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Team assignment</h3>
               </div>
               
               <div className="flex flex-wrap gap-3 py-2">

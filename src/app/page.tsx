@@ -360,7 +360,7 @@ function FeaturesOverview() {
       icon: Bot,
       title: 'AI Assistant',
       description:
-        'Ask ARIA to draft, review, or format any Nigerian legal or property document. From originating processes to conveyances, ARIA understands Nigerian practice.'
+        'Ask ARIA to draft, review, or format any Nigerian legal or property document. From originating processes to conveyances, ARIA understands Nigerian practice.',
       color: 'emerald',
     },
     {
