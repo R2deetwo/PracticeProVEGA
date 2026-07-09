@@ -171,11 +171,11 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "analyze_document",
-        description: "Performs a deep semantic analysis of a specific document or note. Use this when the user asks for a summary, risk report, or specific content analysis of a document they just searched for or mentioned.",
+        description: "Performs a deep semantic analysis of a specific document or note. Use this when the user asks for a summary, risk report, or specific content analysis of a document they just searched for, mentioned, or UPLOADED in the chat. If the user uploaded a document in the chat (via the paperclip button) and asks about 'this document' or 'the uploaded file', do NOT call this tool — instead, just respond naturally about the document content that was already provided to you as context.",
         parameters: {
             type: Type.OBJECT,
             properties: {
-                sourceId: { type: Type.STRING, description: "The ID of the document or note to analyze." },
+                sourceId: { type: Type.STRING, description: "The ID of the document or note to analyze (from the vault, NOT from a chat upload)." },
                 type: { type: Type.STRING, enum: ["document", "note"], description: "The source type." }
             },
             required: ["sourceId", "type"]
@@ -279,11 +279,11 @@ export const sendMessage = async (
         context.injectedContext,
         context.conversationMemoryContext,
         context.proactiveInsights
-    );
+    ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
-    const preferredModelName = 
-        modelPreference === 'pro' ? AI_CONFIG.gemini.proModel : 
-        modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel : 
+    const preferredModelName =
+        modelPreference === 'pro' ? AI_CONFIG.gemini.proModel :
+        modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel :
         AI_CONFIG.gemini.defaultModel;
 
     const contents: Content[] = [];
@@ -489,7 +489,7 @@ export const streamMessage = async (
         context.injectedContext,
         context.conversationMemoryContext,
         context.proactiveInsights
-    );
+    ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
     const preferredModelName =
         modelPreference === 'pro' ? AI_CONFIG.gemini.proModel :
