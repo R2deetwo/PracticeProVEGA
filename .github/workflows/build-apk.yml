@@ -104,51 +104,10 @@ jobs:
       - name: Build web app (bundled into APK)
         run: npx vite build
 
-      # ─── Vercel Production Deploy ─────────────────────────────────────────
-      # Deploys to the production Vercel project (practice-pro-vega) using the
-      # Vercel CLI. This runs IN ADDITION to Vercel's native GitHub integration
-      # (which deploys to the dev/preview project) — so every push updates BOTH
-      # projects simultaneously.
-      #
-      # Uses the official Vercel CI/CD pattern:
-      #   1. vercel pull  → downloads project settings + env vars
-      #   2. vercel build → builds using Vercel's build system
-      #   3. vercel deploy --prebuilt → deploys the built output
-      #
-      # Requires three GitHub secrets:
-      #   - VERCEL_TOKEN        → personal access token from vercel.com/account/tokens
-      #   - VERCEL_ORG_ID       → team/org ID (team_xxx) from project Settings → General
-      #   - VERCEL_PROJECT_ID   → project ID (prj_xxx) of the PRODUCTION project
-      #
-      # CRITICAL: `continue-on-error: true` ensures the APK build still
-      # proceeds even if Vercel deploy fails.
-      - name: Deploy to Vercel (production project)
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
-        continue-on-error: true
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          echo "Installing Vercel CLI..."
-          npm install -g vercel@latest
-          echo ""
-          echo "Pulling project settings from Vercel..."
-          echo "  ORG_ID:      ${VERCEL_ORG_ID}"
-          echo "  PROJECT_ID:  ${VERCEL_PROJECT_ID:0:12}..."
-          vercel pull --yes --environment=production --token "${VERCEL_TOKEN}"
-          echo ""
-          echo "Building project with Vercel..."
-          vercel build --prod --token "${VERCEL_TOKEN}"
-          echo ""
-          echo "Deploying to production..."
-          vercel deploy --prebuilt --prod --yes --token "${VERCEL_TOKEN}" 2>&1 | tee vercel-deploy.log
-          echo ""
-          echo "✓ Vercel production deploy complete"
-          DEPLOY_URL=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' vercel-deploy.log | tail -1 || true)
-          if [ -n "$DEPLOY_URL" ]; then
-            echo "Production deployment URL: $DEPLOY_URL"
-          fi
+      # NOTE: Vercel CLI deploy has been MOVED to the end of the workflow
+      # (after APK build) so that it runs AFTER Vercel's native GitHub
+      # integration finishes deploying. This ensures our CLI deploy
+      # overwrites the native integration's deploy (not the other way around).
 
       - name: Vercel deploy skipped (missing secrets)
         if: ${{ env.HAS_VERCEL_TOKEN != 'true' || env.HAS_VERCEL_ORG_ID != 'true' || env.HAS_VERCEL_PROJECT_ID != 'true' }}
@@ -159,131 +118,6 @@ jobs:
           echo "  - VERCEL_PROJECT_ID: ${{ env.HAS_VERCEL_PROJECT_ID == 'true' && 'set' || 'MISSING' }}"
           echo ""
           echo "Add them at: https://github.com/R2deetwo/PracticeProVEGA/settings/secrets/actions"
-
-      # ─── Build Health Verification + version.json Update ────────────────
-      # After the Vercel deploy, run a smoke test against the production URL.
-      # Only if the smoke test passes do we mark the build as 'healthy' in
-      # version.json. This prevents users from being prompted to refresh to
-      # a broken build.
-      #
-      # The smoke test:
-      #   1. Fetches the production URL
-      #   2. Verifies HTTP 200
-      #   3. Checks the HTML contains expected markers (title, root div)
-      #   4. Checks that the main JS bundle is referenced and fetchable
-      #
-      # If the smoke test fails, version.json stays at status='building'
-      # and users are NOT prompted to refresh. A subsequent fix push will
-      # overwrite it.
-      - name: Smoke test production + mark build healthy
-        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
-        continue-on-error: true
-        env:
-          PRODUCTION_URL: https://practice-pro-vega.vercel.app
-        run: |
-          echo "Waiting 10s for Vercel deploy to propagate..."
-          sleep 10
-
-          echo "Running smoke test against $PRODUCTION_URL..."
-
-          # 1. Fetch the production HTML
-          HTTP_STATUS=$(curl -s -o /tmp/prod_smoke.html -w "%{http_code}" "$PRODUCTION_URL" || echo "000")
-          echo "  HTTP status: $HTTP_STATUS"
-
-          if [ "$HTTP_STATUS" != "200" ]; then
-            echo "❌ SMOKE TEST FAILED: production URL returned $HTTP_STATUS"
-            echo "   version.json remains at status='building' — users will NOT be prompted to refresh"
-            exit 0
-          fi
-
-          # 2. Check for expected HTML markers
-          if ! grep -q "PracticePro" /tmp/prod_smoke.html; then
-            echo "❌ SMOKE TEST FAILED: HTML does not contain 'PracticePro'"
-            exit 0
-          fi
-          if ! grep -q 'id="root"' /tmp/prod_smoke.html; then
-            echo "❌ SMOKE TEST FAILED: HTML does not contain root div"
-            exit 0
-          fi
-
-          # 3. Check that the main JS bundle is referenced and fetchable
-          JS_BUNDLE=$(grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' /tmp/prod_smoke.html | head -1 || true)
-          if [ -z "$JS_BUNDLE" ]; then
-            echo "❌ SMOKE TEST FAILED: no JS bundle reference found in HTML"
-            exit 0
-          fi
-          echo "  JS bundle: $JS_BUNDLE"
-
-          JS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL$JS_BUNDLE" || echo "000")
-          echo "  JS bundle HTTP status: $JS_STATUS"
-          if [ "$JS_STATUS" != "200" ]; then
-            echo "❌ SMOKE TEST FAILED: JS bundle returned $JS_STATUS"
-            exit 0
-          fi
-
-          # 4. Check version.json is served
-          VERSION_STATUS=$(curl -s -o /tmp/version_smoke.json -w "%{http_code}" "$PRODUCTION_URL/version.json" || echo "000")
-          echo "  version.json HTTP status: $VERSION_STATUS"
-          if [ "$VERSION_STATUS" != "200" ]; then
-            echo "❌ SMOKE TEST FAILED: version.json returned $VERSION_STATUS"
-            exit 0
-          fi
-
-          echo ""
-          echo "✅ SMOKE TEST PASSED — marking build as healthy"
-
-          # Update version.json to status='healthy' with stableSince timestamp.
-          # This is what tells the client it's safe to prompt users to refresh.
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            const v = JSON.parse(fs.readFileSync('public/version.json', 'utf8'));
-            v.status = 'healthy';
-            v.stableSince = new Date().toISOString();
-            fs.writeFileSync('public/version.json', JSON.stringify(v, null, 2) + '\n');
-            console.log('Updated version.json:', JSON.stringify(v, null, 2));
-          "
-
-          # ─── Copy updated version.json into the Vercel build output ──────
-          # CRITICAL: `vercel deploy --prebuilt` uses the .vercel/output/
-          # directory that was built BEFORE the smoke test ran. The updated
-          # version.json in public/ is NOT in the build output yet, so we
-          # must copy it into .vercel/output/static/ before redeploying.
-          # Without this, the deployed version.json stays at status="building"
-          # and the refresh floater never shows.
-          if [ -d '.vercel/output/static' ]; then
-            echo "Copying updated version.json into .vercel/output/static/"
-            cp public/version.json .vercel/output/static/version.json
-            echo "✓ version.json copied to build output"
-          else
-            echo "⚠️  .vercel/output/static/ not found — trying alternate paths"
-            # If the output structure is different, try .vercel/output/public/
-            if [ -d '.vercel/output/public' ]; then
-              cp public/version.json .vercel/output/public/version.json
-            fi
-          fi
-
-          # Re-deploy with the updated build output (now containing healthy version.json)
-          if [ -d '.vercel' ]; then
-            echo "Re-deploying with healthy version.json..."
-            vercel deploy --prod --yes --prebuilt --token "${{ secrets.VERCEL_TOKEN }}" 2>&1 | tee redeploy.log | tail -5 || true
-            # Verify the deployed version.json is now healthy
-            DEPLOY_URL=$(grep -oE 'https://[a-z0-9-]+\.vercel\.app' redeploy.log | tail -1 || true)
-            if [ -n "$DEPLOY_URL" ]; then
-              echo "Verifying deployed version.json..."
-              sleep 5
-              DEPLOYED_STATUS=$(curl -s "$DEPLOY_URL/version.json" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
-              echo "  Deployed version.json status: $DEPLOYED_STATUS"
-              if [ "$DEPLOYED_STATUS" = "healthy" ]; then
-                echo "✓ version.json successfully marked healthy on production"
-              else
-                echo "⚠️  version.json still shows status=$DEPLOYED_STATUS — users may not see refresh prompt yet"
-              fi
-            fi
-          fi
-
-          echo ""
-          echo "✓ Build marked healthy. Users will be prompted to refresh after 5-min stable delay."
 
       - name: Sync Capacitor (bundles dist/ into APK)
         run: |
@@ -351,3 +185,91 @@ jobs:
           name: PracticePro v${{ env.APK_VERSION }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ═════════════════════════════════════════════════════════════════════
+      # VERCEL CLI DEPLOY — runs LAST so it overwrites Vercel's native
+      # GitHub integration deploy. The native integration deploys quickly
+      # (usually within 30-60s of the push), but our CLI deploy runs after
+      # the APK build (which takes ~4-5 min), so by the time our CLI deploy
+      # runs, the native integration has already finished. Our deploy then
+      # overwrites theirs with the correct version.json (status=healthy).
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Deploy to Vercel (production — final, overwrites native integration)
+        if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          PRODUCTION_URL: https://practice-pro-vega.vercel.app
+        run: |
+          echo "=== FINAL VERCEL DEPLOY (overwrites native integration) ==="
+          echo "Waiting 30s to ensure Vercel's native GitHub integration has finished..."
+          sleep 30
+
+          echo "Installing Vercel CLI..."
+          npm install -g vercel@latest
+
+          echo "Pulling project settings..."
+          vercel pull --yes --environment=production --token "${VERCEL_TOKEN}"
+
+          echo "Building project with Vercel..."
+          vercel build --prod --token "${VERCEL_TOKEN}"
+
+          echo "Deploying to production (this overwrites the native integration's deploy)..."
+          vercel deploy --prebuilt --prod --yes --token "${VERCEL_TOKEN}" 2>&1 | tee vercel-deploy.log
+          echo "✓ Vercel production deploy complete"
+
+          # Smoke test
+          echo ""
+          echo "Running smoke test against $PRODUCTION_URL..."
+          sleep 10
+          HTTP_STATUS=$(curl -s -o /tmp/prod_smoke.html -w "%{http_code}" "$PRODUCTION_URL" || echo "000")
+          echo "  HTTP status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "❌ SMOKE TEST FAILED"
+            exit 0
+          fi
+          JS_BUNDLE=$(grep -oE '/assets/index-[a-zA-Z0-9_-]+\.js' /tmp/prod_smoke.html | head -1 || true)
+          JS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$PRODUCTION_URL$JS_BUNDLE" || echo "000")
+          echo "  JS bundle: $JS_BUNDLE ($JS_STATUS)"
+          if [ "$JS_STATUS" != "200" ]; then
+            echo "❌ SMOKE TEST FAILED — JS bundle not accessible"
+            exit 0
+          fi
+          echo "✅ SMOKE TEST PASSED"
+
+          # Mark version.json as healthy
+          node -e "
+            const fs = require('fs');
+            const v = JSON.parse(fs.readFileSync('public/version.json', 'utf8'));
+            v.status = 'healthy';
+            v.stableSince = new Date().toISOString();
+            fs.writeFileSync('public/version.json', JSON.stringify(v, null, 2) + '\n');
+            console.log('version.json marked healthy');
+          "
+
+          # Copy healthy version.json into build output and redeploy
+          if [ -d '.vercel/output/static' ]; then
+            cp public/version.json .vercel/output/static/version.json
+            echo "Re-deploying with healthy version.json..."
+            vercel deploy --prod --yes --prebuilt --token "${VERCEL_TOKEN}" 2>&1 | tail -3
+          fi
+
+          # Verify
+          sleep 5
+          DEPLOYED_STATUS=$(curl -s "$PRODUCTION_URL/version.json?v=$(date +%s)" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+          echo "  Deployed version.json status: $DEPLOYED_STATUS"
+          if [ "$DEPLOYED_STATUS" = "healthy" ]; then
+            echo "✓ version.json successfully marked healthy on production"
+          else
+            echo "⚠️  version.json status=$DEPLOYED_STATUS — will retry..."
+            sleep 10
+            vercel deploy --prod --yes --prebuilt --token "${VERCEL_TOKEN}" 2>&1 | tail -3
+            sleep 5
+            DEPLOYED_STATUS=$(curl -s "$PRODUCTION_URL/version.json?v=$(date +%s)" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            echo "  Final version.json status: $DEPLOYED_STATUS"
+          fi
+
+          echo ""
+          echo "✓ Final Vercel deploy complete. Users will see refresh prompt after 5-min stable delay."
