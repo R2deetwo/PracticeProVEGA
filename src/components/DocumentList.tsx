@@ -348,11 +348,11 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
             />
 
             <div className="sticky top-0 z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
-                {/* Title row — exact match to Matters/Tasks/Contacts */}
-                <div className="flex items-center justify-between">
+                {/* Title row — title on left, buttons on right, with flex-wrap to prevent cutoff */}
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>
-                    <div className="flex items-center gap-1.5">
-                        {/* Cloud/Local toggle */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {/* Cloud/Local toggle — icon only */}
                         <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
                             <button
                                 onClick={() => { setViewMode('documents'); setSelectedCategory(null); }}
@@ -369,18 +369,20 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                 <ComputerDesktopIcon className="w-4 h-4" />
                             </button>
                         </div>
+                        {/* DraftPro — icon only on small screens, full label on larger screens */}
                         <button
                             onClick={() => openEditor()}
-                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
                             title="Open DraftPro Editor"
                         >
-                            <SparklesIcon className="w-3.5 h-3.5" /> DraftPro <span className="opacity-60 font-normal text-[9px]">β</span>
+                            <SparklesIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DraftPro</span> <span className="opacity-60 font-normal text-[9px] hidden sm:inline">β</span>
                         </button>
+                        {/* Upload — icon only on small screens, full label on larger screens */}
                         <button
                             onClick={() => openModal('newDocument')}
-                            className="p-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                            className="p-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
                         >
-                            <PlusIcon className="w-3.5 h-3.5" /> Upload
+                            <PlusIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Upload</span>
                         </button>
                     </div>
                 </div>
