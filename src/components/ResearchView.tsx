@@ -183,6 +183,15 @@ const ResearchView: React.FC = () => {
                                     onToggleSelection={toggleSourceSelection}
                                     onAddSource={() => openModal('addResearchSource', null, { notebookId: selectedNotebook.id })}
                                     onDeleteSource={dataHandlers.handleDeleteResearchSource}
+                                    onOpenInDraftPro={(source) => {
+                                        // Open the source content in DraftPro
+                                        navigateTo('editor', null, {
+                                            draftTitle: source.name,
+                                            draftContent: source.content || '',
+                                            disableAutoDraft: true,
+                                            openedByAloa: false,
+                                        });
+                                    }}
                                     isLoading={isSaving}
                                     onBack={() => {
                                         if (window.innerWidth < 768) {

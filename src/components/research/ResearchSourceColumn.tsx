@@ -11,6 +11,7 @@ interface ResearchSourceColumnProps {
     onAddSource: () => void;
     onBack: () => void;
     onDeleteSource?: (sourceId: string, sourceName: string) => void;
+    onOpenInDraftPro?: (source: ResearchSource) => void;
     isLoading?: boolean;
 }
 
@@ -19,7 +20,8 @@ const SourceCard: React.FC<{
     isSelected: boolean;
     onToggle: (id: string) => void;
     onDelete?: (id: string, name: string) => void;
-}> = ({ source, isSelected, onToggle, onDelete }) => {
+    onOpenInDraftPro?: (source: ResearchSource) => void;
+}> = ({ source, isSelected, onToggle, onDelete, onOpenInDraftPro }) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
 
     const getIcon = () => {
@@ -94,6 +96,17 @@ const SourceCard: React.FC<{
                     <DismissIcon className="w-3 h-3" />
                 </button>
             )}
+            {onOpenInDraftPro && source.content && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onOpenInDraftPro(source); }}
+                    className="flex-shrink-0 p-1 rounded-md transition-all opacity-0 group-hover:opacity-100 text-slate-400 hover:text-primary-500"
+                    title="Open in DraftPro"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                    </svg>
+                </button>
+            )}
         </div>
     );
 };
@@ -106,6 +119,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
     onAddSource,
     onBack,
     onDeleteSource,
+    onOpenInDraftPro,
     isLoading
 }) => {
     return (
@@ -176,6 +190,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
                             isSelected={selectedSourceIds.includes(source.id)}
                             onToggle={onToggleSelection}
                             onDelete={onDeleteSource}
+                            onOpenInDraftPro={onOpenInDraftPro}
                         />
                     ))
                 )}

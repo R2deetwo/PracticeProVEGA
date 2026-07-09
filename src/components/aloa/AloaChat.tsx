@@ -1092,41 +1092,68 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 const storageId = msg.attachments![i];
                 const name = attachmentNames[i] || `Document ${i + 1}`;
 
-                // Fetch the file content from Convex storage
+                // Fetch the file content from Convex storage and extract text
+                // using the attachmentProcessor (handles PDF, DOCX, TXT, images)
                 try {
-                    const fileUrl = await convex.query(api.myFunctions.getFileUrl, { storageId });
-                    if (fileUrl) {
-                        // Fetch the file to get its content
-                        const res = await fetch(fileUrl);
-                        const blob = await res.blob();
-                        const text = await blob.text();
+                    const { processAttachment } = await import('../../utils/attachmentProcessor');
+                    const processed = await processAttachment(storageId, name, import.meta.env.VITE_CONVEX_URL || 'https://gregarious-malamute-537.convex.cloud');
 
+                    if (processed.extractedText) {
+                        // Text was successfully extracted from the document
                         handleAddResearchSource(notebook.id, {
                             name,
                             type: 'text',
-                            content: text || `Document uploaded from ALOA chat. File: ${name}`,
+                            content: processed.extractedText,
                             file: {
                                 name,
-                                type: blob.type,
-                                size: blob.size,
-                                filePath: fileUrl,
+                                type: processed.mimeType,
+                                size: 0,
+                                filePath: '',
+                                storageId,
+                            },
+                        });
+                    } else if (processed.inlineData) {
+                        // Image or scanned PDF — store as file reference
+                        handleAddResearchSource(notebook.id, {
+                            name,
+                            type: 'text',
+                            content: `[Image/Scanned document: ${name}. The AI can see this image when you ask about it.]`,
+                            file: {
+                                name,
+                                type: processed.mimeType,
+                                size: 0,
+                                filePath: '',
                                 storageId,
                             },
                         });
                     } else {
-                        // Fallback: add as a reference without content
+                        // Extraction failed — store as reference with error info
                         handleAddResearchSource(notebook.id, {
                             name,
                             type: 'text',
-                            content: `Document uploaded from ALOA chat. Storage ID: ${storageId}`,
+                            content: `Document uploaded from ALOA chat: ${name}. Note: ${processed.error || 'Text extraction failed — the AI may not be able to read this file.'}`,
+                            file: {
+                                name,
+                                type: processed.mimeType,
+                                size: 0,
+                                filePath: '',
+                                storageId,
+                            },
                         });
                     }
                 } catch (e) {
-                    console.warn('[Send to Research] Failed to fetch attachment:', e);
+                    console.warn('[Send to Research] Failed to fetch/extract attachment:', e);
                     handleAddResearchSource(notebook.id, {
                         name,
                         type: 'text',
-                        content: `Document uploaded from ALOA chat. File: ${name}`,
+                        content: `Document uploaded from ALOA chat. File: ${name}. Text extraction failed — please upload a PDF or TXT version for analysis.`,
+                        file: {
+                            name,
+                            type: 'unknown',
+                            size: 0,
+                            filePath: '',
+                            storageId,
+                        },
                     });
                 }
             }
