@@ -3856,3 +3856,30 @@ Stage Summary:
 - If Vercel build fails, the deploy is rejected and production stays on the previous (working) deploy
 - User should still verify on Vercel dashboard (https://vercel.com/practice-pro-vega/practice-pro-vega/deployments) that deploys are triggering on push to main
 - If Vercel native integration is paused/broken, user may need to manually redeploy from Vercel dashboard
+
+---
+Task ID: three-fixes-1
+Agent: main
+Task: Fix three user-reported issues — (1) production updates not reflecting right away, (2) Messages page missing heading, (3) New Document modal still verbose
+
+Work Log:
+- Issue 1 (deploy reflection): root cause was useVersionCheck only PROMPTED users to refresh — many never clicked. Rewrote hook to AUTO-REFRESH immediately when healthy deploy detected. Polling 30s, initial 5s. Added Surrogate-Control/Pragma/Expires headers to vercel.json for stronger no-cache.
+- Issue 2 (Messages heading): added sticky glass header with h2 "Messages" and Compose button matching Documents/Contacts pattern. Removed redundant Compose button from inbox threads list header.
+- Issue 3 (DocumentForm verbose): prior commit dcff597 cleaned upload area but left header card, footer, label styling, modal size untouched. Removed entire "Core Document Definitions" card wrapper with stacked two-line eyebrow. Shortened labels (Document Title → Title, etc.). Reduced modal size xl → md. Simplified footer buttons (no shadow-2xl, no scale, sentence case). Softened labelClass (no uppercase tracking).
+- Verified build passes locally
+- Committed as cef6995 and pushed to main
+- Force-synced master: git push origin origin/main:refs/heads/master --force
+
+Files Changed:
+- src/hooks/useVersionCheck.ts (auto-refresh logic, 30s poll, 5s initial)
+- src/components/VersionRefreshBanner.tsx (now just "Updating…" indicator)
+- src/components/MessagesView.tsx (added page heading, removed dup Compose button)
+- src/components/forms/DocumentForm.tsx (drastically simplified, no chrome)
+- src/components/modals/ModalManager.tsx (modal size xl → md)
+- vercel.json (Surrogate-Control: no-store, Pragma: no-cache, Expires: 0)
+
+Stage Summary:
+- Auto-refresh means users will see new deploys within 30 seconds of detection — no manual action needed
+- Messages page now visually consistent with Documents/Contacts (sticky glass h2 header)
+- New Document modal is dramatically simpler: no card chrome, no dual labels, small footer buttons, sentence-case labels, modal sized md not xl
+- All three fixes committed in cef6995 and force-pushed to master for Vercel deploy
