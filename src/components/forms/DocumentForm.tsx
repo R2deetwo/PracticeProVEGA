@@ -21,7 +21,7 @@ interface DocumentFormProps {
     documentTemplates: DocumentTemplate[];
     documentTemplateCategories: DocumentTemplateCategory[];
     firmDetails: FirmDetails;
-    onAddDocument: (newDocumentData: any) => Promise<void>; 
+    onAddDocument: (newDocumentData: any) => Promise<void>;
     onUpdateDocument?: (updatedDocument: Document) => void;
     onClose: () => void;
     onNavigate?: (view: View, targetId?: string | null, context?: any) => void;
@@ -68,6 +68,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
     const isEditing = !!documentToEdit;
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
+    const isLegal = coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega';
 
     // Litigation Intelligence Hints
     const hints = useMemo(() => {
@@ -80,12 +81,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 results.push(...analyzePartyName(parties[1], 'defendant', [parties[0]], []));
             }
         }
-        
+
         const selectedMatter = matters.find(m => m.id === matterId);
         if (selectedMatter) {
             results.push(...analyzeMatterIntelligence(title, selectedMatter.court));
         }
-        
+
         return results;
     }, [title, matterId, matters]);
 
@@ -105,7 +106,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             setLitigationStatus(documentToEdit.litigationStatus || 'draft');
         } else {
             const context = initialContext?.fields || initialContext?.context || initialContext;
-            
+
             if (context?.matterId) {
                 setMatterId(context.matterId);
                 const matterCat = documentCategories.find(c => c.name.toLowerCase().includes('matter') || c.name.toLowerCase().includes('client'))?.id;
@@ -169,12 +170,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
         setIsDraftingAI(true);
         const matter = matters.find(m => m.id === matterId);
-        
+
         try {
             const history = [
                 { role: 'user', content: `Draft a professional Nigerian legal document titled "${title}" for the matter "${matter?.title}". Use formal court language if applicable. Include appropriate placeholders.` }
             ];
-            
+
             let fullText = '';
             await aiService.streamDraft(history, { appState: { matters, tasks: documents } as any, currentUser }, (chunk) => {
                 fullText += chunk;
@@ -261,24 +262,25 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     };
 
     const commonInputClass = inputModern;
-    const labelClass = "block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1.5 ml-1";
+    // Simpler labels — sentence case, smaller tracking, less micro-uppercase
+    const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
 
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 -m-2">
-            <div className="space-y-2 sm:space-y-3 pb-6">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3 -m-2">
+            <div className="space-y-3">
                 {isEditing && !fullDoc && (
                     <div className="absolute inset-x-0 top-0 -bottom-10 z-[60] bg-white/60 dark:bg-zinc-800/60 backdrop-blur-[2px] flex items-center justify-center rounded-xl">
-                        <div className="flex flex-col items-center gap-4 text-slate-600 dark:text-zinc-300">
-                            <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin shadow-sm" />
-                            <p className="text-xs font-black uppercase tracking-widest">Synchronizing Document...</p>
+                        <div className="flex flex-col items-center gap-3 text-slate-600 dark:text-zinc-300">
+                            <div className="w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                            <p className="text-xs font-semibold">Loading…</p>
                         </div>
                     </div>
                 )}
-                
+
                 {error && (
-                    <div className="p-3 sm:p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold rounded-2xl animate-in fade-in slide-in-from-top-2">
+                    <div className="p-3 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-900/30 text-rose-700 dark:text-rose-400 text-xs font-semibold rounded-lg">
                         <div className="flex items-center gap-2">
-                            <InfoIcon className="w-4 h-4" />
+                            <InfoIcon className="w-4 h-4 flex-shrink-0" />
                             {error}
                         </div>
                     </div>
@@ -286,88 +288,72 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
                 {/* Litigation Intelligence Warnings */}
                 {hints.length > 0 && (
-                    <div className="space-y-2 mb-4">
+                    <div className="space-y-2">
                         {hints.map((hint, idx) => (
-                            <div key={idx} className={`flex items-start gap-4 p-4 rounded-2xl border ${
-                                hint.type === 'error' ? 'bg-rose-50/50 border-rose-200 text-rose-700 dark:bg-rose-900/10 dark:border-rose-900/40' : 
-                                hint.type === 'warning' ? 'bg-amber-50/50 border-amber-200 text-amber-700 dark:bg-amber-900/10 dark:border-amber-900/40' : 
+                            <div key={idx} className={`flex items-start gap-3 p-3 rounded-lg border text-xs ${
+                                hint.type === 'error' ? 'bg-rose-50/50 border-rose-200 text-rose-700 dark:bg-rose-900/10 dark:border-rose-900/40' :
+                                hint.type === 'warning' ? 'bg-amber-50/50 border-amber-200 text-amber-700 dark:bg-amber-900/10 dark:border-amber-900/40' :
                                 'bg-blue-50/50 border-blue-200 text-blue-700 dark:bg-blue-900/10 dark:border-blue-900/40'
-                            } transition-all animate-in slide-in-from-left-4`}>
-                                <div className="text-lg mt-0.5">{hint.icon}</div>
-                                <div className="space-y-1">
-                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-60">
-                                        Procedural Intelligence Detected
-                                    </p>
-                                    <p className="text-[13px] font-medium leading-relaxed">{hint.text}</p>
-                                </div>
+                            }`}>
+                                <div className="text-base flex-shrink-0">{hint.icon}</div>
+                                <p className="font-medium leading-relaxed">{hint.text}</p>
                             </div>
                         ))}
                     </div>
                 )}
 
-                {/* Core Document Definitions */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 mb-2 px-1">
-                        <div className="p-1.5 bg-primary-600 text-white rounded-lg shadow-sm ring-2 ring-primary-500/10">
-                            <DocumentsIcon className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Draft Definition' : 'Document Details'}</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Instrument Specification' : 'File Information'}</h3>
+                {/* Title */}
+                <div>
+                    <label htmlFor="title" className={labelClass}>{isLegal ? 'Draft name' : 'Title'}</label>
+                    <input autoComplete="off" data-lpignore="true" type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder={isLegal ? "e.g. Originating Summons" : "Enter document name"} required />
+                </div>
+
+                {/* Matter + Folder row */}
+                <div className={`grid ${gridClass} gap-3`}>
+                    <div>
+                        <label className={labelClass}>{isLegal ? 'Matter' : 'Property'}</label>
+                        <div className="relative">
+                            <OfficeBuildingIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <select value={matterId || ''} onChange={e => setMatterId(e.target.value || undefined)} className={`${commonInputClass} pl-10 appearance-none`}>
+                                <option value="">None</option>
+                                {matters.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+                            </select>
                         </div>
                     </div>
-
-                    <div className="space-y-2 group">
-                        <label htmlFor="title" className={labelClass}>{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Draft / File Name' : 'Document Title'}</label>
-                        <input autoComplete="off" data-lpignore="true"  type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder={coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? "Enter name of the legal instrument..." : "Enter document name..."} required />
-                    </div>
-
-                    <div className={`grid ${gridClass} gap-3 sm:gap-4`}>
-                        <div className="space-y-2 group">
-                            <label className={labelClass}>{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Matter / Client Link' : 'Property / Tenant Link'}</label>
-                            <div className="relative">
-                                <OfficeBuildingIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <select value={matterId || ''} onChange={e => setMatterId(e.target.value || undefined)} className={`${commonInputClass} pl-11 appearance-none`}>
-                                    <option value="">-- {coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'No Matter (General File)' : 'General Document'} --</option>
-                                    {matters.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="space-y-2 group">
-                            <label className={labelClass}>Storage Folder</label>
-                            <div className="relative">
-                                <FolderIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className={`${commonInputClass} pl-11 appearance-none`} required>
-                                    <option value="" disabled>-- Select --</option>
-                                    {documentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
+                    <div>
+                        <label className={labelClass}>Folder</label>
+                        <div className="relative">
+                            <FolderIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className={`${commonInputClass} pl-10 appearance-none`} required>
+                                <option value="" disabled>Select…</option>
+                                {documentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
                         </div>
                     </div>
                 </div>
 
-                {/* Upload area — simple, no dual labels, no AI draft mode */}
-                <div className="space-y-2">
+                {/* Upload area */}
+                <div>
                     {content !== undefined ? (
                         <div className="space-y-2">
-                            <textarea 
-                                value={content} 
-                                onChange={e => setContent(e.target.value)} 
-                                className="w-full h-40 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 outline-none resize-y custom-scrollbar"
-                                placeholder="Paste or type content..."
+                            <textarea
+                                value={content}
+                                onChange={e => setContent(e.target.value)}
+                                className="w-full h-32 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 outline-none resize-y custom-scrollbar"
+                                placeholder="Paste or type content…"
                             />
-                            <button type="button" onClick={() => setContent(undefined)} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">← Back to upload</button>
+                            <button type="button" onClick={() => setContent(undefined)} className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300">← Back to upload</button>
                         </div>
                     ) : (
                         <div
-                            className={`relative border-2 border-dashed p-6 rounded-xl text-center transition-all ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}
+                            className={`relative border-2 border-dashed p-5 rounded-lg text-center transition-colors ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}
                             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
                         >
                             {file ? (
-                                <div className="flex items-center justify-center gap-3">
-                                    <CheckBadgeIcon className="w-6 h-6 text-emerald-500" />
+                                <div className="flex items-center justify-center gap-2">
+                                    <CheckBadgeIcon className="w-5 h-5 text-emerald-500" />
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{file.name}</p>
                                         <p className="text-[10px] text-slate-400">{formatBytes(file.size)}</p>
@@ -375,19 +361,23 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     <button type="button" onClick={() => setFile(null)} className="text-xs text-rose-500 hover:underline ml-2">Remove</button>
                                 </div>
                             ) : (
-                                <div className="space-y-2">
-                                    <CloudArrowUpIcon className="w-8 h-8 text-slate-300 mx-auto" />
-                                    <input autoComplete="off" data-lpignore="true"  type="file" id="file-upload" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-                                    <label htmlFor="file-upload" className="cursor-pointer text-sm font-bold text-primary-600 hover:underline">Upload a file</label>
-                                    <p className="text-[10px] text-slate-400">PDF, DOCX, PNG, JPG — or <button type="button" onClick={() => setContent('')} className="text-primary-600 hover:underline font-medium">type content</button></p>
+                                <div className="space-y-1.5">
+                                    <CloudArrowUpIcon className="w-6 h-6 text-slate-300 mx-auto" />
+                                    <input autoComplete="off" data-lpignore="true" type="file" id="file-upload" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                                    <div className="text-sm">
+                                        <label htmlFor="file-upload" className="cursor-pointer font-semibold text-primary-600 hover:underline">Upload a file</label>
+                                        <span className="text-slate-400"> or </span>
+                                        <button type="button" onClick={() => setContent('')} className="text-primary-600 hover:underline font-medium">type content</button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-400">PDF, DOCX, PNG, JPG · 10 MB max</p>
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* Court process toggle — simplified */}
-                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+                {/* Court process toggle */}
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-2">
                         <GavelIconLarge className="w-4 h-4 text-slate-400" />
                         <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Court process</span>
@@ -395,52 +385,53 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     <button
                         type="button"
                         onClick={() => setIsCourtProcess(!isCourtProcess)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${isCourtProcess ? 'bg-amber-600' : 'bg-slate-200 dark:bg-zinc-700'}`}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${isCourtProcess ? 'bg-amber-600' : 'bg-slate-200 dark:bg-zinc-700'}`}
                     >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform ${isCourtProcess ? 'translate-x-4.5' : 'translate-x-1'}`} />
                     </button>
                 </div>
 
-                    {isCourtProcess && (
-                        <div className="pt-4 border-t border-slate-100 dark:border-zinc-700 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <label className={labelClass}>{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Litigation Stage' : 'Workflow Stage'}</label>
-                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-2 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
-                                {[
-                                    { id: 'draft', label: 'Drafting', color: 'primary' },
-                                    { id: 'filed', label: 'Filed', color: 'orange' },
-                                    { id: 'served', label: 'Served', color: 'blue' },
-                                    { id: 'acknowledged', label: 'Confirmed', color: 'emerald' }
-                                ].map((step) => (
-                                    <button
-                                        key={step.id}
-                                        type="button"
-                                        //@ts-ignore
-                                        onClick={() => setLitigationStatus(step.id)}
-                                        className={`py-3 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700 scale-[1.02]' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}
-                                    >
-                                        {step.label}
-                                    </button>
-                                ))}
-                            </div>
+                {isCourtProcess && (
+                    <div className="pt-3 border-t border-slate-100 dark:border-zinc-700">
+                        <label className={labelClass}>Stage</label>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-1.5 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-100 dark:border-zinc-800">
+                            {[
+                                { id: 'draft', label: 'Drafting' },
+                                { id: 'filed', label: 'Filed' },
+                                { id: 'served', label: 'Served' },
+                                { id: 'acknowledged', label: 'Confirmed' }
+                            ].map((step) => (
+                                <button
+                                    key={step.id}
+                                    type="button"
+                                    //@ts-ignore
+                                    onClick={() => setLitigationStatus(step.id)}
+                                    className={`py-2 text-xs font-semibold rounded-md transition-colors ${litigationStatus === step.id ? 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-zinc-700' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-400'}`}
+                                >
+                                    {step.label}
+                                </button>
+                            ))}
                         </div>
-                    )}
+                    </div>
+                )}
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
-                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2" disabled={isSubmitting}>
-                    <XIcon className="w-4 h-4" /> Cancel
+            {/* Simple footer — small buttons, sentence case */}
+            <div className="sticky bottom-0 left-0 right-0 pt-3 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2 z-50">
+                <button type="button" onClick={onClose} className="px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors" disabled={isSubmitting}>
+                    Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 sm:flex-none px-8 sm:px-12 py-3 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                     {isSubmitting ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                        <SaveIcon className="w-4 h-4" />
+                        <SaveIcon className="w-3.5 h-3.5" />
                     )}
-                    {isSubmitting ? 'Saving...' : (isEditing ? 'Commit Changes' : 'Initialize Document')}
+                    {isSubmitting ? 'Saving…' : (isEditing ? 'Update' : 'Save')}
                 </button>
             </div>
         </form>

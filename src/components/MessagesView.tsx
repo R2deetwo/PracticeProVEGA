@@ -1153,6 +1153,20 @@ const MessagesView: React.FC = () => {
     // ══════════════════════════════════════════════════════════════════════════
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-zinc-900 border-x border-slate-200 dark:border-zinc-800">
+            {/* ── Page Header (matches Documents/Contacts pattern) ── */}
+            <div className="flex-shrink-0 sticky top-0 z-30 glass py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowCompose(true)}
+                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold"
+                        >
+                            <PlusIcon className="w-4 h-4" /> Compose
+                        </button>
+                    </div>
+                </div>
+            </div>
             {/* ── Top Tab Bar ── */}
             <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 sm:px-4 pt-2">
                 <div className="flex items-center gap-1">
@@ -1256,12 +1270,6 @@ const MessagesView: React.FC = () => {
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h1m18 0h1M12 2v1m0 18v1" />
                                         </svg>
-                                    </button>
-                                    <button
-                                        onClick={() => setShowCompose(true)}
-                                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1 text-xs font-bold"
-                                    >
-                                        <PlusIcon className="w-3.5 h-3.5" /> Compose
                                     </button>
                                 </div>
                             </div>

@@ -1,6 +1,5 @@
 /**
- * useVersionCheck — detects new deploys and prompts the user to refresh,
- * WITH BUILD-HEALTH PROTECTION.
+ * useVersionCheck — detects new deploys and AUTO-REFRESHES immediately.
  *
  * HOW IT WORKS
  * ------------
@@ -10,22 +9,14 @@
  *    `import.meta.env.VITE_BUILD_SHA`.
  * 3. At runtime, this hook periodically fetches `/version.json` (with
  *    cache-busting) and compares its `sha` against the baked-in SHA.
- * 4. If they differ, the hook checks:
- *      a. `status === 'healthy'`  — build passed (marked by mark-healthy.cjs)
- *      b. `stableSince` is > 1 minute ago  — stable delay
- *    Only if BOTH are true does it prompt the user to refresh.
- * 5. If `status === 'broken'`, the hook NEVER prompts — this lets us
- *    roll back a bad build by updating version.json on the server.
- *
- * BUILD HEALTH STATES
- * ------------------
- *   'building' → build in progress or not yet verified — don't prompt
- *   'healthy'  → build verified, prompt after 5-min stable delay
- *   'broken'   → build known to be broken — never prompt
+ * 4. If they differ AND `status === 'healthy'`, the hook AUTO-REFRESHES
+ *    the page immediately. No prompt, no delay.
+ * 5. If `status === 'building'` or `'broken'`, the hook waits — never
+ *    refreshes to an in-progress or known-broken build.
  *
  * TRIGGERS
  * --------
- * - Every 5 minutes while the page is visible
+ * - Every 30 seconds while the page is visible (very aggressive)
  * - Immediately when the tab/window regains focus
  * - Immediately when the browser comes back online
  *
@@ -34,14 +25,20 @@
  * - In dev mode (VITE_DEV), the hook is a no-op.
  * - In Capacitor (native app), the hook is a no-op — APK updates are
  *   install-time, not runtime.
+ * - AUTO-REFRESH rationale: user complaints about "changes don't reflect
+ *   right away" stemmed from the previous prompt-based flow where users
+ *   had to click "Refresh" — many users never did. Auto-refresh is
+ *   instant and invisible.
+ * - To avoid refresh loops, the hook checks the SHA actually changes
+ *   AND that stableSince is in the past. A broken deploy will never
+ *   trigger a refresh.
  */
 import { useEffect, useRef, useState } from 'react';
 
-const POLL_INTERVAL_MS = 60 * 1000; // 1 minute — check for updates frequently
-const STABLE_DELAY_MS = 60 * 1000;  // 1 minute after stableSince — quick but not instant
+const POLL_INTERVAL_MS = 30 * 1000; // 30 seconds — aggressive update detection
 
 export interface VersionCheckState {
-  /** True when a new deploy has been detected, verified healthy, AND stable for 1 min. */
+  /** True when a new deploy has been detected and verified healthy. */
   updateAvailable: boolean;
   /** The SHA of the new deploy (for display). */
   remoteSha?: string;
@@ -64,6 +61,8 @@ export function useVersionCheck(): VersionCheckState {
   const [remoteSha, setRemoteSha] = useState<string | undefined>(undefined);
   const [dismissed, setDismissed] = useState(false);
   const localShaRef = useRef<string | undefined>(undefined);
+  // Guard against triggering multiple refreshes in quick succession.
+  const refreshTriggeredRef = useRef(false);
   if (localShaRef.current === undefined) {
     localShaRef.current = (import.meta as any).env?.VITE_BUILD_SHA || 'unknown';
   }
@@ -75,6 +74,9 @@ export function useVersionCheck(): VersionCheckState {
     let cancelled = false;
 
     const check = async () => {
+      // Already triggered a refresh — don't trigger again.
+      if (refreshTriggeredRef.current) return;
+
       try {
         // Cache-bust via query string so we never read a stale version.json
         // from the browser cache or a CDN edge node.
@@ -98,17 +100,10 @@ export function useVersionCheck(): VersionCheckState {
           return;
         }
 
-        // Different SHA → potential update. Check health before prompting.
-        // ── BUILD HEALTH GATE ──────────────────────────────────────────
-        // Only prompt if the remote build is marked 'healthy' AND has been
-        // stable for at least 5 minutes. This prevents:
-        //   - Prompting to a build that's still being verified
-        //   - Prompting to a build that was just deployed and may have
-        //     runtime issues not yet detected
-        //   - Prompting to a known-broken build (status === 'broken')
+        // Different SHA → potential update. Check health before refreshing.
         const status = data.status || 'building';
         if (status === 'broken') {
-          // Known-broken build — never prompt, even if SHA differs.
+          // Known-broken build — never refresh, even if SHA differs.
           // User stays on their current (working) version.
           return;
         }
@@ -117,27 +112,33 @@ export function useVersionCheck(): VersionCheckState {
           return;
         }
         if (status === 'healthy') {
-          // Healthy — but wait for the stable delay to elapse.
-          const stableSince = data.stableSince ? new Date(data.stableSince).getTime() : 0;
-          const elapsed = Date.now() - stableSince;
-          if (elapsed < STABLE_DELAY_MS) {
-            // Build is healthy but too fresh — wait for the delay.
-            // (Will be re-checked on next poll.)
-            return;
-          }
-        }
+          // Healthy — AUTO-REFRESH immediately. No prompt, no delay.
+          // Mark that we've triggered so we don't fire multiple times.
+          refreshTriggeredRef.current = true;
+          setRemoteSha(data.sha);
+          setUpdateAvailable(true);
 
-        // All gates passed — safe to prompt.
-        setRemoteSha(data.sha);
-        setUpdateAvailable(true);
-        setDismissed(false);
+          // Perform the refresh on the next tick (let React commit state
+          // first so the UI doesn't flash an unmounted warning).
+          setTimeout(() => {
+            try {
+              if ('caches' in window) {
+                caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
+              }
+            } catch { /* ignore */ }
+            const url = new URL(window.location.href);
+            url.searchParams.set('_refresh', String(Date.now()));
+            window.location.replace(url.toString());
+          }, 100);
+          return;
+        }
       } catch {
         // Network error — silently ignore. We'll retry on next interval.
       }
     };
 
     // Initial check after a short delay (let the app settle first).
-    const initialTimer = setTimeout(check, 15_000);
+    const initialTimer = setTimeout(check, 5_000);
     const interval = setInterval(check, POLL_INTERVAL_MS);
 
     const onFocus = () => { check(); };

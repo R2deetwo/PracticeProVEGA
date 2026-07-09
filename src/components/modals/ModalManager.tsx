@@ -975,8 +975,8 @@ const ModalManager: React.FC = () => {
         modalTitle = 'Compose Email';
     }
 
-    // Size mapping: xl for document-heavy forms, lg for email/comparison, sm for simple confirmations, md default
-    const modalSize = (modal === 'matterIngestion' || modal === 'editMatter' || modal === 'newDraft' || modal === 'newDocument' || modal === 'editDocument' || modal === 'newMatter') ? 'xl' 
+    // Size mapping: lg for matter ingest (multi-field), md for documents & default, sm for simple confirmations
+    const modalSize = (modal === 'matterIngestion' || modal === 'editMatter' || modal === 'newMatter') ? 'lg' 
         : (modal === 'composeEmail' ? 'lg' 
         : (modal === 'leadCapture' || modal === 'deleteConfirmation' || modal === 'aiConsent' || modal === 'keyboardShortcuts' || modal === 'noTeamMembers' || modal === 'aloaHelp' || modal === 'feedback' || modal === 'upgradePlan' ? 'sm' 
         : 'md'));
