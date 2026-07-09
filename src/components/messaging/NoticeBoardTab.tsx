@@ -9,6 +9,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { usePropertyGroups } from '../../hooks/usePropertyGroups';
 import { PlusIcon, BellIcon, TrashIcon } from '../../constants';
 
@@ -27,6 +28,11 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
+  // Product-aware terminology. For Vega (legal-only) firms, notices go to
+  // clients, not residents. For Atrium/Komplete, notices go to residents.
+  // Default audience is "clients" for legal-only, "residents" for property-bearing.
+  const { hasPropertyFeatures, hasLegalFeatures } = useProduct();
+  const audienceNoun = hasLegalFeatures && !hasPropertyFeatures ? 'clients' : 'residents';
 
   const createNotice = useMutation(api.portals.createNotice);
   const archiveNotice = useMutation(api.portals.archiveNotice);
@@ -92,7 +98,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
       setNewNoticePropertyId('');
       setNewNoticeUnitId('');
       setShowNoticeForm(false);
-      addToast('Notice posted successfully. Emails will be sent to residents based on your notification settings.', { type: 'success' });
+      addToast(`Notice posted successfully. Emails will be sent to ${audienceNoun} based on your notification settings.`, { type: 'success' });
     } catch (err: any) {
       addToast(err.message || 'Failed to create notice.', { type: 'error' });
     } finally {
@@ -108,7 +114,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
           <div className="flex items-center justify-between mb-1">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Notice Board</h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">Post updates visible to residents on their portal. Emails are sent based on your notification settings.</p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400">Post updates visible to {audienceNoun} on their portal. Emails are sent based on your notification settings.</p>
             </div>
             <button
               onClick={() => setShowNoticeForm(!showNoticeForm)}
@@ -228,7 +234,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                 <BellIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
               </div>
               <p className="text-sm font-semibold text-slate-500 dark:text-zinc-400">No notices yet</p>
-              <p className="text-xs text-slate-400 mt-1">Post a notice to keep your residents informed</p>
+              <p className="text-xs text-slate-400 mt-1">Post a notice to keep your {audienceNoun} informed</p>
               <button
                 onClick={() => setShowNoticeForm(true)}
                 className="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-colors flex items-center gap-1.5"

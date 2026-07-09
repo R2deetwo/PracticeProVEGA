@@ -103,6 +103,42 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 { id: 'doc_orders', name: 'Court Orders', firmId: '', parentId: null },
                 { id: 'doc_opinions', name: 'Legal Opinions', firmId: '', parentId: null }
             ];
+        } else if (product === 'unified') {
+            // Komplete (unified) firms need BOTH legal and property contact and
+            // document categories. Previously this branch was missing — Komplete
+            // firms fell through with whatever appState.contactCategories was set
+            // to, which was typically legal-only defaults.
+            categories.contactCategories = [
+                // Legal contacts
+                { id: 'cat_client', name: 'Client', firmId: '' },
+                { id: 'cat_opposing', name: 'Opposing Counsel', firmId: '' },
+                { id: 'cat_judiciary', name: 'Judiciary Staff', firmId: '' },
+                { id: 'cat_witness', name: 'Expert Witness', firmId: '' },
+                { id: 'cat_advocate', name: 'Advocate', firmId: '' },
+                // Property contacts
+                { id: 'cat_landlord', name: 'Landlord', firmId: '' },
+                { id: 'cat_tenant', name: 'Tenant', firmId: '' },
+                { id: 'cat_agent', name: 'Property Agent', firmId: '' },
+                { id: 'cat_manager', name: 'Facility Manager', firmId: '' },
+                { id: 'cat_vendor', name: 'Vendor/Artisan', firmId: '' },
+                { id: 'cat_govt', name: 'Govt Agency', firmId: '' }
+            ];
+            categories.documentCategories = [
+                // Legal documents
+                { id: 'doc_pleadings', name: 'Pleadings', firmId: '', parentId: null },
+                { id: 'doc_corresp', name: 'Correspondence', firmId: '', parentId: null },
+                { id: 'doc_evidence', name: 'Evidence', firmId: '', parentId: null },
+                { id: 'doc_agreements', name: 'Agreements', firmId: '', parentId: null },
+                { id: 'doc_orders', name: 'Court Orders', firmId: '', parentId: null },
+                { id: 'doc_opinions', name: 'Legal Opinions', firmId: '', parentId: null },
+                // Property documents
+                { id: 'doc_leases', name: 'Lease Agreements', firmId: '', parentId: null },
+                { id: 'doc_deeds', name: 'Title Deeds', firmId: '', parentId: null },
+                { id: 'doc_utility', name: 'Utility Bills', firmId: '', parentId: null },
+                { id: 'doc_service', name: 'Service Charges', firmId: '', parentId: null },
+                { id: 'doc_maint', name: 'Maintenance Records', firmId: '', parentId: null },
+                { id: 'doc_tax', name: 'Tax/Rates', firmId: '', parentId: null }
+            ];
         }
 
         return categories;

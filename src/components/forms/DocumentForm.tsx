@@ -3,6 +3,7 @@ import React, { useState, useEffect, DragEvent, useCallback, useMemo } from 'rea
 import { Document, Matter, DocumentCategory, View, User, FileDetails, DocumentTemplate, FirmDetails, DocumentTemplateCategory, Contact, AloaHint } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatBytes } from '../../utils/formatting';
@@ -53,6 +54,12 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     const { coreState } = useCoreState();
     const { view, selectedId, navigateTo } = useUI();
     const { openModal, addToast } = useUI();
+    // Use the canonical product-aware flags from ProductContext.
+    // Previously this component checked `product === 'legal' || product === 'vega'`
+    // which MISSED 'unified' (Komplete) — so Komplete firms wrongly saw "Property"
+    // labels instead of "Matter" labels. useProduct().isLegal correctly returns
+    // true for both Vega AND Komplete (unified).
+    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, terminology } = useProduct();
     const [title, setTitle] = useState('');
     const [file, setFile] = useState<FileDetails | null>(null);
     const [matterId, setMatterId] = useState<string | undefined>(undefined);
@@ -68,7 +75,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
 
     const isEditing = !!documentToEdit;
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
-    const isLegal = coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega';
+    // isLegal is now sourced from useProduct() above (line ~62) so it correctly
+    // includes 'unified' (Komplete). Do NOT re-declare it here.
 
     // Litigation Intelligence Hints
     const hints = useMemo(() => {

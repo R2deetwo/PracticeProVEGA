@@ -3,6 +3,7 @@ import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
@@ -200,6 +201,11 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
   const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
+  // Product-aware flags. Previously this modal had NO product awareness at all
+  // — it always defaulted to the "Residents" tab and showed "Select All Tenanted"
+  // even for legal-only firms. Now we know whether the firm has property features,
+  // legal features, or both (Komplete).
+  const { isProperty: isPropertyFirm, isLegal: isLegalFirm, isUnified, hasPropertyFeatures, hasLegalFeatures } = useProduct();
   const convex = useConvex();
   const logAuto = useMutation(api.sentry.logAutomation);
 
@@ -228,7 +234,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   const [loading, setLoading] = useState(false);
   const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
   const [recipientSearch, setRecipientSearch] = useState('');
-  const [recipientTab, setRecipientTab] = useState<RecipientType>('tenant');
+  const [recipientTab, setRecipientTab] = useState<RecipientType>(() => {
+    // Product-aware default:
+    // - Pure legal (Vega) → 'client' (lawyers message their clients)
+    // - Pure property (Atrium) → 'tenant' (property managers message residents)
+    // - Komplete (unified) → 'client' by default (most law-firm comms go to clients)
+    //   Users can switch to 'tenant' tab if they need to message residents.
+    if (hasLegalFeatures && !hasPropertyFeatures) return 'client';
+    if (hasLegalFeatures && hasPropertyFeatures) return 'client'; // Komplete defaults to clients
+    return 'tenant'; // Pure property (Atrium)
+  });
   const [showUpcoming, setShowUpcoming] = useState(false);
   const [upcomingLogs, setUpcomingLogs] = useState<any[]>([]);
   const [upcomingLoading, setUpcomingLoading] = useState(false);
@@ -307,7 +322,11 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     [tenantRecipients, clientRecipients, teamRecipients]
   );
 
-  const tenantedRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);
+  // Renamed from `tenantedRecipients` — that name was wrong because the array
+  // contains ALL recipient types (clients + team + tenants), not just tenants.
+  // The "Select All Tenanted" button was selecting lawyers' clients and team
+  // members while claiming to select only tenants.
+  const allRecipients = useMemo(() => selectableRecipients, [selectableRecipients]);
 
   // ── Collapsible group state ─────────────────────────────────────────
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
@@ -425,15 +444,17 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
     );
   };
 
-  const selectAllTenanted = () => {
-    const allTenantedIds = tenantedRecipients.map(r => r.id);
-    const allSelected = allTenantedIds.every(id => selectedRecipientIds.includes(id));
+  // Renamed from `selectAllTenanted` — selects ALL recipients (clients + team +
+  // tenants), not just tenants. The "Select All Tenanted" label was misleading.
+  const selectAll = () => {
+    const allIds = allRecipients.map(r => r.id);
+    const allSelected = allIds.every(id => selectedRecipientIds.includes(id));
     if (allSelected) {
-      setSelectedRecipientIds(prev => prev.filter(id => !allTenantedIds.includes(id)));
+      setSelectedRecipientIds(prev => prev.filter(id => !allIds.includes(id)));
     } else {
       setSelectedRecipientIds(prev => {
-        const existing = prev.filter(id => !allTenantedIds.includes(id));
-        return [...existing, ...allTenantedIds];
+        const existing = prev.filter(id => !allIds.includes(id));
+        return [...existing, ...allIds];
       });
     }
   };
@@ -709,12 +730,12 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">
                   Recipients {selectedRecipients.length > 0 && <span className="text-primary-600 dark:text-primary-400">({selectedRecipients.length})</span>}
                 </label>
-                {tenantedRecipients.length > 1 && (
+                {allRecipients.length > 1 && (
                   <button
-                    onClick={selectAllTenanted}
+                    onClick={selectAll}
                     className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
                   >
-                    {tenantedRecipients.every(r => selectedRecipientIds.includes(r.id)) ? 'Deselect All' : 'Select All Tenanted'}
+                    {allRecipients.every(r => selectedRecipientIds.includes(r.id)) ? 'Deselect All' : 'Select All'}
                   </button>
                 )}
               </div>
@@ -731,7 +752,13 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                   ref={searchInputRef}
                   value={recipientSearch}
                   onChange={e => { setRecipientSearch(e.target.value); setShowRecipientDropdown(true); }}
-                  placeholder={selectedRecipients.length === 0 ? 'Search units or tenants…' : 'Add more…'}
+                  placeholder={selectedRecipients.length === 0
+                    ? (hasLegalFeatures && !hasPropertyFeatures
+                        ? 'Search clients…'
+                        : hasLegalFeatures && hasPropertyFeatures
+                          ? 'Search clients, residents, or team…'
+                          : 'Search units or residents…')
+                    : 'Add more…'}
                   className="flex-1 min-w-[100px] bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 py-1"
                 />
               </div>
@@ -739,13 +766,16 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               {/* Dropdown list — with recipient type tabs */}
               {showRecipientDropdown && (
                 <div className="absolute z-50 w-full mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 rounded-xl shadow-2xl max-h-80 overflow-hidden flex flex-col">
-                  {/* Recipient type tabs */}
+                  {/* Recipient type tabs — product-aware.
+                      Pure legal (Vega): hide Residents tab entirely.
+                      Pure property (Atrium): hide Clients tab entirely.
+                      Komplete: show all three. */}
                   <div className="flex border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
                     {([
-                      { key: 'tenant' as RecipientType, label: 'Residents', count: recipientCounts.tenant },
-                      { key: 'client' as RecipientType, label: 'Clients', count: recipientCounts.client },
-                      { key: 'team' as RecipientType, label: 'Team', count: recipientCounts.team },
-                    ]).filter(t => t.count > 0 || t.key === 'tenant').map(tab => (
+                      { key: 'tenant' as RecipientType, label: 'Residents', count: recipientCounts.tenant, show: hasPropertyFeatures },
+                      { key: 'client' as RecipientType, label: 'Clients', count: recipientCounts.client, show: hasLegalFeatures },
+                      { key: 'team' as RecipientType, label: 'Team', count: recipientCounts.team, show: true },
+                    ]).filter(t => t.show && (t.count > 0 || t.key === 'tenant' && hasPropertyFeatures && !hasLegalFeatures)).map(tab => (
                       <button
                         key={tab.key}
                         onClick={() => setRecipientTab(tab.key)}
@@ -766,10 +796,10 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                     {filteredRecipients.length === 0 && (
                       <div className="px-3 py-4 text-xs text-slate-400 dark:text-zinc-500 text-center">
                         {recipientTab === 'tenant'
-                          ? 'No residents found. Add tenant names and contact info to your units.'
+                          ? 'No residents found. Add residents and contact info to your units.'
                           : recipientTab === 'client'
-                            ? 'No clients with contact info found.'
-                            : 'No team members found.'}
+                            ? 'No clients with contact info found. Add clients in your Contacts directory.'
+                            : 'No team members found. Invite team members in Settings.'}
                       </div>
                     )}
                   {(() => {

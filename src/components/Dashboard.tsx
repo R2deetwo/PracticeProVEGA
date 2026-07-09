@@ -51,7 +51,7 @@ const Dashboard: React.FC = () => {
     const { financeState } = useFinanceState();
     const { currentUser } = useAuth();
     const { navigateTo, openModal, setHighlightTarget } = useUI();
-    const { isLegal, isUnified } = useProduct();
+    const { isLegal, isUnified, hasPropertyFeatures } = useProduct();
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
     
     // De-structure state
@@ -223,7 +223,7 @@ const Dashboard: React.FC = () => {
                         {/* Column 3: Calendar */}
                         <div className="lg:col-span-1 h-80 sm:h-96 lg:h-[28rem]">
                             <CalendarWidget
-                                events={[...(events || []), ...(!isLegal ? computeAtriumVirtualEvents(safeProperties) : [])]}
+                                events={[...(events || []), ...(hasPropertyFeatures ? computeAtriumVirtualEvents(safeProperties) : [])]}
                                 eventTypes={eventTypes || []}
                                 onEventSelect={(eventId, date) => openModal('viewEvent', eventId, { openedFrom: 'dashboard', instanceDate: date })}
                                 onViewFullCalendar={(date) => navigateTo('calendar', null, { date })}

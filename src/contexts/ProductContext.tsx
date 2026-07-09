@@ -32,6 +32,10 @@ interface ProductContextValue {
   isUnified: boolean;
   isVega: boolean;
   isAtrium: boolean;
+  /** True if firm has property-management features (Atrium OR Komplete). */
+  hasPropertyFeatures: boolean;
+  /** True if firm has legal-practice features (Vega OR Komplete). */
+  hasLegalFeatures: boolean;
   terminology: Terminology;
   /** Only populated when `isUnified` (KOMPLETE). VEGA/ATRIUM derive role from product variant. */
   signerContext: SignerContext | null;
@@ -44,6 +48,8 @@ const ProductContext = createContext<ProductContextValue>({
   isUnified: true,
   isVega: false,
   isAtrium: false,
+  hasPropertyFeatures: true,
+  hasLegalFeatures: true,
   terminology: {
     matter: 'Matter',
     matters: 'Matters',

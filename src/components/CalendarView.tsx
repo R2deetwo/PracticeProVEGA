@@ -276,7 +276,7 @@ export const CalendarView: React.FC = () => {
     const { coreState } = useCoreState();
     const { currentUser, updateCurrentUser } = useAuth();
     const { openModal, highlightTarget, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
-    const { isLegal } = useProduct();
+    const { isLegal, hasPropertyFeatures } = useProduct();
 
     const selectedDate = currentHistoryEntry?.calendarDate || toLocalISOString(new Date());
     const propViewMode = currentHistoryEntry?.calendarViewMode || currentUser?.defaultViewModes?.calendar || 'month';
@@ -285,7 +285,10 @@ export const CalendarView: React.FC = () => {
 
     const standardEvents = executionState.events || [];
     const properties = coreState.properties || [];
-    const virtualEvents = !isLegal ? computeAtriumVirtualEvents(properties) : [];
+    // Use hasPropertyFeatures (true for Atrium AND Komplete) so Komplete firms
+    // also see rent due dates and lease expirations on the calendar.
+    // Previously used !isLegal which was false for Komplete (isLegal=true for unified).
+    const virtualEvents = hasPropertyFeatures ? computeAtriumVirtualEvents(properties) : [];
     const events = [...standardEvents, ...virtualEvents];
     const eventTypes = coreState.eventTypes;
     const users = coreState.users;

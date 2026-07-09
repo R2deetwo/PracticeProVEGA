@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useProduct } from '../../contexts/ProductContext';
 
 interface ContactFormProps {
     onAddContact: (contact: Omit<Contact, 'id'>, createPortalAccount: boolean) => void;
@@ -23,6 +24,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast, openModal, navigateTo } = useUI();
     const dataHandlers = useDataActions();
+    // Product-aware flags. Previously this form hardcoded
+    // `product === 'legal' || product === 'vega'` which MISSED 'unified' (Komplete).
+    // Komplete firms need BOTH legal and property contact categories.
+    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, hasLegalFeatures } = useProduct();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
@@ -321,14 +326,22 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                             <option value="">Select Category</option>
                                             <option value="Client">Client</option>
                                             <option value="Vendor">Vendor</option>
-                                            {coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? (
+                                            {/* Legal categories — shown for Vega AND Komplete (hasLegalFeatures).
+                                                Previously this only checked 'legal' || 'vega' and missed 'unified',
+                                                so Komplete firms never saw Court Staff / Opposing Counsel / etc. */}
+                                            {hasLegalFeatures && (
                                                 <>
                                                     <option value="Court Staff">Court Staff</option>
                                                     <option value="Opposing Counsel">Opposing Counsel</option>
                                                     <option value="Judiciary">Judiciary</option>
                                                     <option value="Advocate">Advocate</option>
                                                 </>
-                                            ) : (
+                                            )}
+                                            {/* Property categories — shown for Atrium AND Komplete (hasPropertyFeatures).
+                                                For Komplete firms, BOTH legal and property categories appear,
+                                                so a firm can categorize a contact as either 'Client' (legal)
+                                                or 'Landlord'/'Tenant' (property). */}
+                                            {hasPropertyFeatures && (
                                                 <>
                                                     <option value="Landlord">Landlord</option>
                                                     <option value="Tenant">Tenant</option>

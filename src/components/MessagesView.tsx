@@ -538,7 +538,7 @@ const MessagesView: React.FC = () => {
     const { currentUser } = useAuth();
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast } = useUI();
-    const { isProperty, isLegal, isUnified } = useProduct();
+    const { isProperty, isLegal, isUnified, hasPropertyFeatures } = useProduct();
     const { confirm, ConfirmDialog } = useConfirm();
 
     if (!currentUser) return null;
@@ -636,7 +636,9 @@ const MessagesView: React.FC = () => {
         portal: boolean;
     }>({ request: true, ticket: true, replied: true, portal: true });
 
-    // Role filter: All / Client / Resident
+    // Role filter: All / Client / Resident.
+    // Product-aware: Vega only shows All+Clients, Atrium only shows All+Residents,
+    // Komplete shows all three. The role type stays a union for compatibility.
     const [roleFilter, setRoleFilter] = useState<'all' | 'Client' | 'Tenant'>('all');
 
     // Search query for filtering by name/subject
@@ -1346,19 +1348,26 @@ const MessagesView: React.FC = () => {
                                 participant role (Client/Resident) and free-text search. */}
                             {(portalConversations as any[]).length > 0 && selectedConvIds.size === 0 && (
                                 <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex items-center gap-2">
-                                    {/* Role filter pills */}
+                                    {/* Role filter pills — product-aware:
+                                        Pure legal (Vega): hide Residents pill.
+                                        Pure property (Atrium): hide Clients pill.
+                                        Komplete: show all three. */}
                                     <div className="flex items-center gap-1 flex-shrink-0">
-                                        {(['all', 'Client', 'Tenant'] as const).map(role => (
+                                        {([
+                                            { role: 'all' as const, label: 'All', show: true },
+                                            { role: 'Client' as const, label: 'Clients', show: isLegal },
+                                            { role: 'Tenant' as const, label: 'Residents', show: hasPropertyFeatures },
+                                        ]).filter(r => r.show).map(r => (
                                             <button
-                                                key={role}
-                                                onClick={() => setRoleFilter(role)}
+                                                key={r.role}
+                                                onClick={() => setRoleFilter(r.role)}
                                                 className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
-                                                    roleFilter === role
+                                                    roleFilter === r.role
                                                         ? 'bg-primary-600 text-white'
                                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                                                 }`}
                                             >
-                                                {role === 'all' ? 'All' : role === 'Client' ? 'Clients' : 'Residents'}
+                                                {r.label}
                                             </button>
                                         ))}
                                     </div>
@@ -1451,7 +1460,7 @@ const MessagesView: React.FC = () => {
                                     return (
                                         <>
                                             {/* ── Inbound WhatsApp/Email messages (Atrium/Komplete only) ── */}
-                                            {isProperty && (atriumInbound as any[]).map((msg: any) => (
+                                            {hasPropertyFeatures && (atriumInbound as any[]).map((msg: any) => (
                                                 <div
                                                     key={msg._id}
                                                     onClick={() => { setSelectedInboxId(msg._id); markInboundRead({ messageId: msg._id }); }}

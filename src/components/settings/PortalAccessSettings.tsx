@@ -843,7 +843,7 @@ export const PortalAccessSettings: React.FC = () => {
   const { currentUser, loginAsUser } = useAuth();
   const { addToast, navigateTo } = useUI();
   const convex = useConvex();
-  const { isProperty, isLegal, isUnified } = useProduct();
+  const { isProperty, isLegal, isUnified, hasPropertyFeatures, hasLegalFeatures } = useProduct();
   const { canUseClientPortal, canUseTenantPortal } = useFeatures();
 
   const firmId = currentUser?.firmId || '';
@@ -888,9 +888,14 @@ export const PortalAccessSettings: React.FC = () => {
   const hasMatters = (matterState.matters || []).length > 0;
   const hasProperties = (coreState.properties || []).length > 0;
 
-  // Determine which portal sections to show
-  const showClientPortal = isLegal;
-  const showResidentPortal = isProperty;
+  // Determine which portal sections to show.
+  // Use hasPropertyFeatures / hasLegalFeatures (true for Komplete) rather than
+  // isProperty / isLegal (which is true for pure Atrium / pure Vega only — but
+  // isLegal actually DOES include 'unified' so it's already correct).
+  // The bug was specifically showResidentPortal = isProperty — Komplete firms
+  // (isProperty=false) couldn't see the Residents' Portal section at all.
+  const showClientPortal = hasLegalFeatures;     // Vega + Komplete
+  const showResidentPortal = hasPropertyFeatures; // Atrium + Komplete
   const showBoth = showClientPortal && showResidentPortal;
 
   const handleRevoke = async (inviteId: string) => {
