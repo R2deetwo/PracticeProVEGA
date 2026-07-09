@@ -10,7 +10,9 @@ import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useDocumentState } from '../../contexts/DocumentContext';
 import ErrorBoundary from '../ErrorBoundary';
+import BacklinksPanel from '../BacklinksPanel';
 
 interface ContactDetailViewProps {
   contactId: string;
@@ -34,6 +36,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   const { navigateTo, addToast } = useUI();
   const { matterState } = useMatterState();
   const { coreState } = useCoreState();
+  const { documentState } = useDocumentState();
   const dataHandlers = useDataActions();
   
   const contact = matterState.contacts.find(c => c.id === contactId);
@@ -294,6 +297,13 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
         <div className="flex-grow overflow-y-auto p-6 custom-scrollbar bg-slate-50 dark:bg-zinc-900">
              <div className="max-w-5xl mx-auto">
                 {renderTabContent()}
+                {/* Bidirectional linking — notes that mention this contact */}
+                <BacklinksPanel
+                    entityId={contact.id}
+                    entityType="contact"
+                    notes={documentState.notePages || []}
+                    navigateTo={navigateTo}
+                />
              </div>
         </div>
       

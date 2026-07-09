@@ -2,6 +2,7 @@
 import React from 'react';
 import { EditIcon } from '../../constants';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { renderLinksAsHtml } from '../../utils/linkParser';
 
 interface NoteDetailsProps {
     note: any;
@@ -29,9 +30,21 @@ export const NoteDetails: React.FC<NoteDetailsProps> = ({ note, onEdit, onBack }
 
                 <div className="h-px bg-slate-100 dark:border-zinc-800 w-16" />
 
-                <div 
+                <div
                     className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-zinc-300 leading-relaxed font-medium whitespace-pre-wrap break-words"
-                    dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(note.content || '') }}
+                    dangerouslySetInnerHTML={{ __html: renderLinksAsHtml(parseAloaMarkdown(note.content || '')) }}
+                    onClick={(e) => {
+                        // Handle clicks on bi-link elements
+                        const target = e.target as HTMLElement;
+                        if (target.classList.contains('bi-link')) {
+                            const label = target.getAttribute('data-label');
+                            if (label) {
+                                // Navigate to the linked entity — the parent will handle this
+                                const event = new CustomEvent('practicepro:navigate-to-link', { detail: { label } });
+                                window.dispatchEvent(event);
+                            }
+                        }
+                    }}
                 />
             </div>
 

@@ -32,6 +32,7 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { MatterBrief } from './MatterBrief';
+import BacklinksPanel from '../BacklinksPanel';
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
 
@@ -513,6 +514,13 @@ const MatterDetailViewContent: React.FC = () => {
                             handleDraftDocument={handleDraftDocument}
                             onUpdateMatter={onUpdateMatter}
                             lastViewedAt={getTabBaseline('overview')}
+                        />
+                        {/* Bidirectional linking — notes that mention this matter */}
+                        <BacklinksPanel
+                            entityId={matterData.id}
+                            entityType="matter"
+                            notes={documentState.notePages || []}
+                            navigateTo={navigateTo}
                         />
                         </div>
                     )}
