@@ -32,9 +32,16 @@ function safeFormatTime(timestamp: string | undefined): string {
 const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[] }> = ({ message, sources }) => {
     const isUser = message.role === 'user';
     const isThinking = (message as any).isThinking === true;
+    const [copied, setCopied] = useState(false);
 
     // Don't parse markdown for thinking messages — just show a spinner
     const contentHtml = isThinking ? '' : parseAloaMarkdown(message.content || '');
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(message.content || '');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
 
     return (
         <div className={`flex w-full mb-5 ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
@@ -68,6 +75,35 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                             <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }} />
                         )}
                     </div>
+
+                    {/* Copy button — AI messages only, appears on hover */}
+                    {!isUser && !isThinking && message.content && (
+                        <button
+                            onClick={handleCopy}
+                            className={`mt-1 px-2 py-0.5 rounded-md text-[9px] font-bold transition-all flex items-center gap-1 ${
+                                copied
+                                    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                    : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 opacity-0 group-hover:opacity-100'
+                            }`}
+                            title="Copy response"
+                        >
+                            {copied ? (
+                                <>
+                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                    </svg>
+                                    Copied
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                                    </svg>
+                                    Copy
+                                </>
+                            )}
+                        </button>
+                    )}
 
                     {/* Citations Footer (AI Only) */}
                     {!isUser && !isThinking && message.citations && message.citations.length > 0 && (
