@@ -346,111 +346,63 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     </div>
                 </div>
 
-                {/* Document Creation Method */}
-                <div className="p-3 sm:p-4 bg-slate-50/50 dark:bg-zinc-800/30 rounded-xl border border-slate-100 dark:border-zinc-700/50 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center gap-4 px-1">
-                        <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm ring-2 ring-indigo-500/10">
-                            <CloudArrowUpIcon className="w-4 h-4" />
-                        </div>
-                        <div>
-                            <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Content Source</p>
-                            <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Method of Ingestion</h3>
-                        </div>
-                    </div>
-
+                {/* Upload area — simple, no dual labels, no AI draft mode */}
+                <div className="space-y-2">
                     {content !== undefined ? (
-                        <div className="space-y-2 sm:space-y-3 animate-in fade-in slide-in-from-top-2 duration-500">
-                            <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100 dark:border-blue-900/30 flex justify-between items-center px-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-                                    <p className="text-[10px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-widest">Intelligent Draft Mode</p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <button 
-                                        type="button" 
-                                        onClick={handleDraftPro}
-                                        disabled={isDraftingAI}
-                                        className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-zinc-800 text-primary-600 text-[9px] font-black uppercase tracking-widest rounded-lg border border-primary-200 dark:border-primary-900/40 hover:bg-primary-50 transition-all shadow-sm"
-                                    >
-                                        <SparklesIcon className={`w-2.5 h-2.5 ${isDraftingAI ? 'animate-spin' : ''}`} />
-                                        {isDraftingAI ? 'Generating...' : 'Draft Pro AI'}
-                                    </button>
-                                    <button type="button" onClick={() => setContent(undefined)} className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline">Switch to upload</button>
-                                </div>
-                            </div>
-                            <div className="relative group">
-                                <textarea 
-                                    value={content} 
-                                    onChange={e => setContent(e.target.value)} 
-                                    className="w-full h-80 bg-white dark:bg-zinc-900/50 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl p-6 text-[13px] font-serif leading-relaxed text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 outline-none shadow-inner transition-all resize-none custom-scrollbar"
-                                    placeholder="Draft text content here. Use Draft Pro to assist with Nigerian legal formatting..."
-                                />
-                                <div className="absolute bottom-4 right-4 text-[9px] font-black text-slate-400 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                    {content.length.toLocaleString()} Characters
-                                </div>
-                            </div>
+                        <div className="space-y-2">
+                            <textarea 
+                                value={content} 
+                                onChange={e => setContent(e.target.value)} 
+                                className="w-full h-40 bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 text-sm text-slate-800 dark:text-zinc-200 focus:ring-2 focus:ring-primary-500 outline-none resize-y custom-scrollbar"
+                                placeholder="Paste or type content..."
+                            />
+                            <button type="button" onClick={() => setContent(undefined)} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">← Back to upload</button>
                         </div>
                     ) : (
                         <div
-                            className={`relative group border-2 border-dashed p-6 sm:p-10 rounded-xl text-center transition-all duration-300 ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10 scale-[1.01]' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'}`}
+                            className={`relative border-2 border-dashed p-6 rounded-xl text-center transition-all ${isDragging ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}
                             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={e => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
                         >
                             {file ? (
-                                <div className="flex flex-col items-center animate-in zoom-in-95 duration-300">
-                                    <div className="p-3 sm:p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 rounded-2xl mb-4">
-                                        <CheckBadgeIcon className="w-8 h-8" />
+                                <div className="flex items-center justify-center gap-3">
+                                    <CheckBadgeIcon className="w-6 h-6 text-emerald-500" />
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{file.name}</p>
+                                        <p className="text-[10px] text-slate-400">{formatBytes(file.size)}</p>
                                     </div>
-                                    <p className="text-sm font-black text-slate-800 dark:text-white mb-1 truncate max-w-xs">{file.name}</p>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{formatBytes(file.size)}</p>
-                                    <button type="button" onClick={() => setFile(null)} className="mt-6 px-4 py-2 text-[10px] font-black text-rose-500 uppercase tracking-widest hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all">Remove File</button>
+                                    <button type="button" onClick={() => setFile(null)} className="text-xs text-rose-500 hover:underline ml-2">Remove</button>
                                 </div>
                             ) : (
-                                <div className="space-y-2 sm:space-y-3">
-                                    <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-all">
-                                        <CloudArrowUpIcon className="w-8 h-8 text-slate-400 group-hover:text-primary-600" />
-                                    </div>
-                                    <div>
-                                        <input autoComplete="off" data-lpignore="true"  type="file" id="file-upload" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
-                                        <div className="flex flex-col items-center gap-2">
-                                            <label htmlFor="file-upload" className="cursor-pointer text-sm font-black text-primary-600 hover:text-primary-700 transition-colors uppercase tracking-widest underline decoration-2 underline-offset-4">Upload Document</label>
-                                            <span className="text-[9px] font-black text-slate-300 uppercase tracking-[0.2em]">OR</span>
-                                            <button type="button" onClick={() => setContent('')} className="flex items-center gap-2 mx-auto px-6 py-2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-600 dark:text-zinc-400 hover:text-primary-600 hover:border-primary-500 transition-all shadow-sm">
-                                                <ZapIcon className="w-3.5 h-3.5 text-amber-500" /> Start Empty Draft
-                                            </button>
-                                        </div>
-                                        <p className="text-[10px] font-semibold text-slate-400 mt-3 uppercase tracking-widest">PDF, DOCX, PNG, JPG (10MB Limit)</p>
-                                    </div>
+                                <div className="space-y-2">
+                                    <CloudArrowUpIcon className="w-8 h-8 text-slate-300 mx-auto" />
+                                    <input autoComplete="off" data-lpignore="true"  type="file" id="file-upload" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+                                    <label htmlFor="file-upload" className="cursor-pointer text-sm font-bold text-primary-600 hover:underline">Upload a file</label>
+                                    <p className="text-[10px] text-slate-400">PDF, DOCX, PNG, JPG — or <button type="button" onClick={() => setContent('')} className="text-primary-600 hover:underline font-medium">type content</button></p>
                                 </div>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* Litigation Logic */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm space-y-2 sm:space-y-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4 px-1">
-                            <div className={`p-2.5 rounded-2xl shadow-sm ring-4 transition-all ${isCourtProcess ? 'bg-amber-600 text-white ring-amber-500/10' : 'bg-slate-100 text-slate-400 dark:bg-zinc-900 dark:text-zinc-600 ring-slate-100 dark:ring-zinc-900/20'}`}>
-                                <GavelIconLarge className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest leading-none mb-1">{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Legal Logic' : 'Process Type'}</p>
-                                <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Court Process Designation' : 'Formal Procedure Flag'}</h3>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setIsCourtProcess(!isCourtProcess)}
-                            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-all focus:outline-none ring-4 ${isCourtProcess ? 'bg-amber-600 ring-amber-500/10' : 'bg-slate-200 dark:bg-zinc-700 ring-transparent'}`}
-                        >
-                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
-                        </button>
+                {/* Court process toggle — simplified */}
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
+                    <div className="flex items-center gap-2">
+                        <GavelIconLarge className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">Court process</span>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsCourtProcess(!isCourtProcess)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all ${isCourtProcess ? 'bg-amber-600' : 'bg-slate-200 dark:bg-zinc-700'}`}
+                    >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
 
                     {isCourtProcess && (
-                        <div className="pt-8 border-t border-slate-100 dark:border-zinc-700 animate-in fade-in slide-in-from-top-4 duration-500">
+                        <div className="pt-4 border-t border-slate-100 dark:border-zinc-700 animate-in fade-in slide-in-from-top-4 duration-500">
                             <label className={labelClass}>{coreState.firmDetails?.product === 'legal' || coreState.firmDetails?.product === 'vega' ? 'Litigation Stage' : 'Workflow Stage'}</label>
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 p-2 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
                                 {[
@@ -472,7 +424,6 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                             </div>
                         </div>
                     )}
-                </div>
             </div>
 
             <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-50">
