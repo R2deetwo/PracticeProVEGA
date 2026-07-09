@@ -109,30 +109,134 @@ async function extractTextFromPdf(blob: Blob): Promise<string> {
 
 /**
  * Extract text from a DOCX blob using JSZip.
+ * DOCX files are ZIP archives containing word/document.xml.
  */
 async function extractTextFromDocx(blob: Blob): Promise<string> {
-  const { default: JSZip } = await import('jszip');
-  const zip = await JSZip.loadAsync(blob);
-  const documentXml = zip.file('word/document.xml');
-  if (!documentXml) return '';
-
-  const xmlText = await documentXml.async('text');
-  const paragraphs = xmlText.match(/<w:p.*?>.*?<\/w:p>/g) || [];
-
-  let extractedText = '';
-  for (const p of paragraphs) {
-    const textNodes = p.match(/<w:t.*?>.*?<\/w:t>/g) || [];
-    if (textNodes.length > 0) {
-      const pText = textNodes.map(t => t.replace(/<[^>]+>/g, '')).join('');
-      extractedText += pText + '\n';
+  try {
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(blob);
+    
+    // Try word/document.xml (standard location)
+    let documentXml = zip.file('word/document.xml');
+    
+    // Some DOCX files use different paths
+    if (!documentXml) {
+      const files = Object.keys(zip.files);
+      const docFile = files.find(f => f.includes('document.xml'));
+      if (docFile) {
+        documentXml = zip.file(docFile);
+      }
     }
-  }
+    
+    if (!documentXml) return '';
 
-  if (extractedText.length > 50000) {
-    extractedText = extractedText.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
-  }
+    const xmlText = await documentXml.async('text');
+    
+    // Extract text from <w:t> tags (Word text runs)
+    // Also handle <w:tab> (tabs) and <w:br> (line breaks)
+    let extractedText = '';
+    const paragraphs = xmlText.split(/<w:p[ >]/);
+    
+    for (const p of paragraphs) {
+      if (!p.includes('<w:t')) continue;
+      
+      // Extract all text nodes
+      const textMatches = p.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+      const tabCount = (p.match(/<w:tab\/>/g) || []).length;
+      const breakCount = (p.match(/<w:br\/>/g) || []).length;
+      
+      let pText = textMatches
+        .map(t => t.replace(/<[^>]+>/g, ''))
+        .join('');
+      
+      // Add tabs
+      pText = '\t'.repeat(tabCount) + pText;
+      
+      if (pText.trim()) {
+        extractedText += pText + '\n';
+      }
+      
+      // Add line breaks
+      for (let b = 0; b < breakCount; b++) {
+        extractedText += '\n';
+      }
+    }
 
-  return extractedText;
+    // Also check for headers and footers
+    const headerFiles = Object.keys(zip.files).filter(f => f.match(/word\/header\d*\.xml/));
+    const footerFiles = Object.keys(zip.files).filter(f => f.match(/word\/footer\d*\.xml/));
+    
+    for (const hf of [...headerFiles, ...footerFiles]) {
+      try {
+        const headerXml = await zip.file(hf)!.async('text');
+        const headerTexts = headerXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+        const headerText = headerTexts.map(t => t.replace(/<[^>]+>/g, '')).join(' ');
+        if (headerText.trim()) {
+          extractedText = headerText + '\n\n' + extractedText;
+        }
+      } catch { /* ignore header errors */ }
+    }
+
+    if (extractedText.length > 50000) {
+      extractedText = extractedText.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
+    }
+
+    return extractedText.trim();
+  } catch (e) {
+    console.warn('[extractTextFromDocx] Failed:', e);
+    return '';
+  }
+}
+
+/**
+ * Extract text from a legacy .doc blob (binary OLE format).
+ * Old .doc files are NOT ZIP archives — they use a binary format.
+ * We extract readable text by looking for text runs in the binary data.
+ */
+async function extractTextFromDoc(blob: Blob): Promise<string> {
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    
+    // .doc files store text as UTF-16LE or ASCII strings
+    // We look for runs of printable ASCII/UTF-8 text
+    let extractedText = '';
+    let currentRun = '';
+    
+    for (let i = 0; i < bytes.length; i++) {
+      const byte = bytes[i];
+      
+      // Printable ASCII range (32-126) plus common whitespace
+      if ((byte >= 32 && byte <= 126) || byte === 9 || byte === 10 || byte === 13) {
+        currentRun += String.fromCharCode(byte);
+      } else {
+        // End of text run — save if it's long enough to be meaningful
+        if (currentRun.length > 5) {
+          extractedText += currentRun + '\n';
+        }
+        currentRun = '';
+      }
+    }
+    // Don't forget the last run
+    if (currentRun.length > 5) {
+      extractedText += currentRun + '\n';
+    }
+    
+    // Clean up: remove excessive blank lines and trim
+    extractedText = extractedText
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '') // Remove control chars
+      .trim();
+    
+    if (extractedText.length > 50000) {
+      extractedText = extractedText.substring(0, 50000) + '\n\n[... document truncated at 50,000 characters ...]';
+    }
+    
+    return extractedText;
+  } catch (e) {
+    console.warn('[extractTextFromDoc] Failed:', e);
+    return '';
+  }
 }
 
 /**
@@ -257,8 +361,8 @@ export async function processAttachment(
       };
     }
 
-    // ── DOCX: extract text with JSZip ───────────────────────────────
-    if (mimeType.includes('wordprocessingml.document') || mimeType === 'application/msword') {
+    // ── DOCX (.docx): extract text with JSZip ──────────────────────
+    if (mimeType.includes('wordprocessingml.document')) {
       const text = await extractTextFromDocx(blob);
       if (text.trim()) {
         return { name, mimeType, extractedText: text, extracted: true };
@@ -269,6 +373,29 @@ export async function processAttachment(
         extractedText: null,
         extracted: false,
         error: 'No text could be extracted from this DOCX file.',
+      };
+    }
+
+    // ── DOC (.doc — legacy binary format): extract text ────────────
+    if (mimeType === 'application/msword' || name.toLowerCase().endsWith('.doc')) {
+      const text = await extractTextFromDoc(blob);
+      if (text.trim()) {
+        return { name, mimeType, extractedText: text, extracted: true };
+      }
+      // If .doc extraction failed, try as plain text (sometimes .doc
+      // files are actually RTF or plain text with wrong extension)
+      try {
+        const plainText = await extractTextFromPlain(blob);
+        if (plainText.trim() && !plainText.includes('\ufffd')) {
+          return { name, mimeType, extractedText: plainText, extracted: true };
+        }
+      } catch { /* fall through */ }
+      return {
+        name,
+        mimeType,
+        extractedText: null,
+        extracted: false,
+        error: 'No text could be extracted from this DOC file. Try converting to DOCX or PDF.',
       };
     }
 
