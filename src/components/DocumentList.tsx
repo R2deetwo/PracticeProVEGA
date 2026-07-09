@@ -347,57 +347,57 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                 accept=".pdf,.docx,.doc,.txt"
             />
 
-            <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-100 dark:border-zinc-800 space-y-3">
-                {/* Title row — matches Matters/Tasks/Contacts exactly */}
+            <div className="sticky top-0 z-30 flex-shrink-0 py-4 px-4 glass border-b border-slate-100 dark:border-zinc-800 shadow-sm space-y-3">
+                {/* Title row — exact match to Matters/Tasks/Contacts */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Documents</h2>
-                    <div className="flex gap-2 items-center flex-shrink-0">
+                    <div className="flex items-center gap-1.5">
+                        {/* Cloud/Local toggle */}
+                        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                            <button
+                                onClick={() => { setViewMode('documents'); setSelectedCategory(null); }}
+                                title="Cloud Documents"
+                                className={`p-1.5 rounded-md transition-all ${viewMode === 'documents' ? 'bg-white dark:bg-zinc-700 shadow text-primary-600' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                <DocumentIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('local')}
+                                title="Local Storage"
+                                className={`p-1.5 rounded-md transition-all ${viewMode === 'local' ? 'bg-white dark:bg-zinc-700 shadow text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                                <ComputerDesktopIcon className="w-4 h-4" />
+                            </button>
+                        </div>
                         <button
                             onClick={() => openEditor()}
-                            className="h-9 px-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
+                            className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold"
                             title="Open DraftPro Editor"
                         >
                             <SparklesIcon className="w-3.5 h-3.5" /> DraftPro <span className="opacity-60 font-normal text-[9px]">β</span>
                         </button>
                         <button
                             onClick={() => openModal('newDocument')}
-                            className="h-9 px-3 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold whitespace-nowrap shrink-0"
+                            className="p-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold"
                         >
                             <PlusIcon className="w-3.5 h-3.5" /> Upload
                         </button>
                     </div>
                 </div>
 
-                {/* Search + Cloud/Local toggle — clean single row, no overflow */}
-                <div className="flex items-center gap-2">
-                    {viewMode === 'documents' && (
-                        <div className="relative flex-1 min-w-0">
-                            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
-                            <input autoComplete="off" data-lpignore="true"
-                                type="text"
-                                placeholder="Search documents..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-                            />
-                        </div>
-                    )}
-                    {/* Cloud/Local toggle — compact, never overflows */}
-                    <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 flex-shrink-0">
-                        <button
-                            onClick={() => { setViewMode('documents'); setSelectedCategory(null); }}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all whitespace-nowrap ${viewMode === 'documents' ? 'bg-white dark:bg-zinc-600 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
-                        >
-                            Cloud
-                        </button>
-                        <button
-                            onClick={() => setViewMode('local')}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-1 transition-all whitespace-nowrap ${viewMode === 'local' ? 'bg-white dark:bg-zinc-600 text-blue-600 dark:text-blue-300 shadow-sm' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}
-                        >
-                            <ComputerDesktopIcon className="w-3.5 h-3.5" /> Local
-                        </button>
+                {/* Search row — only when in documents mode */}
+                {viewMode === 'documents' && (
+                    <div className="relative">
+                        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                        <input autoComplete="off" data-lpignore="true"
+                            type="text"
+                            placeholder="Search documents..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        />
                     </div>
-                </div>
+                )}
             </div>
 
             <div className="flex flex-grow overflow-hidden">
