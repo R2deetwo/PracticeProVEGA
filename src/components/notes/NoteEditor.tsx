@@ -5,6 +5,10 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
+import { useMatterState } from '../../contexts/MatterContext';
+import { useDocumentState } from '../../contexts/DocumentContext';
+import { useCoreState } from '../../contexts/CoreContext';
+import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -82,6 +86,26 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const saveTimeoutRef = useRef<number | null>(null);
     const isProgrammaticChange = useRef(false);
     const currentPageId = useRef<string | null>(null);
+
+    // ─── Bidirectional Linking ──────────────────────────────────────────
+    const { matterState } = useMatterState();
+    const { documentState } = useDocumentState();
+    const { coreState } = useCoreState();
+    const [linkQuery, setLinkQuery] = useState('');
+    const [linkResults, setLinkResults] = useState<EntitySearchResult[]>([]);
+    const [linkVisible, setLinkVisible] = useState(false);
+    const [linkSelectedIndex, setLinkSelectedIndex] = useState(0);
+    const [linkPosition, setLinkPosition] = useState({ top: 0, left: 0 });
+    const linkStartPos = useRef<number>(-1);
+
+    // Entities for autocomplete search
+    const linkEntities = {
+        matters: matterState.matters,
+        contacts: matterState.contacts,
+        properties: coreState.properties,
+        documents: documentState.documents,
+        notes: documentState.notePages,
+    };
 
     // ─── Dictation (Voice-to-Text Transcription) ─────────────────────
     // Uses the Web Speech API (available in Chrome/Edge + Android WebView).
@@ -191,20 +215,89 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             StarterKit,
             Underline,
             Link.configure({ openOnClick: false }),
-            Placeholder.configure({ placeholder: 'Start writing your note...' }),
+            Placeholder.configure({ placeholder: 'Start writing your note... Type [[ to link to a matter, contact, or document.' }),
         ],
         content: page.content || '',
         onUpdate: ({ editor }) => {
             if (!isProgrammaticChange.current) {
                 debouncedSave(editor.getHTML());
+
+                // ─── Bidirectional Link Autocomplete ────────────────────
+                // Check if the user just typed [[ and show autocomplete
+                const cursorPos = editor.state.selection.from;
+                const textBefore = editor.getText(0, cursorPos);
+                const lastOpen = textBefore.lastIndexOf('[[');
+                if (lastOpen !== -1) {
+                    const textBetween = textBefore.substring(lastOpen + 2);
+                    // No closing ]] yet, no newline, and less than 50 chars
+                    if (!textBetween.includes(']]') && !textBetween.includes('\n') && textBetween.length < 50) {
+                        setLinkQuery(textBetween);
+                        setLinkVisible(true);
+                        setLinkStartPos.current = lastOpen;
+                        const results = searchEntities(textBetween, linkEntities, 8);
+                        setLinkResults(results);
+                        setLinkSelectedIndex(0);
+
+                        // Position the dropdown near the cursor
+                        const coords = editor.view.coordsAtPos(cursorPos);
+                        setLinkPosition({ top: coords.bottom + 4, left: coords.left });
+                    } else {
+                        setLinkVisible(false);
+                    }
+                } else {
+                    setLinkVisible(false);
+                }
             }
         },
         editorProps: {
             attributes: {
                 class: 'prose dark:prose-invert prose-sm sm:prose-base focus:outline-none min-h-[500px] w-full max-w-none px-4 sm:px-6 py-4 custom-scrollbar',
             },
+            handleKeyDown: (view, event) => {
+                // Handle autocomplete keyboard navigation
+                if (linkVisible && linkResults.length > 0) {
+                    if (event.key === 'ArrowDown') {
+                        event.preventDefault();
+                        setLinkSelectedIndex(prev => Math.min(prev + 1, linkResults.length - 1));
+                        return true;
+                    }
+                    if (event.key === 'ArrowUp') {
+                        event.preventDefault();
+                        setLinkSelectedIndex(prev => Math.max(prev - 1, 0));
+                        return true;
+                    }
+                    if (event.key === 'Enter' && linkResults[linkSelectedIndex]) {
+                        event.preventDefault();
+                        insertLink(linkResults[linkSelectedIndex]);
+                        return true;
+                    }
+                    if (event.key === 'Escape') {
+                        setLinkVisible(false);
+                        return true;
+                    }
+                }
+                return false;
+            },
         },
     });
+
+    // Insert a [[Link]] into the editor at the cursor position
+    const insertLink = (result: EntitySearchResult) => {
+        if (!editor) return;
+        const startPos = linkStartPos.current;
+        if (startPos === -1) return;
+
+        const cursorPos = editor.state.selection.from;
+        // Delete the [[partial text and insert [[Full Label]]
+        editor.chain()
+            .focus()
+            .deleteRange({ from: startPos + 1, to: cursorPos }) // delete from [ to cursor
+            .insertContent(`[${result.label}]]`)
+            .run();
+
+        setLinkVisible(false);
+        setLinkQuery('');
+    };
 
     // Cleanup effect to save on unmount/re-render
     useEffect(() => {
@@ -387,6 +480,49 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     </div>
                 )}
                 <EditorContent editor={editor} />
+
+                {/* Bidirectional Link Autocomplete Dropdown */}
+                {linkVisible && linkResults.length > 0 && (
+                    <div
+                        className="fixed z-[3000] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden min-w-[280px] max-w-[360px] animate-in zoom-in-95 duration-150"
+                        style={{ top: linkPosition.top, left: linkPosition.left }}
+                    >
+                        <div className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Link to</p>
+                        </div>
+                        <div className="max-h-[240px] overflow-y-auto py-1">
+                            {linkResults.map((result, index) => (
+                                <button
+                                    key={`${result.type}-${result.id}`}
+                                    onMouseDown={(e) => { e.preventDefault(); insertLink(result); }}
+                                    onMouseEnter={() => setLinkSelectedIndex(index)}
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${index === linkSelectedIndex ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/50'}`}
+                                >
+                                    <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black uppercase ${
+                                        result.type === 'matter' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                                        result.type === 'contact' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                        result.type === 'property' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' :
+                                        result.type === 'document' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400' :
+                                        'bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400'
+                                    }`}>
+                                        {result.type.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className={`text-sm font-semibold truncate ${index === linkSelectedIndex ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-zinc-300'}`}>
+                                            {result.label}
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">{result.subtitle}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="px-3 py-1 bg-slate-50 dark:bg-zinc-900/50 border-t border-slate-100 dark:border-zinc-700 flex items-center gap-3 text-[9px] text-slate-400">
+                            <span>↑↓ Navigate</span>
+                            <span>↵ Select</span>
+                            <span>Esc Close</span>
+                        </div>
+                    </div>
+                )}
                 {/* Interim dictation text — shows words as they're being spoken
                     but not yet finalized. Appears as greyed text at the bottom
                     of the editor so the user sees real-time transcription. */}
