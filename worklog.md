@@ -3883,3 +3883,57 @@ Stage Summary:
 - Messages page now visually consistent with Documents/Contacts (sticky glass h2 header)
 - New Document modal is dramatically simpler: no card chrome, no dual labels, small footer buttons, sentence-case labels, modal sized md not xl
 - All three fixes committed in cef6995 and force-pushed to master for Vercel deploy
+
+---
+Task ID: product-aware-audit-1
+Agent: main
+Task: Deep audit of app for misnomers, verbosity, and confusion between legal and property across all three products (Atrium/Vega/Komplete)
+
+Root Cause Found:
+Multiple components hardcoded `product === 'legal' || product === 'vega'` which MISSED 'unified' (the actual product value for Komplete). Result: Komplete firms got property-themed labels in legal contexts throughout the app. The fix is to use useProduct().isLegal / hasPropertyFeatures / hasLegalFeatures which all correctly include 'unified'.
+
+Canonical Mental Model (now enforced):
+- Atrium (property-only): Property / Residents / Landlords
+- Vega (legal-only): Matters / Clients / Court documents
+- Komplete (unified): BOTH — Property+Matters, Residents+Clients
+- Property owner (landlord) hires the property manager
+- Resident (tenant) lives in a managed property
+- Legal client hires the law firm on a matter
+
+Fixes Applied (commit 7375690):
+1. DocumentForm.tsx — replaced broken isLegal with useProduct().isLegal (Komplete now sees 'Matter' label, was 'Property' — user's reported bug)
+2. ComposeModal.tsx — full product-awareness:
+   - Default recipient tab product-aware (client for Vega/Komplete, tenant for Atrium)
+   - 'Select All Tenanted' → 'Select All'
+   - Renamed tenantedRecipients → allRecipients (was mis-named, contained all types)
+   - Tab list hides Residents for Vega, hides Clients for Atrium
+   - Search placeholder product-aware
+   - Empty-state copy product-aware
+3. MessagesView.tsx — role filter pills product-aware (Vega: All+Clients only, Atrium: All+Residents only, Komplete: all three). Fixed inbound WhatsApp/Email rendering for Komplete (was using isProperty=false, switched to hasPropertyFeatures=true)
+4. ContactForm.tsx — show BOTH legal and property categories for Komplete (previously fell into property branch and missed Court Staff/Opposing Counsel/etc.)
+5. CoreContext.tsx — added 'unified' branch for category seeding. Komplete firms now get UNION of legal+property contact and document categories (previously got legal-only defaults)
+6. PortalAccessSettings.tsx — showResidentPortal = hasPropertyFeatures (Komplete firms can now manage Residents' Portal invites, previously hidden)
+7. Dashboard.tsx + CalendarView.tsx — use hasPropertyFeatures instead of !isLegal (Komplete now sees rent due dates and lease expirations on calendar)
+8. NoticeBoardTab.tsx — product-aware audience noun (clients for Vega, residents for Atrium/Komplete)
+9. ProductContext.tsx — added hasPropertyFeatures/hasLegalFeatures to interface and default context value
+
+Files Changed: 10
+Commit: 7375690
+Pushed to: main + master (force-synced)
+
+Stage Summary:
+- Komplete firms now get correct product-aware behavior across documents, contacts, compose, messages, portal settings, calendar, dashboard, and notice board
+- The 'we can only link to a property' complaint is fixed — Komplete firms now see 'Matter' label in DocumentForm
+- The 'I could only message tenants and the team' complaint is fixed — ComposeModal now defaults to Clients tab for legal/Komplete firms, and hides the Residents tab for pure legal firms
+- The 'All tenanted' button is gone — replaced with 'Select All'
+- The 'residents' hardcoded copy in notice board is now product-aware
+- Komplete firms can now see BOTH legal and property categories when creating contacts
+- Komplete firms can now manage BOTH Client Portal AND Residents' Portal invites in settings
+- Komplete calendar now shows BOTH legal events AND property events (rent due dates, lease expirations)
+
+Remaining lower-priority items (deferred):
+- ContactsView page-level product-awareness (subtabs for Owners/Residents/Legal Clients)
+- LinkMatterToContactForm, TaskForm, InvoiceForm terminology cleanup
+- DocumentDetailView per-document product context for Komplete
+- BusinessIntelligenceReports product-aware tab visibility
+- ClientReports product-aware category filter
