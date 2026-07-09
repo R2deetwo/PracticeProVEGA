@@ -42,6 +42,34 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const addUnitToPropertyMutation = useMutation(api.myFunctions.addUnitToProperty);
     const removeUnitFromPropertyMutation = useMutation(api.myFunctions.removeUnitFromProperty);
 
+    // Track recently-deleted IDs so the firmData re-merge (below) doesn't
+    // re-add items the user just deleted. This was the root cause of the
+    // "AI Notebooks refuse to delete" bug: optimistic delete removed the
+    // notebook locally, but the next Convex subscription push re-added it
+    // because Convex hadn't propagated the deletion yet (or the mutation
+    // had silently failed inside a try/catch).
+    // Entries expire after 60 seconds — long enough for Convex to propagate.
+    const recentlyDeletedRef = React.useRef<Map<string, number>>(new Map());
+
+    const markRecentlyDeleted = React.useCallback((id: string) => {
+        recentlyDeletedRef.current.set(id, Date.now());
+        // Cleanup entries older than 60s
+        const now = Date.now();
+        for (const [key, ts] of recentlyDeletedRef.current.entries()) {
+            if (now - ts > 60_000) recentlyDeletedRef.current.delete(key);
+        }
+    }, []);
+
+    const isRecentlyDeleted = React.useCallback((id: string): boolean => {
+        const ts = recentlyDeletedRef.current.get(id);
+        if (!ts) return false;
+        if (Date.now() - ts > 60_000) {
+            recentlyDeletedRef.current.delete(id);
+            return false;
+        }
+        return true;
+    }, []);
+
     // 2. Base Generic Actions (with Optimistic UI support)
     const baseActions = React.useMemo(() => ({
         addItem: async (table: string, data: any, itemName?: string) => {
@@ -111,6 +139,14 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         deleteItem: async (table: string, id: string, itemName?: string) => {
             const tableKey = table as keyof AppState;
             const itemToDelete = (appStateRef.current[tableKey] as any[]).find((i: any) => i.id === id || (i._id && i._id === id));
+
+            // Track this ID as recently-deleted so the firmData re-merge
+            // doesn't re-add it before Convex propagates the deletion.
+            // We track both the id and _id (if present) to be safe.
+            markRecentlyDeleted(id);
+            if (itemToDelete?._id && itemToDelete._id !== id) {
+                markRecentlyDeleted(itemToDelete._id);
+            }
 
             // Optimistically remove from local state
             setAppState(prev => ({
@@ -521,7 +557,14 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                         const backendIds = new Set(mappedBackendValue.map((item: any) => item.id));
                         // Keep items from prev that are NOT in the backend (i.e. optimistic creates)
                         const optimisticItems = prevArray.filter(item => !backendIds.has(item.id) && (!item._id || !backendIds.has(item._id)));
-                        (newState as any)[key] = [...mappedBackendValue, ...optimisticItems];
+                        // Filter out items the user has just deleted (optimistic delete).
+                        // Without this, the backend push would re-add the deleted item
+                        // before Convex has propagated the deletion — the root cause of
+                        // the "AI Notebooks refuse to delete" bug.
+                        const filteredBackendValue = mappedBackendValue.filter((item: any) =>
+                            !isRecentlyDeleted(item.id) && (!item._id || !isRecentlyDeleted(item._id))
+                        );
+                        (newState as any)[key] = [...filteredBackendValue, ...optimisticItems];
                     } else if (backendValue !== undefined) {
                         (newState as any)[key] = backendValue;
                     }

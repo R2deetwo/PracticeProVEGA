@@ -792,6 +792,19 @@ export const App: React.FC = () => {
                 setHasInitialSplashFinished(true);
                 return;
             }
+            // DraftPro tabs (opened via window.open('/editor?draftKey=...')) skip the
+            // splash entirely. The splash is for the main app shell — DraftPro opens
+            // in a dedicated fullscreen editor tab and showing the brand splash there
+            // is jarring and delays the user from drafting.
+            const isDraftProTab = typeof window !== 'undefined'
+                && new URLSearchParams(window.location.search).get('draftKey');
+            if (isDraftProTab) {
+                setFlowState('app');
+                setHasInitialized(true);
+                setVisualsComplete(true);
+                setHasInitialSplashFinished(true);
+                return;
+            }
             setFlowState('splash');
             setVisualsComplete(false);
             setLoadingMessage("Welcome back");

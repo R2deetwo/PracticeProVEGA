@@ -1041,14 +1041,16 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Open in new tab — desktop only */}
+                    {/* Open in new tab — visible on all viewport sizes (was hidden md:flex
+                        which made it invisible on mobile and low-contrast on desktop). */}
                     <button
                         onClick={() => {
                             const url = window.location.href;
                             window.open(url, '_blank');
                         }}
-                        className="hidden md:flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                        className="flex items-center justify-center p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                         title="Open in new tab"
+                        aria-label="Open in new tab"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -1139,12 +1141,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         </div>
 
                         <div className="flex flex-wrap gap-0.5 w-[126px] ml-1">
-                            <ToolbarBtn icon={Bold} onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={Italic} onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={UnderlineIcon} onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={StrikethroughIcon} onClick={() => editor?.chain().focus().toggleStrike().run()} active={editor?.isActive('strike')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={SubscriptIcon} onClick={() => editor?.chain().focus().toggleSubscript().run()} active={editor?.isActive('subscript')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={SuperscriptIcon} onClick={() => editor?.chain().focus().toggleSuperscript().run()} active={editor?.isActive('superscript')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={Bold} label="Bold" onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={Italic} label="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={UnderlineIcon} label="Underline" onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={StrikethroughIcon} label="Strikethrough" onClick={() => editor?.chain().focus().toggleStrike().run()} active={editor?.isActive('strike')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={SubscriptIcon} label="Subscript" onClick={() => editor?.chain().focus().toggleSubscript().run()} active={editor?.isActive('subscript')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={SuperscriptIcon} label="Superscript" onClick={() => editor?.chain().focus().toggleSuperscript().run()} active={editor?.isActive('superscript')} size="sm" disabled={!editor} />
                         </div>
 
                         {/* Highlight / Background Color Picker */}
@@ -1171,15 +1173,15 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
                     <ToolbarGroup label="Paragraph">
                         <div className="grid grid-cols-4 gap-0.5">
-                            <ToolbarBtn icon={AlignLeft} onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={AlignCenter} onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={AlignRight} onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={AlignJustify} onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={AlignLeft} label="Align Left" onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={AlignCenter} label="Align Center" onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={AlignRight} label="Align Right" onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={AlignJustify} label="Align Justify" onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} size="sm" disabled={!editor} />
 
-                            <ToolbarBtn icon={List} onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={ListOrdered} onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={Outdent} onClick={() => editor?.chain().focus().liftListItem('listItem').run()} size="sm" disabled={!editor} />
-                            <ToolbarBtn icon={Indent} onClick={() => editor?.chain().focus().sinkListItem('listItem').run()} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={List} label="Bullet List" onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={ListOrdered} label="Numbered List" onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={Outdent} label="Outdent" onClick={() => editor?.chain().focus().liftListItem('listItem').run()} size="sm" disabled={!editor} />
+                            <ToolbarBtn icon={Indent} label="Indent" onClick={() => editor?.chain().focus().sinkListItem('listItem').run()} size="sm" disabled={!editor} />
                         </div>
 
                         <div className="flex flex-col gap-1 ml-1 h-full">

@@ -253,7 +253,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                                     matter={matters.find(m => m.id === pageForEditor.matterId)}
                                     onSave={(id, title, content) => documentActions.handleUpdatePageContent(id, title, content)}
                                     onDelete={confirmDeletePage}
-                                    onCopy={(pageId) => openModal('copyPage', pageId)}
+                                    onCopy={(pageId) => openModal('newPage', null, { copyFromPageId: pageId })}
                                     onNavigateToMatter={(matterId) => navigateTo('matterDetail', matterId, { initialTab: 'endorsements' })}
                                     onBack={handleBackCol3}
                                     showBackButton={true}
@@ -275,7 +275,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                                         matter={selectedMatter}
                                         onSave={(id, title, content) => documentActions.handleUpdatePageContent(id, title, content)}
                                         onDelete={confirmDeletePage}
-                                        onCopy={(pageId) => openModal('copyPage', pageId)}
+                                        onCopy={(pageId) => openModal('newPage', null, { copyFromPageId: pageId })}
                                         onNavigateToMatter={(matterId) => navigateTo('matterDetail', matterId, { initialTab: 'endorsements' })}
                                         onBack={handleBackCol4}
                                         showBackButton={true}

@@ -553,6 +553,15 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         if (historyIndex > 0) {
             setHistoryIndex(prev => prev - 1);
             navigate(-1);
+        } else {
+            // No in-app history to go back to. This happens when a route was
+            // opened directly in a new tab (e.g. DraftPro via window.open).
+            // Fall back to browser history, then to the app root.
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+                window.history.back();
+            } else if (typeof window !== 'undefined') {
+                window.location.href = '/';
+            }
         }
     }, [navigate, historyIndex]);
 

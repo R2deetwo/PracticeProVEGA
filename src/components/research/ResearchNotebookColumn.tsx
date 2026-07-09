@@ -65,7 +65,10 @@ export const ResearchNotebookColumn: React.FC<ResearchNotebookColumnProps> = ({ 
                                             e.stopPropagation();
                                             onDeleteNotebook(nb.id, nb.name);
                                         }}
-                                        className="p-1.5 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 opacity-0 group-hover/item:opacity-100 transition-all"
+                                        // Always visible on touch devices (no hover), hover-reveal on desktop.
+                                        // Previously `opacity-0 group-hover/item:opacity-100` made the button
+                                        // invisible on mobile, so users couldn't delete notebooks at all.
+                                        className="p-1.5 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50 dark:text-zinc-500 dark:hover:bg-red-900/20 md:opacity-0 md:group-hover/item:opacity-100 transition-all"
                                         aria-label={`Delete notebook ${nb.name}`}
                                     >
                                         <TrashIcon className="w-4 h-4" />

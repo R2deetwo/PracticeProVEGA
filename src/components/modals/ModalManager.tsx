@@ -966,7 +966,7 @@ const ModalManager: React.FC = () => {
         const doc = documentState.documents.find(d => d.id === editingId);
         const ctx = modalContext?.fields || modalContext;
         const name = doc?.title || ctx?.draftTitle || ctx?.title || 'New Document';
-        modalTitle = modal === 'editDocument' ? `Edit Document: ${name}` : (modal === 'newDraft' ? `Draft: ${name}` : 'Initialize Document');
+        modalTitle = modal === 'editDocument' ? `Edit Document: ${name}` : (modal === 'newDraft' ? `Draft: ${name}` : 'New Document');
     }
     if (modal === 'batchUpload') {
         modalTitle = 'Uploading Files';
@@ -975,11 +975,20 @@ const ModalManager: React.FC = () => {
         modalTitle = 'Compose Email';
     }
 
-    // Size mapping: lg for matter ingest (multi-field), md for documents & default, sm for simple confirmations
-    const modalSize = (modal === 'matterIngestion' || modal === 'editMatter' || modal === 'newMatter') ? 'lg' 
-        : (modal === 'composeEmail' ? 'lg' 
-        : (modal === 'leadCapture' || modal === 'deleteConfirmation' || modal === 'aiConsent' || modal === 'keyboardShortcuts' || modal === 'noTeamMembers' || modal === 'aloaHelp' || modal === 'feedback' || modal === 'upgradePlan' ? 'sm' 
-        : 'md'));
+    // Size mapping based on form complexity:
+    //   lg → multi-section forms (contacts, properties, invoices, events, matters, matter ingest, email)
+    //   md → default (documents, tasks, most forms)
+    //   sm → simple confirmations and tiny forms
+    const lgModals = ['matterIngestion', 'editMatter', 'newMatter', 'composeEmail',
+                      'newContact', 'editContact', 'newProperty', 'editProperty',
+                      'newInvoice', 'editInvoice', 'viewInvoice', 'generateInvoice',
+                      'newEvent', 'editEvent', 'bulkEditProperty'];
+    const smModals = ['leadCapture', 'deleteConfirmation', 'aiConsent', 'keyboardShortcuts',
+                      'noTeamMembers', 'aloaHelp', 'upgradePlan', 'sendIntakeLink',
+                      'sendPostActivationEmail'];
+    const modalSize = lgModals.includes(modal) ? 'lg'
+        : smModals.includes(modal) ? 'sm'
+        : 'md';
 
     return (
         <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize}>

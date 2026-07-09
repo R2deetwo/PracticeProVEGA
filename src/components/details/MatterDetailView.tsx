@@ -31,8 +31,8 @@ import { useMatterState } from '../../contexts/MatterContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
-import { MatterBrief } from './MatterBrief';
-import BacklinksPanel from '../BacklinksPanel';
+import { MatterBrief } from './MatterBrief'; // NOTE: kept for now in case we want to re-mount parts of it under Endorsements later. Safe to remove after launch.
+import BacklinksPanel from '../BacklinksPanel'; // NOTE: backlinks panel is currently non-functional (no persistence layer). Kept for future wiring.
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
 
@@ -63,7 +63,7 @@ const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: R
     </div>
 );
 
-type MatterTab = 'overview' | 'notes' | 'schedule_tasks' | 'billing' | 'documents';
+type MatterTab = 'notes' | 'schedule_tasks' | 'billing' | 'documents';
 
 const MatterDetailViewContent: React.FC = () => {
     const { addToast, closeModal, openModal, navigateTo, selectedId, currentHistoryEntry, updateCurrentHistoryEntry } = useUI();
@@ -155,9 +155,11 @@ const MatterDetailViewContent: React.FC = () => {
 
     const resolveTab = (t?: string): MatterTab => {
         if (t === 'endorsements_logs' || t === 'endorsements') return 'notes';
-        if (t === 'processes') return 'overview';
-        // Legacy: 'documents' used to be a sub-tab inside Brief — now top-level
-        const validTabs: MatterTab[] = ['overview', 'notes', 'schedule_tasks', 'billing', 'documents'];
+        // Legacy aliases: 'overview' (old Brief tab) and 'processes' both
+        // redirect to 'notes' (Endorsements) since the Brief tab was removed
+        // per user request — it was non-functional.
+        if (t === 'processes' || t === 'overview' || t === 'brief') return 'notes';
+        const validTabs: MatterTab[] = ['notes', 'schedule_tasks', 'billing', 'documents'];
         return validTabs.includes(t as MatterTab) ? (t as MatterTab) : 'notes'; // default to Endorsements (first tab)
     };
 
@@ -446,9 +448,11 @@ const MatterDetailViewContent: React.FC = () => {
 
 
                 <nav className="flex w-full overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                    {/* Tab order: Endorsements (first) → Brief → Tasks → Finance → Documents (last) */}
+                    {/* Tab order: Endorsements (first) → Tasks → Finance → Documents (last).
+                        The 'Brief' tab was removed per user request — it was non-functional
+                        (MatterBrief component rendered mostly-empty widgets that duplicated
+                        info already shown in Endorsements and Tasks). */}
                     <TabButton label="Endorsements" isActive={activeTab === 'notes'} onClick={() => handleTabClick('notes')} badgeCount={tabBadges.notes} />
-                    <TabButton label="Brief" isActive={activeTab === 'overview'} onClick={() => handleTabClick('overview')} />
                     <TabButton label="Tasks" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} />
                     {canViewBilling && <TabButton label="Finance" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
                     <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => handleTabClick('documents')} badgeCount={tabBadges.docs} />
@@ -509,31 +513,7 @@ const MatterDetailViewContent: React.FC = () => {
                                 lastViewedAt={getTabBaseline('documents')}
                             />
                         </div>
-                    ) : (
-                        // Default: Brief (Overview)
-                        <div className="space-y-6">
-                            <MatterBrief
-                            matter={matterData}
-                            client={client}
-                            users={users}
-                            currentUser={currentUser || {} as User}
-                            documents={documents}
-                            tasks={tasks}
-                            openModal={openModal}
-                            onViewDocumentDetails={onViewDocumentDetails}
-                            handleDraftDocument={handleDraftDocument}
-                            onUpdateMatter={onUpdateMatter}
-                            lastViewedAt={getTabBaseline('overview')}
-                        />
-                        {/* Bidirectional linking — notes that mention this matter */}
-                        <BacklinksPanel
-                            entityId={matterData.id}
-                            entityType="matter"
-                            notes={documentState.notePages || []}
-                            navigateTo={navigateTo}
-                        />
-                        </div>
-                    )}
+                    ) : null}
                 </div>
             </main>
         </div>

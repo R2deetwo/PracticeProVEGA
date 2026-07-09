@@ -227,7 +227,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
                 </div>
                 <div className="flex gap-2">
                     <button type="button" onClick={onClose} className="px-4 py-2 text-slate-500 dark:text-zinc-400 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors">
-                        Discard
+                        Cancel
                     </button>
                     <button
                         type="button"

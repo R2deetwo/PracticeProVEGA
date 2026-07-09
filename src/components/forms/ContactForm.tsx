@@ -455,6 +455,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                             </AccordionContent>
                         </AccordionItem>
 
+                        {/* Property Portfolio — only shown for firms with property features
+                            (Atrium + Komplete). Previously this was shown to ALL firms including
+                            Vega-only law firms, where it was meaningless. */}
+                        {hasPropertyFeatures && (
                         <AccordionItem value="properties" className="bg-slate-50/50 dark:bg-zinc-800/30 border border-slate-100 dark:border-zinc-700/50 rounded-xl overflow-hidden transition-all duration-300">
                             <AccordionTrigger className="px-4 sm:px-8 py-3 sm:py-5 hover:no-underline hover:bg-slate-100/50 dark:hover:bg-zinc-800/50 transition-colors">
                                 <div className="flex items-center gap-3 sm:gap-4">
@@ -483,7 +487,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Property Portfolio</span>
                                             <button type="button" onClick={handleAddProperty} className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline">+ Register New Property</button>
                                         </div>
-                                        
+
                                         {(contactToEdit.properties || []).length > 0 ? (
                                             <div className="grid grid-cols-1 gap-3">
                                                 {(contactToEdit.properties || []).map((prop) => (
@@ -511,6 +515,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                 )}
                             </AccordionContent>
                         </AccordionItem>
+                        )}
                     </Accordion>
                 </div>
             </div>
