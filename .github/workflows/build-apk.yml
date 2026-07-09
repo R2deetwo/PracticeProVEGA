@@ -187,12 +187,23 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ═════════════════════════════════════════════════════════════════════
-      # VERCEL CLI DEPLOY — runs LAST so it overwrites Vercel's native
+      # SYNC MASTER BRANCH — Vercel's native GitHub integration deploys
+      # from the "master" branch, but our repo uses "main". We create
+      # and sync a "master" branch so Vercel's native integration deploys
+      # the correct code automatically.
+      # ═════════════════════════════════════════════════════════════════════
+      - name: Sync master branch with main (for Vercel native integration)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin origin/main:master --force 2>&1 || true
+          echo "✓ master branch synced with main — Vercel native integration will deploy correct code"
       # GitHub integration deploy. The native integration deploys quickly
       # (usually within 30-60s of the push), but our CLI deploy runs after
       # the APK build (which takes ~4-5 min), so by the time our CLI deploy
       # runs, the native integration has already finished. Our deploy then
       # overwrites theirs with the correct version.json (status=healthy).
+      # ═════════════════════════════════════════════════════════════════════
       # ═════════════════════════════════════════════════════════════════════
       - name: Deploy to Vercel (production — final, overwrites native integration)
         if: ${{ env.HAS_VERCEL_TOKEN == 'true' && env.HAS_VERCEL_ORG_ID == 'true' && env.HAS_VERCEL_PROJECT_ID == 'true' }}
