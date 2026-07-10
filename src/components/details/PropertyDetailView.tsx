@@ -22,6 +22,7 @@ import PropertyTrackingView from './PropertyTrackingView';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
+import BacklinksPanel from '../BacklinksPanel';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
@@ -2319,6 +2320,17 @@ const PropertyNoticeBoard: React.FC<{
                     </div>
                 </details>
             )}
+
+            {/* Bidirectional backlinks — notes that mention this property */}
+            <div className="mt-6">
+                <BacklinksPanel
+                    entityId={property.id}
+                    entityType="property"
+                    entityLabel={property.address}
+                    notes={documentState.notePages || []}
+                    navigateTo={navigateTo}
+                />
+            </div>
         </div>
     );
 };

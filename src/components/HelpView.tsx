@@ -259,6 +259,57 @@ const HelpView: React.FC = () => {
                         </AccordionItem>
 
                         <AccordionItem
+                            id="notes-backlinks"
+                            title="Notes & Bidirectional Backlinks"
+                            isOpen={isSectionOpen('notes-backlinks')}
+                            onToggle={() => handleSectionToggle('notes-backlinks')}
+                        >
+                            <div className="space-y-4 text-slate-600 dark:text-zinc-300">
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">Notes & Endorsements</h4>
+                                    <p className="text-sm mb-2">Notes are free-form text entries you can create from several places:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Notes view</strong> — standalone notes organized into notebooks</li>
+                                        <li><strong>Matter Endorsements tab</strong> — notes attached to a specific matter (team discussion, case strategy, etc.)</li>
+                                        <li><strong>Save to Note form</strong> — capture voice-dictated or typed notes from the AI assistant</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">Bidirectional Backlinks — Linking Notes to Entities</h4>
+                                    <p className="text-sm mb-2">
+                                        Backlinks let you connect notes to matters, contacts, properties, and documents without leaving the note. When you mention an entity in a note using the <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-xs">[[Entity Name]]</code> syntax, two things happen automatically:
+                                    </p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mb-3">
+                                        <li>The entity name becomes a clickable link inside the note</li>
+                                        <li>A <strong>"Mentioned In"</strong> panel appears on that entity's detail page, listing every note that references it</li>
+                                    </ul>
+                                    <p className="text-sm mb-2"><strong>How to create a backlink:</strong></p>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm mb-3">
+                                        <li>Open any note (in the Notes view, a Matter's Endorsements tab, or the Save to Note form)</li>
+                                        <li>Type two open brackets: <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-xs">[[</code></li>
+                                        <li>Type the name of the matter, contact, property, or document you want to link to</li>
+                                        <li>Close with two closing brackets: <code className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-xs">]]</code></li>
+                                    </ol>
+                                    <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-3 text-sm border border-slate-200 dark:border-zinc-700 mb-3">
+                                        <p className="font-mono text-xs text-slate-500 dark:text-zinc-400 mb-1">Example in a note:</p>
+                                        <p className="text-sm">Discussed the claim in [[Adegbenro v. State Bank of Nigeria]] with [[John Doe]] today. Need to review the [[Lease Agreement - Lekki Phase 1]] before the hearing.</p>
+                                    </div>
+                                    <p className="text-sm mb-2"><strong>Where to find the "Mentioned In" panel:</strong></p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Matter detail page</strong> → Endorsements tab → scroll to the bottom</li>
+                                        <li><strong>Contact detail page</strong> → bottom of the page</li>
+                                        <li><strong>Property detail page</strong> → bottom of the page</li>
+                                        <li><strong>Document detail page</strong> → bottom of the page</li>
+                                    </ul>
+                                    <p className="text-sm mt-3 text-slate-500 dark:text-zinc-400">
+                                        The panel also has a <strong>?</strong> help button you can click for a quick reminder of the syntax. If no notes mention the entity yet, the panel shows an example of how to create one.
+                                    </p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
                             id="admin-guide"
                             title="Admin Guide & Settings"
                             isOpen={isSectionOpen('admin-guide')}

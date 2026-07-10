@@ -109,14 +109,17 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     // assistant name must NOT hide property features.
     const isProperty = isAtrium;
 
-    // Terminology: Atrium-exclusive gets property language; everything else (including Unified) stays neutral
-    const usePropertyTerms = isAtrium; // Only pure Atrium mode uses Property/Resident language
+    // Terminology: Atrium-exclusive gets property language for matters;
+    // BUT 'Contacts' is universal across ALL products (Vega, Atrium, Komplete).
+    // The user explicitly requested this — lawyers, property managers, and
+    // unified firms all see 'Contacts' in the nav and page headings.
+    const usePropertyTerms = isAtrium; // Only pure Atrium mode uses Property language for matters
 
     const terminology: Terminology = {
       matter:        usePropertyTerms ? 'Property' : 'Matter',
       matters:       usePropertyTerms ? 'Properties' : 'Matters',
-      client:        usePropertyTerms ? 'Resident' : 'Client',
-      clients:       usePropertyTerms ? 'Residents' : 'Clients',
+      client:        'Contact',     // Universal — always 'Contact' on all products
+      clients:       'Contacts',    // Universal — always 'Contacts' on all products
       type:          usePropertyTerms ? 'Property Category' : 'Practice Area',
       stage:         usePropertyTerms ? 'Pipeline State' : 'Stage',
       newMatter:     usePropertyTerms ? 'New Property' : 'New Matter',

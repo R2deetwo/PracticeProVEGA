@@ -301,6 +301,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                 <BacklinksPanel
                     entityId={contact.id}
                     entityType="contact"
+                    entityLabel={contact.name}
                     notes={documentState.notePages || []}
                     navigateTo={navigateTo}
                 />

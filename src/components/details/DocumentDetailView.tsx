@@ -15,6 +15,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { sanitize } from '../../utils/sanitization';
 import ErrorBoundary from '../ErrorBoundary';
+import BacklinksPanel from '../BacklinksPanel';
 
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId } : "skip");
@@ -487,6 +488,17 @@ const DocumentDetailViewContent: React.FC = () => {
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {/* Bidirectional backlinks — notes that mention this document */}
+                    {document && (
+                        <BacklinksPanel
+                            entityId={document.id}
+                            entityType="document"
+                            entityLabel={document.title}
+                            notes={documentState.notePages || []}
+                            navigateTo={navigateTo}
+                        />
                     )}
                 </div>
             </div>
