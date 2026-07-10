@@ -10,6 +10,7 @@ import { getAssistantName, getAssistantFullName } from '../utils/assistantIdenti
 const HelpView: React.FC = () => {
     const { currentHistoryEntry } = useUI();
     const [searchQuery, setSearchQuery] = useState('');
+    const [isAskingAloa, setIsAskingAloa] = useState(false);
     const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
     const { togglePanel } = useAloa();
     const { isProperty } = useProduct();
@@ -43,13 +44,21 @@ const HelpView: React.FC = () => {
         // Opens the assistant panel with a pre-filled context message so the
         // user knows they're asking the AI about how to use the app (not
         // searching online). The AI has full knowledge of the app's features.
+        // When invoked from the "no results" state, we include the user's
+        // search query so the AI can answer it directly.
+        setIsAskingAloa(true);
         togglePanel();
-        // Inject context after a short delay so the panel is open
         setTimeout(() => {
+            const query = searchQuery.trim();
+            const message = query
+                ? `I searched the Help Center for "${query}" but couldn't find an answer. Can you help me with this?`
+                : `I have a question about how to use PracticePro. `;
             const event = new CustomEvent('practicepro:inject-chat-context', {
-                detail: { message: `I have a question about how to use PracticePro. ` }
+                detail: { message }
             });
             window.dispatchEvent(event);
+            // Reset the asking state after the panel opens
+            setTimeout(() => setIsAskingAloa(false), 1000);
         }, 300);
     };
 
@@ -84,6 +93,10 @@ const HelpView: React.FC = () => {
         )
         : SECTIONS;
 
+    // True only when the user has typed something AND no sections matched.
+    // This is when we show the "Ask ALOA" fallback offer.
+    const noResults = hasSearch && visibleSections.length === 0;
+
     // When searching, all visible sections are open
     const isSectionOpen = (sectionId: string) => {
         if (hasSearch) return visibleSections.some(s => s.id === sectionId);
@@ -109,29 +122,45 @@ const HelpView: React.FC = () => {
                     <p className="text-slate-600 dark:text-zinc-400 mb-6 max-w-2xl mx-auto text-lg">
                         Find answers, master workflows, and learn how to get the most out of PracticePro.
                     </p>
-                    <div className="flex gap-3 max-w-lg mx-auto mb-6">
-                        <div className="relative flex-1">
+                    <div className="max-w-lg mx-auto mb-3">
+                        <div className="relative">
                             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                            <input autoComplete="off" data-lpignore="true" 
+                            <input autoComplete="off" data-lpignore="true"
                                 type="text"
                                 placeholder="Search for help articles..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 rounded-full border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+                                className="w-full pl-12 pr-12 py-3 rounded-full border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
                             />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
+                                    title="Clear search"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
                         </div>
-                        <button
-                            onClick={handleAskAloa}
-                            title={`Ask ${assistantName} about how to use PracticePro — the AI has built-in knowledge of all app features`}
-                            className="px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-full hover:shadow-lg transition-all flex items-center gap-2 hover:scale-105 whitespace-nowrap"
-                        >
-                            <SparklesIcon className="w-5 h-5" />
-                            Ask {assistantName}
-                        </button>
                     </div>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2 text-center">
-                        Searches practice-pro documentation only — no online results. Ask {assistantName} for personalized guidance on any feature.
-                    </p>
+                    {/* Search results count — only shows when searching */}
+                    {hasSearch && !noResults && (
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
+                            {visibleSections.length} article{visibleSections.length !== 1 ? 's' : ''} found
+                        </p>
+                    )}
+                    {noResults && (
+                        <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
+                            No articles match "{searchQuery}"
+                        </p>
+                    )}
+                    {!hasSearch && (
+                        <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
+                            Searches PracticePro documentation only.
+                        </p>
+                    )}
                 </header>
 
                 {/* Quick Access Cards */}
@@ -647,12 +676,49 @@ const HelpView: React.FC = () => {
                         </AccordionItem>}
                     </Accordion>
 
-                    {/* No results message when search returns nothing */}
-                    {hasSearch && visibleSections.length === 0 && (
-                        <div className="text-center py-12 text-slate-400 dark:text-zinc-500">
-                            <SearchIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                            <p className="text-sm font-medium">No articles found for "{searchQuery}"</p>
-                            <p className="text-xs mt-1">Try different keywords or ask {assistantName} directly.</p>
+                    {/* No results → ALOA fallback offer
+                        Only shown when the user has searched and found nothing.
+                        The ALOA button has a distinct AI-search aesthetic:
+                        gradient border, sparkle icon, and explanatory text
+                        making it clear this is an AI-powered help search,
+                        not a documentation search. */}
+                    {noResults && (
+                        <div className="mt-8 max-w-lg mx-auto">
+                            <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 p-8 text-center">
+                                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center">
+                                    <SearchIcon className="w-7 h-7 text-slate-300 dark:text-zinc-600" />
+                                </div>
+                                <p className="text-sm font-semibold text-slate-600 dark:text-zinc-300 mb-1">
+                                    No articles found for "{searchQuery}"
+                                </p>
+                                <p className="text-xs text-slate-400 dark:text-zinc-500 mb-5">
+                                    Try different keywords, or ask {assistantName} for personalized help.
+                                </p>
+                            </div>
+                            {/* AI Help Search card — distinct aesthetic */}
+                            <button
+                                onClick={handleAskAloa}
+                                disabled={isAskingAloa}
+                                className="mt-4 w-full rounded-2xl p-[2px] bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 hover:from-blue-600 hover:via-indigo-600 hover:to-purple-600 transition-all disabled:opacity-60"
+                            >
+                                <div className="rounded-2xl bg-white dark:bg-zinc-900 px-6 py-4 flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                                        <SparklesIcon className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div className="text-left flex-1">
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                            Ask {assistantName} about "{searchQuery}"
+                                            <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">AI Help</span>
+                                        </p>
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                            Get a personalized answer from the AI assistant — it knows every feature in PracticePro.
+                                        </p>
+                                    </div>
+                                    <svg className="w-5 h-5 text-slate-300 dark:text-zinc-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                            </button>
                         </div>
                     )}
                 </div>
