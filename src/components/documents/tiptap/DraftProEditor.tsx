@@ -1392,21 +1392,28 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     </ToolbarGroup>
 
                     {/* ── DraftPro AI — Redraft + Auto-Format grouped together ──
-                        Both AI features live in a single cohesive group with a
-                        blue tint background to visually communicate that these
-                        are special AI tools. Auto-Format is legal-only. */}
+                        Both AI features use the SAME ToolbarBtn component with
+                        size="lg" so they have identical shape, size, and styling.
+                        Only the icon color differs (blue for Redraft, emerald for
+                        Auto-Format) — matching the pattern used in other groups
+                        (e.g. amber for Placeholder/Fill in Insert/Legal Tools). */}
                     <ToolbarGroup label="DraftPro AI" variant="ai">
-                        <button
+                        <ToolbarBtn
+                            icon={RedraftIcon}
+                            label="Redraft"
                             onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
+                            size="lg"
                             disabled={!editor || isDrafting}
-                            title={`Redraft with ${getAssistantName(isProperty)} — regenerate the document with optional improvement instructions`}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            <RedraftIcon className="w-4 h-4" />
-                            <span>Redraft</span>
-                        </button>
+                            className="text-blue-600 dark:text-blue-400"
+                        />
                         {!isProperty && (
-                            <ToolbarBtn icon={Wand} label="Auto-Format" onClick={() => setActiveModal('auto_format_rules')} size="lg" className="text-emerald-600 dark:text-emerald-400" />
+                            <ToolbarBtn
+                                icon={Wand}
+                                label="Auto-Format"
+                                onClick={() => setActiveModal('auto_format_rules')}
+                                size="lg"
+                                className="text-emerald-600 dark:text-emerald-400"
+                            />
                         )}
                     </ToolbarGroup>
 
