@@ -51,6 +51,7 @@ import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
 import { FontSize } from './extensions/FontSize';
+import { LineHeight } from './extensions/LineHeight';
 import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
@@ -90,6 +91,7 @@ const Maximize2: React.FC<{className?:string}> = ({className}) => <svg xmlns="ht
 const Minimize2: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" /></svg>;
 const ChevronDown: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>;
 const Wand: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>;
+const Shield: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>;
 const SubscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 18.75h-3v-1.5l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 13.5 17.25 14.25" strokeWidth={1.2} /></svg>;
 const SuperscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.5h-3V6l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 2.25 17.25 3" strokeWidth={1.2} /></svg>;
 const StrikethroughIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M6.75 6.75c0-1.257.933-2.25 2.25-2.25 1.257 0 2.25.933 2.25 2.25 0 1.257-.933 2.25-2.25 2.25M17.25 6.75c0-1.257-.933-2.25-2.25-2.25-1.257 0-2.25.933-2.25 2.25 0 1.257.933 2.25 2.25 2.25M6.75 17.25c0 1.257.933 2.25 2.25 2.25 1.257 0 2.25-.933 2.25-2.25 0-1.257-.933-2.25-2.25-2.25M17.25 17.25c0 1.257-.933 2.25-2.25 2.25-1.257 0-2.25-.933-2.25-2.25 0-1.257.933-2.25 2.25-2.25" /></svg>;
@@ -222,22 +224,30 @@ const HIGHLIGHTS = [
 // Structure: [buttons area (flex-1, items-end)] + [fixed-height label row]
 // This ensures every group's label sits on the exact same horizontal line
 // regardless of how many buttons or rows the group has.
-const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; className?: string }> = ({ label, children, className = '' }) => (
-    <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${className}`}>
+const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; className?: string; variant?: 'default' | 'ai' }> = ({ label, children, className = '', variant = 'default' }) => {
+    const variantClass = variant === 'ai'
+        ? 'bg-gradient-to-b from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border-l border-blue-200/50 dark:border-blue-800/30'
+        : '';
+    const labelClass = variant === 'ai'
+        ? 'text-[8px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5'
+        : 'text-[8px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5';
+    return (
+    <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${variantClass} ${className}`}>
         {/* Buttons area — items-end so all groups align at the bottom */}
         <div className="flex items-end gap-0.5 py-0.5 flex-1 min-h-[28px]">
             {children}
         </div>
         {/* Strict baseline label — fixed height, perfectly level across all groups */}
         {label && (
-            <span className="text-[8px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5">
+            <span className={labelClass}>
                 {label}
             </span>
         )}
         {/* Spacer for groups without a label — keeps the baseline consistent */}
         {!label && <span className="h-[11px] block" />}
     </div>
-);
+    );
+};
 
 const ToolbarBtn: React.FC<{
     icon: any;
@@ -424,6 +434,8 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // Number of explicit pageBreak nodes currently in the document
     const [pageBreakCount, setPageBreakCount] = useState(0);
     const [zoom, setZoom] = useState(1);
+    const [focusMode, setFocusMode] = useState(false);
+    const [watermark, setWatermark] = useState<string | null>(null); // 'DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', or null
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
@@ -547,6 +559,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             Underline,
             TextStyle,
             FontSize,
+            LineHeight,
             FontFamily.configure({ types: ['textStyle'] }),
             Color,
             Highlight.configure({ multicolor: true }),
@@ -909,6 +922,29 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         return () => el.removeEventListener('scroll', onScroll);
     }, [zoom, pageCount]);
 
+    // Global keyboard shortcuts for zoom (Ctrl+=, Ctrl+-, Ctrl+0)
+    // and focus mode toggle (F11). These are window-level so they work
+    // even when the editor isn't focused.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                setZoom(z => Math.min(3.0, z + 0.1));
+            } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+                e.preventDefault();
+                setZoom(z => Math.max(0.3, z - 0.1));
+            } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+                e.preventDefault();
+                setZoom(1);
+            } else if (e.key === 'F11') {
+                e.preventDefault();
+                setFocusMode(f => !f);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
     // Insertion Handlers
     const insertPlaceholder = () => {
         const val = modalInput.trim().toUpperCase();
@@ -1120,11 +1156,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 </div>
             </div>
 
-            {/* ── Ribbon Toolbar ──
+            {/* ── Ribbon Toolbar (hidden in Focus Mode — press F11 to toggle) ──
                 Organized into clear functional groups with visual dividers:
                 File | Font | Paragraph | Insert | Tools | AI | Zoom
                 Each group is separated by a thin vertical divider for
                 better visual scannability. */}
+            {!focusMode && (
             <div className="flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 shadow-sm z-50">
                 <div className="flex items-stretch gap-0 px-1 py-1 overflow-x-auto custom-scrollbar no-scrollbar">
 
@@ -1143,6 +1180,41 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             size="lg"
                             disabled={!editor}
                         />
+                        {/* Watermark dropdown — jurisdiction-neutral legal feature.
+                            DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE are universal
+                            legal document markers used across all jurisdictions. */}
+                        <div className="relative group">
+                            <ToolbarBtn
+                                icon={Shield}
+                                label="Watermark"
+                                onClick={() => {}}
+                                size="lg"
+                                className={watermark ? 'text-red-500' : ''}
+                                disabled={!editor}
+                            />
+                            <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px]">
+                                {['DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', 'PRIVATE & CONFIDENTIAL'].map(wm => (
+                                    <button
+                                        key={wm}
+                                        onClick={() => setWatermark(watermark === wm ? null : wm)}
+                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${watermark === wm ? 'font-bold text-red-500' : 'text-slate-600 dark:text-zinc-400'}`}
+                                    >
+                                        {wm}
+                                    </button>
+                                ))}
+                                {watermark && (
+                                    <>
+                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                        <button
+                                            onClick={() => setWatermark(null)}
+                                            className="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"
+                                        >
+                                            Remove Watermark
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
                     </ToolbarGroup>
 
                     <ToolbarGroup label="Font">
@@ -1235,14 +1307,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             <div className="flex gap-1">
                                 <ToolbarBtn
                                     icon={Minus}
-                                    onClick={() => editor?.chain().focus().selectAll().updateAttributes('paragraph', { lineHeight: '1.0' }).run()}
+                                    onClick={() => (editor?.chain().focus() as any).selectAll().setLineHeight('1.0').run()}
                                     size="sm"
                                     label="Single Space"
                                     disabled={!editor}
                                 />
                                 <ToolbarBtn
                                     icon={Plus}
-                                    onClick={() => editor?.chain().focus().selectAll().updateAttributes('paragraph', { lineHeight: '2.0' }).run()}
+                                    onClick={() => (editor?.chain().focus() as any).selectAll().setLineHeight('1.5').run()}
+                                    size="sm"
+                                    label="1.5 Space"
+                                    disabled={!editor}
+                                />
+                                <ToolbarBtn
+                                    icon={Plus}
+                                    onClick={() => (editor?.chain().focus() as any).selectAll().setLineHeight('2.0').run()}
                                     size="sm"
                                     label="Double Space"
                                     disabled={!editor}
@@ -1313,10 +1392,10 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     </ToolbarGroup>
 
                     {/* ── DraftPro AI — Redraft + Auto-Format grouped together ──
-                        Both AI features now live in a single cohesive group
-                        (matching FONT/PARAGRAPH styling) instead of two
-                        separate disconnected groups. Auto-Format is legal-only. */}
-                    <ToolbarGroup label="DraftPro AI">
+                        Both AI features live in a single cohesive group with a
+                        blue tint background to visually communicate that these
+                        are special AI tools. Auto-Format is legal-only. */}
+                    <ToolbarGroup label="DraftPro AI" variant="ai">
                         <button
                             onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
                             disabled={!editor || isDrafting}
@@ -1335,8 +1414,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
                 </div>
             </div>
+            )}
 
-            {/* ══ Editor Canvas — True Page Sheet Rendering ══ */}
+            {/* ══ Editor Canvas — True Page Sheet Rendering ══
+                The canvas has a darker gray background (#e2e8f0) so the white
+                page sheets appear to float on it like a document on a desk.
+                The page is detached from the ribbon via pt-32 (128px) — a
+                generous gap that makes it clear the page is NOT glued to
+                the toolbar but floats independently in center stage. */}
             <div
                 className="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar"
                 style={{ background: '#e2e8f0' }}
@@ -1351,14 +1436,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                  * The scale() transform on the inner div doesn't affect layout flow,
                  * so we must manually reserve the correct scaled height here.
                  *
-                 * The pt-20 (80px top padding) DETACHES the first page from the
+                 * The pt-32 (128px top padding) DETACHES the first page from the
                  * ribbon so it floats independently in "center stage" — like a
                  * real document on a desk, not glued to the toolbar. The generous
                  * gap gives a premium, breathable layout with clear visual
                  * separation between the ribbon and the document.
                  */}
                 <div
-                    className="flex justify-center mb-20 shrink-0 pt-20"
+                    className="flex justify-center mb-20 shrink-0 pt-32"
                     style={{
                         width: `${PAGE_WIDTH_PX * zoom}px`,
                         minHeight: `${(PAGE_HEIGHT_PX * pageCount + PAGE_GAP_PX * Math.max(0, pageCount - 1)) * zoom}px`,
@@ -1399,6 +1484,29 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                             style={{ height: `${PAGE_MARGIN_PX + HEADER_HEIGHT_PX}px` }}
                                         >
                                             <HeaderRenderer config={appState.firmDetails.settings?.headerConfig} />
+                                        </div>
+                                    )}
+
+                                    {/* ── Watermark (DRAFT, CONFIDENTIAL, etc.) ──
+                                        Renders a large, semi-transparent, rotated
+                                        text overlay on every page. Jurisdiction-neutral. */}
+                                    {watermark && (
+                                        <div
+                                            className="absolute inset-0 z-5 flex items-center justify-center pointer-events-none select-none"
+                                            style={{ zIndex: 5 }}
+                                        >
+                                            <span
+                                                style={{
+                                                    fontSize: '120px',
+                                                    fontWeight: '900',
+                                                    color: 'rgba(220, 38, 38, 0.12)',
+                                                    transform: 'rotate(-35deg)',
+                                                    whiteSpace: 'nowrap',
+                                                    letterSpacing: '0.1em',
+                                                }}
+                                            >
+                                                {watermark}
+                                            </span>
                                         </div>
                                     )}
 
@@ -1486,32 +1594,75 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     <span className="font-medium">Page {currentPage} of {pageCount}</span>
                     <span className="text-slate-300 dark:text-zinc-700">·</span>
                     <div className="flex items-center gap-1">
-                        <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out">
+                        <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out (Ctrl+-)">
                             <Minimize2 className="w-3 h-3" />
                         </button>
-                        <button
-                            onClick={() => {
-                                const scrollArea = document.getElementById('draftpro-scroll-area');
-                                if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
-                            }}
-                            className="font-bold w-10 text-center hover:text-blue-600"
-                            title="Fit to Width"
-                        >
-                            {Math.round(zoom * 100)}%
-                        </button>
-                        <button onClick={() => setZoom(Math.min(2.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom In">
+                        <div className="relative group">
+                            <button
+                                onClick={() => {
+                                    const scrollArea = document.getElementById('draftpro-scroll-area');
+                                    if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
+                                }}
+                                className="font-bold w-12 text-center hover:text-blue-600"
+                                title="Fit to Width (click) / Zoom presets (hover)"
+                            >
+                                {Math.round(zoom * 100)}%
+                            </button>
+                            {/* Zoom presets dropdown */}
+                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                {[
+                                    { label: '50%', value: 0.5 },
+                                    { label: '75%', value: 0.75 },
+                                    { label: '100%', value: 1.0 },
+                                    { label: '125%', value: 1.25 },
+                                    { label: '150%', value: 1.5 },
+                                    { label: '200%', value: 2.0 },
+                                ].map(preset => (
+                                    <button
+                                        key={preset.value}
+                                        onClick={() => setZoom(preset.value)}
+                                        className={`block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${Math.abs(zoom - preset.value) < 0.01 ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                    >
+                                        {preset.label}
+                                    </button>
+                                ))}
+                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                <button
+                                    onClick={() => {
+                                        const scrollArea = document.getElementById('draftpro-scroll-area');
+                                        if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
+                                    }}
+                                    className="block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400"
+                                >
+                                    Fit Width
+                                </button>
+                            </div>
+                        </div>
+                        <button onClick={() => setZoom(Math.min(3.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom In (Ctrl+=)">
                             <Maximize2 className="w-3 h-3" />
                         </button>
                     </div>
+                    <span className="text-slate-300 dark:text-zinc-700">·</span>
+                    <button
+                        onClick={() => setFocusMode(f => !f)}
+                        className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 text-xs font-medium"
+                        title={focusMode ? "Exit Focus Mode (F11)" : "Focus Mode (F11)"}
+                    >
+                        {focusMode ? "Exit Focus" : "Focus"}
+                    </button>
                 </div>
             </div>
 
             {/* ── In-App Modals ── */}
             {
                 activeModal && (
-                    <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+                    <div
+                        className="fixed inset-0 z-[1000] flex items-center justify-center"
+                        onKeyDown={(e) => { if (e.key === 'Escape') setActiveModal(null); }}
+                        tabIndex={-1}
+                    >
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
-                        <div className={`relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 w-full ${activeModal === 'fill_placeholders' ? 'max-w-md' : activeModal === 'auto_format_rules' ? 'max-w-lg' : activeModal === 'redraft' ? 'max-w-lg' : 'max-w-sm'} mx-4 animate-in zoom-in-95 duration-200`}>
+                        <div className={`relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 w-full ${activeModal === 'fill_placeholders' ? 'max-w-lg' : activeModal === 'auto_format_rules' ? 'max-w-lg' : activeModal === 'redraft' ? 'max-w-lg' : activeModal === 'table' ? 'max-w-md' : 'max-w-md'} mx-4 animate-in zoom-in-95 duration-200`}>
                             <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                                 {activeModal === 'placeholder' && <><Type className="w-5 h-5 text-amber-500" /> Insert Placeholder</>}
                                 {activeModal === 'fill_placeholders' && <><Scissors className="w-5 h-5 text-amber-500" /> Smart Fill Placeholders</>}

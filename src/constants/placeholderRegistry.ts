@@ -61,6 +61,8 @@ export const PLACEHOLDER_REGISTRY: PlaceholderDef[] = [
   { label: '[FIRM ADDRESS]', category: 'firm', dataPath: 'firm.address', description: 'The address of your firm — appears on the letterhead.' },
   { label: '[SOLICITOR NAME]', category: 'firm', dataPath: 'firm.assignedSolicitor', description: 'The name of the solicitor handling the matter.' },
   { label: '[FIRM REG NUMBER]', category: 'firm', dataPath: 'firm.regNumber', description: 'Your firm’s registration number (e.g. NBA seal number, CAC RC number).' },
+  { label: '[SIGNATORY NAME]', category: 'firm', dataPath: 'firm.signerName', description: 'The name of the person signing the document.' },
+  { label: '[SIGNATORY TITLE]', category: 'firm', dataPath: 'firm.signerTitle', description: 'The title/role of the person signing (e.g. Solicitor, Managing Partner).' },
 ];
 
 const normalize = (s: string) => s.trim().toUpperCase();
