@@ -3983,3 +3983,32 @@ AUDIT FINDINGS (documented for future work)
 Total commits: 3 (9d03af4, 525d279→0242d90)
 Total files changed: ~25
 All builds pass. All changes pushed to main + force-synced to master.
+
+---
+Task ID: notetaker-docform-backlinks-mobile
+Agent: main
+Task: Fix notetaker permission, DocumentForm dual-link, wire up backlinks in Endorsements, mobile optimization
+
+1. NOTETAKER MICROPHONE PERMISSION (commit 32a5c67)
+   Root cause: Capacitor's BridgeActivity does NOT bridge WebView getUserMedia to native RECORD_AUDIO permission.
+   Fix: Added custom WebChromeClient.onPermissionRequest override in MainActivity.java that explicitly requests
+   the Android runtime permission. Also moved permission request into the click handler in SaveToNoteForm.tsx
+   (was in a useEffect, losing the user-activation gesture).
+
+2. DOCUMENTFORM DUAL MATTER + PROPERTY LINKING (commit 32a5c67)
+   Added propertyId to Document type and Convex schema. Replaced single dropdown with two product-gated
+   dropdowns: hasLegalFeatures shows Matter, hasPropertyFeatures shows Property. Komplete sees both.
+
+3. BIDIRECTIONAL BACKLINKS IN ENDORSEMENTS (commit 32a5c67)
+   Enhanced findBacklinks() to do real-time content-based matching (scans notes for [[Entity Label]] patterns).
+   Mounted BacklinksPanel in Endorsements tab with entityLabel={matterData.title}. Shows a tip when empty
+   explaining how to use [[syntax]] to create backlinks.
+
+4. MOBILE OPTIMIZATION (commit bba61d4)
+   - Form footer text: text-[10px] → text-xs across 11 forms (25 instances)
+   - UserForm + DocumentForm footer: flex justify-end → flex flex-wrap-reverse sm:justify-end + flex-1 sm:flex-none
+   - DraftProEditor top bar: Print/PDF and Save text hidden on mobile (icon-only)
+   - DraftProEditor ribbon: ToolbarBtn padding p-0.5/p-1 → p-2 sm:p-1.5 (32px mobile touch target)
+   - MessagesView Compose + ContactsView New buttons: p-2 → p-2.5 + min-h-[40px]
+
+5. MINIMUM VEND — confirmed not a typo. It's a property management term for minimum electricity purchase.
