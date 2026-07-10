@@ -211,29 +211,53 @@ export function renderLinksAsHtml(content: string): string {
 /**
  * Find all notes that reference a given entity (backlinks).
  * Returns notes that have a link pointing to the entity.
+ *
+ * Works in two modes:
+ * 1. If the note has a stored `links` array (future), uses that.
+ * 2. Falls back to scanning note content for [[Entity Label]] patterns
+ *    that match the entity's label/title. This is real-time content-based
+ *    matching — no schema migration needed.
+ *
+ * @param entityId   The entity's ID (e.g. matter.id)
+ * @param entityType The entity type ('matter' | 'contact' | 'property' | ...)
+ * @param notes      All notes to scan
+ * @param entityLabel The entity's display label (e.g. matter.title, contact.name,
+ *                    property.address). Used for content-based matching.
  */
 export function findBacklinks(
   entityId: string,
   entityType: BiLink['type'],
-  notes: any[]
+  notes: any[],
+  entityLabel?: string
 ): { note: any; link: BiLink }[] {
   const backlinks: { note: any; link: BiLink }[] = [];
+  const normalizedLabel = entityLabel?.trim().toLowerCase();
 
   for (const note of notes) {
-    // Check the note's stored links array (if available)
+    let found = false;
+
+    // Mode 1: Check the note's stored links array (if available)
     if (note.links && Array.isArray(note.links)) {
       const link = note.links.find((l: BiLink) => l.type === entityType && l.id === entityId);
       if (link) {
         backlinks.push({ note, link });
+        found = true;
       }
     }
-    // Also check the note's content for [[...]] patterns as a fallback
-    if (note.content) {
+
+    // Mode 2: Content-based fallback — scan for [[Entity Label]] patterns
+    if (!found && note.content && normalizedLabel) {
       const labels = extractLinkLabels(note.content);
       for (const label of labels) {
-        // If we already found this note via stored links, skip
-        if (backlinks.some(b => b.note.id === note.id)) continue;
-        // We can't match without entities, but the stored links should cover this
+        // Match by exact label (case-insensitive)
+        if (label.trim().toLowerCase() === normalizedLabel) {
+          backlinks.push({
+            note,
+            link: { type: entityType, id: entityId, label: entityLabel || label }
+          });
+          found = true;
+          break;
+        }
       }
     }
   }

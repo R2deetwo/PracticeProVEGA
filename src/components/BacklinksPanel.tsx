@@ -19,6 +19,11 @@ interface BacklinksPanelProps {
   entityType: BiLink['type'];
   notes: any[];
   navigateTo: (view: string, id?: string | null, context?: any) => void;
+  /** The entity's display label (e.g. matter.title, contact.name, property.address).
+   *  Used for real-time content-based backlink matching — scans all notes for
+   *  [[Entity Label]] patterns. Without this, backlinks only work if notes have
+   *  a stored `links` array (which is not yet implemented). */
+  entityLabel?: string;
 }
 
 const EntityIcon: React.FC<{ type: BiLink['type']; className?: string }> = ({ type, className = 'w-3.5 h-3.5' }) => {
@@ -38,10 +43,17 @@ const EntityIcon: React.FC<{ type: BiLink['type']; className?: string }> = ({ ty
   }
 };
 
-const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, notes, navigateTo }) => {
-  const backlinks = findBacklinks(entityId, entityType, notes);
+const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, notes, navigateTo, entityLabel }) => {
+  const backlinks = findBacklinks(entityId, entityType, notes, entityLabel);
 
-  if (backlinks.length === 0) return null;
+  if (backlinks.length === 0) {
+    // Show a subtle hint so users know backlinks exist, even when empty.
+    return (
+      <div className="mt-2 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 px-3 py-2 text-[11px] text-slate-400 dark:text-zinc-500">
+        <span className="font-semibold">Tip:</span> Type <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">[[</code> in any note followed by this {entityType}'s name to create a bidirectional link. Notes that mention this {entityType} will appear here.
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 overflow-hidden">

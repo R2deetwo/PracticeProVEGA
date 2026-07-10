@@ -482,6 +482,16 @@ const MatterDetailViewContent: React.FC = () => {
                                     filterType="all"
                                 />
                             </div>
+                            {/* Bidirectional backlinks — notes that mention this matter via [[Matter Title]].
+                                Uses real-time content-based matching: scans all notes for [[...]] patterns
+                                that match this matter's title. No schema migration needed. */}
+                            <BacklinksPanel
+                                entityId={matterData.id}
+                                entityType="matter"
+                                entityLabel={matterData.title}
+                                notes={documentState.notePages || []}
+                                navigateTo={navigateTo}
+                            />
                         </div>
                     ) : activeTab === 'schedule_tasks' ? (
                         <TasksAndEventsTab

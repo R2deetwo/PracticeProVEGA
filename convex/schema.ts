@@ -210,6 +210,7 @@ export default defineSchema({
     firmId: nullableString,
     title: nullableString,
     matterId: nullableString,
+    propertyId: nullableString,
     categoryId: nullableString,
     dateFiled: nullableString,
     assignedUsers: v.optional(v.array(v.string())),
@@ -239,7 +240,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"]),
 
   workflows: defineTable({
     firmId: nullableString,

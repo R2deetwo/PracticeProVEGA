@@ -59,10 +59,11 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     // which MISSED 'unified' (Komplete) — so Komplete firms wrongly saw "Property"
     // labels instead of "Matter" labels. useProduct().isLegal correctly returns
     // true for both Vega AND Komplete (unified).
-    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, terminology } = useProduct();
+    const { isLegal, isProperty: isPropertyFirm, isUnified, hasPropertyFeatures, hasLegalFeatures, terminology } = useProduct();
     const [title, setTitle] = useState('');
     const [file, setFile] = useState<FileDetails | null>(null);
     const [matterId, setMatterId] = useState<string | undefined>(undefined);
+    const [propertyId, setPropertyId] = useState<string | undefined>(undefined);
     const [categoryId, setCategoryId] = useState<string>('');
     const [dateFiled, setDateFiled] = useState(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,6 +108,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             setTitle(documentToEdit.title);
             setFile(documentToEdit.file ? { ...documentToEdit.file } : null);
             setMatterId(documentToEdit.matter?.id);
+            setPropertyId(documentToEdit.propertyId || documentToEdit.property?.id);
             setCategoryId(documentToEdit.categoryId);
             setDateFiled(documentToEdit.dateFiled);
             setContent((fullDoc as any)?.content || documentToEdit.content);
@@ -124,6 +126,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             } else {
                 const defaultCat = documentCategories.find(c => c.name === 'Correspondence' || c.isCore)?.id;
                 if (defaultCat) setCategoryId(defaultCat);
+            }
+
+            if (context?.propertyId) {
+                setPropertyId(context.propertyId);
             }
 
             if (context?.draftTitle || context?.title) {
@@ -218,6 +224,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         setError(null);
 
         const selectedMatter = matterId ? matters.find(m => m.id === matterId) : undefined;
+        const selectedProperty = propertyId ? (coreState.properties || []).find(p => p.id === propertyId) : undefined;
 
         try {
             if (isEditing && onUpdateDocument && documentToEdit) {
@@ -225,6 +232,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     ...documentToEdit,
                     title,
                     matter: selectedMatter ? { id: selectedMatter.id, title: selectedMatter.title } : undefined,
+                    property: selectedProperty ? { id: selectedProperty.id, title: selectedProperty.address || selectedProperty.id } : undefined,
+                    propertyId: propertyId,
                     categoryId,
                     dateFiled,
                     file: file || undefined,
@@ -239,6 +248,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     title,
                     firmId: firmDetails.id,
                     matter: selectedMatter ? { id: selectedMatter.id, title: selectedMatter.title } : undefined,
+                    property: selectedProperty ? { id: selectedProperty.id, title: selectedProperty.address || selectedProperty.id } : undefined,
+                    propertyId: propertyId,
                     categoryId,
                     dateFiled,
                     file: file ? { ...file } : undefined,
@@ -316,27 +327,47 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     <input autoComplete="off" data-lpignore="true" type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className={commonInputClass} placeholder={isLegal ? "e.g. Originating Summons" : "Enter document name"} required />
                 </div>
 
-                {/* Matter + Folder row */}
-                <div className={`grid ${gridClass} gap-3`}>
+                {/* Link to Matter and/or Property — product-aware.
+                    Vega (legal-only): Matter dropdown only.
+                    Atrium (property-only): Property dropdown only.
+                    Komplete (unified): BOTH dropdowns, clearly separated.
+                    Previously this was a single dropdown that showed 'Matter' for
+                    isLegal firms (which includes Komplete) and 'Property' for Atrium —
+                    so Komplete users could only link to matters, never properties. */}
+                {hasLegalFeatures && (
                     <div>
-                        <label className={labelClass}>{isLegal ? 'Matter' : 'Property'}</label>
+                        <label className={labelClass}>Matter</label>
                         <div className="relative">
-                            <OfficeBuildingIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <GavelIconLarge className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <select value={matterId || ''} onChange={e => setMatterId(e.target.value || undefined)} className={`${commonInputClass} pl-10 appearance-none`}>
                                 <option value="">None</option>
                                 {matters.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                             </select>
                         </div>
                     </div>
+                )}
+                {hasPropertyFeatures && (
                     <div>
-                        <label className={labelClass}>Folder</label>
+                        <label className={labelClass}>Property</label>
                         <div className="relative">
-                            <FolderIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className={`${commonInputClass} pl-10 appearance-none`} required>
-                                <option value="" disabled>Select…</option>
-                                {documentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            <OfficeBuildingIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <select value={propertyId || ''} onChange={e => setPropertyId(e.target.value || undefined)} className={`${commonInputClass} pl-10 appearance-none`}>
+                                <option value="">None</option>
+                                {(coreState.properties || []).map(p => <option key={p.id} value={p.id}>{p.address || p.id}</option>)}
                             </select>
                         </div>
+                    </div>
+                )}
+
+                {/* Folder */}
+                <div>
+                    <label className={labelClass}>Folder</label>
+                    <div className="relative">
+                        <FolderIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className={`${commonInputClass} pl-10 appearance-none`} required>
+                            <option value="" disabled>Select…</option>
+                            {documentCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                     </div>
                 </div>
 

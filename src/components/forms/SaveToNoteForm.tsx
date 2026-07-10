@@ -139,16 +139,10 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
 
         const startRecordingEngine = async () => {
             try {
-                // Pre-request microphone permission at the OS level (native APK)
-                // or trigger the browser prompt (web). This must happen BEFORE
-                // getUserMedia so the native Android permission dialog appears.
-                const hasPermission = await requestMicrophonePermission();
-                if (!hasPermission) {
-                    addToast("Microphone access denied. Please grant permission and try again.", { type: 'error' });
-                    setIsRecording(false);
-                    return;
-                }
-
+                // Permission was already requested in handleToggleRecording
+                // (within the user gesture). Here we just open the stream.
+                // If permission was denied, we never get here because
+                // isRecording was never flipped to true.
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
                 // 1. Visualizer (Existing reliable logic)
@@ -269,21 +263,42 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
-    const handleToggleRecording = () => {
+    const handleToggleRecording = async () => {
         if (currentUser?.email === 'demo@practicepro.ng') {
             openModal('demoUpsell', null, { context: 'voice_notes' });
             return;
         }
-        setIsRecording(prev => {
-            const next = !prev;
-            if (!next) {
-                // Ensure engine stops immediately
-                if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-                    mediaRecorderRef.current.stop();
-                }
+
+        // If currently recording, just stop.
+        if (isRecording) {
+            setIsRecording(false);
+            return;
+        }
+
+        // Starting: request mic permission WITHIN the user gesture.
+        // Previously, permission was requested inside a useEffect (after
+        // isRecording flipped to true), by which point the browser/WebView
+        // had lost the user-activation gesture and silently rejected.
+        // Now we call getUserMedia here — on Android, the MainActivity's
+        // WebChromeClient.onPermissionRequest override will bridge to the
+        // native RECORD_AUDIO runtime permission dialog.
+        try {
+            const granted = await requestMicrophonePermission();
+            if (!granted) {
+                addToast(
+                    "Microphone access denied. On the app, go to Settings → Apps → PracticePro → Permissions → Microphone → Allow. On web, click the mic icon in your browser's address bar.",
+                    { type: 'error' }
+                );
+                return;
             }
-            return next;
-        });
+            // Permission granted — now flip isRecording. The useEffect will
+            // call getUserMedia again to actually open the stream (this second
+            // call doesn't need a user gesture because permission is already
+            // granted).
+            setIsRecording(true);
+        } catch (err: any) {
+            addToast(getMicrophoneErrorMessage(err), { type: 'error' });
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
