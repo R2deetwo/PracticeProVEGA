@@ -6,11 +6,10 @@ import android.os.Bundle;
 import android.view.WindowManager;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
+import android.webkit.WebView;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
-import android.view.View;
-import android.webkit.WebView;
 import com.getcapacitor.BridgeActivity;
 import com.practicepro.app.plugins.ContentProtectionPlugin;
 
@@ -50,48 +49,43 @@ public class MainActivity extends BridgeActivity {
         // Set a custom WebChromeClient that intercepts microphone permission
         // requests from the WebView and bridges them to the native Android
         // RECORD_AUDIO runtime permission.
-        // Capacitor's default BridgeActivity does NOT do this automatically,
-        // which is why getUserMedia({ audio: true }) silently fails on the APK
-        // even though RECORD_AUDIO is declared in AndroidManifest.xml.
-        WebView webView = findViewById(com.getcapacitor.R.id.webview);
-        if (webView != null) {
-            webView.setWebChromeClient(new WebChromeClient() {
-                @Override
-                public void onPermissionRequest(final PermissionRequest request) {
-                    runOnUiThread(() -> {
-                        // Check what resources the web page is requesting
-                        // (e.g. PermissionRequest.RESOURCE_AUDIO_CAPTURE)
-                        String[] resources = request.getResources();
-                        boolean wantsAudio = false;
-                        for (String r : resources) {
-                            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
-                                wantsAudio = true;
-                                break;
+        // Use the official Capacitor API (bridge.getWebView()) instead of
+        // findViewById(com.getcapacitor.R.id.webview) — the R.id reference
+        // is an internal implementation detail that may not resolve in all
+        // build environments.
+        if (this.bridge != null) {
+            WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public void onPermissionRequest(final PermissionRequest request) {
+                        runOnUiThread(() -> {
+                            String[] resources = request.getResources();
+                            boolean wantsAudio = false;
+                            for (String r : resources) {
+                                if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
+                                    wantsAudio = true;
+                                    break;
+                                }
                             }
-                        }
 
-                        if (wantsAudio) {
-                            // Check if RECORD_AUDIO is already granted at the OS level
-                            if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO)
-                                    == PackageManager.PERMISSION_GRANTED) {
-                                // Already granted — grant the WebView request
-                                request.grant(request.getResources());
+                            if (wantsAudio) {
+                                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO)
+                                        == PackageManager.PERMISSION_GRANTED) {
+                                    request.grant(request.getResources());
+                                } else {
+                                    pendingWebPermissionRequest = request;
+                                    ActivityCompat.requestPermissions(MainActivity.this,
+                                            new String[]{Manifest.permission.RECORD_AUDIO},
+                                            MIC_PERMISSION_REQUEST_CODE);
+                                }
                             } else {
-                                // Not yet granted — request the native runtime permission.
-                                // Save the web request so we can grant/deny it once the
-                                // native permission dialog completes.
-                                pendingWebPermissionRequest = request;
-                                ActivityCompat.requestPermissions(MainActivity.this,
-                                        new String[]{Manifest.permission.RECORD_AUDIO},
-                                        MIC_PERMISSION_REQUEST_CODE);
+                                request.deny();
                             }
-                        } else {
-                            // Non-audio permission request — deny by default
-                            request.deny();
-                        }
-                    });
-                }
-            });
+                        });
+                    }
+                });
+            }
         }
     }
 
@@ -101,10 +95,8 @@ public class MainActivity extends BridgeActivity {
 
         if (requestCode == MIC_PERMISSION_REQUEST_CODE && pendingWebPermissionRequest != null) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // User granted RECORD_AUDIO — grant the WebView request
                 pendingWebPermissionRequest.grant(pendingWebPermissionRequest.getResources());
             } else {
-                // User denied — deny the WebView request
                 pendingWebPermissionRequest.deny();
                 Toast.makeText(this, "Microphone permission denied. Enable it in Settings → Apps → PracticePro → Permissions.", Toast.LENGTH_LONG).show();
             }
