@@ -887,39 +887,69 @@ export const analyzeAttorneyDictation = async (
 
 /**
  * Transcribes a raw audio recording using Gemini multimodal via backend proxy.
+ * Tries gemini-2.0-flash first (good audio support), falls back to gemini-1.5-flash
+ * if the primary model fails (some regions/keys have different model availability).
  */
 export const transcribeAudio = async (
     audioBase64: string,
     mimeType: string = 'audio/webm',
     firmDetails?: any
 ): Promise<string> => {
-    
+
     const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
     const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
 
-    try {
-        const response = await convex.action(api.ai.generateContent, {
-            modelName: AI_CONFIG.gemini.defaultModel,
-            contents: [{
-                role: 'user',
-                parts: [
-                    { inlineData: { mimeType, data: cleanBase64 } },
-                    {
-                        text: `Transcribe the audio recording exactly as spoken.
+    // Models to try in order. gemini-2.0-flash has good audio support.
+    // gemini-1.5-flash is a fallback for keys that don't have 2.0 access yet.
+    // gemini-2.5-flash is another fallback.
+    const modelsToTry = [
+        AI_CONFIG.gemini.defaultModel,        // 'gemini-2.0-flash'
+        'gemini-2.5-flash',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash-lite',
+    ];
+    // Deduplicate
+    const uniqueModels = [...new Set(modelsToTry)];
+
+    let lastError: any = null;
+
+    for (const modelName of uniqueModels) {
+        try {
+            const response = await convex.action(api.ai.generateContent, {
+                modelName,
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { inlineData: { mimeType, data: cleanBase64 } },
+                        {
+                            text: `Transcribe the audio recording exactly as spoken.
 Return ONLY the transcribed text with no preamble, no analysis, no commentary.
 Preserve natural punctuation and paragraph breaks.
 If the audio is inaudible or contains no speech, return an empty string.`
-                    }
-                ]
-            }],
-            firmGeminiApiKey: firmKey
-        });
+                        }
+                    ]
+                }],
+                firmGeminiApiKey: firmKey
+            });
 
-        const candidate = response?.candidates?.[0];
-        const text = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
-        return text.trim();
-    } catch (e) {
-        console.error("Transcription via proxy failed", e);
-        throw new Error("Transcription failed.");
+            const candidate = response?.candidates?.[0];
+            const text = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
+
+            // Check for safety blocks or empty finish reasons
+            const finishReason = candidate?.finishReason;
+            if (finishReason === 'SAFETY') {
+                throw new Error('Transcription blocked by safety filters.');
+            }
+
+            return text.trim();
+        } catch (e: any) {
+            lastError = e;
+            console.warn(`Transcription with ${modelName} failed:`, e.message);
+            // Continue to next model
+        }
     }
+
+    // All models failed
+    const errorMsg = lastError?.message || 'All models failed';
+    throw new Error(`Transcription failed: ${errorMsg}. Check your AI API key in Settings → AI Settings.`);
 };

@@ -92,48 +92,78 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         }
     }, [availableNotebooks]);
 
-    // Unified Dictation Engine
+    // Unified Dictation Engine — robust transcription pipeline.
+    // Previous issues fixed:
+    // 1. Periodic transcription OVERWROTE content instead of appending → lost text
+    // 2. Final onstop transcription was blocked by isProcessingTranscriptionRef
+    //    left true from the last periodic call → final audio never transcribed
+    // 3. No error surfacing when Gemini returned empty text → silent failure
+    // 4. reader.onloadend never reset the processing flag if it failed → deadlock
     useEffect(() => {
-        const processTranscription = async (blobs: Blob[]) => {
-            if (blobs.length === 0) return;
+        // Transcribe a set of audio blobs and APPEND the result to existing content.
+        // Returns the transcribed text (or empty string on failure).
+        const processTranscription = async (blobs: Blob[]): Promise<string> => {
+            if (blobs.length === 0) return '';
             const totalSize = blobs.reduce((s, b) => s + b.size, 0);
-            if (totalSize < 500) return;
-            if (isProcessingTranscriptionRef.current) return;
-            isProcessingTranscriptionRef.current = true;
+            if (totalSize < 500) {
+                // Audio too small — likely just noise or < 1 second of speech.
+                // Don't show an error here (this fires on every periodic tick);
+                // the final onstop handler will warn if the total recording is too short.
+                return '';
+            }
+
             setTranscriptionStatus('processing');
             try {
                 const mimeType = activeMimeTypeRef.current;
                 const combinedBlob = new Blob(blobs, { type: mimeType });
-                const reader = new FileReader();
-                reader.readAsDataURL(combinedBlob);
-                reader.onloadend = async () => {
-                    try {
-                        const base64Audio = reader.result as string;
-                        if (!base64Audio || !base64Audio.includes(',')) {
-                            setTranscriptionStatus(isRecordingRef.current ? 'listening' : 'idle');
-                            isProcessingTranscriptionRef.current = false;
+
+                // Convert to base64 using a Promise wrapper so we can catch errors
+                // that previously caused the processing flag to deadlock.
+                const base64Audio: string = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onerror = () => reject(new Error('Failed to read audio data.'));
+                    reader.onloadend = () => {
+                        const result = reader.result as string;
+                        if (!result || !result.includes(',')) {
+                            reject(new Error('Audio data was empty.'));
                             return;
                         }
-                        const transcription = await geminiService.transcribeAudio(
-                            base64Audio,
-                            mimeType,
-                            coreState.firmDetails
-                        );
-                        if (transcription) {
-                            setContent(transcription);
-                        }
-                    } catch (err: any) {
-                        console.error("AI Transcription failed:", err);
-                        addToast(`Transcription error: ${err.message || 'Unknown error'}`, { type: 'error' });
-                    } finally {
-                        setTranscriptionStatus(isRecordingRef.current ? 'listening' : 'idle');
-                        isProcessingTranscriptionRef.current = false;
-                    }
-                };
-            } catch (err) {
-                console.error("Error preparing audio for AI:", err);
+                        resolve(result);
+                    };
+                    reader.readAsDataURL(combinedBlob);
+                });
+
+                const transcription = await geminiService.transcribeAudio(
+                    base64Audio,
+                    mimeType,
+                    coreState.firmDetails
+                );
+
+                if (transcription && transcription.trim()) {
+                    // APPEND to existing content (don't overwrite).
+                    // This is the key fix — previously each periodic transcription
+                    // call replaced the entire content, losing all prior text.
+                    const currentContent = contentRef.current;
+                    const newContent = currentContent
+                        ? `${currentContent.replace(/\s+$/, '')}\n${transcription.trim()}`
+                        : transcription.trim();
+                    setContent(newContent);
+                    contentRef.current = newContent;
+                    setInterimTranscript('');
+                    return transcription;
+                } else {
+                    // Gemini returned empty — could be inaudible audio or a model
+                    // issue. Don't show an error on periodic ticks (annoying), but
+                    // return empty so the caller knows.
+                    return '';
+                }
+            } catch (err: any) {
+                console.error("AI Transcription failed:", err);
+                // Show the actual error message so the user knows what went wrong.
+                addToast(`Transcription error: ${err.message || 'Unknown error'}. Check your AI API key in Settings → AI Settings.`, { type: 'error' });
+                return '';
+            } finally {
                 setTranscriptionStatus(isRecordingRef.current ? 'listening' : 'idle');
-                isProcessingTranscriptionRef.current = false;
             }
         };
 
@@ -141,11 +171,9 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             try {
                 // Permission was already requested in handleToggleRecording
                 // (within the user gesture). Here we just open the stream.
-                // If permission was denied, we never get here because
-                // isRecording was never flipped to true.
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                
-                // 1. Visualizer (Existing reliable logic)
+
+                // 1. Visualizer
                 const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
                 const context = new AudioContextClass();
                 const analyser = context.createAnalyser();
@@ -168,11 +196,13 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 };
                 updateEnergy();
 
-                // 2. MediaRecorder (Reliable AI Engine)
+                // 2. MediaRecorder — pick the best supported codec.
+                // Prefer audio/webm (Opus) for best Gemini compatibility.
                 let mimeType = 'audio/webm';
                 if (!MediaRecorder.isTypeSupported('audio/webm')) {
                     if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
                     else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+                    else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
                 }
                 activeMimeTypeRef.current = mimeType;
 
@@ -187,20 +217,46 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 };
 
                 recorder.onstop = () => {
-                    processTranscription(audioChunksRef.current);
+                    // Final transcription: drain ALL accumulated chunks.
+                    // Previously this was blocked by isProcessingTranscriptionRef
+                    // left true from the last periodic call. Now we always process
+                    // the final audio, even if a periodic transcription is in flight.
+                    const finalChunks = audioChunksRef.current;
+                    audioChunksRef.current = []; // drain
                     stream.getTracks().forEach(track => track.stop());
+
+                    const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
+                    if (totalSize < 500) {
+                        addToast("Recording was too short. Hold the mic button and speak for at least 2 seconds.", { type: 'info' });
+                        setTranscriptionStatus('idle');
+                        return;
+                    }
+
+                    // Process final chunks — don't check isProcessingTranscriptionRef,
+                    // just run it. The periodic interval has been cleared by now.
+                    processTranscription(finalChunks).then((text) => {
+                        if (!text) {
+                            addToast("No speech detected in the recording. Try speaking louder or closer to the microphone.", { type: 'info' });
+                        }
+                    });
                 };
 
                 // Start recording
                 recorder.start(1000); // Collect data every second
                 setTranscriptionStatus('listening');
 
-                // Periodic AI update (every 8 seconds for "near-live" feel)
-                transcriptionIntervalRef.current = setInterval(() => {
-                    if (mediaRecorderRef.current?.state === 'recording') {
-                        processTranscription(audioChunksRef.current);
+                // Periodic AI update every 10 seconds for "near-live" feel.
+                // Each tick drains the accumulated chunks so we don't re-transcribe
+                // the same audio over and over (which was causing growing blobs and
+                // eventual failures).
+                transcriptionIntervalRef.current = setInterval(async () => {
+                    if (mediaRecorderRef.current?.state === 'recording' && audioChunksRef.current.length > 0) {
+                        // Drain the chunks so the next tick starts fresh
+                        const chunksToProcess = audioChunksRef.current;
+                        audioChunksRef.current = [];
+                        await processTranscription(chunksToProcess);
                     }
-                }, 8000);
+                }, 10000);
 
             } catch (err: any) {
                 console.error("Recording Engine failed:", err);
@@ -218,13 +274,20 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             analyserRef.current = null;
             setVoiceEnergy(0);
 
+            // Clear the periodic interval FIRST so it doesn't fire while
+            // the recorder is stopping and interfere with the final onstop handler.
+            if (transcriptionIntervalRef.current) {
+                clearInterval(transcriptionIntervalRef.current);
+                transcriptionIntervalRef.current = null;
+            }
+
             if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
                 mediaRecorderRef.current.stop();
             }
-            
-            if (transcriptionIntervalRef.current) {
-                clearInterval(transcriptionIntervalRef.current);
-            }
+
+            // Note: transcriptionIntervalRef was already cleared above, before
+            // calling recorder.stop(). Don't clear it again here — the onstop
+            // handler needs to run without interference.
 
             setTranscriptionStatus('idle');
         };
