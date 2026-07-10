@@ -332,7 +332,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                                 isDetailVisible={view === 'propertyDetail' && !!selectedId}
                                 onCloseDetail={() => navigateTo('properties')}
                                 sidebarContent={<PropertyManagerView contacts={matterState.contacts} onViewDetails={(id) => navigateTo('propertyDetail', id)} openModal={openModal} isCompact={true} />}
-                                detailContent={<PropertyDetailView key={selectedId} />}
+                                detailContent={selectedId ? <PropertyDetailView key={selectedId} /> : null}
                             />
                         </FeatureGuard>
                     </ViewWrapper>

@@ -226,7 +226,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                     <EmptyState
                         title="No Invoices Found"
                         description="Create an invoice to start billing your clients and tracking payments."
-                        icon={<div className="flex items-center justify-center w-full h-full text-6xl text-slate-300 dark:text-zinc-600 font-serif"><NairaSymbol /></div>}
+                        icon={<div className="flex items-center justify-center text-slate-400 dark:text-zinc-500"><NairaSymbol /></div>}
                         actionLabel="Create Invoice"
                         onAction={() => openModal('newInvoice')}
                     />

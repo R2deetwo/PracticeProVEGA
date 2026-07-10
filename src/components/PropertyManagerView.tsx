@@ -637,7 +637,7 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                         <EmptyState
                             title="No Properties Yet"
                             description="Add your first property to start tracking leases, rent payments, and portfolio value."
-                            icon={<OfficeBuildingIcon className="w-full h-full" />}
+                            icon={<OfficeBuildingIcon />}
                             actionLabel="+ Add Property"
                             onAction={() => openModal('newProperty')}
                         />

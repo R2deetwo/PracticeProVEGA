@@ -666,6 +666,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             setIsDrafting(true);
             setIsSaved(false);
 
+            // SAFETY NET: Snapshot the current document HTML before wiping.
+            // If the AI fails or returns garbage, the user can restore their
+            // previous work via a toast button. Previously, Redraft destroyed
+            // the document with no undo path — a misclick could lose hours
+            // of manual edits.
+            const preDraftHtml = editor.getHTML();
+            const preDraftTitle = title;
+
+            // Disable the editor during drafting so the user can't type
+            // mid-stream and lose edits when setContent fires every 250ms.
+            editor.setEditable(false);
+
             // Buffer for the final cleanup pass (placeholder conversion, etc.)
             // but we ALSO stream into the editor live so the user sees progress.
             let draftBuffer = '';
@@ -706,6 +718,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 abortController.signal
             ).then(() => {
                 setIsDrafting(false);
+                editor?.setEditable(true); // Re-enable editing
                 const trimmedBuffer = draftBuffer.trim();
                 if (editor && trimmedBuffer) {
                     // Final cleanup pass — convert [LABEL] tokens to color-coded placeholders
@@ -730,12 +743,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     const currentContent = editor?.getHTML() || '';
                     if (currentContent === '<p></p>' || !currentContent) {
                         editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
-                        addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
+                        // Offer restore of the pre-draft content
+                        addToast('Drafting returned empty. Restore your previous work?', {
+                            type: 'info',
+                            action: { label: 'Restore', onClick: () => { editor?.commands.setContent(preDraftHtml); setTitle(preDraftTitle); } },
+                            duration: 15000,
+                        } as any);
                     }
                 }
             }).catch(e => {
                 console.error("Drafting error:", e);
                 setIsDrafting(false);
+                editor?.setEditable(true); // Re-enable editing even on error
                 if (e.name === 'AbortError') {
                     addToast('Drafting cancelled.', { type: 'info' });
                     // Keep whatever was streamed so far — don't wipe it
@@ -757,7 +776,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         addToast('Draft completed (with minor stream error).', { type: 'success' });
                         persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                     } else {
-                        addToast(`Drafting failed: ${e.message}`, { type: 'error' });
+                        // Complete failure — offer to restore the pre-draft content
+                        addToast(`Drafting failed: ${e.message}. Restore your previous work?`, {
+                            type: 'error',
+                            action: { label: 'Restore', onClick: () => { editor?.commands.setContent(preDraftHtml); setTitle(preDraftTitle); } },
+                            duration: 30000,
+                        } as any);
                     }
                 }
             });
@@ -866,6 +890,24 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // Page count derived from structural pageBreak nodes OR dynamic content height
     const calculatedPages = Math.max(pageBreakCount + 1, Math.ceil(contentHeight / PAGE_HEIGHT_PX));
     const pageCount = calculatedPages;
+
+    // Track the current page based on the scroll position of the editor canvas.
+    // Previously this was hardcoded to "Page 1 of N" — now it reflects where
+    // the user's scroll position is.
+    const [currentPage, setCurrentPage] = useState(1);
+    const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        const el = scrollAreaRef.current;
+        if (!el) return;
+        const onScroll = () => {
+            const scrollTop = el.scrollTop;
+            const pageHeightWithGap = (PAGE_HEIGHT_PX + PAGE_GAP_PX) * zoom;
+            const page = Math.min(pageCount, Math.max(1, Math.floor(scrollTop / pageHeightWithGap) + 1));
+            setCurrentPage(page);
+        };
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, [zoom, pageCount]);
 
     // Insertion Handlers
     const insertPlaceholder = () => {
@@ -1270,8 +1312,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         <ToolbarBtn icon={Save} label="Template" onClick={() => { setModalInput(title || ''); setActiveModal('save_template'); }} size="lg" className="text-primary-600" />
                     </ToolbarGroup>
 
-                    {/* ── Redraft — AI feature, stands out ── */}
-                    <ToolbarGroup label="AI">
+                    {/* ── DraftPro AI — Redraft + Auto-Format grouped together ──
+                        Both AI features now live in a single cohesive group
+                        (matching FONT/PARAGRAPH styling) instead of two
+                        separate disconnected groups. Auto-Format is legal-only. */}
+                    <ToolbarGroup label="DraftPro AI">
                         <button
                             onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
                             disabled={!editor || isDrafting}
@@ -1281,14 +1326,10 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             <RedraftIcon className="w-4 h-4" />
                             <span>Redraft</span>
                         </button>
+                        {!isProperty && (
+                            <ToolbarBtn icon={Wand} label="Auto-Format" onClick={() => setActiveModal('auto_format_rules')} size="lg" className="text-emerald-600 dark:text-emerald-400" />
+                        )}
                     </ToolbarGroup>
-
-                    {/* Agentic Ribbon — legal context only */}
-                    {!isProperty && (
-                    <ToolbarGroup label="DraftPro AI" className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 dark:from-blue-900/10 dark:to-indigo-900/10">
-                        <ToolbarBtn icon={Wand} label="Auto-Format" onClick={() => setActiveModal('auto_format_rules')} size="lg" className="text-emerald-600 dark:text-emerald-400" />
-                    </ToolbarGroup>
-                    )}
 
                     <div className="flex-1" />
 
@@ -1300,6 +1341,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 className="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar"
                 style={{ background: '#e2e8f0' }}
                 id="draftpro-scroll-area"
+                ref={scrollAreaRef}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
@@ -1441,7 +1483,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="font-medium">Page 1 of {pageCount}</span>
+                    <span className="font-medium">Page {currentPage} of {pageCount}</span>
                     <span className="text-slate-300 dark:text-zinc-700">·</span>
                     <div className="flex items-center gap-1">
                         <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out">
@@ -1777,24 +1819,32 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             {activeModal === 'auto_format_rules' && (
                                 <div className="space-y-4">
                                     <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Select the Nigerian legal formatting rules you want to enforce across the entire document.</p>
-                                    <div className="grid grid-cols-2 gap-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
-                                        {Object.entries(formatRules).map(([key, value]) => (
-                                            <label key={key} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 p-2 rounded">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={value}
-                                                    onChange={(e) => setFormatRules(prev => ({ ...prev, [key]: e.target.checked }))}
-                                                    className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                />
-                                                <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
-                                            </label>
-                                        ))}
+                                    <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 p-2 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={formatRules.uppercaseHeadings}
+                                                onChange={(e) => setFormatRules(prev => ({ ...prev, uppercaseHeadings: e.target.checked }))}
+                                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                            />
+                                            <span>Uppercase Headings</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800 p-2 rounded">
+                                            <input
+                                                type="checkbox"
+                                                checked={formatRules.numberParagraphs}
+                                                onChange={(e) => setFormatRules(prev => ({ ...prev, numberParagraphs: e.target.checked }))}
+                                                className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                            />
+                                            <span>Number Paragraphs</span>
+                                        </label>
                                     </div>
+                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">More formatting rules (suit title format, double spacing, justification, naira formatting, date formatting, paragraph indentation) coming soon.</p>
                                     <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-zinc-800">
                                         <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
                                         <button onClick={() => {
                                             if (!editor) return;
-                                            
+
                                             // Apply uppercase headings logic
                                             if (formatRules.uppercaseHeadings) {
                                                 const { from, to } = editor.state.selection;

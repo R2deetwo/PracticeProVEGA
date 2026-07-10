@@ -527,7 +527,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                 <EmptyState
                                     title="No Documents Yet"
                                     description={searchTerm ? "No matches found for your search." : (selectedCategory ? "This folder is empty. Upload a document to get started." : "Upload your first document to get started. You can organize files by matter, category, or keep them firm-wide.")}
-                                    icon={<DocumentIcon className="w-full h-full" />}
+                                    icon={<DocumentIcon />}
                                     actionLabel={searchTerm ? undefined : "Upload Document"}
                                     onAction={searchTerm ? undefined : () => openModal('newDocument')}
                                 />

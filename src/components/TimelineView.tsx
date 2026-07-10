@@ -133,7 +133,7 @@ const TimelineView: React.FC = () => {
                      <EmptyState 
                         title={searchTerm ? "No Matches Found" : "No Active Matters"}
                         description={searchTerm ? `No active matters match "${searchTerm}".` : "Your timeline is empty because you don't have any active matters. Create a matter to see your roadmap."}
-                        icon={<TimeTravelIcon className="w-full h-full" />}
+                        icon={<TimeTravelIcon />}
                         actionLabel={searchTerm ? "Clear Search" : "Create Matter"}
                         onAction={searchTerm ? () => setSearchTerm('') : () => openModal('newMatter')}
                     />

@@ -175,7 +175,7 @@ const ContactListContent: React.FC<{
                     <EmptyState
                         title={`No ${label}`}
                         description={searchTerm ? "No matches found." : "Your list is empty."}
-                        icon={<ContactsIcon className="w-full h-full" />}
+                        icon={<ContactsIcon />}
                         actionLabel={!searchTerm ? `Add ${label.replace(/s$/, '')}` : undefined}
                         onAction={!searchTerm ? openModal : undefined}
                     />

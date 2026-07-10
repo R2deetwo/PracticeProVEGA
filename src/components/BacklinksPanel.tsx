@@ -3,15 +3,29 @@
  * detail pages. Displays all notes that reference the current entity via
  * [[...]] bidirectional links.
  *
+ * HOW BIDIRECTIONAL BACKLINKS WORK (for users):
+ * ----------------------------------------------
+ * In any note (Endorsements, Notes view, or Save-to-Note form), type two
+ * open brackets `[[` followed by the name of a matter, contact, property,
+ * or document, then close with `]]`.
+ *
+ * Example: [[Adegbenro v. State Bank of Nigeria]] or [[John Doe]]
+ *
+ * The link becomes clickable in the note, AND the referenced entity's
+ * detail page shows a "Mentioned In" panel listing every note that
+ * references it. This is bidirectional — you don't need to link from
+ * both sides, just one.
+ *
  * Usage:
  *   <BacklinksPanel
  *     entityId={matter.id}
  *     entityType="matter"
+ *     entityLabel={matter.title}
  *     notes={appState.notePages}
  *     navigateTo={navigateTo}
  *   />
  */
-import React from 'react';
+import React, { useState } from 'react';
 import { findBacklinks, getEntityNavigation, BiLink } from '../utils/linkParser';
 
 interface BacklinksPanelProps {
@@ -43,65 +57,106 @@ const EntityIcon: React.FC<{ type: BiLink['type']; className?: string }> = ({ ty
   }
 };
 
+const LinkIcon: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+  </svg>
+);
+
+const InfoIcon: React.FC<{ className?: string }> = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+  </svg>
+);
+
 const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, notes, navigateTo, entityLabel }) => {
   const backlinks = findBacklinks(entityId, entityType, notes, entityLabel);
+  const [showHelp, setShowHelp] = useState(false);
 
-  if (backlinks.length === 0) {
-    // Show a subtle hint so users know backlinks exist, even when empty.
-    return (
-      <div className="mt-2 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 px-3 py-2 text-[11px] text-slate-400 dark:text-zinc-500">
-        <span className="font-semibold">Tip:</span> Type <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">[[</code> in any note followed by this {entityType}'s name to create a bidirectional link. Notes that mention this {entityType} will appear here.
-      </div>
-    );
-  }
+  const entityNoun = entityType === 'matter' ? 'matter' : entityType === 'contact' ? 'contact' : entityType === 'property' ? 'property' : entityType === 'document' ? 'document' : 'item';
+  const exampleLabel = entityLabel || `This ${entityNoun}`;
 
   return (
     <div className="mt-4 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-2.5 border-b border-slate-200 dark:border-zinc-700 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-        </svg>
-        <h4 className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
-          Mentioned In ({backlinks.length})
-        </h4>
+      <div className="px-4 py-2.5 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <LinkIcon className="w-4 h-4 text-indigo-500" />
+          <h4 className="text-xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
+            Mentioned In ({backlinks.length})
+          </h4>
+        </div>
+        <button
+          onClick={() => setShowHelp(!showHelp)}
+          className="text-slate-400 hover:text-indigo-500 transition-colors p-1 rounded"
+          title="How do backlinks work?"
+          aria-label="How do backlinks work?"
+        >
+          <InfoIcon />
+        </button>
       </div>
 
-      {/* Backlink items */}
-      <div className="divide-y divide-slate-100 dark:divide-zinc-700/50">
-        {backlinks.map(({ note, link }) => (
-          <button
-            key={`${note.id}-${link.id}`}
-            onClick={() => {
-              const nav = getEntityNavigation(link);
-              // For notes, navigate to the notes view with the note selected
-              if (link.type === 'note') {
-                navigateTo('notes', note.id);
-              } else {
-                navigateTo(nav.view, link.id);
-              }
-            }}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-zinc-700/50 transition-colors text-left group"
-          >
-            <div className="flex-shrink-0 p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500">
-              <EntityIcon type={link.type} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                {note.title || 'Untitled Note'}
-              </p>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500">
-                {note.updatedAt ? new Date(note.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
-                {' · '}
-                <span className="capitalize">{link.type}</span>: {link.label}
-              </p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ))}
-      </div>
+      {/* Help panel (collapsible) */}
+      {showHelp && (
+        <div className="px-4 py-3 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-slate-200 dark:border-zinc-700 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+          <p className="font-semibold text-slate-700 dark:text-zinc-200 mb-1.5">How bidirectional backlinks work</p>
+          <p className="mb-2">
+            In any note, type <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-[11px]">[[</code> followed by a name, then close with <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-[11px]">]]</code>. The note will appear here automatically.
+          </p>
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-2.5 font-mono text-[11px] text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+            Example: [[{exampleLabel}]]
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400 dark:text-zinc-500">
+            You can link to matters, contacts, properties, or documents. The link works both ways — clicking it in the note takes you to the entity, and this panel shows every note that mentions this {entityNoun}.
+          </p>
+        </div>
+      )}
+
+      {/* Backlink items or empty state */}
+      {backlinks.length > 0 ? (
+        <div className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+          {backlinks.map(({ note, link }) => (
+            <button
+              key={`${note.id}-${link.id}`}
+              onClick={() => {
+                const nav = getEntityNavigation(link);
+                if (link.type === 'note') {
+                  navigateTo('notes', note.id);
+                } else {
+                  navigateTo(nav.view, link.id);
+                }
+              }}
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-zinc-700/50 transition-colors text-left group"
+            >
+              <div className="flex-shrink-0 p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500">
+                <EntityIcon type={link.type} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                  {note.title || 'Untitled Note'}
+                </p>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500">
+                  {note.updatedAt ? new Date(note.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                  {' · '}
+                  <span className="capitalize">{link.type}</span>: {link.label}
+                </p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-slate-300 dark:text-zinc-600 group-hover:text-indigo-400 transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-4 text-center">
+          <p className="text-xs text-slate-400 dark:text-zinc-500 mb-2">
+            No notes mention this {entityNoun} yet.
+          </p>
+          <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+            Type <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-mono">[[{exampleLabel}]]</code> in any note to create a link.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

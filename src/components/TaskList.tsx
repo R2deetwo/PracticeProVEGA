@@ -373,7 +373,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, users, matters, onViewDetail
                     <EmptyState
                         title={filterText ? "No Matches" : "All Caught Up!"}
                         description={filterText ? `No tasks match "${filterText}".` : "You have no tasks on your list. Enjoy the peace or create a new task."}
-                        icon={<EmptyTaskIcon className="w-24 h-24 text-slate-300 dark:text-zinc-600" />}
+                        icon={<EmptyTaskIcon className="text-slate-300 dark:text-zinc-600" />}
                         actionLabel="Create Task"
                         onAction={onCreateTask}
                     />
