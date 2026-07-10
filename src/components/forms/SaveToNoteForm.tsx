@@ -456,7 +456,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                         {/* Voice Activity Feedback */}
                         {isRecording && (
                             <div className="absolute bottom-6 left-6 right-6 flex items-center justify-center pointer-events-none z-20">
-                                <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-2xl border transition-all duration-300 animate-fade-up ${transcriptionStatus === 'listening' ? 'bg-primary-600 text-white border-primary-500' : transcriptionStatus === 'processing' ? 'bg-amber-500 text-white border-amber-400 animate-pulse' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
+                                <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full text-xs font-semibold shadow-2xl border transition-all duration-300 animate-fade-up ${transcriptionStatus === 'listening' ? 'bg-primary-600 text-white border-primary-500' : transcriptionStatus === 'processing' ? 'bg-amber-500 text-white border-amber-400 animate-pulse' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
                                     <div className="flex gap-1 items-end h-3">
                                         {[...Array(5)].map((_, i) => (
                                             <div 
@@ -548,7 +548,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
 
                         <div className="space-y-2 sm:space-y-3">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Title</label>
+                                <label className="text-xs font-semibold text-slate-400 ml-1">Title</label>
                                 <input autoComplete="off" data-lpignore="true"  
                                     type="text"
                                     value={title}

@@ -455,15 +455,15 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 )}
             </div>
 
-            {/* Simple footer — small buttons, sentence case */}
-            <div className="sticky bottom-0 left-0 right-0 pt-3 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2 z-50">
-                <button type="button" onClick={onClose} className="px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors" disabled={isSubmitting}>
+            {/* Footer — full-width stacked on mobile, right-aligned on desktop */}
+            <div className="sticky bottom-0 left-0 right-0 pt-3 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 z-50">
+                <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors" disabled={isSubmitting}>
                     Cancel
                 </button>
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
                     {isSubmitting ? (
                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />

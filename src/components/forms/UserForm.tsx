@@ -112,11 +112,11 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
           </div>
         </div>
 
-        <div className="sticky bottom-0 left-0 right-0 pt-3 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2 z-50">
-          <button type="button" onClick={onClose} className="px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+        <div className="sticky bottom-0 left-0 right-0 pt-3 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 z-50">
+          <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
             Cancel
           </button>
-          <button onClick={handleSubmit} type="button" className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
+          <button onClick={handleSubmit} type="button" className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
             <SaveIcon className="w-3.5 h-3.5" /> Add User
           </button>
         </div>
@@ -152,11 +152,11 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
         </div>
       </div>
 
-      <div className="sticky bottom-0 left-0 right-0 pt-3 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-2 z-50">
-        <button type="button" onClick={onClose} className="px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-sm font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
+      <div className="sticky bottom-0 left-0 right-0 pt-3 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 z-50">
+        <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
           Cancel
         </button>
-        <button type="submit" className="px-5 py-2 bg-primary-600 text-white text-sm font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
+        <button type="submit" className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
           <SaveIcon className="w-3.5 h-3.5" /> Save
         </button>
       </div>

@@ -248,10 +248,13 @@ const ToolbarBtn: React.FC<{
     size?: 'sm' | 'md' | 'lg';
     className?: string;
 }> = ({ icon: Icon, label, onClick, active, disabled, size = 'md', className = '' }) => {
+    // Touch targets: minimum 32px on mobile (p-2 with w-4 h-4 icon = 32px),
+    // slightly larger on desktop. Previously p-0.5/p-1 which was ~20-24px —
+    // far below the 44px HIG minimum and hard to tap on mobile.
     const sizeClasses = {
-        sm: 'p-0.5',
-        md: 'p-1',
-        lg: 'p-1 flex-col gap-0.5 min-w-[38px]'
+        sm: 'p-2 sm:p-1.5',
+        md: 'p-2 sm:p-1.5',
+        lg: 'p-2 sm:p-1.5 flex-col gap-0.5 min-w-[38px] sm:min-w-[42px]'
     };
 
     return (
@@ -271,7 +274,7 @@ const ToolbarBtn: React.FC<{
       `}
         >
             <Icon className="w-4 h-4" />
-            {size === 'lg' && label && <span className="text-[8px] font-medium leading-none">{label}</span>}
+            {size === 'lg' && label && <span className="text-[9px] sm:text-[8px] font-medium leading-none">{label}</span>}
         </button>
     );
 };
@@ -1059,16 +1062,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     <button
                         onClick={handlePrint}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm active:scale-95"
+                        title="Print / PDF"
                     >
                         <Printer className="w-3.5 h-3.5" />
-                        Print/PDF
+                        <span className="hidden sm:inline">Print/PDF</span>
                     </button>
                     <button
                         onClick={handleManualSave}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-all shadow-md active:scale-95"
+                        title="Save"
                     >
                         <Save className="w-3.5 h-3.5" />
-                        Save
+                        <span className="hidden sm:inline">Save</span>
                     </button>
                 </div>
             </div>

@@ -472,7 +472,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                                         <OfficeBuildingIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-3 sm:mb-4 opacity-50" />
                                         <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] mb-2 px-4 sm:px-6">Portfolio management requires a saved contact</p>
                                         <p className="text-[11px] text-slate-500 mb-4 sm:mb-6 px-4 sm:px-8">Save this contact first to enable property registration.</p>
-                                        <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl cursor-not-allowed">
+                                        <button type="button" disabled className="inline-flex items-center gap-2 sm:gap-3 text-xs font-semibold bg-slate-200 text-slate-400 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl cursor-not-allowed">
                                             <PlusIcon className="w-4 h-4" /> Register New Property
                                         </button>
                                     </div>
@@ -516,10 +516,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
             </div>
 
             <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
-                <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-55">
+                <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-55">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-55">
+                <button type="submit" disabled={isSaving} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-55">
                     <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Contact')}
                 </button>
             </div>
