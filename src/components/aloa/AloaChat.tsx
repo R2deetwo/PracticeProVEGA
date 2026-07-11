@@ -31,6 +31,9 @@ import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIco
 import { api } from '../../../convex/_generated/api';
 import { decode, decodeAudioData } from '../../utils/audioUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
+
+// URL detection regex — matches http(s):// URLs in user messages
+const URL_REGEX = /https?:\/\/[^\s<>"']{4,}/gi;
 import { getGlobalAIQueue, validateAPIKey } from '../../utils/aiRequestQueue';
 import PIIShieldBadge from './PIIShieldBadge';
 import Tooltip from '../Tooltip';
@@ -873,6 +876,43 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         });
                     };
                     capturedAiContext.isFirmSearchEnabled = true;
+
+                    // ── LIVE WEB QUERYING ──────────────────────────────
+                    // Detect URLs in the user's message and fetch their content
+                    // before sending to the AI. The fetched content is injected
+                    // into the AI context so the model can "read" the web page.
+                    const urls = content.match(URL_REGEX);
+                    let webContent = '';
+                    if (urls && urls.length > 0) {
+                        setAloaStatus('Fetching web content…');
+                        try {
+                            const fetchResults = await Promise.all(
+                                urls.slice(0, 3).map(async (url) => {
+                                    try {
+                                        const result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                                        if (result.success && result.content) {
+                                            return `\n--- WEB CONTENT FROM ${url} ---\nTitle: ${result.title}\n${result.content}\n--- END WEB CONTENT ---\n`;
+                                        } else {
+                                            return `\n[Could not fetch ${url}: ${result.message}]\n`;
+                                        }
+                                    } catch {
+                                        return `\n[Could not fetch ${url}]\n`;
+                                    }
+                                })
+                            );
+                            webContent = fetchResults.join('\n');
+                            if (webContent) {
+                                // Inject the web content into the last user message
+                                // so the AI sees it as part of the conversation
+                                const lastMsg = capturedMessages[capturedMessages.length - 1];
+                                if (lastMsg && lastMsg.role === 'user') {
+                                    lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was fetched for you to analyze:]\n${webContent}`;
+                                }
+                            }
+                        } catch {
+                            // If web fetching fails entirely, continue without it
+                        }
+                    }
 
                     if (wantsDataSearch) {
                         setAloaStatus('Searching records…');

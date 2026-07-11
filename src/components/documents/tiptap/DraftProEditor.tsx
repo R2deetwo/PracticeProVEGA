@@ -52,6 +52,7 @@ import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
 import { FontSize } from './extensions/FontSize';
 import { LineHeight } from './extensions/LineHeight';
+import { exportHtmlToDocx } from '../../../utils/docxExport';
 import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
@@ -93,6 +94,7 @@ const ChevronDown: React.FC<{className?:string}> = ({className}) => <svg xmlns="
 const Wand: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>;
 const Shield: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>;
 const HashIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5l-3.9 19.5m-2.1-19.5l-3.9 19.5" /></svg>;
+const DownloadIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>;
 const SubscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 18.75h-3v-1.5l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 13.5 17.25 14.25" strokeWidth={1.2} /></svg>;
 const SuperscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.5h-3V6l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 2.25 17.25 3" strokeWidth={1.2} /></svg>;
 const StrikethroughIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M6.75 6.75c0-1.257.933-2.25 2.25-2.25 1.257 0 2.25.933 2.25 2.25 0 1.257-.933 2.25-2.25 2.25M17.25 6.75c0-1.257-.933-2.25-2.25-2.25-1.257 0-2.25.933-2.25 2.25 0 1.257.933 2.25 2.25 2.25M6.75 17.25c0 1.257.933 2.25 2.25 2.25 1.257 0 2.25-.933 2.25-2.25 0-1.257-.933-2.25-2.25-2.25M17.25 17.25c0 1.257-.933 2.25-2.25 2.25-1.257 0-2.25-.933-2.25-2.25 0-1.257.933-2.25 2.25-2.25" /></svg>;
@@ -1188,6 +1190,23 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             <ToolbarBtn icon={Redo} onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} size="sm" label="Redo" />
                         </div>
                         <ToolbarBtn icon={Printer} onClick={handlePrint} size="sm" label="Print" />
+                        {/* DOCX Export — downloads a .docx file of the document */}
+                        <ToolbarBtn
+                            icon={DownloadIcon}
+                            label="DOCX"
+                            onClick={() => {
+                                if (!editor) return;
+                                const html = editor.getHTML();
+                                const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
+                                exportHtmlToDocx(html, safeTitle, {
+                                    title: title || 'Document',
+                                    author: currentUser?.name || 'PracticePro',
+                                    firmName: appState?.firmDetails?.name || '',
+                                });
+                            }}
+                            size="lg"
+                            disabled={!editor}
+                        />
                         <ToolbarBtn
                             icon={PageBreakIcon}
                             label="Page Break"
