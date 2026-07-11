@@ -12,6 +12,7 @@ import { MATTERS_NOTEBOOK_ID, PROPERTIES_NOTEBOOK_ID, MicrophoneIcon, PauseIcon,
 import { inputModern } from '../../utils/formStyles';
 import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../../utils/microphonePermission';
 import * as geminiService from '../../services/geminiService';
+import { convertBlobToWav } from '../../utils/webmToWav';
 
 interface SaveToNoteFormProps {
     initialContent: string;
@@ -117,8 +118,13 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 const mimeType = activeMimeTypeRef.current;
                 const combinedBlob = new Blob(blobs, { type: mimeType });
 
-                // Convert to base64 using a Promise wrapper so we can catch errors
-                // that previously caused the processing flag to deadlock.
+                // Convert WebM to WAV before sending to Gemini.
+                // Gemini's inline-data API does NOT support audio/webm —
+                // it only accepts WAV, MP3, OGG, etc. Without this conversion,
+                // Gemini returns empty text and the user sees "No speech detected"
+                // even though the audio was recorded correctly.
+                const wavBlob = await convertBlobToWav(combinedBlob);
+
                 const base64Audio: string = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onerror = () => reject(new Error('Failed to read audio data.'));
@@ -130,12 +136,12 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                         }
                         resolve(result);
                     };
-                    reader.readAsDataURL(combinedBlob);
+                    reader.readAsDataURL(wavBlob);
                 });
 
                 const transcription = await geminiService.transcribeAudio(
                     base64Audio,
-                    mimeType,
+                    'audio/wav',
                     coreState.firmDetails
                 );
 

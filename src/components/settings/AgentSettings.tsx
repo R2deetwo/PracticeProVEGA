@@ -6,7 +6,6 @@ import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeI
 import { useUI } from '../../contexts/UIContext';
 import { setCustomApiKey, getCustomApiKey } from '../../utils/aiUtils';
 import { useProduct } from '../../contexts/ProductContext';
-import { CHANGELOG, FEATURE_ICONS } from '../WhatsNew';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-5 ${className || ''}`}>
@@ -354,43 +353,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                     <p>Only Administrators can configure firm-wide agents.</p>
                 </div>
             )}
-            <SettingsCard title="Product Updates & Changelog" id="changelog" className="mt-6">
-                <p className="text-xs text-slate-600 dark:text-zinc-400 mb-4 font-medium">
-                    {isProperty ? "See the latest enhancements to Atrium OS and the ARIA Brain." : "See the latest enhancements to Vega OS and ALOA."}
-                </p>
-                <div className="space-y-6">
-                    {CHANGELOG.map((entry) => (
-                        <div key={entry.id} className="relative pl-8 border-l-2 border-slate-100 dark:border-zinc-800 pb-2 transition-all group/item hover:border-primary-400">
-                            <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white dark:bg-zinc-900 border-2 border-slate-200 dark:border-zinc-700 group-hover/item:border-primary-500 group-hover/item:shadow-[0_0_8px_rgba(99,102,241,0.4)] transition-all" />
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                                <h4 className="font-extrabold text-slate-900 dark:text-white text-base tracking-tight">{entry.title}</h4>
-                                <span className="w-fit text-[10px] font-black text-slate-400 bg-slate-50 dark:bg-zinc-900/50 px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-800 uppercase tracking-widest">
-                                    v{entry.version} — {new Date(entry.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                                </span>
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-4 leading-relaxed">
-                                {entry.description}
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                {entry.features.map((f) => {
-                                    const Icon = FEATURE_ICONS[f.icon];
-                                    return (
-                                        <div key={f.label} className="flex flex-col gap-2 p-3 rounded-xl bg-slate-50/50 dark:bg-zinc-900/30 border border-slate-100 dark:border-zinc-800/50 hover:border-primary-500/20 transition-all">
-                                            <div className="flex items-center gap-2">
-                                                {Icon && <div className="scale-75 origin-left"><Icon /></div>}
-                                                <span className="text-[10px] font-black text-slate-700 dark:text-zinc-200 uppercase tracking-wider">{f.label}</span>
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 dark:text-zinc-500 leading-snug">
-                                                {f.text}
-                                            </p>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </SettingsCard>
         </div>
     );
 };

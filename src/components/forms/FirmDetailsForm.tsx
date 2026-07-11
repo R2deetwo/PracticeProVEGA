@@ -134,28 +134,12 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="space-y-3">
           <h4 className="font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-zinc-700 pb-2">Basic Information</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firmName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Firm/Portfolio Name</label>
-                <input autoComplete="off" data-lpignore="true"  type="text" id="firmName" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} required />
-              </div>
-              <div>
-                <label htmlFor="productType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product Type</label>
-                <select 
-                    id="productType" 
-                    value={firmDetails.product || 'unified'} 
-                    onChange={e => onUpdateFirmDetails({ ...firmDetails, product: e.target.value as any })}
-                    className={commonInputClass}
-                >
-                    <option value="vega">Vega (Legal OS)</option>
-                    <option value="atrium">Atrium (Property OS)</option>
-                    <option value="unified">Unified (Full Suite)</option>
-                </select>
-                <p className="text-[10px] text-slate-500 mt-1">This determines the terminology and active modules across the platform.</p>
-              </div>
+          <div>
+            <label htmlFor="firmName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Firm Name</label>
+            <input autoComplete="off" data-lpignore="true"  type="text" id="firmName" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} required />
           </div>
           <div>
-            <label htmlFor="firmAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Office/Portfolio Address</label>
+            <label htmlFor="firmAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Office Address</label>
             <textarea id="firmAddress" value={address} onChange={e => setAddress(e.target.value)} rows={3} className={commonInputClass} required />
           </div>
           
@@ -223,35 +207,6 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
           <h4 className="font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-zinc-700 pb-2">Branding Assets</h4>
           {renderImageUpload("Firm Logo", logoUrl, setLogoUrl, logoInputRef, "Upload a clear PNG or JPG of your logo. This will appear on invoices, emails, and the top navigation bar.")}
           {renderImageUpload("Letterhead Background", letterheadUrl, setLetterheadUrl, letterheadInputRef, "Upload a full A4 image (210x297mm). This acts as the background for all generated PDFs. The firm name and address will be overlaid on top.")}
-      </div>
-
-      <div className="space-y-3">
-          <h4 className="font-semibold text-gray-900 dark:text-white border-b border-gray-200 dark:border-zinc-700 pb-2">Invoice Styling</h4>
-          <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Header Text Color</label>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Choose a color that contrasts well with your letterhead background to ensure your firm's name and address are legible.</p>
-              <div className="flex flex-wrap gap-2">
-                  {PROFESSIONAL_COLORS.map((color) => (
-                      <button
-                        key={color.value}
-                        type="button"
-                        onClick={() => setHeaderTextColor(color.value)}
-                        className={`w-8 h-8 rounded-full border shadow-sm transition-transform hover:scale-110 ${headerTextColor === color.value ? 'ring-2 ring-offset-2 ring-primary-500' : 'border-gray-300'}`}
-                        style={{ backgroundColor: color.value }}
-                        title={color.label}
-                      />
-                  ))}
-                  <div className="relative ml-2">
-                      <input autoComplete="off" data-lpignore="true"  
-                        type="color" 
-                        value={headerTextColor} 
-                        onChange={(e) => setHeaderTextColor(e.target.value)}
-                        className="w-8 h-8 p-0 border-0 rounded-full overflow-hidden cursor-pointer"
-                        title="Custom Color"
-                      />
-                  </div>
-              </div>
-          </div>
       </div>
 
       <div className="pt-4 flex justify-end space-x-2 border-t border-gray-200 dark:border-zinc-700">

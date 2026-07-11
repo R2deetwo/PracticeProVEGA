@@ -271,7 +271,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                 Track client funds held in trust separately from your operating account. Adds a "Trust Account" tab to your Financials page where you can record deposits, withdrawals, and transfers with running balance tracking.
                             </p>
                             <p className="text-[10px] text-slate-400 mt-2">
-                                Required for compliance in many Nigerian jurisdictions. You can turn this off anytime — existing trust transactions are preserved.
+                                You can turn this off anytime — existing trust transactions are preserved.
                             </p>
                         </div>
                         <button
@@ -292,7 +292,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                         <p className="font-semibold text-slate-900 dark:text-white mb-1">{isProperty ? "Switch to Another Portfolio" : "Switch to Another Firm"}</p>
                         <p className="max-w-md">
                             {isHighTier
-                                ? "As an Ultimate user, you can join multiple workspaces and switch between them instantly while retaining data."
+                                ? "As a Komplete or Enterprise user, you can join multiple workspaces and switch between them instantly while retaining data."
                                 : `Joining a new ${isProperty ? 'portfolio' : 'firm'} will overwrite your current workspace connection and clear local data.`}
                         </p>
                         {!isHighTier && (

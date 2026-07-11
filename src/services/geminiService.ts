@@ -935,13 +935,23 @@ If the audio is inaudible or contains no speech, return an empty string.`
             const candidate = response?.candidates?.[0];
             const text = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
 
-            // Check for safety blocks or empty finish reasons
+            // Check for safety blocks
             const finishReason = candidate?.finishReason;
             if (finishReason === 'SAFETY') {
                 throw new Error('Transcription blocked by safety filters.');
             }
 
-            return text.trim();
+            // If we got text, return it immediately
+            if (text.trim()) {
+                return text.trim();
+            }
+
+            // Empty text — DON'T return immediately. The model might not
+            // support the audio format. Continue to the next model in the
+            // fallback list. Previously this returned '' immediately, which
+            // caused the fallback loop to never execute.
+            console.warn(`Transcription with ${modelName} returned empty text — trying next model`);
+            // Continue to next model in the loop
         } catch (e: any) {
             lastError = e;
             console.warn(`Transcription with ${modelName} failed:`, e.message);
@@ -949,7 +959,10 @@ If the audio is inaudible or contains no speech, return an empty string.`
         }
     }
 
-    // All models failed
-    const errorMsg = lastError?.message || 'All models failed';
-    throw new Error(`Transcription failed: ${errorMsg}. Check your AI API key in Settings → AI Settings.`);
+    // All models returned empty or failed
+    if (lastError) {
+        throw new Error(`Transcription failed: ${lastError.message}. Check your AI API key in Settings → AI Settings.`);
+    }
+    // All models returned empty text — likely an audio format issue
+    throw new Error('Transcription returned no text. Ensure you are speaking clearly and that your AI API key is configured in Settings → AI Settings.');
 };
