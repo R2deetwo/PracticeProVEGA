@@ -92,6 +92,7 @@ const Minimize2: React.FC<{className?:string}> = ({className}) => <svg xmlns="ht
 const ChevronDown: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>;
 const Wand: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" /></svg>;
 const Shield: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>;
+const HashIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5l-3.9 19.5m-2.1-19.5l-3.9 19.5" /></svg>;
 const SubscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 18.75h-3v-1.5l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 13.5 17.25 14.25" strokeWidth={1.2} /></svg>;
 const SuperscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.5h-3V6l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 2.25 17.25 3" strokeWidth={1.2} /></svg>;
 const StrikethroughIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M6.75 6.75c0-1.257.933-2.25 2.25-2.25 1.257 0 2.25.933 2.25 2.25 0 1.257-.933 2.25-2.25 2.25M17.25 6.75c0-1.257-.933-2.25-2.25-2.25-1.257 0-2.25.933-2.25 2.25 0 1.257.933 2.25 2.25 2.25M6.75 17.25c0 1.257.933 2.25 2.25 2.25 1.257 0 2.25-.933 2.25-2.25 0-1.257-.933-2.25-2.25-2.25M17.25 17.25c0 1.257-.933 2.25-2.25 2.25-1.257 0-2.25-.933-2.25-2.25 0-1.257.933-2.25 2.25-2.25" /></svg>;
@@ -435,7 +436,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [pageBreakCount, setPageBreakCount] = useState(0);
     const [zoom, setZoom] = useState(1);
     const [focusMode, setFocusMode] = useState(false);
-    const [watermark, setWatermark] = useState<string | null>(null); // 'DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', or null
+    const [watermark, setWatermark] = useState<string | null>(null);
+    // Page numbering configuration — gives the user control over whether
+    // page numbers appear, where, and in what format. Previously this was
+    // hardcoded to "Page X of Y" at bottom-center with no toggle.
+    const [pageNumberConfig, setPageNumberConfig] = useState<{
+        enabled: boolean;
+        position: 'bottom-center' | 'bottom-right' | 'bottom-left' | 'none';
+        format: 'page-of' | 'page-only' | 'dash' | 'number-only';
+        startFrom: number;
+    }>({
+        enabled: true,
+        position: 'bottom-center',
+        format: 'page-of',
+        startFrom: 1,
+    });
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
@@ -1215,6 +1230,91 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                 )}
                             </div>
                         </div>
+
+                        {/* Page Number dropdown — configurable page numbering.
+                            Toggle on/off, choose position (center/right/left/none),
+                            choose format (Page X of Y, Page X, -X-, X only),
+                            and set starting page number. */}
+                        <div className="relative group">
+                            <ToolbarBtn
+                                icon={HashIcon}
+                                label="Page #"
+                                onClick={() => {}}
+                                size="lg"
+                                className={pageNumberConfig.enabled ? 'text-blue-600 dark:text-blue-400' : ''}
+                                disabled={!editor}
+                            />
+                            <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[200px]">
+                                {/* Toggle on/off */}
+                                <label className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={pageNumberConfig.enabled}
+                                        onChange={(e) => setPageNumberConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span className="font-semibold text-slate-700 dark:text-zinc-300">Show page numbers</span>
+                                </label>
+
+                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+
+                                {/* Position */}
+                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Position</p>
+                                {([
+                                    { val: 'bottom-center', label: 'Bottom Center' },
+                                    { val: 'bottom-right', label: 'Bottom Right' },
+                                    { val: 'bottom-left', label: 'Bottom Left' },
+                                    { val: 'none', label: 'Hidden' },
+                                ] as const).map(pos => (
+                                    <button
+                                        key={pos.val}
+                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, position: pos.val, enabled: pos.val !== 'none' }))}
+                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.position === pos.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                    >
+                                        {pos.label}
+                                    </button>
+                                ))}
+
+                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+
+                                {/* Format */}
+                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Format</p>
+                                {([
+                                    { val: 'page-of', label: 'Page 1 of 5' },
+                                    { val: 'page-only', label: 'Page 1' },
+                                    { val: 'dash', label: '- 1 -' },
+                                    { val: 'number-only', label: '1' },
+                                ] as const).map(fmt => (
+                                    <button
+                                        key={fmt.val}
+                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, format: fmt.val }))}
+                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.format === fmt.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                    >
+                                        {fmt.label}
+                                    </button>
+                                ))}
+
+                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+
+                                {/* Start from */}
+                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Start from</p>
+                                <div className="flex items-center gap-2 px-3 py-1.5">
+                                    <button
+                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: Math.max(1, prev.startFrom - 1) }))}
+                                        className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 w-6 text-center">{pageNumberConfig.startFrom}</span>
+                                    <button
+                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: prev.startFrom + 1 }))}
+                                        className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </ToolbarGroup>
 
                     <ToolbarGroup label="Font">
@@ -1517,20 +1617,39 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                                         </div>
                                     )}
 
-                                    {/* ── Page Number Footer ── */}
-                                    <div
-                                        className="absolute left-0 right-0 z-10 text-center print:hidden"
-                                        style={{
-                                            bottom: `${PAGE_MARGIN_PX / 3}px`,
-                                            fontSize: '10px',
-                                            color: '#94a3b8',
-                                            fontWeight: '700',
-                                            letterSpacing: '0.15em',
-                                            textTransform: 'uppercase',
-                                        }}
-                                    >
-                                        Page {i + 1} of {pageCount}
-                                    </div>
+                                    {/* ── Page Number Footer ──
+                                        Configurable via the Page Number dropdown
+                                        in the File toolbar group. Can be toggled
+                                        off, repositioned, reformatted, or set to
+                                        start from a custom number. */}
+                                    {pageNumberConfig.enabled && pageNumberConfig.position !== 'none' && (
+                                        <div
+                                            className={`absolute z-10 print:hidden ${
+                                                pageNumberConfig.position === 'bottom-center' ? 'left-0 right-0 text-center' :
+                                                pageNumberConfig.position === 'bottom-right' ? 'right-0 text-right pr-8' :
+                                                pageNumberConfig.position === 'bottom-left' ? 'left-0 text-left pl-8' : ''
+                                            }`}
+                                            style={{
+                                                bottom: `${PAGE_MARGIN_PX / 3}px`,
+                                                fontSize: '10px',
+                                                color: '#94a3b8',
+                                                fontWeight: '700',
+                                                letterSpacing: '0.15em',
+                                                textTransform: 'uppercase',
+                                            }}
+                                        >
+                                            {(() => {
+                                                const num = i + pageNumberConfig.startFrom;
+                                                switch (pageNumberConfig.format) {
+                                                    case 'page-of': return `Page ${num} of ${pageCount + pageNumberConfig.startFrom - 1}`;
+                                                    case 'page-only': return `Page ${num}`;
+                                                    case 'dash': return `- ${num} -`;
+                                                    case 'number-only': return `${num}`;
+                                                    default: return `Page ${num} of ${pageCount}`;
+                                                }
+                                            })()}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
