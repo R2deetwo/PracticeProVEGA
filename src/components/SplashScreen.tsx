@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { motion, useAnimation } from 'framer-motion';
 import { Logo } from '../constants';
 import './SplashScreen.css';
 
@@ -18,19 +18,12 @@ interface SplashScreenProps {
 /**
  * SplashScreen — cinematic brand reveal.
  *
- * PHASES (Golden Ratio timing):
- *   1. EMERGENCE  (500ms) — black logo fades in (stealth, premium)
- *   2. AMBER      (600ms) — logo morphs to amber/yellow (loading signal)
- *   3. GREEN      (400ms) — logo morphs to brand green (the "green light"
- *                            signal — waiting is over, app is ready)
- *   4. EXIT       (300ms) — clean fade-out
+ * SIMPLIFIED TWO-PHASE ANIMATION (per user request):
+ *   1. EMERGENCE (600ms) — black logo fades in on dark background
+ *   2. GREEN     (500ms) — logo morphs directly to brand green
+ *   3. EXIT      (400ms) — clean fade-out
  *
- * The green phase is the psychological "go" signal. The app becomes
- * interactive immediately when green appears — the exit animation plays
- * in parallel with the app loading underneath, so there's no dead time
- * between green and the app being usable.
- *
- * Total visible duration: ~1.8s (down from ~2.8s previously).
+ * No amber. No intermediate color. Black → Green. Done.
  */
 const SplashScreen: React.FC<SplashScreenProps> = ({
     isVisible,
@@ -39,13 +32,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     onForceEnter,
     onComplete
 }) => {
-    const [phase, setPhase] = useState<'emergence' | 'amber' | 'green'>('emergence');
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
 
     const logoControls = useAnimation();
     const textControls = useAnimation();
     const containerControls = useAnimation();
-    const bgImageControls = useAnimation();
 
     const hasStarted = useRef(false);
 
@@ -60,49 +51,26 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     }, [isVisible]);
 
     const orchestrateSequence = async () => {
-        // ── PHASE 1: EMERGENCE (500ms) — Stealth Black ──────────────────
-        setPhase('emergence');
+        // ── PHASE 1: EMERGENCE (600ms) — Black logo fades in ──────────
         await logoControls.start({
             opacity: [0, 1],
-            scale: [0.8, 1.0],
+            scale: [0.85, 1.0],
             color: '#000000',
             filter: 'drop-shadow(0 0 15px rgba(255,255,255,0.05))',
-            transition: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }
+            transition: { duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }
         });
 
-        await new Promise(resolve => setTimeout(resolve, 150));
+        // Brief hold on black
+        await new Promise(resolve => setTimeout(resolve, 200));
 
-        // ── PHASE 2: AMBER (600ms) — Loading Signal ─────────────────────
-        setPhase('amber');
-        logoControls.start({
-            color: '#EAB308',
-            filter: 'drop-shadow(0 0 25px rgba(234,179,8,0.25))',
-            transition: { duration: 0.6, ease: [0.65, 0, 0.35, 1] }
-        });
-
-        await textControls.start({
-            opacity: [0, 1],
-            y: [10, 0],
-            transition: { duration: 0.4, ease: "easeOut" }
-        });
-
-        // Hold amber briefly so the color registers
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        // ── PHASE 3: GREEN (400ms) — The "Green Light" ──────────────────
-        // This is the psychological "go" signal. The app is ready.
-        setPhase('green');
-        await textControls.start({ opacity: 0, y: -8, transition: { duration: 0.2 } });
-
-        // Animate the logo to green and WAIT for the color transition to complete
-        // before signaling onComplete. This ensures the user actually SEES the green
-        // phase before the exit fade begins.
+        // ── PHASE 2: GREEN (500ms) — Morph directly to brand green ────
+        // No amber. Black goes straight to green.
         await logoControls.start({
             color: 'rgb(22, 163, 74)', // emerald-600 — brand green
-            filter: 'drop-shadow(0 0 35px rgba(22,163,74,0.35))',
+            filter: 'drop-shadow(0 0 35px rgba(22,163,74,0.4))',
             transition: {
-                color: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
-                filter: { duration: 0.4, ease: [0.65, 0, 0.35, 1] },
+                color: { duration: 0.5, ease: [0.65, 0, 0.35, 1] },
+                filter: { duration: 0.5, ease: [0.65, 0, 0.35, 1] },
             }
         });
 
@@ -113,15 +81,12 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             transition: { duration: 0.3, ease: "easeOut" }
         });
 
-        // Hold green briefly so the user registers the "ready" signal
+        // Hold green briefly
         await new Promise(resolve => setTimeout(resolve, 300));
 
-        // NOW signal onComplete — the green phase has fully played.
-        // The exit animation (triggered by isVisible becoming false)
-        // will fade the splash out, revealing the app underneath.
         if (onComplete) onComplete();
 
-        // Start the gentle breathing scale loop (runs until exit)
+        // Gentle breathing loop until exit
         logoControls.start({
             scale: [1.0, 1.04, 1.0],
             transition: { duration: 2, repeat: Infinity, ease: "easeInOut" }
@@ -129,12 +94,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     };
 
     const handleExitSequence = async () => {
-        // Exit is a clean opacity fade of the whole screen
         await containerControls.start({
             opacity: 0,
             transition: { duration: 0.4, ease: [0.32, 0, 0.67, 0] }
         });
-
         setIsActuallyMounted(false);
     };
 
@@ -151,13 +114,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                 zIndex: 9999
             }}
         >
-            {/* Cinematic Background Layer */}
-            <motion.div
-                className="splash-bg-image"
-                animate={bgImageControls}
-                initial={{ opacity: 0 }}
-            />
-
             {/* Branding Core */}
             <div className="relative z-10 flex flex-col items-center">
                 <motion.div
@@ -171,16 +127,14 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
                 <div className="splash-text-container">
                     <motion.span
-                        key={phase}
                         className="splash-text"
                         animate={textControls}
                         initial={{ opacity: 0 }}
                         style={{
-                            color: phase === 'green' ? 'rgb(22, 163, 74)' : '#EAB308',
-                            display: phase === 'emergence' ? 'none' : 'block'
+                            color: 'rgb(22, 163, 74)',
                         }}
                     >
-                        {phase === 'amber' ? 'Vega' : phase === 'green' ? 'Ready' : ''}
+                        Ready
                     </motion.span>
                 </div>
             </div>
