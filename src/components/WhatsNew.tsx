@@ -133,7 +133,33 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // ─── CHANGELOG DATA ──────────────────────────────────────────────────────────
 // Add new entries at the TOP. Bump the version for every release.
 // Use 'icon' to pick from FEATURE_ICONS above.
+//
+// ─── PERIODIC UPDATE SYSTEM ──────────────────────────────────────────────────
+// What's New entries should be consolidated periodically:
+// - Major features ship as a single entry covering all changes in that release
+// - Minor fixes/patches do NOT get their own What's New entry — they're
+//   folded into the next major entry
+// - The user should never see more than one What's New popup per release
+// - Entries should be concise: title + 1-line description + 3-8 feature bullets
+// - Each feature bullet should be 1-2 sentences max
+// - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        id: 'v1.17.0',
+        version: '1.17.0',
+        date: '2026-07-12',
+        title: 'ALOA Research Mode, DraftPro Upgrades & Document Export',
+        description: 'Major AI enhancements including a dedicated Research mode with multi-step reasoning and citations. DraftPro gets watermarks, focus mode, configurable page numbering, and DOCX export. Live web querying lets ALOA read external URLs.',
+        features: [
+            { icon: 'brain', label: 'ALOA Research Mode', text: 'New 4th AI mode (Auto/Flash/Pro/Research) with multi-step reasoning, jurisdiction detection, inline citations, and anti-hallucination guardrails. Dynamic status messages replace the static "Thinking…" placeholder.' },
+            { icon: 'search', label: 'Live Web Querying', text: 'Paste a URL into ALOA chat and the AI fetches and reads the page content — no more copy-pasting text from external websites. Handles paywalls and errors gracefully.' },
+            { icon: 'pen', label: 'DraftPro: Watermarks & Page Numbers', text: 'Add DRAFT, CONFIDENTIAL, or WITHOUT PREJUDICE watermarks. Page numbers are now fully configurable — toggle on/off, choose position, format, and starting number.' },
+            { icon: 'pen', label: 'DraftPro: Focus Mode & DOCX Export', text: 'Press F11 to hide the ribbon for distraction-free drafting. Export documents directly as .docx files that open in Microsoft Word or Google Docs.' },
+            { icon: 'shield', label: '2FA Lockout Prevention', text: 'Admins can now disable 2FA for locked-out users from Account Recovery. Users see a clear warning with recovery instructions when 2FA is enabled.' },
+            { icon: 'bolt', label: 'User Management Separation', text: 'Team members (Admin/Lawyer/Paralegal) and portal users (Clients/Residents) are now in separate lists — team in Firm Settings, portal users in Portal Access.' },
+            { icon: 'theme', label: 'Settings Cleanup', text: 'Removed product type selector, invoice color picker, ChakraHQ pricing tiers, and duplicate changelog from AI settings. Notifications consolidated into one place.' },
+        ],
+    },
     {
         id: 'v1.16.0',
         version: '1.16.0',

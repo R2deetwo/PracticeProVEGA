@@ -60,6 +60,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useAloa } from '../../../contexts/AloaProvider';
 import { HeaderRenderer } from '../HeaderRenderer';
 import { HeaderDesigner } from '../HeaderDesigner';
+import PrintPreviewDrawer from './PrintPreviewDrawer';
 import { HeaderConfiguration } from '../../../types';
 
 // ─── Inline SVG Toolbar Icons (Heroicons 1.5px stroke — unified with constants.tsx) ───
@@ -95,6 +96,7 @@ const Wand: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://
 const Shield: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" /></svg>;
 const HashIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5l-3.9 19.5m-2.1-19.5l-3.9 19.5" /></svg>;
 const DownloadIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>;
+const Eye: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 const SubscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 18.75h-3v-1.5l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 13.5 17.25 14.25" strokeWidth={1.2} /></svg>;
 const SuperscriptIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25L9.75 12l-6 6.75m9-13.5L12.75 12l6 6.75" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.5h-3V6l1.5-1.5c.75-.75 1.5-1.125 1.5-1.875 0-.75-.375-1.125-1.125-1.125S17.25 2.25 17.25 3" strokeWidth={1.2} /></svg>;
 const StrikethroughIcon: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5M6.75 6.75c0-1.257.933-2.25 2.25-2.25 1.257 0 2.25.933 2.25 2.25 0 1.257-.933 2.25-2.25 2.25M17.25 6.75c0-1.257-.933-2.25-2.25-2.25-1.257 0-2.25.933-2.25 2.25 0 1.257.933 2.25 2.25 2.25M6.75 17.25c0 1.257.933 2.25 2.25 2.25 1.257 0 2.25-.933 2.25-2.25 0-1.257-.933-2.25-2.25-2.25M17.25 17.25c0 1.257-.933 2.25-2.25 2.25-1.257 0-2.25-.933-2.25-2.25 0-1.257.933-2.25 2.25-2.25" /></svg>;
@@ -439,6 +441,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [zoom, setZoom] = useState(1);
     const [focusMode, setFocusMode] = useState(false);
     const [watermark, setWatermark] = useState<string | null>(null);
+    const [showPrintPreview, setShowPrintPreview] = useState(false);
     // Page numbering configuration — gives the user control over whether
     // page numbers appear, where, and in what format. Previously this was
     // hardcoded to "Page X of Y" at bottom-center with no toggle.
@@ -1190,6 +1193,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             <ToolbarBtn icon={Redo} onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} size="sm" label="Redo" />
                         </div>
                         <ToolbarBtn icon={Printer} onClick={handlePrint} size="sm" label="Print" />
+                        {/* Print Preview — slide-in drawer with live A4 preview */}
+                        <ToolbarBtn
+                            icon={Eye}
+                            label="Preview"
+                            onClick={() => setShowPrintPreview(true)}
+                            size="lg"
+                            disabled={!editor}
+                        />
                         {/* DOCX Export — downloads a .docx file of the document */}
                         <ToolbarBtn
                             icon={DownloadIcon}
@@ -1797,6 +1808,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     </button>
                 </div>
             </div>
+
+            {/* ── Print Preview Drawer ──
+                Slide-in panel showing a live print-ready preview of the
+                document. User can see margins, typography, page breaks,
+                and headers before printing or exporting. */}
+            <PrintPreviewDrawer
+                isOpen={showPrintPreview}
+                onClose={() => setShowPrintPreview(false)}
+                html={editor?.getHTML() || ''}
+                title={title || 'Untitled Document'}
+                letterheadHtml={undefined}
+                authorName={currentUser?.name}
+                firmName={appState?.firmDetails?.name}
+                onPrint={handlePrint}
+            />
 
             {/* ── In-App Modals ── */}
             {
