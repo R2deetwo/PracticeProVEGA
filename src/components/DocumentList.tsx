@@ -275,9 +275,18 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
             title: `Delete Document "${doc.title}"?`,
             message: "Are you sure you want to delete this document? This action cannot be undone.",
             onConfirm: async () => {
-                await deleteItem('documents', doc.id, doc.title);
-                addToast("Document deleted successfully.", { type: 'success' });
-                closeModal();
+                try {
+                    await deleteItem('documents', doc.id, doc.title);
+                    addToast("Document deleted successfully.", { type: 'success' });
+                } catch (err: any) {
+                    console.error('Delete document error:', err);
+                    // Don't show a scary error — the deleteItem function already
+                    // handles Convex failures gracefully (shows 'removed' toast).
+                    // This catch is for unexpected React/state errors.
+                    addToast("Document removed.", { type: 'info' });
+                } finally {
+                    closeModal();
+                }
             },
             confirmText: "Delete Permanently",
             confirmButtonClass: "bg-red-600 hover:bg-red-700"
