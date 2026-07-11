@@ -78,6 +78,8 @@ const HelpView: React.FC = () => {
         { id: 'portals', title: 'Client & Resident Portals', subtitle: 'Self-service portal for clients and residents', keywords: ['portal', 'client', 'resident', 'tenant', 'self-service', 'intake', 'access', 'invite', 'password'] },
         { id: 'trust-accounting', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
         { id: 'enterprise-jurisdiction', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
+        { id: 'ai-research-mode', title: `${assistantName} Research Mode & AI Engine`, subtitle: 'Auto/Flash/Pro/Research modes, web querying, citations, jurisdiction guardrails', keywords: ['research', 'mode', 'auto', 'flash', 'pro', 'engine', 'citation', 'jurisdiction', 'web', 'url', 'fetch', 'bluebook', 'oscola', 'nigerian', 'reasoning', 'thinking'] },
+        { id: 'security-2fa', title: 'Security & 2FA', subtitle: 'Two-factor authentication, biometrics, lockout recovery, admin reset', keywords: ['security', '2fa', 'two-factor', 'biometric', 'fingerprint', 'face id', 'lockout', 'recovery', 'disable', 'admin', 'account'] },
     ], [assistantName]);
 
     // Filter sections based on search query
@@ -427,13 +429,16 @@ const HelpView: React.FC = () => {
                                         <li><strong>Smart Fill:</strong> Auto-fill all placeholders from matter/property data with one click</li>
                                         <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'} or save your own</li>
                                         <li><strong>Watermarks:</strong> Add DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE, or PRIVATE & CONFIDENTIAL watermarks to every page</li>
+                                        <li><strong>Page Numbers:</strong> Fully configurable — toggle on/off, choose position (center/right/left), format (Page X of Y, Page X, -X-, X only), and starting page number</li>
                                         <li><strong>Focus Mode:</strong> Press <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">F11</code> to hide the ribbon for distraction-free drafting</li>
                                         <li><strong>Line Spacing:</strong> Single (1.0), 1.5, or Double (2.0) spacing — applies to the entire document</li>
                                         <li><strong>Zoom Presets:</strong> Choose from 50%–200% presets, or use <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+=</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+-</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+0</code> keyboard shortcuts</li>
                                         <li><strong>True Page Pagination:</strong> A4 page sheets with real page breaks, page numbers, and letterhead support</li>
                                         <li><strong>Letterhead Designer:</strong> Design your firm's letterhead with logo, firm name, and address — appears on every page</li>
+                                        <li><strong>Print Preview:</strong> Click the Preview button to see a live A4 print-ready preview with margins, typography, and page breaks before printing</li>
+                                        <li><strong>DOCX Export:</strong> Download your document as a .docx file that opens in Microsoft Word or Google Docs — formatting is preserved</li>
                                         <li><strong>Auto-Save:</strong> Your work is saved automatically as you type</li>
-                                        <li><strong>Export Options:</strong> Print to PDF, or copy to Word/Google Docs with formatting preserved</li>
+                                        <li><strong>Export Options:</strong> Print to PDF, export as DOCX, or copy to Word/Google Docs with formatting preserved</li>
                                     </ul>
                                 </div>
 
@@ -908,6 +913,116 @@ const HelpView: React.FC = () => {
                                 </div>
                             </div>
                         </AccordionItem>}
+
+                        {/* ── AI Research Mode & Engine ── */}
+                        <AccordionItem
+                            id="ai-research-mode"
+                            title={`${assistantName} Research Mode & AI Engine`}
+                            isOpen={isSectionOpen('ai-research-mode')}
+                            onToggle={() => handleSectionToggle('ai-research-mode')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Engine Modes</h4>
+                                    <p className="text-sm mb-3">{assistantName} has four operating modes. Click the mode badge in the chat header to cycle through them:</p>
+                                    <ul className="space-y-2 text-sm">
+                                        <li className="p-2 border-l-4 border-emerald-400 bg-emerald-50 dark:bg-emerald-900/10 rounded-r"><strong>Auto (green):</strong> {assistantName} automatically chooses the best mode for each query. Best for general use.</li>
+                                        <li className="p-2 border-l-4 border-amber-400 bg-amber-50 dark:bg-amber-900/10 rounded-r"><strong>Flash (amber):</strong> Fast responses using a lighter model. Best for quick questions and simple tasks.</li>
+                                        <li className="p-2 border-l-4 border-purple-400 bg-purple-50 dark:bg-purple-900/10 rounded-r"><strong>Pro (purple):</strong> Deeper analysis using the most capable model. Best for complex drafting and strategy.</li>
+                                        <li className="p-2 border-l-4 border-blue-400 bg-blue-50 dark:bg-blue-900/10 rounded-r"><strong>Research (blue):</strong> Multi-step reasoning with citations, jurisdiction detection, and anti-hallucination guardrails. Best for legal research and cross-border analysis.</li>
+                                    </ul>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">Your mode preference is saved and persists across sessions.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Dynamic Reasoning States</h4>
+                                    <p className="text-sm">In Research mode, the static "Thinking…" indicator is replaced with real-time status messages that cycle every few seconds:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
+                                        <li>Researching… analyzing your query in depth</li>
+                                        <li>Cross-referencing legal frameworks…</li>
+                                        <li>Evaluating jurisdictional implications…</li>
+                                        <li>Synthesizing analysis…</li>
+                                    </ul>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">This sets expectations for the longer processing time in Research mode.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Live Web Querying</h4>
+                                    <p className="text-sm mb-2">Paste any URL into the {assistantName} chat and the AI will:</p>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
+                                        <li>Fetch the web page content server-side</li>
+                                        <li>Extract the main text (stripping scripts, ads, navigation)</li>
+                                        <li>Read and analyze the content in context</li>
+                                        <li>Answer your questions about the page</li>
+                                    </ol>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">If a page is behind a paywall or requires login, {assistantName} will ask you to paste the text directly.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Citations & Jurisdiction Guardrails</h4>
+                                    <p className="text-sm mb-2">Research mode enforces strict rules:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Jurisdiction Detection:</strong> Identifies the governing jurisdiction before answering. For cross-border matters, explicitly states which jurisdiction's frameworks are being applied.</li>
+                                        <li><strong>Citation Required:</strong> Legal assertions are cited with inline references [1], [2] and a sources list at the end.</li>
+                                        <li><strong>No Hallucination:</strong> If uncertain about a statute or case, {assistantName} says "I am not certain — please verify" rather than fabricating.</li>
+                                        <li><strong>Anti-Laziness:</strong> When specific analysis is requested, provides detailed analysis of THAT provision — not generic overviews.</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Citation Formatting</h4>
+                                    <p className="text-sm">Citations can be formatted in multiple styles:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-1">
+                                        <li><strong>Nigerian Supreme Court</strong> — default for Nigerian practice</li>
+                                        <li><strong>Bluebook</strong> — US legal standard</li>
+                                        <li><strong>OSCOLA</strong> — UK/Oxford standard</li>
+                                        <li><strong>Plain</strong> — simple numbered references</li>
+                                    </ul>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">The citation style is auto-detected based on your jurisdiction.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        {/* ── Security & 2FA ── */}
+                        <AccordionItem
+                            id="security-2fa"
+                            title="Security & 2FA"
+                            isOpen={isSectionOpen('security-2fa')}
+                            onToggle={() => handleSectionToggle('security-2fa')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Two-Factor Authentication (2FA)</h4>
+                                    <p className="text-sm mb-2">Enable 2FA in Settings → Security for an extra verification step during login. When enabled, a warning message appears with recovery instructions.</p>
+                                    <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
+                                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                                            <strong>Locked out?</strong> If you lose access to your 2FA device, contact your firm administrator. Admins can disable 2FA for your account from Settings → Account Recovery. Consider enabling biometric login on the mobile app as a backup.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Admin: Disabling 2FA for Users</h4>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
+                                        <li>Go to Settings → Account Recovery</li>
+                                        <li>Search for the user by email</li>
+                                        <li>Click the "Disable 2FA" button (amber)</li>
+                                        <li>Confirm the action</li>
+                                        <li>The user can now log in with just their password</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Biometric Login (Mobile App)</h4>
+                                    <p className="text-sm">On the Android APK, enable biometric authentication (fingerprint or Face ID) in Settings → Security. This provides a convenient backup if 2FA is enabled — you can use biometrics to log in even with 2FA on.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Content Protection</h4>
+                                    <p className="text-sm">The app uses FLAG_SECURE on Android to prevent screenshots at the OS level — same technology used by banking apps. WebView debugging is disabled in production builds.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
                     </Accordion>
 
                     {/* No results → ALOA fallback offer */}

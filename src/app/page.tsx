@@ -358,16 +358,16 @@ function FeaturesOverview() {
   const features = [
     {
       icon: Bot,
-      title: 'AI Assistant',
+      title: 'AI Assistant with Research Mode',
       description:
-        'Ask ARIA to draft, review, or format any Nigerian legal or property document. From originating processes to conveyances, ARIA understands Nigerian practice.',
+        'Four engine modes (Auto/Flash/Pro/Research) with multi-step reasoning, jurisdiction detection, inline citations, and live web querying. Paste a URL and ALOA reads it for you.',
       color: 'emerald',
     },
     {
       icon: FileText,
-      title: 'True Document Pagination',
+      title: 'DraftPro Document Editor',
       description:
-        'Professional documents with real page breaks, proper formatting, and NDPA-compliant metadata. Print or export exactly as it appears on screen.',
+        'Professional word processor with watermarks, configurable page numbering, focus mode, DOCX export, and live print preview. AI-powered drafting with placeholder guardrails.',
       color: 'teal',
     },
     {
