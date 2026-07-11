@@ -280,7 +280,10 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
 
     return (
         <div className="space-y-8">
-            {/* Firm Management Section */}
+            {/* Firm Management Section — only shown when user is a member of
+                multiple firms. For single-firm users, this is handled in
+                the Firm Settings page instead. */}
+            {joinedFirms && joinedFirms.length > 1 && (
             <SettingsCard title="Manage Your Firms" className="border-primary-100 dark:border-primary-900/30">
                 <div className="text-sm text-slate-600 dark:text-zinc-400 mb-6">
                     <p className="font-semibold text-slate-900 dark:text-white mb-1">Your Firm Identities</p>
@@ -334,6 +337,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                     )}
                 </div>
             </SettingsCard>
+            )}
 
             {/* 0. Archives & Trash */}
             <SettingsCard title="Archives & Bin" className="border-emerald-200 dark:border-emerald-900/50">

@@ -18,6 +18,7 @@ const AccountRecoverySettings: React.FC = () => {
     
     const adminDeleteUser = useMutation(api.myFunctions.adminDeleteUser);
     const adminForceVerify = useMutation(api.myFunctions.adminForceVerify);
+    const updateUserSecurity = useMutation(api.myFunctions.updateUserSecurity);
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
@@ -54,6 +55,22 @@ const AccountRecoverySettings: React.FC = () => {
         try {
             await adminForceVerify({ userId: userId as any });
             addToast('User verified successfully.', { type: 'success' });
+        } catch (e: any) {
+            addToast(translateError(e), { type: 'error' });
+        }
+    };
+
+    const handleDisable2FA = async (userId: string) => {
+        const ok = await confirm({
+            title: 'Disable 2FA for this user?',
+            message: 'This will turn off Two-Factor Authentication for this account. The user will be able to log in with just their password. Use this when a user has lost their 2FA device.',
+            confirmLabel: 'Disable 2FA',
+            cancelLabel: 'Cancel',
+        });
+        if (!ok) return;
+        try {
+            await updateUserSecurity({ userId: userId as any, isMfaEnabled: false });
+            addToast('2FA disabled for this user. They can now log in with just their password.', { type: 'success' });
         } catch (e: any) {
             addToast(translateError(e), { type: 'error' });
         }
@@ -126,6 +143,14 @@ const AccountRecoverySettings: React.FC = () => {
                                             className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:hover:bg-indigo-900/40 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
                                         >
                                             <CheckCircleIcon className="w-3.5 h-3.5" /> Force Verify
+                                        </button>
+                                    )}
+                                    {user.isMfaEnabled && (
+                                        <button
+                                            onClick={() => handleDisable2FA(user._id)}
+                                            className="px-3 py-1.5 bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/40 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5"
+                                        >
+                                            <ShieldCheckIcon className="w-3.5 h-3.5" /> Disable 2FA
                                         </button>
                                     )}
                                     <button

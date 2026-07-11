@@ -230,15 +230,22 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                         </div>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                        <input autoComplete="off" data-lpignore="true"  
-                            type="checkbox" 
-                            className="sr-only peer" 
+                        <input autoComplete="off" data-lpignore="true"
+                            type="checkbox"
+                            className="sr-only peer"
                             checked={!!currentUser?.isMfaEnabled}
                             onChange={(e) => handleToggleMfa(e.target.checked)}
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
                     </label>
                 </div>
+                {currentUser?.isMfaEnabled && (
+                    <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
+                        <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                            <strong>Important:</strong> If you lose access to your 2FA device, contact your firm administrator to disable 2FA for your account. Admins can reset 2FA from Settings → Account Recovery. Consider enabling biometric login on the mobile app as a backup authentication method.
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* CONTENT PROTECTION */}

@@ -1447,6 +1447,66 @@ export const PortalAccessSettings: React.FC = () => {
       />
 
       <SecurityNotice isProperty={isProperty} isUnified={false} />
+
+      {/* Active Portal Users — list of users who have already accepted
+          invitations and have portal accounts. This is SEPARATE from the
+          team members list in Firm Settings, which only shows app users
+          (Lawyers, Paralegals, Admins). Portal users (Clients, Tenants)
+          are managed here. */}
+      <PortalUsersList coreState={coreState} />
+    </div>
+  );
+};
+
+// ─── Portal Users List ──────────────────────────────────────────────────────
+const PortalUsersList: React.FC<{ coreState: any }> = ({ coreState }) => {
+  const portalUsers = (coreState.users || []).filter((u: any) =>
+    u.role === 'Client' || u.role === 'Tenant'
+  );
+
+  if (portalUsers.length === 0) {
+    return (
+      <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-2">Active Portal Users</h3>
+        <p className="text-xs text-slate-400 dark:text-zinc-500">No portal users have accepted invitations yet. Invite {coreState.firmDetails?.product === 'atrium' ? 'residents' : 'clients'} using the invitation form above.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-800 p-5">
+      <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200 mb-4">Active Portal Users ({portalUsers.length})</h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-slate-400 dark:text-zinc-500 border-b border-slate-100 dark:border-zinc-800">
+              <th className="pb-2 font-semibold">Name</th>
+              <th className="pb-2 font-semibold">Email</th>
+              <th className="pb-2 font-semibold">Type</th>
+              <th className="pb-2 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {portalUsers.map((user: any) => (
+              <tr key={user.id} className="border-b border-slate-50 dark:border-zinc-800/50">
+                <td className="py-2 font-medium text-slate-700 dark:text-zinc-300">{user.name || '—'}</td>
+                <td className="py-2 text-slate-500 dark:text-zinc-400">{user.email || '—'}</td>
+                <td className="py-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
+                    {user.role === 'Client' ? 'Client' : 'Resident'}
+                  </span>
+                </td>
+                <td className="py-2">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Active
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };

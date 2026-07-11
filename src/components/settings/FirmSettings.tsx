@@ -133,7 +133,17 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             if (u && u.id) uniqueUsersMap.set(u.id, u);
         });
         const uniqueUsers = Array.from(uniqueUsersMap.values());
-        const sortedUsers = uniqueUsers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // Filter OUT portal users (clients, tenants, external counsel, pending)
+        // from the team management table. Portal users are managed separately
+        // in the Portal Access settings tab. Previously all users were mixed
+        // in one table, causing confusion between app users and portal users.
+        const teamUsers = uniqueUsers.filter(u =>
+            u.role !== UserRole.Client &&
+            u.role !== UserRole.Tenant &&
+            u.role !== UserRole.ExternalCounsel &&
+            u.role !== UserRole.Pending
+        );
+        const sortedUsers = teamUsers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
         if (!userSearchTerm.trim()) {
             return sortedUsers;
@@ -321,7 +331,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             </SettingsCard>
 
             {permissions.canManageUsers && (
-                <SettingsCard title="User Management" id="user-management">
+                <SettingsCard title="Team Members" id="user-management">
                     {/* Invitation Key Component */}
                     <div className="mb-8 p-6 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform">

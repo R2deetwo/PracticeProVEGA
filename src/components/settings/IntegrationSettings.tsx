@@ -1,15 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { translateError } from '../../utils/errorTranslator';
-import { 
-  estimateChakraPlan, 
-  deriveIntegrationStatus, 
-  getAllChakraPlans, 
-  ChakraPlanKey 
-} from '../../services/communicationIntegration';
 
 const WhatsAppIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -36,12 +30,8 @@ const IntegrationSettings: React.FC = () => {
   const [editingConfig, setEditingConfig] = useState(chakraConfig);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Estimation state
-  const totalUnits = useMemo(() => (coreState.properties || []).reduce((acc, p) => acc + (p.numberOfUnits || 1), 0), [coreState.properties]);
-  const estimation = useMemo(() => estimateChakraPlan(totalUnits, 3), [totalUnits]);
-  
-  const status = deriveIntegrationStatus(chakraConfig);
-  const plans = getAllChakraPlans();
+  // Simple status derivation (inline — removed the upsell-related imports)
+  const status = chakraConfig?.isActive ? 'connected' : 'not_configured';
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -92,7 +82,7 @@ const IntegrationSettings: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-6 space-y-6">
           <div className="space-y-4">
             <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Configuration</h4>
             
@@ -118,19 +108,6 @@ const IntegrationSettings: React.FC = () => {
                       placeholder="ACxxxxxxxxxxxxxxxxxxxx"
                       className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider">Plan Level</label>
-                    <select 
-                      value={editingConfig.plan || 'free'} 
-                      onChange={e => setEditingConfig({ ...editingConfig, plan: e.target.value as any })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="free">Free Tier</option>
-                      <option value="starter">Starter Plan</option>
-                      <option value="pro">Professional Plan</option>
-                      <option value="enterprise">Enterprise</option>
-                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider">Connected Phone</label>
@@ -161,89 +138,6 @@ const IntegrationSettings: React.FC = () => {
               </button>
             </div>
           </div>
-
-          <div className="space-y-4">
-            <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Plan Estimator (AI Recommendation)</h4>
-            
-            <div className="bg-slate-950/50 border border-slate-800 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
-                  <ZapIcon />
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Recommended for your firm:</p>
-                  <p className="text-sm font-black text-white">{estimation.planDetails.label} Plan</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  {estimation.reasoning}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] text-slate-500 uppercase">Estimated Monthly</p>
-                  <p className="text-sm font-black text-white">{estimation.planDetails.currency} {estimation.planDetails.cost.toLocaleString()}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] text-slate-500 uppercase">Volume Cap</p>
-                  <p className="text-sm font-black text-white">{estimation.planDetails.whatsappLimit === 0 ? 'Unlimited' : `${estimation.planDetails.whatsappLimit.toLocaleString()} msgs`}</p>
-                </div>
-              </div>
-
-              {estimation.alternatives.length > 0 && (
-                <div className="bg-slate-800/30 rounded-xl p-3">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">Alternative Option</p>
-                  <p className="text-[10px] text-slate-300 italic">
-                    <span className="font-bold text-slate-100">{estimation.alternatives[0].plan.toUpperCase()}:</span> {estimation.alternatives[0].why}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="flex items-center gap-2 p-3 bg-blue-900/10 border border-blue-900/30 rounded-xl">
-              <div className="text-blue-400">ℹ️</div>
-              <p className="text-[10px] text-slate-400 leading-tight">
-                ChakraHQ provides a dedicated WhatsApp Business account. Once connected, your tenants will receive official notifications from your firm's name.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Plan Comparison Table */}
-      <div className="space-y-4">
-        <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest px-1">ChakraHQ Pricing Tiers</h4>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {plans.map(plan => (
-            <div key={plan.key} className={`p-4 rounded-2xl border transition-all ${
-              editingConfig.plan === plan.key ? 'bg-emerald-900/10 border-emerald-500/50' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-            }`}>
-              <p className="text-xs font-black text-white uppercase tracking-wider mb-1">{plan.label}</p>
-              <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-xl font-black text-white">{plan.cost === 0 && plan.key === 'enterprise' ? 'Custom' : plan.cost === 0 ? 'Free' : `₦${(plan.cost/1000).toFixed(0)}k`}</span>
-                {plan.cost > 0 && <span className="text-[10px] text-slate-500">/mo</span>}
-              </div>
-              <ul className="space-y-2 mb-4">
-                {plan.features.slice(0, 3).map((f, i) => (
-                  <li key={i} className="text-[10px] text-slate-400 flex items-start gap-1.5">
-                    <span className="text-emerald-500 text-[8px] mt-0.5">●</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-              <button 
-                onClick={() => setEditingConfig({ ...editingConfig, plan: plan.key as any, isActive: true })}
-                className={`w-full py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
-                  editingConfig.plan === plan.key ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
-                }`}
-              >
-                {editingConfig.plan === plan.key ? 'Selected' : 'Select'}
-              </button>
-            </div>
-          ))}
         </div>
       </div>
     </div>
