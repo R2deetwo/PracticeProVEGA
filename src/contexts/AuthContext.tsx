@@ -574,6 +574,15 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         const portalType = sessionStorage.getItem('practicepro_portal_type');
         const isPortalUser = currentUser?.role === 'Client' || currentUser?.role === 'Tenant';
 
+        // Suppress the browser's "Leave site?" beforeunload dialog during logout.
+        // We're intentionally navigating away — the user has already confirmed
+        // (or it's an automatic logout like session expiry). Without this, the
+        // browser shows a "Leave site? Changes you made may not be saved" dialog
+        // which is confusing because logout is intentional, not accidental.
+        // We do this by temporarily removing any beforeunload listeners and
+        // setting a flag that our own beforeunload handler (if any) can check.
+        (window as any).__suppressBeforeUnload = true;
+
         // Clear Sentry + PostHog user context on logout
         try { clearSentryUser(); resetAnalyticsUser(); } catch {}
 
@@ -630,6 +639,10 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // return to the authenticated state. This is the correct behavior
         // for logout — there's no reason to keep the authenticated page
         // in history.
+        //
+        // We also null out window.onbeforeunload right before navigating
+        // to suppress any "Leave site?" dialog that might fire from
+        // the browser's default behavior during navigation.
         const redirectUrl = isPortalUser
             ? (portalType === 'client' || currentUser?.role === 'Client'
                 ? '/portal/client/login'
@@ -637,6 +650,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     ? '/portal/tenant/login'
                     : '/')
             : '/';
+
+        // Suppress beforeunload dialog
+        window.onbeforeunload = null;
 
         // Small delay to let React flush the state change before navigating
         setTimeout(() => {

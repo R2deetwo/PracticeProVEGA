@@ -432,7 +432,17 @@ const Header: React.FC = React.memo(() => {
                                 )}
                             </div>
                             <div className="border-t border-slate-100 dark:border-zinc-700 py-1">
-                                <button onClick={() => { logout(); setUserMenuOpen(false); }} className="w-full text-left px-4 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
+                                <button onClick={() => {
+                                    // Confirm BEFORE signing out — previously logout() was
+                                    // called directly, which cleared the session AND triggered
+                                    // the browser's "Leave site?" beforeunload dialog at the
+                                    // same time. Now we confirm first, then sign out only if
+                                    // the user confirms.
+                                    if (window.confirm('Are you sure you want to sign out?')) {
+                                        logout();
+                                    }
+                                    setUserMenuOpen(false);
+                                }} className="w-full text-left px-4 py-2 text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2">
                                     <LogoutIcon className="w-3.5 h-3.5" /> {currentUser.email === 'demo@practicepro.ng' ? 'Exit Demo' : 'Sign out'}
                                 </button>
                             </div>
