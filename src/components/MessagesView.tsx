@@ -1259,7 +1259,7 @@ const MessagesView: React.FC = () => {
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
                             <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {isUnified ? 'All Conversations' : isProperty ? "Residents' Messages" : 'Client Messages'}
+                                    {isUnified ? 'All Conversations' : 'Conversations'}
                                 </h3>
                                 <div className="flex items-center gap-1.5">
                                     {/* TASK 15: Mark all inbound messages as read (clears badge) */}
@@ -2016,7 +2016,7 @@ const MessagesView: React.FC = () => {
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                     </div>
                                     <p className="text-base font-medium text-slate-500 dark:text-zinc-400">
-                                        {isUnified ? 'Select a conversation to respond' : isProperty ? 'Select a resident message to respond' : 'Select a client message to view'}
+                                        {isUnified ? 'Select a conversation to respond' : 'Select a conversation to view'}
                                     </p>
                                     <p className="text-xs text-slate-400 mt-1">
                                         {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}
