@@ -12,6 +12,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import {
@@ -52,6 +53,7 @@ export const NotificationSettings: React.FC = () => {
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   const { isProperty, isLegal } = useProduct();
+  const { onUpdateUser } = useDataActions();
 
   const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
 
@@ -154,6 +156,55 @@ export const NotificationSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* ── My In-App Notifications ──
+          Per-user in-app notification preferences (moved from Profile Settings).
+          These control which in-app notifications YOU receive — distinct from
+          the firm-wide email notifications below. */}
+      <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+            <BellIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">My In-App Notifications</h3>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Control which in-app notifications you personally receive</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[
+            { key: 'newMessage', label: 'New Messages', desc: 'Receive a notification for new direct messages or channel mentions.' },
+            { key: 'assignedToMatter', label: isProperty ? 'Assigned to a Property' : 'Assigned to a Matter', desc: isProperty ? 'Get notified when an Admin assigns you to a new property.' : 'Get notified when an Admin assigns you to a new matter.' },
+            { key: 'taskAssignedToMe', label: 'Task Assigned to Me', desc: 'Get notified when a colleague assigns a task directly to you.' },
+            { key: 'newTaskInMyMatter', label: isProperty ? 'New Task in My Property' : 'New Task in My Matter', desc: isProperty ? 'Receive a notification when a new task is created in a property you are assigned to.' : 'Receive a notification when a new task is created in a matter you are part of.' },
+            { key: 'eventTaskHalfway', label: 'Halfway Point Reminders', desc: 'Receive a notification when halfway between the start and due date for a task or event.' },
+            ...(currentUser?.role === 'Admin' ? [
+              { key: 'taskStartedByTeamMember', label: 'Task Started (Admin)', desc: "Get notified when a team member moves a task to 'In Progress'." },
+              { key: 'taskCompletedByTeamMember', label: 'Task Completed (Admin)', desc: "Get notified when any user in the firm marks a task as 'Done'." },
+            ] : []),
+          ].map(({ key, label, desc }) => {
+            const isChecked = (currentUser?.notificationSettings as any)?.[key] !== false;
+            return (
+              <div key={key} className="flex items-center justify-between py-1">
+                <div className="flex-1 min-w-0 pr-4">
+                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{label}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500">{desc}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const current = currentUser?.notificationSettings || {};
+                    onUpdateUser({ notificationSettings: { ...current, [key]: !isChecked } });
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${isChecked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-600'}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${isChecked ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Firm Email Notifications ── */}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">

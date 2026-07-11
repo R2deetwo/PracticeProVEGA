@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PracticePro App Icon Foreground — matches the web Logo EXACTLY.
+
+  The Logo is a "Top Block P": three stacked rounded rectangles with a
+  white P cutout. This vector drawable uses the same SVG paths, scaled
+  from the original 64x64 viewBox to the 108x108 adaptive icon viewport.
+
+  Colors (inverted from splash for green background):
+  - Stacked blocks: WHITE at 0.6 / 0.8 / 1.0 opacity (creates depth)
+  - P shape: brand green (#16A34A) — the background showing through
+  - P counter (hole): WHITE — same as the top block
+
+  This ensures the app icon P looks identical to the splash logo P.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Bottom block (white at 60% opacity) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.6"
+        android:pathData="M29.25,78.75 C29.25,79.99 30.26,81 31.5,81 H76.5 C77.74,81 78.75,79.99 78.75,78.75 V72 C78.75,70.76 77.74,69.75 76.5,69.75 H31.5 C30.26,69.75 29.25,70.76 29.25,72 V78.75 Z" />
+
+    <!-- Middle block (white at 80% opacity) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.8"
+        android:pathData="M31.5,67.5 C31.5,68.74 32.51,69.75 33.75,69.75 H74.25 C75.49,69.75 76.5,68.74 76.5,67.5 V60.75 C76.5,59.51 75.49,58.5 74.25,58.5 H33.75 C32.51,58.5 31.5,59.51 31.5,60.75 V67.5 Z" />
+
+    <!-- Top block (white at 100% opacity) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M33.75,56.25 C33.75,57.49 34.76,58.5 36,58.5 H72 C73.24,58.5 74.25,57.49 74.25,56.25 V29.25 C74.25,28.01 73.24,27 72,27 H36 C34.76,27 33.75,28.01 33.75,29.25 V56.25 Z" />
+
+    <!-- P outer shape (brand green — cut out from the white block) -->
+    <path
+        android:fillColor="#16A34A"
+        android:pathData="M40.5,31.5 V56.25 H47.25 V47.25 H60.75 C65.25,47.25 67.5,43.875 67.5,38.25 C67.5,32.625 65.25,29.25 60.75,29.25 H40.5 Z" />
+
+    <!-- P counter / hole (white — same as the top block) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47.25,36 H60.75 C62.44,36 63,37.69 63,38.25 C63,38.81 62.44,40.5 60.75,40.5 H47.25 V36 Z" />
+</vector>

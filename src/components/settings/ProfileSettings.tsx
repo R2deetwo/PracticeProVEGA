@@ -194,58 +194,6 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                         </SettingsCard>
                     )}
 
-                    <SettingsCard title="Notification Settings" id="notification-settings">
-                        <div className="space-y-4">
-                            <NotificationToggle
-                                label="New Messages"
-                                description="Receive a notification for new direct messages or channel mentions."
-                                isChecked={currentUser.notificationSettings?.newMessage !== false}
-                                onToggle={() => handleToggleNotification('newMessage')}
-                            />
-                            <NotificationToggle
-                                label={isProperty ? "Assigned to a Property" : "Assigned to a Matter"}
-                                description={isProperty ? "Get notified when an Admin assigns you to a new property." : "Get notified when an Admin assigns you to a new matter."}
-                                isChecked={currentUser.notificationSettings?.assignedToMatter !== false}
-                                onToggle={() => handleToggleNotification('assignedToMatter')}
-                            />
-                            <NotificationToggle
-                                label="Task Assigned to Me"
-                                description="Get notified when a colleague assigns a task directly to you."
-                                isChecked={currentUser.notificationSettings?.taskAssignedToMe !== false}
-                                onToggle={() => handleToggleNotification('taskAssignedToMe')}
-                            />
-                            <NotificationToggle
-                                label={isProperty ? "New Task in My Property" : "New Task in My Matter"}
-                                description={isProperty ? "Receive a notification when a new task is created in a property you are assigned to." : "Receive a notification when a new task is created in a matter you are part of."}
-                                isChecked={currentUser.notificationSettings?.newTaskInMyMatter !== false}
-                                onToggle={() => handleToggleNotification('newTaskInMyMatter')}
-                            />
-                            <NotificationToggle
-                                label="Halfway Point Reminders"
-                                description="Receive a notification when halfway between the start and due date for a task or event."
-                                isChecked={currentUser.notificationSettings?.eventTaskHalfway !== false}
-                                onToggle={() => handleToggleNotification('eventTaskHalfway')}
-                            />
-                            {currentUser.role === 'Admin' && (
-                                <>
-                                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-700" />
-                                    <h4 className="text-md font-semibold text-slate-800 dark:text-zinc-200 -mb-2">Admin Notifications</h4>
-                                    <NotificationToggle
-                                        label="Task Started"
-                                        description="Get notified when a team member moves a task to 'In Progress'."
-                                        isChecked={currentUser.notificationSettings?.taskStartedByTeamMember !== false}
-                                        onToggle={() => handleToggleNotification('taskStartedByTeamMember')}
-                                    />
-                                    <NotificationToggle
-                                        label="Task Completed"
-                                        description="Get notified when any user in the firm marks a task as 'Done'."
-                                        isChecked={currentUser.notificationSettings?.taskCompletedByTeamMember !== false}
-                                        onToggle={() => handleToggleNotification('taskCompletedByTeamMember')}
-                                    />
-                                </>
-                            )}
-                        </div>
-                    </SettingsCard>
                     <SettingsCard title="In-App Guidance">
                         <div className="space-y-4">
                             <NotificationToggle
