@@ -13,6 +13,7 @@ export const AI_CONFIG = {
         defaultModel: 'gemini-2.0-flash',
         proModel: 'gemini-2.5-pro',
         flashModel: 'gemini-2.0-flash',
+        researchModel: 'gemini-2.5-pro', // Same model as Pro but with different system prompt + thinking budget
         fallbackPlan: [
             'gemini-2.0-flash',
             'gemini-2.5-flash',

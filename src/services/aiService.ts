@@ -6,7 +6,7 @@ import * as geminiService from './geminiService';
 export const sendMessage = async (
     history: AloaMessage[],
     context: Parameters<typeof geminiService.sendMessage>[1],
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
     // Default to Gemini
@@ -17,7 +17,7 @@ export const streamMessage = async (
     history: AloaMessage[],
     context: Parameters<typeof geminiService.sendMessage>[1],
     onChunk: (text: string) => void,
-    modelPreference: 'auto' | 'flash' | 'pro' = 'auto',
+    modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
 ) => {
     return geminiService.streamMessage(history, context, onChunk, modelPreference, signal);

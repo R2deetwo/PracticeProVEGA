@@ -8,7 +8,7 @@ import { saveAloaSession, loadAloaSession, loadGlobalAloaSession, deriveAloaCont
 
 export type UrgencyStatus = 'none' | 'important' | 'urgent';
 export type AloaState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking';
-export type AloaModel = 'auto' | 'flash' | 'pro';
+export type AloaModel = 'auto' | 'flash' | 'pro' | 'research';
 export type AloaView = 'chat' | 'quickNote' | 'details' | 'form';
 
 interface AloaContextType {
@@ -86,7 +86,25 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     const [aloaState, setAloaState] = React.useState<AloaState>('idle');
     const [isMuted, setIsMuted] = React.useState(false);
-    const [preferredModel, setPreferredModel] = React.useState<AloaModel>('auto');
+    const [preferredModel, setPreferredModelState] = React.useState<AloaModel>(() => {
+        // Persist model preference to localStorage so it survives page reloads
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('practicepro_aloa_model');
+            if (saved === 'auto' || saved === 'flash' || saved === 'pro' || saved === 'research') {
+                return saved as AloaModel;
+            }
+        }
+        return 'auto';
+    });
+    const setPreferredModel = React.useCallback((updater: React.SetStateAction<AloaModel>) => {
+        setPreferredModelState(prev => {
+            const next = typeof updater === 'function' ? updater(prev) : updater;
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('practicepro_aloa_model', next);
+            }
+            return next;
+        });
+    }, []);
     const [localFiles, setLocalFiles] = React.useState<LocalFile[]>([]);
     const [isFirmSearchEnabled, setIsFirmSearchEnabled] = React.useState(false);
     const [activeConversationId, setActiveConversationId] = React.useState<string | null>(null);

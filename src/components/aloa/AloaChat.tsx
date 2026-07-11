@@ -53,13 +53,22 @@ const SendIcon = () => (
 );
 
 const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, onClick }) => (
-    <button 
+    <button
         onClick={onClick}
+        title={
+            model === 'auto' ? 'Auto — AI chooses the best mode for each query' :
+            model === 'flash' ? 'Flash — fast responses for quick questions' :
+            model === 'pro' ? 'Pro — deeper analysis with the most capable model' :
+            model === 'research' ? 'Research — multi-step reasoning, citations, and jurisdiction detection' :
+            'Select AI mode'
+        }
         className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all border shadow-sm flex items-center gap-1 ${
-            model === 'pro' 
-                ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800' 
+            model === 'pro'
+                ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800'
                 : model === 'flash'
                 ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
+                : model === 'research'
+                ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800'
                 : 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800'
         }`}
     >
@@ -757,9 +766,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         const sentAttachments = [...pendingAttachments];
         setPendingAttachments([]);
 
-        // Show "Thinking…" immediately so the user sees activity even if
+        // Show status immediately so the user sees activity even if
         // the request is queued behind a previous one.
-        setAloaStatus(pendingAttachments.length > 0 ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…` : 'Thinking…');
+        // In research mode, show a more descriptive status to set
+        // expectations for the longer processing time.
+        const baseStatus = pendingAttachments.length > 0
+            ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…`
+            : preferredModel === 'research'
+                ? 'Researching… analyzing your query in depth'
+                : 'Thinking…';
+        setAloaStatus(baseStatus);
+
+        // In research mode, cycle through dynamic reasoning states
+        // to show the AI's micro-steps (replaces static "Thinking…")
+        let reasoningTimer: ReturnType<typeof setTimeout> | null = null;
+        if (preferredModel === 'research' && pendingAttachments.length === 0) {
+            const reasoningSteps = [
+                'Researching… analyzing your query in depth',
+                'Cross-referencing legal frameworks…',
+                'Evaluating jurisdictional implications…',
+                'Synthesizing analysis…',
+            ];
+            let stepIdx = 0;
+            reasoningTimer = setInterval(() => {
+                stepIdx = (stepIdx + 1) % reasoningSteps.length;
+                setAloaStatus(reasoningSteps[stepIdx]);
+            }, 4000);
+        }
 
         // ─── DETERMINISTIC REQUEST QUEUE ────────────────────────────────
         // The AI execution is enqueued in a global sequential queue.
@@ -963,6 +996,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         return null;
                     }
                 } finally {
+                    if (reasoningTimer) clearInterval(reasoningTimer);
                     setIsLoading(false);
                     setAloaStatus('');
                     isGeneratingRef.current = false;
@@ -972,6 +1006,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 setPendingQueueCount(prev => Math.max(0, prev - 1));
             },
             onError: (error: Error) => {
+                if (reasoningTimer) clearInterval(reasoningTimer);
                 setPendingQueueCount(prev => Math.max(0, prev - 1));
                 setIsLoading(false);
                 setAloaStatus('');
@@ -1053,7 +1088,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     };
 
     const cycleModel = () => {
-        const order: typeof preferredModel[] = ['auto', 'pro', 'flash'];
+        const order: typeof preferredModel[] = ['auto', 'flash', 'pro', 'research'];
         const nextIndex = (order.indexOf(preferredModel) + 1) % order.length;
         setPreferredModel(order[nextIndex]);
     };

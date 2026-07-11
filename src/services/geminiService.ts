@@ -281,8 +281,21 @@ export const sendMessage = async (
         context.proactiveInsights
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
+    // Inject research-mode protocol if applicable
+    const researchSuffix = modelPreference === 'research'
+        ? `\n\n## RESEARCH MODE ACTIVE
+You are operating in RESEARCH MODE. Apply these rules:
+1. MULTI-STEP REASONING: Break down complex queries into sequential analytical steps. Think through each step before responding.
+2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction. If the query crosses jurisdictions you are not certain about, explicitly state: "The following analysis is based on [jurisdiction] legal frameworks. Verify with local counsel for [other jurisdiction]."
+3. CITATION REQUIRED: When making legal assertions, cite relevant authorities (case law, statutes, rules). Use inline references like [1], [2] and list sources at the end.
+4. NO HALLUCINATION: If you are not certain about a statute, case, or rule, explicitly say "I am not certain about this — please verify" rather than fabricating.
+5. DEPTH OVER SPEED: Take time to provide thorough, structured analysis. Avoid superficial summaries when the user needs depth.
+6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested. If the user asks about a specific provision, analyze THAT provision in detail.`
+        : '';
+
     const preferredModelName =
         modelPreference === 'pro' ? AI_CONFIG.gemini.proModel :
+        modelPreference === 'research' ? (AI_CONFIG.gemini as any).researchModel || AI_CONFIG.gemini.proModel :
         modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel :
         AI_CONFIG.gemini.defaultModel;
 
@@ -376,7 +389,7 @@ export const sendMessage = async (
                     signal,
                     body: JSON.stringify({
                         contents,
-                        systemInstruction: { parts: [{ text: stripPII(systemInstruction) }] },
+                        systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                         tools: [{ functionDeclarations: tools }],
                         generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
                         safetySettings: [
@@ -418,7 +431,7 @@ export const sendMessage = async (
             const response = await convex.action(api.ai.generateContent, {
                 modelName,
                 contents,
-                systemInstruction: { parts: [{ text: stripPII(systemInstruction) }] },
+                systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                 tools: [{ functionDeclarations: tools }],
                 generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
                 firmGeminiApiKey: clientKey
@@ -491,10 +504,23 @@ export const streamMessage = async (
         context.proactiveInsights
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
+    // Inject research-mode protocol (same as sendMessage)
+    const researchSuffix = modelPreference === 'research'
+        ? `\n\n## RESEARCH MODE ACTIVE
+You are operating in RESEARCH MODE. Apply these rules:
+1. MULTI-STEP REASONING: Break down complex queries into sequential analytical steps.
+2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction.
+3. CITATION REQUIRED: When making legal assertions, cite relevant authorities using inline references [1], [2].
+4. NO HALLUCINATION: If uncertain, explicitly say "I am not certain — please verify."
+5. DEPTH OVER SPEED: Provide thorough, structured analysis.
+6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested.`
+        : '';
+
     const preferredModelName =
         modelPreference === 'pro' ? AI_CONFIG.gemini.proModel :
+        modelPreference === 'research' ? (AI_CONFIG.gemini as any).researchModel || AI_CONFIG.gemini.proModel :
         modelPreference === 'flash' ? (AI_CONFIG.gemini as any).flashModel :
-        (AI_CONFIG.gemini as any).flashModel || AI_CONFIG.gemini.defaultModel;
+        AI_CONFIG.gemini.defaultModel;
 
     const contents: Content[] = [];
     for (const msg of history) {
@@ -549,7 +575,7 @@ export const streamMessage = async (
         signal,
         body: JSON.stringify({
             contents,
-            systemInstruction: { parts: [{ text: stripPII(systemInstruction) }] },
+            systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
             generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
