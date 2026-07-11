@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { SearchIcon, HelpCircleIcon, ZapIcon, UserCircleIcon, OfficeBuildingIcon, SparklesIcon, ShieldCheckIcon } from '../constants';
 import Accordion, { AccordionItem } from './Accordion';
 import { useAloa } from '../contexts/AloaProvider';
@@ -13,9 +13,10 @@ const HelpView: React.FC = () => {
     const [isAskingAloa, setIsAskingAloa] = useState(false);
     const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
     const { togglePanel } = useAloa();
-    const { isProperty } = useProduct();
+    const { isProperty, hasPropertyFeatures, hasLegalFeatures, isUnified } = useProduct();
     const assistantName = getAssistantName(isProperty);
     const assistantFullName = getAssistantFullName(isProperty);
+    const accordionRef = useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
         if (currentHistoryEntry.context?.activeSection) {
@@ -31,7 +32,6 @@ const HelpView: React.FC = () => {
 
     const handleCardClick = (sectionId: string) => {
         setActiveSection(sectionId);
-        // Small timeout to allow state update to render before scrolling
         setTimeout(() => {
             const element = document.getElementById(sectionId);
             if (element) {
@@ -41,11 +41,6 @@ const HelpView: React.FC = () => {
     };
 
     const handleAskAloa = () => {
-        // Opens the assistant panel with a pre-filled context message so the
-        // user knows they're asking the AI about how to use the app (not
-        // searching online). The AI has full knowledge of the app's features.
-        // When invoked from the "no results" state, we include the user's
-        // search query so the AI can answer it directly.
         setIsAskingAloa(true);
         togglePanel();
         setTimeout(() => {
@@ -57,44 +52,43 @@ const HelpView: React.FC = () => {
                 detail: { message }
             });
             window.dispatchEvent(event);
-            // Reset the asking state after the panel opens
             setTimeout(() => setIsAskingAloa(false), 1000);
         }, 300);
     };
 
-    // ─── Search filtering ──────────────────────────────────────────────
-    // When the user types a query, we expand ALL accordion items so the
-    // browser's built-in find-in-page works across all content. We also
-    // filter the visible sections to only those whose title or content
-    // matches the query. When the query is cleared, normal accordion
-    // behavior resumes.
+    // ─── Search filtering with clickable results ─────────────────────
     const hasSearch = searchQuery.trim().length > 0;
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    // Section metadata: id + title + keywords for search matching
-    const SECTIONS = [
-        { id: 'getting-started', title: 'Getting Started: The Basics', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics'] },
-        { id: 'aloa-tips', title: `Mastering ${assistantName}`, keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', assistantName.toLowerCase()] },
-        { id: 'admin-guide', title: 'Admin Guide & Settings', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template'] },
-        { id: 'research-guide', title: 'Research Studio', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery'] },
-        { id: 'aldia-analysis', title: 'ALDIA Document Analysis', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii'] },
-        { id: 'litigation-tracking', title: 'Litigation Tracking', keywords: ['litigation', 'court', 'filing', 'deadline', 'process'] },
-        { id: 'property-management', title: 'Property Management', keywords: ['property', 'rent', 'resident', 'lease', 'maintenance', 'service charge'] },
-        { id: 'revenue-monitor', title: 'Revenue Monitor', keywords: ['revenue', 'monitor', 'defaulter', 'ledger', 'rent', 'collection', 'atrium'] },
-        { id: 'draftpro-editor', title: 'DraftPro Document Editor', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font'] },
-        { id: 'enterprise-jurisdiction', title: 'Enterprise Jurisdiction & Intake', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules'] },
-    ];
+    // Section metadata: id + title + subtitle + keywords for search matching.
+    // Updated to reflect all current features. Obsolete sections removed;
+    // new sections added for Messaging, Portals, Trust Accounting, etc.
+    const SECTIONS = useMemo(() => [
+        { id: 'getting-started', title: 'Getting Started: The Basics', subtitle: 'Dashboard, modules, and navigation', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics', 'navigation', 'sidebar'] },
+        { id: 'aloa-tips', title: `Mastering ${assistantName} (AI Assistant)`, subtitle: 'Voice dictation, drafting, research, and daily briefings', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria'] },
+        { id: 'notes-backlinks', title: 'Notes & Bidirectional Backlinks', subtitle: 'Link notes to matters, contacts, properties, and documents', keywords: ['notes', 'backlinks', 'bidirectional', 'link', 'endorsements', 'mention', 'notebook', '[['] },
+        { id: 'draftpro-editor', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
+        { id: 'messaging', title: 'Messaging & Compose', subtitle: 'Conversations, notices, scheduled messages, bulk compose', keywords: ['messaging', 'messages', 'compose', 'whatsapp', 'email', 'notice', 'scheduled', 'ticket', 'conversation', 'inbox', 'resident', 'client', 'team'] },
+        { id: 'admin-guide', title: 'Admin Guide & Settings', subtitle: 'Users, branding, letterhead, templates, portal access', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template', 'portal', 'invite', 'permissions'] },
+        { id: 'research-guide', title: 'Research Studio', subtitle: 'Chronology, legal matrix, gap analysis, audio briefings', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery', 'matrix', 'gap', 'audio', 'briefing'] },
+        { id: 'aldia-analysis', title: 'ALDIA Document Analysis', subtitle: 'Risk scoring, metadata extraction, PII detection', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii', 'ndpa', 'rpc', 'compliance', 'opposing counsel'] },
+        { id: 'litigation-tracking', title: 'Litigation Tracking', subtitle: 'Court process pipeline: Preparation → Filing → Service → Proof', keywords: ['litigation', 'court', 'filing', 'deadline', 'process', 'pipeline', 'service', 'proof', 'court process'] },
+        { id: 'property-management', title: 'Property Management', subtitle: 'Properties, rent, maintenance, leases, service charges', keywords: ['property', 'rent', 'resident', 'lease', 'maintenance', 'service charge', 'unit', 'tenant', 'landlord'] },
+        { id: 'revenue-engine', title: 'Revenue Monitor (Atrium)', subtitle: 'Defaulter dashboard, ledger, automations, rent collection', keywords: ['revenue', 'monitor', 'defaulter', 'ledger', 'rent', 'collection', 'atrium', 'service charge', 'sce', 'automations'] },
+        { id: 'portals', title: 'Client & Resident Portals', subtitle: 'Self-service portal for clients and residents', keywords: ['portal', 'client', 'resident', 'tenant', 'self-service', 'intake', 'access', 'invite', 'password'] },
+        { id: 'trust-accounting', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
+        { id: 'enterprise-jurisdiction', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
+    ], [assistantName]);
 
     // Filter sections based on search query
     const visibleSections = hasSearch
         ? SECTIONS.filter(s =>
             s.title.toLowerCase().includes(normalizedQuery) ||
+            s.subtitle.toLowerCase().includes(normalizedQuery) ||
             s.keywords.some(k => k.includes(normalizedQuery))
         )
         : SECTIONS;
 
-    // True only when the user has typed something AND no sections matched.
-    // This is when we show the "Ask ALOA" fallback offer.
     const noResults = hasSearch && visibleSections.length === 0;
 
     // When searching, all visible sections are open
@@ -104,8 +98,20 @@ const HelpView: React.FC = () => {
     };
 
     const handleSectionToggle = (sectionId: string) => {
-        if (hasSearch) return; // Can't toggle while searching (all open)
+        if (hasSearch) return;
         setActiveSection(activeSection === sectionId ? null : sectionId);
+    };
+
+    // Click a search result to jump to that section
+    const handleResultClick = (sectionId: string) => {
+        setActiveSection(sectionId);
+        setSearchQuery(''); // Clear search so the accordion returns to normal mode
+        setTimeout(() => {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 150);
     };
 
     return (
@@ -145,11 +151,45 @@ const HelpView: React.FC = () => {
                             )}
                         </div>
                     </div>
-                    {/* Search results count — only shows when searching */}
+
+                    {/* Live search results — clickable list of matching articles.
+                        As the user types, matching articles appear as clickable
+                        cards. Clicking one clears the search and scrolls to that
+                        section. This gives immediate visual feedback that the
+                        search is working, and lets users jump directly to the
+                        article they need. */}
                     {hasSearch && !noResults && (
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-2">
-                            {visibleSections.length} article{visibleSections.length !== 1 ? 's' : ''} found
-                        </p>
+                        <div className="max-w-lg mx-auto mt-3 text-left">
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-2 text-center">
+                                {visibleSections.length} article{visibleSections.length !== 1 ? 's' : ''} found — click to open:
+                            </p>
+                            <div className="space-y-1.5 max-h-64 overflow-y-auto custom-scrollbar">
+                                {visibleSections.map(s => (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => handleResultClick(s.id)}
+                                        className="w-full flex items-start gap-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 hover:shadow-sm transition-all text-left group"
+                                    >
+                                        <div className="w-8 h-8 rounded-full bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0 group-hover:bg-primary-100 dark:group-hover:bg-primary-900/40 transition-colors">
+                                            <svg className="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-4.5a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 9.75v4.5m15 0v3a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 17.25v-3m15 0H4.5" />
+                                            </svg>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                                {s.title}
+                                            </p>
+                                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                                                {s.subtitle}
+                                            </p>
+                                        </div>
+                                        <svg className="w-4 h-4 text-slate-300 dark:text-zinc-600 group-hover:text-primary-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     )}
                     {noResults && (
                         <p className="text-xs text-slate-400 dark:text-zinc-500 mt-2">
@@ -188,18 +228,18 @@ const HelpView: React.FC = () => {
                     </button>
 
                     <button
-                        onClick={() => handleCardClick('admin-guide')}
-                        className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl border border-purple-100 dark:border-purple-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
+                        onClick={() => handleCardClick('draftpro-editor')}
+                        className="bg-amber-50 dark:bg-amber-900/20 p-6 rounded-xl border border-amber-100 dark:border-amber-800/50 hover:shadow-lg transition-all text-left group hover:-translate-y-1"
                     >
-                        <div className="w-12 h-12 bg-purple-100 dark:bg-purple-800 rounded-full flex items-center justify-center text-purple-600 dark:text-purple-200 mb-4 group-hover:scale-110 transition-transform">
-                            <OfficeBuildingIcon className="w-6 h-6" />
+                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-800 rounded-full flex items-center justify-center text-amber-600 dark:text-amber-200 mb-4 group-hover:scale-110 transition-transform">
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg>
                         </div>
-                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400">Admin Guide</h3>
-                        <p className="text-sm text-slate-600 dark:text-zinc-400">Manage users, billing settings, and firm-wide configurations securely.</p>
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400">DraftPro</h3>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">AI-powered document editor with watermarks, focus mode, and legal formatting.</p>
                     </button>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8">
+                <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>
                         <AccordionItem
                             id="getting-started"
@@ -210,21 +250,35 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is PracticePro?</h4>
-                                    <p>{isProperty ? 'PracticePro is a Property Management System designed to help property agencies and real estate professionals' : 'PracticePro is a Litigation System designed to help law firms'} manage matters, documents, tasks, billing, and team collaboration — all in one place.</p>
+                                    <p>{isProperty ? 'PracticePro is a Property Management System designed to help property agencies and real estate professionals' : 'PracticePro is a Legal Practice Management System designed to help law firms'} manage matters, documents, tasks, billing, and team collaboration — all in one place.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Three Products in One Platform</h4>
+                                    <p className="mb-2 text-sm">PracticePro supports three product configurations:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li><strong>Atrium</strong> — Property management only (properties, residents, rent, maintenance)</li>
+                                        <li><strong>Vega</strong> — Legal practice only (matters, clients, court processes, document analysis)</li>
+                                        <li><strong>Komplete</strong> — Both property management and legal practice combined</li>
+                                    </ul>
+                                    <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">The app adapts its labels and features based on your product. For example, Atrium firms see "Properties" in the nav, Vega firms see "Matters", and Komplete firms see both.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Modules & How They Connect</h4>
                                     <ul className="list-disc pl-5 space-y-1 marker:text-primary-500">
-                                        <li><strong>Dashboard:</strong> Quick view of active matters, your tasks, upcoming deadlines, and recent firm activity.</li>
-                                        <li><strong>Matters:</strong> {isProperty ? 'Central hub for property details' : 'Central hub for case details'}. Here you can track progress, and view all related documents, tasks, and notes for a specific case.</li>
-                                        <li><strong>Tasks:</strong> Assign, track, and complete {isProperty ? 'property or administrative tasks' : 'legal or administrative tasks'} on a drag-and-drop board.</li>
-                                        <li><strong>Research Studio <span className="text-[9px] px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> An AI-powered workspace for {isProperty ? 'analyzing property documents, generating reports, and preparing management briefs' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
-                                        <li><strong>Calendar:</strong> {isProperty ? 'Track inspections, rent reviews, and meetings' : 'Track court dates, filing deadlines, and client meetings'}. Includes automatic conflict detection.</li>
-                                        <li><strong>Billing:</strong> Record billable time, generate invoices, and manage payments (Admin only in multi-user mode).</li>
+                                        <li><strong>Dashboard:</strong> Quick view of active {isProperty ? 'properties' : 'matters'}, your tasks, upcoming deadlines, and recent activity.</li>
+                                        <li><strong>{isProperty ? 'Properties' : 'Matters'}:</strong> Central hub for {isProperty ? 'property details' : 'case details'}. Track progress, view documents, tasks, notes, and endorsements.</li>
+                                        <li><strong>Contacts:</strong> Universal across all products — manages {hasLegalFeatures ? ' clients, opposing counsel' : ''}{hasPropertyFeatures ? ' landlords, residents, vendors' : ''} and team members.</li>
+                                        <li><strong>Tasks:</strong> Assign, track, and complete tasks on a drag-and-drop board.</li>
+                                        <li><strong>Documents:</strong> Upload, organize, and {hasLegalFeatures ? 'analyze' : 'manage'} documents. Link to {hasLegalFeatures && hasPropertyFeatures ? 'matters or properties' : isProperty ? 'properties' : 'matters'}.</li>
+                                        <li><strong>Research Studio <span className="text-[9px] px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> AI-powered workspace for {isProperty ? 'analyzing property documents and generating reports' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
+                                        <li><strong>Calendar:</strong> {isProperty ? 'Track inspections, rent reviews, and meetings' : 'Track court dates, filing deadlines, and client meetings'}. Includes property events for Komplete firms.</li>
+                                        <li><strong>Messaging:</strong> Unified inbox for team chat, WhatsApp/email from residents, and notices.</li>
+                                        <li><strong>DraftPro:</strong> Built-in document editor with AI drafting, watermarks, and formatting tools.</li>
+                                        <li><strong>Billing:</strong> Record billable time, generate invoices, and manage payments.</li>
                                     </ul>
                                 </div>
-
                             </div>
                         </AccordionItem>
 
@@ -239,12 +293,12 @@ const HelpView: React.FC = () => {
                                     <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
                                     <div>
                                         <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is {assistantName}?</h4>
-                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{isProperty ? ' () is your AI-powered assistant and portfolio manager' : ' () is your AI-powered paralegal and practice manager'}. It drafts documents, checks team schedules, takes dictation notes, and organizes your firm's data.</p>
+                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{assistantName} is your AI-powered {isProperty ? 'assistant and portfolio manager' : 'paralegal and practice manager'}. It drafts documents, checks team schedules, takes dictation notes, and organizes your {isProperty ? 'agency' : 'firm'}'s data.</p>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">Key Administrative Capabilities</h4>
+                                    <h4 className="font-bold text-lg mb-2">Key Capabilities</h4>
                                     <ul className="grid sm:grid-cols-2 gap-4">
                                         <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
                                             <strong className="block mb-1 text-primary-600">Team Scheduling</strong>
@@ -266,23 +320,30 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">The Integrated Note Taker</h4>
-                                    <p className="mb-2">{assistantName} includes a {isProperty ? 'powerful dictation engine for note-taking' : 'powerful dictation engine for legal Note-Taking'} directly within its chat panel.</p>
+                                    <h4 className="font-bold text-lg mb-2">The Integrated Note Taker (Voice Dictation)</h4>
+                                    <p className="mb-2">{assistantName} includes a powerful dictation engine for note-taking directly within its chat panel.</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
-                                        <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts perfectly transcribed into text.</li>
-                                        <li><strong>Quick Save:</strong> Use the "Save to Matter" feature in the generated note to instantly store your typed or dictated memo safely into a Matter's Notebook.</li>
+                                        <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts — speech is transcribed into text automatically.</li>
+                                        <li><strong>Append, Don't Overwrite:</strong> As you speak, transcribed text is appended to your note (not replaced). Keep talking — your words build up naturally.</li>
+                                        <li><strong>Quick Save:</strong> Use the "Save to Matter" feature to instantly store your typed or dictated memo into a Matter's Endorsements tab or a notebook.</li>
                                         <li><strong>Zero Layout Shift:</strong> Open {assistantName} securely over any screen, take your voice notes, and close it without losing your place in the app.</li>
                                     </ul>
+                                    <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Note: Voice dictation requires microphone permission. On the Android app, you'll see a permission dialog the first time you tap the mic. On web, your browser will prompt for mic access.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">{isProperty ? "Portfolio Brain (RAG)" : "Firm-Wide Brain (RAG)"}</h4>
-                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with her, and it will cross-reference your specific uploaded documents to generate accurate results.</p>
+                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with it, and it will cross-reference your specific uploaded documents to generate accurate results.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg mb-2">On-Demand Briefings</h4>
                                     <p className="text-sm">Get an instant snapshot of your practice. Ask {assistantName} "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">File Attachments in Chat</h4>
+                                    <p className="text-sm">You can attach documents, images, and PDFs directly in your chat with {assistantName}. The AI will analyze the attached file and answer questions about its contents. Attachments appear as thumbnails or file chips in the chat.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -339,67 +400,190 @@ const HelpView: React.FC = () => {
                         </AccordionItem>
 
                         <AccordionItem
+                            id="draftpro-editor"
+                            title={
+                                <div className="flex items-center gap-2">
+                                    DraftPro Document Editor
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
+                                </div>
+                            }
+                            isOpen={isSectionOpen('draftpro-editor')}
+                            onToggle={() => handleSectionToggle('draftpro-editor')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is DraftPro?</h4>
+                                    <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a {isProperty ? 'property' : 'matter'}, print, or copy to your preferred word processor.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers with the MS Word-style ribbon toolbar</li>
+                                        <li><strong>AI Drafting:</strong> Use {assistantName} to generate entire documents from a prompt — text streams live onto the page</li>
+                                        <li><strong>AI Redraft:</strong> Regenerate an existing document with improvement instructions. Your previous content is saved automatically and can be restored if the redraft doesn't meet your needs</li>
+                                        <li><strong>Auto-Format:</strong> {!isProperty ? 'Apply Nigerian legal formatting rules (uppercase headings, numbered paragraphs) with one click' : 'Apply formatting rules with one click'}</li>
+                                        <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
+                                        <li><strong>Smart Fill:</strong> Auto-fill all placeholders from matter/property data with one click</li>
+                                        <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'} or save your own</li>
+                                        <li><strong>Watermarks:</strong> Add DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE, or PRIVATE & CONFIDENTIAL watermarks to every page</li>
+                                        <li><strong>Focus Mode:</strong> Press <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">F11</code> to hide the ribbon for distraction-free drafting</li>
+                                        <li><strong>Line Spacing:</strong> Single (1.0), 1.5, or Double (2.0) spacing — applies to the entire document</li>
+                                        <li><strong>Zoom Presets:</strong> Choose from 50%–200% presets, or use <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+=</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+-</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+0</code> keyboard shortcuts</li>
+                                        <li><strong>True Page Pagination:</strong> A4 page sheets with real page breaks, page numbers, and letterhead support</li>
+                                        <li><strong>Letterhead Designer:</strong> Design your firm's letterhead with logo, firm name, and address — appears on every page</li>
+                                        <li><strong>Auto-Save:</strong> Your work is saved automatically as you type</li>
+                                        <li><strong>Export Options:</strong> Print to PDF, or copy to Word/Google Docs with formatting preserved</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Keyboard Shortcuts</h4>
+                                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+S</kbd> Save</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+Enter</kbd> Page Break</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+=</kbd> Zoom In</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+-</kbd> Zoom Out</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+0</kbd> Reset Zoom</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">F11</kbd> Focus Mode</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Esc</kbd> Close Modal</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Use</h4>
+                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
+                                        <li>Click <strong>DraftPro</strong> in the Documents page to open the editor.</li>
+                                        <li>Choose a template or start from scratch.</li>
+                                        <li>Use the ribbon toolbar for formatting, or click <strong>Redraft</strong> in the DraftPro AI group to generate content with AI.</li>
+                                        <li>Fill any placeholder blanks using <strong>Smart Fill</strong> — printing is blocked until they are all resolved.</li>
+                                        <li>Add a watermark (DRAFT, CONFIDENTIAL, etc.) from the File group if needed.</li>
+                                        <li>When finished, save to a {isProperty ? 'property' : 'matter'}, print to PDF, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="messaging"
+                            title="Messaging & Compose"
+                            isOpen={isSectionOpen('messaging')}
+                            onToggle={() => handleSectionToggle('messaging')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Unified Messaging</h4>
+                                    <p className="text-sm mb-2">The Messages page is your unified inbox for all communications:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Conversations:</strong> Two-way chat threads with {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} via the portal</li>
+                                        {hasPropertyFeatures && <li><strong>WhatsApp & Email Inbox:</strong> Inbound messages from residents via WhatsApp and email appear here for response</li>}
+                                        <li><strong>Notices:</strong> Post announcements visible to {hasPropertyFeatures ? 'residents' : 'clients'} on their portal</li>
+                                        <li><strong>Scheduled:</strong> View and manage scheduled/automated messages</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Compose Modal (Bulk Messaging)</h4>
+                                    <p className="text-sm mb-2">The Compose button opens a powerful messaging composer that adapts to your product:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        {hasLegalFeatures && <li><strong>Clients tab:</strong> Send to legal clients (hidden for pure property firms)</li>}
+                                        {hasPropertyFeatures && <li><strong>Residents tab:</strong> Send to residents/tenants (hidden for pure legal firms)</li>}
+                                        <li><strong>Team tab:</strong> Send to internal team members</li>
+                                        <li><strong>Message Templates:</strong> {hasPropertyFeatures ? 'Rent reminders, late notices, payment receipts, lease renewals, maintenance updates' : 'Custom messages, document requests, appointment reminders'}</li>
+                                        <li><strong>Channels:</strong> WhatsApp, Email, or Portal notification</li>
+                                        <li><strong>Bulk Send:</strong> Each recipient gets a personalized message — use "Select All" to message everyone at once</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Role Filter</h4>
+                                    <p className="text-sm">The conversation list has role filter pills that adapt to your product:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        {hasLegalFeatures && <li><strong>Vega/Komplete:</strong> All + Clients (no Residents pill for pure legal firms)</li>}
+                                        {hasPropertyFeatures && <li><strong>Atrium/Komplete:</strong> All + Residents (no Clients pill for pure property firms)</li>}
+                                        {isUnified && <li><strong>Komplete:</strong> All three pills — Clients, Residents, and Team</li>}
+                                    </ul>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
                             id="admin-guide"
                             title="Admin Guide & Settings"
                             isOpen={isSectionOpen('admin-guide')}
                             onToggle={() => handleSectionToggle('admin-guide')}
                         >
                             <div className="space-y-6">
-                                <p className="italic text-slate-500">This section is relevant for users with the 'Admin' role.</p>
-
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">User Management</h4>
-                                    <p className="mb-2">Go to <strong>Settings {'>'} User Management</strong> to invite team members.</p>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li>{isProperty ? <strong>Property Manager:</strong> : <strong>Legal Professional:</strong>} Full access to matters, billing, and documents. Can track CPD hours.</li>
-                                        <li>{isProperty ? <strong>Staff:</strong> : <strong>Paralegal:</strong>} Can manage tasks and documents but has restricted access to firm settings and sensitive billing actions.</li>
-                                        <li><strong>Admin:</strong> Full control over firm settings, users, and billing.</li>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Firm Settings</h4>
+                                    <p className="text-sm">Access via <strong>Settings</strong> in the sidebar. Key sections:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
+                                        <li><strong>Profile:</strong> Your personal preferences and defaults</li>
+                                        <li><strong>Firm Details:</strong> Firm name, address, logo, letterhead designer, AI settings (API key)</li>
+                                        <li><strong>Subscription:</strong> Plan management and billing</li>
+                                        <li><strong>Security:</strong> Two-factor authentication, session management</li>
+                                        <li><strong>Templates:</strong> Document templates and clause library</li>
+                                        <li><strong>Portal Access:</strong> {hasLegalFeatures ? 'Client Portal' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'Resident Portal' : ''} invites and settings</li>
+                                        <li><strong>Agents:</strong> AI agent configuration</li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Firm Branding</h4>
-                                    <p className="mb-2">Go to <strong>Settings {'>'} Firm Details</strong> to customize:</p>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Logo:</strong> Appears on the navigation bar and {isProperty ? "Residents' Portal" : 'client portal'}.</li>
-                                        <li><strong>Letterhead:</strong> Upload your official letterhead image. This will be used as the background for all generated PDFs (Invoices, Receipts).</li>
-                                        <li><strong>Digital Stamp:</strong> Used for digitally signing documents within the app.</li>
-                                    </ul>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Inviting Team Members</h4>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
+                                        <li>Go to Settings → scroll to the Users section</li>
+                                        <li>Click "Add User" — enter their name and email</li>
+                                        <li>Share the invite code with them, or they'll receive an email</li>
+                                        <li>They authenticate using their email and set up a password</li>
+                                        <li>Assign their role: {isProperty ? 'Manager, Staff, or Portfolio Administrator' : 'Lawyer, Paralegal, or Firm Administrator'}</li>
+                                    </ol>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Custom Workflows</h4>
-                                    <p>You can standardize {isProperty ? 'how your team handles property workflows' : 'how your firm handles cases'} by creating Workflows in <strong>Settings {'>'} Templates</strong>. Define custom stages (e.g., "Search", "Drafting", "Execution") for different practice areas like Real Estate or Litigation.</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Letterhead Designer</h4>
+                                    <p className="text-sm">Design your firm's letterhead in Settings → Firm Details → Letterhead. Add your logo, firm name, and address. The letterhead appears on every page when printing from DraftPro.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">AI API Key</h4>
+                                    <p className="text-sm">To use AI features (drafting, analysis, voice dictation), configure your Gemini API key in Settings → Firm Details → AI Settings. You can get a free key from Google AI Studio. The key is stored securely and used for all AI operations across the app.</p>
                                 </div>
                             </div>
                         </AccordionItem>
 
                         <AccordionItem
                             id="research-guide"
-                            title={
-                                <div className="flex items-center gap-2">
-                                    Using the Research Studio
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
-                                </div>
-                            }
+                            title="Research Studio"
                             isOpen={isSectionOpen('research-guide')}
                             onToggle={() => handleSectionToggle('research-guide')}
                         >
                             <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2 flex items-center gap-2">
-                                        Overview
-                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
-                                    </h4>
-                                    <p>The Research Studio is designed to be your digital war room. It allows you to {isProperty ? 'upload documents' : 'upload case files'} (PDFs, Word docs) and use AI to extract insights.</p>
+                                <div className="flex items-start gap-4 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
+                                    <SparklesIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+                                    <div>
+                                        <h4 className="font-bold text-amber-800 dark:text-amber-200">What is Research Studio?</h4>
+                                        <p className="text-amber-700 dark:text-amber-300 text-sm mt-1">{isProperty ? 'An AI-powered workspace for analyzing property documents, generating reports, and preparing management briefs.' : 'An AI-powered workspace for analyzing case files, generating chronologies, and preparing legal arguments.'}</p>
+                                    </div>
                                 </div>
+
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Tools available in the Studio</h4>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Research Notebooks</h4>
+                                    <p className="text-sm">Organize your research into notebooks. Each notebook can contain sources (documents, web pages, case law), analysis, and AI-generated insights.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Chronology Builder:</strong> Automatically extracts dates and events from all uploaded documents to {isProperty ? 'create a property timeline' : 'create a case timeline'}.</li>
-                                        {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format).</li>}
-                                        {!isProperty && <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies.</li>}
-                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go.</li>
+                                        <li><strong>Chronology Builder:</strong> Automatically generate a timeline of events from your documents</li>
+                                        {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format)</li>}
+                                        {!isProperty && <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies</li>}
+                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go</li>
+                                        <li><strong>Source Management:</strong> Upload and organize source documents within each notebook</li>
                                     </ul>
                                 </div>
                             </div>
@@ -436,8 +620,8 @@ const HelpView: React.FC = () => {
                                         <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
                                         <li><strong>Metadata Extraction:</strong> {isProperty ? 'Parties, dates, and key terms' : 'Parties, dates, governing law, jurisdiction'}</li>
                                         <li><strong>{isProperty ? 'Stakeholder Detection' : 'Opposing Counsel Detection'}:</strong> Automatically extracts {isProperty ? 'stakeholder' : 'opposing counsel'} contact information for quick saving</li>
-                                        <li><strong>Data Protection:</strong> Identifies PII and assesses NDPA compliance</li>
-                                        {!isProperty && <li><strong>RPC Guardian:</strong> Ethical compliance check against Nigerian legal rules</li>}
+                                        <li><strong>Data Protection:</strong> Identifies PII and assesses data protection compliance</li>
+                                        {!isProperty && <li><strong>RPC Guardian:</strong> Ethical compliance check against professional conduct rules</li>}
                                     </ul>
                                 </div>
 
@@ -448,7 +632,7 @@ const HelpView: React.FC = () => {
                             </div>
                         </AccordionItem>
 
-                        {!isProperty && <AccordionItem
+                        {hasLegalFeatures && <AccordionItem
                             id="litigation-tracking"
                             title="Litigation Tracking"
                             isOpen={isSectionOpen('litigation-tracking')}
@@ -457,23 +641,23 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Overview</h4>
-                                    <p>Track the status of court processes throughout their lifecycle from drafting to acknowledgment.</p>
+                                    <p>Track the status of court processes throughout their lifecycle from preparation to proof of service.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Document Status Pipeline</h4>
                                     <ul className="space-y-2">
                                         <li className="p-3 border-l-4 border-slate-400 bg-slate-50 dark:bg-slate-800 rounded-r">
-                                            <strong>Draft:</strong> Document is being prepared
+                                            <strong>1. Preparation:</strong> Document is being drafted and prepared
                                         </li>
                                         <li className="p-3 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-r">
-                                            <strong>Filed:</strong> Submitted to court
+                                            <strong>2. Filing:</strong> Document has been filed at court
                                         </li>
                                         <li className="p-3 border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-r">
-                                            <strong>Served:</strong> Delivered to opposing party
+                                            <strong>3. Service:</strong> Document has been served on the opposing party
                                         </li>
                                         <li className="p-3 border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-r">
-                                            <strong>Acknowledged:</strong> Response received
+                                            <strong>4. Proof of Service:</strong> Proof of service has been filed
                                         </li>
                                     </ul>
                                 </div>
@@ -481,16 +665,21 @@ const HelpView: React.FC = () => {
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Track</h4>
                                     <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
-                                        <li>Mark a document as a <strong>Court Process</strong> when creating/editing it.</li>
+                                        <li>Mark a document as a <strong>Court Process</strong> when creating/editing it (toggle in the document form).</li>
                                         <li>Navigate to the document detail view and select the <strong>Litigation Pipeline</strong> tab.</li>
-                                        <li>Click the status buttons to update the document's progress.</li>
+                                        <li>Click the status buttons to update the document's progress through the pipeline.</li>
                                         <li>The visual timeline will update automatically.</li>
                                     </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Filing Deadlines</h4>
+                                    <p className="text-sm">When you mark a document as a court process, the app automatically calculates filing deadlines based on the court's procedural rules. These appear in your Calendar and on the Dashboard.</p>
                                 </div>
                             </div>
                         </AccordionItem>}
 
-                        <AccordionItem
+                        {hasPropertyFeatures && <AccordionItem
                             id="property-management"
                             title="Property Management"
                             isOpen={isSectionOpen('property-management')}
@@ -499,42 +688,49 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Managing Properties</h4>
-                                    <p>Track properties owned by clients or linked to matters including rental properties, disputed land, and properties for sale.</p>
+                                    <p>Track properties owned by clients or linked to matters including rental properties, disputed land, and properties for sale. Each property has units (individual apartments/office spaces) that can be leased to residents.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Property Tracking Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Rent Payment History:</strong> Track rent payments, due dates, and overdue amounts</li>
-                                        <li><strong>Maintenance Records:</strong> Log and track property maintenance issues</li>
+                                        <li><strong>Rent Payment History:</strong> Track rent payments, due dates, and overdue amounts per unit</li>
+                                        <li><strong>Maintenance Records:</strong> Log and track property maintenance issues with status tracking</li>
                                         <li><strong>Lease Expiry Alerts:</strong> Get notified before leases expire</li>
+                                        <li><strong>Service Charge Tracking:</strong> Track service charge equivalent (SCE) costs for maintenance, security, and utilities</li>
                                         <li><strong>Event Timeline:</strong> Visual timeline of all property-related events</li>
+                                        <li><strong>Minimum Vend:</strong> Track minimum electricity purchase requirements per unit</li>
                                     </ul>
                                 </div>
 
                                 <div className="space-y-1">
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Property Automations</h4>
-                                    <p className="mb-2">Set up automatic notifications in <strong>Settings → Automation</strong>:</p>
+                                    <p className="mb-2 text-sm">Set up automatic notifications in <strong>Settings → Automation</strong> or via the Revenue Monitor:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li>Rent due reminders (7 days before)</li>
                                         <li>Lease expiry warnings (60 days before)</li>
                                         <li>Maintenance task auto-creation</li>
-                                        <li>Rent overdue follow-ups</li>
+                                        <li>Rent overdue follow-ups (after grace period)</li>
+                                        <li>Service charge alerts</li>
                                     </ul>
                                 </div>
-                            </div>
-                        </AccordionItem>
 
-                        <AccordionItem
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Document Linking</h4>
+                                    <p className="text-sm">When creating a new document, you can link it to both a matter (legal case) AND a property. For Komplete firms, both dropdowns appear. For pure Atrium firms, only the Property dropdown appears.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>}
+
+                        {hasPropertyFeatures && <AccordionItem
                             id="revenue-engine"
                             title={
                                 <div className="flex items-center gap-2">
                                     Revenue Monitor (Atrium)
-                                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider">High Fidelity</span>
                                 </div>
                             }
-                            isOpen={activeSection === 'revenue-engine'}
-                            onToggle={() => setActiveSection(activeSection === 'revenue-engine' ? null : 'revenue-engine')}
+                            isOpen={isSectionOpen('revenue-engine')}
+                            onToggle={() => handleSectionToggle('revenue-engine')}
                         >
                             <div className="space-y-6">
                                 <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800/30">
@@ -557,7 +753,7 @@ const HelpView: React.FC = () => {
                                     <div className="p-4 border border-slate-200 dark:border-zinc-700 rounded-xl">
                                         <h5 className="font-bold text-slate-900 dark:text-white mb-2">Defaulter Dashboard</h5>
                                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                                            Identify revenue at risk instantly. The dashboard highlights residents who have crossed the 14-day grace period, allowing managers to trigger recovery processes or restriction notices with one click.
+                                            Identify revenue at risk instantly. The dashboard highlights residents who have crossed the grace period, allowing managers to trigger recovery processes or restriction notices with one click.
                                         </p>
                                     </div>
                                 </div>
@@ -583,7 +779,7 @@ const HelpView: React.FC = () => {
                                             <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center text-purple-600 dark:text-purple-400 text-[10px] font-bold shrink-0">03</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">Automated Bridge</strong>
-                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Connect the engine to WhatsApp and SMS. The Atrium Bridge sends rent reminders 7 days before due dates and escalating late notices if the grace period expires.</p>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400">Connect the engine to WhatsApp and SMS. The Atrium Bridge sends rent reminders before due dates and escalating late notices if the grace period expires.</p>
                                             </div>
                                         </div>
                                     </div>
@@ -595,60 +791,93 @@ const HelpView: React.FC = () => {
                                     </p>
                                 </div>
                             </div>
-                        </AccordionItem>
+                        </AccordionItem>}
 
                         <AccordionItem
-                            id="draftpro-editor"
-                            title={
-                                <div className="flex items-center gap-2">
-                                    DraftPro Document Editor
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
-                                </div>
-                            }
-                            isOpen={isSectionOpen('draftpro-editor')}
-                            onToggle={() => handleSectionToggle('draftpro-editor')}
+                            id="portals"
+                            title="Client & Resident Portals"
+                            isOpen={isSectionOpen('portals')}
+                            onToggle={() => handleSectionToggle('portals')}
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is DraftPro?</h4>
-                                    <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a matter, print, or copy to your preferred word processor.</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Self-Service Portals</h4>
+                                    <p className="text-sm">PracticePro includes self-service portals for your {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} to access information and interact with your {isProperty ? 'agency' : 'firm'} without needing to call or email.</p>
+                                </div>
+
+                                {hasLegalFeatures && (
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Client Portal</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Case Tracking:</strong> Clients can view the status of their matters</li>
+                                        <li><strong>Document Access:</strong> View documents shared with them by the firm</li>
+                                        <li><strong>Invoices & Billing:</strong> View and pay invoices online</li>
+                                        <li><strong>Messaging:</strong> Send messages to the firm directly from the portal</li>
+                                        <li><strong>Intake:</strong> New clients can complete intake forms online</li>
+                                    </ul>
+                                </div>
+                                )}
+
+                                {hasPropertyFeatures && (
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Resident Portal</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Rent Status:</strong> View rent balance, payment history, and due dates</li>
+                                        <li><strong>Maintenance Requests:</strong> Submit and track maintenance tickets</li>
+                                        <li><strong>Notices:</strong> View notices posted by the property manager</li>
+                                        <li><strong>Lease Information:</strong> View lease terms and expiry dates</li>
+                                        <li><strong>Messaging:</strong> Send messages to the property manager</li>
+                                    </ul>
+                                </div>
+                                )}
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Inviting Portal Users</h4>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
+                                        <li>Go to Settings → Portal Access</li>
+                                        <li>Choose {hasLegalFeatures && hasPropertyFeatures ? 'Client Portal or Resident Portal' : hasLegalFeatures ? 'Client Portal' : 'Resident Portal'}</li>
+                                        <li>Enter the person's email and select their {hasLegalFeatures ? 'matter' : 'unit'}</li>
+                                        <li>They'll receive an invitation email with a link to set up their password</li>
+                                        <li>Once they log in, they can access the portal at your firm's PracticePro URL</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        {hasLegalFeatures && <AccordionItem
+                            id="trust-accounting"
+                            title="Trust Accounting"
+                            isOpen={isSectionOpen('trust-accounting')}
+                            onToggle={() => handleSectionToggle('trust-accounting')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Trust Ledger</h4>
+                                    <p className="text-sm">Track client funds held in trust with a dedicated trust accounting ledger. Available as a tab within the Matter detail view (Financials section).</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Trust Transactions</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers</li>
-                                        <li><strong>AI Drafting:</strong> Use {assistantName} to generate document sections</li>
-                                        <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
-                                        <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'}</li>
-                                        <li><strong>Auto-Save:</strong> Your work is saved automatically</li>
-                                        <li><strong>Export Options:</strong> Save to matters, print, or copy to Word or Google Docs with formatting preserved</li>
+                                        <li><strong>Deposits:</strong> Record client money received into the trust account</li>
+                                        <li><strong>Withdrawals:</strong> Record disbursements from trust (e.g., paying counsel fees)</li>
+                                        <li><strong>Transfers:</strong> Transfer funds from trust to operating account</li>
+                                        <li><strong>Running Balance:</strong> Real-time trust balance per matter</li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Use</h4>
-                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
-                                        <li>Click <strong>Draft</strong> in the navigation to open DraftPro.</li>
-                                        <li>Choose a template or start from scratch.</li>
-                                        <li>Use the toolbar for formatting or click "Ask {assistantName}" to generate content.</li>
-                                        <li>Fill any placeholder blanks — printing is blocked until they are all resolved.</li>
-                                        <li>When finished, save to a matter, print, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
-                                    </ol>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Enabling Trust Accounting</h4>
+                                    <p className="text-sm">Trust accounting can be toggled on/off in Settings → Firm Details. When enabled, a Trust tab appears in each matter's Financials section.</p>
                                 </div>
                             </div>
-                        </AccordionItem>
-                        {!isProperty && <AccordionItem
+                        </AccordionItem>}
+
+                        {hasLegalFeatures && <AccordionItem
                             id="enterprise-jurisdiction"
                             title={
                                 <div className="flex items-center gap-2">
                                     Enterprise Jurisdiction & Intake
-                                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/30 text-[9px] text-emerald-700 dark:text-emerald-400 font-bold uppercase tracking-wider">New</span>
                                 </div>
                             }
                             isOpen={isSectionOpen('enterprise-jurisdiction')}
@@ -657,31 +886,31 @@ const HelpView: React.FC = () => {
                             <div className="space-y-6">
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Procedural Intelligence</h4>
-                                    <p>The Matter Intake Wizard is powered by an enterprise procedural intelligence engine. Entering a specific Court Jurisdiction and Legal Action combination dynamically checks statutory rules.</p>
+                                    <p>The Matter Intake Wizard is powered by a procedural intelligence engine. Entering a specific Court Jurisdiction and Legal Action combination dynamically checks statutory rules and provides hints.</p>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Granular Party Representation</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Specific Clients:</strong> When checking into a matter with multiple Claimants or Defendants, you can now granularly select which specific parties your firm represents via the checkboxes.</li>
+                                        <li><strong>Specific Clients:</strong> When checking into a matter with multiple Claimants or Defendants, you can granularly select which specific parties your firm represents via the checkboxes.</li>
                                         <li><strong>Representative Capacity:</strong> Mark parties as suing or defending in a representative capacity (e.g. as liquidator or executor).</li>
                                     </ul>
                                 </div>
 
                                 <div>
                                     <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{assistantName} Hints & Checklists</h4>
-                                    <p className="text-sm">During intake, {assistantName} will offer inline hints (e.g., verifying if the State High Court is proper given the selected territory, or warning about required pre-action notices for certain parties).</p>
+                                    <p className="text-sm">During intake, {assistantName} will offer inline hints (e.g., verifying if the selected court is proper given the territory, or warning about required pre-action notices for certain parties).</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Jurisdiction Configuration</h4>
+                                    <p className="text-sm">The procedural rules engine is designed to be jurisdiction-adaptive. While it currently ships with rules for Nigerian courts, the system can be adapted to other jurisdictions by updating the procedural rules configuration. This ensures the app works across different legal systems without code changes.</p>
                                 </div>
                             </div>
                         </AccordionItem>}
                     </Accordion>
 
-                    {/* No results → ALOA fallback offer
-                        Only shown when the user has searched and found nothing.
-                        The ALOA button has a distinct AI-search aesthetic:
-                        gradient border, sparkle icon, and explanatory text
-                        making it clear this is an AI-powered help search,
-                        not a documentation search. */}
+                    {/* No results → ALOA fallback offer */}
                     {noResults && (
                         <div className="mt-8 max-w-lg mx-auto">
                             <div className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700 p-8 text-center">
@@ -695,7 +924,6 @@ const HelpView: React.FC = () => {
                                     Try different keywords, or ask {assistantName} for personalized help.
                                 </p>
                             </div>
-                            {/* AI Help Search card — distinct aesthetic */}
                             <button
                                 onClick={handleAskAloa}
                                 disabled={isAskingAloa}
