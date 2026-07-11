@@ -79,6 +79,17 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
     } else if (currentUser && isDataLoaded && appState?.firmDetails) {
       // Fall back to firm's saved product setting
       rawProduct = (appState.firmDetails as any).product || "unified";
+
+      // SAFETY NET: If the firm's subscription plan is Komplete or Enterprise,
+      // force the product to 'unified' regardless of what firmDetails.product says.
+      // These plans ALWAYS include both legal and property features.
+      // This fixes the bug where a firm on Komplete plan had product='vega'
+      // (set during signup) and couldn't see Properties — with no way to fix it
+      // since the Product Type selector was removed from settings.
+      const plan = (appState.firmDetails as any).subscriptionPlan;
+      if (plan === 'Komplete' || plan === 'Enterprise') {
+        rawProduct = 'unified';
+      }
     } else if (currentUser?.product) {
       // Portal users may not have firmDetails loaded (firm data queries are skipped for them),
       // so fall back to the user's own product field (set during portal invite acceptance)
@@ -88,7 +99,14 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       else rawProduct = userProduct;
     }
 
-    const aliases: Record<string, ProductType> = { sentry: 'atrium', property: 'atrium', legal: 'vega' };
+    // Aliases — map legacy/alternate product names to canonical ones.
+    // 'komplete' is included in case the backend ever stores it literally.
+    const aliases: Record<string, ProductType> = {
+      sentry: 'atrium',
+      property: 'atrium',
+      legal: 'vega',
+      komplete: 'unified',
+    };
     const product = (aliases[rawProduct] ?? rawProduct) as ProductType;
 
     // Derive boolean flags — clear, non-overlapping
