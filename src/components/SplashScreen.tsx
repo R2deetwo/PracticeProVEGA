@@ -18,12 +18,15 @@ interface SplashScreenProps {
 /**
  * SplashScreen — cinematic brand reveal.
  *
- * SIMPLIFIED TWO-PHASE ANIMATION (per user request):
+ * THREE-PHASE ANIMATION:
  *   1. EMERGENCE (600ms) — black logo fades in on dark background
- *   2. GREEN     (500ms) — logo morphs directly to brand green
- *   3. EXIT      (400ms) — clean fade-out
+ *   2. AMBER     (600ms) — logo morphs to amber (loading signal)
+ *   3. GREEN     (500ms) — logo morphs to brand green + "Ready" text appears
+ *   4. EXIT      (400ms) — clean fade-out
  *
- * No amber. No intermediate color. Black → Green. Done.
+ * The bottom status text shows "Initializing...", "Welcome back", etc.
+ * but is HIDDEN once the green "Ready" phase begins — so "Ready" only
+ * appears once (in green, next to the logo), not twice.
  */
 const SplashScreen: React.FC<SplashScreenProps> = ({
     isVisible,
@@ -32,6 +35,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     onForceEnter,
     onComplete
 }) => {
+    const [phase, setPhase] = useState<'emergence' | 'amber' | 'green'>('emergence');
     const [isActuallyMounted, setIsActuallyMounted] = useState(isVisible);
 
     const logoControls = useAnimation();
@@ -52,6 +56,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
     const orchestrateSequence = async () => {
         // ── PHASE 1: EMERGENCE (600ms) — Black logo fades in ──────────
+        setPhase('emergence');
         await logoControls.start({
             opacity: [0, 1],
             scale: [0.85, 1.0],
@@ -61,10 +66,23 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         });
 
         // Brief hold on black
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        // ── PHASE 2: GREEN (500ms) — Morph directly to brand green ────
-        // No amber. Black goes straight to green.
+        // ── PHASE 2: AMBER (600ms) — Loading signal ───────────────────
+        setPhase('amber');
+        logoControls.start({
+            color: '#EAB308',
+            filter: 'drop-shadow(0 0 25px rgba(234,179,8,0.25))',
+            transition: { duration: 0.6, ease: [0.65, 0, 0.35, 1] }
+        });
+
+        // Hold amber so the color registers
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // ── PHASE 3: GREEN (500ms) — Brand green + "Ready" ────────────
+        setPhase('green');
+
+        // Animate logo to green
         await logoControls.start({
             color: 'rgb(22, 163, 74)', // emerald-600 — brand green
             filter: 'drop-shadow(0 0 35px rgba(22,163,74,0.4))',
@@ -74,7 +92,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             }
         });
 
-        // Show "Ready" text in green
+        // Show "Ready" text in green (next to logo)
         await textControls.start({
             opacity: [0, 1],
             y: [8, 0],
@@ -102,6 +120,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     };
 
     if (!isActuallyMounted) return null;
+
+    // Once we're in the green phase, the "Ready" text near the logo is
+    // showing. Hide the bottom status text so "Ready" doesn't appear twice.
+    const showBottomStatus = isVisible && phase !== 'green';
 
     return (
         <motion.div
@@ -132,6 +154,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                         initial={{ opacity: 0 }}
                         style={{
                             color: 'rgb(22, 163, 74)',
+                            display: phase === 'green' ? 'block' : 'none',
                         }}
                     >
                         Ready
@@ -139,8 +162,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
                 </div>
             </div>
 
-            {/* Status Feedback */}
-            {isVisible && (
+            {/* Status Feedback — hidden once green "Ready" appears */}
+            {showBottomStatus && (
                 <div className="absolute bottom-20 flex flex-col items-center gap-4 px-10">
                     <motion.p
                         className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700"
