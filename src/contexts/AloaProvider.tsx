@@ -150,8 +150,10 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         restoredRef.current = true;
         try {
             const session = loadGlobalAloaSession();
-            // Only restore if the session is recent (< 1 hour old)
-            if (session && Date.now() - session.lastMessageAt < 60 * 60 * 1000) {
+            // Restore if the session is recent (< 24 hours old).
+            // Previously was 1 hour which was too short — users lost their
+            // conversation history if they navigated away for more than an hour.
+            if (session && Date.now() - session.lastMessageAt < 24 * 60 * 60 * 1000) {
                 setActiveConversationId(session.conversationId);
             }
         } catch { /* ignore */ }

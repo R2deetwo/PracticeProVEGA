@@ -63,10 +63,10 @@ const DocumentRow: React.FC<{
     return (
         <div
             onClick={() => onViewDetails(doc.id)}
-            className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
+            className="flex items-start gap-2 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
         >
-            <div className="flex items-center gap-3 min-w-0 flex-grow pr-2">
-                <div className="relative flex-shrink-0">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className="relative flex-shrink-0 mt-0.5">
                     {getFileIcon(fileName, fileType)}
                     {uploadedByClient && (
                         <div className="absolute -top-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-0.5 shadow-sm">
@@ -79,11 +79,11 @@ const DocumentRow: React.FC<{
                         </div>
                     )}
                 </div>
-                <div className="min-w-0 flex-grow">
+                <div className="min-w-0 flex-1 overflow-hidden">
                     <Tooltip text={doc.title}>
                         <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
                     </Tooltip>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2">
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
                         <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
                         {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                         {doc.isCourtProcess && (
@@ -101,8 +101,9 @@ const DocumentRow: React.FC<{
                 </div>
             </div>
 
-            {/* Action buttons — always visible (not hover-only) so they work on touch devices */}
-            <div className="flex items-center gap-0.5 flex-shrink-0">
+            {/* Action buttons — flex-shrink-0 ensures they never get squeezed.
+                On very narrow screens they wrap below the title instead of overlapping. */}
+            <div className="flex items-center gap-0.5 flex-shrink-0 flex-wrap justify-end">
                 <Tooltip text="View">
                     <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
                         <EyeIcon className="w-4 h-4" />
