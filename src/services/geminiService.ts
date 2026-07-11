@@ -286,11 +286,12 @@ export const sendMessage = async (
         ? `\n\n## RESEARCH MODE ACTIVE
 You are operating in RESEARCH MODE. Apply these rules:
 1. MULTI-STEP REASONING: Break down complex queries into sequential analytical steps. Think through each step before responding.
-2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction. If the query crosses jurisdictions you are not certain about, explicitly state: "The following analysis is based on [jurisdiction] legal frameworks. Verify with local counsel for [other jurisdiction]."
+2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction. ADD A CAVEAT (do not refuse) — say "The following analysis is based on [jurisdiction] legal frameworks. Verify with local counsel for jurisdiction-specific requirements." Then proceed to help.
 3. CITATION REQUIRED: When making legal assertions, cite relevant authorities (case law, statutes, rules). Use inline references like [1], [2] and list sources at the end.
 4. NO HALLUCINATION: If you are not certain about a statute, case, or rule, explicitly say "I am not certain about this — please verify" rather than fabricating.
 5. DEPTH OVER SPEED: Take time to provide thorough, structured analysis. Avoid superficial summaries when the user needs depth.
-6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested. If the user asks about a specific provision, analyze THAT provision in detail.`
+6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested. If the user asks about a specific provision, analyze THAT provision in detail.
+7. ALWAYS HELP: Never refuse to assist with a legal question because of jurisdiction. Provide your best analysis with a caveat instead.`
         : '';
 
     const preferredModelName =
@@ -509,11 +510,12 @@ export const streamMessage = async (
         ? `\n\n## RESEARCH MODE ACTIVE
 You are operating in RESEARCH MODE. Apply these rules:
 1. MULTI-STEP REASONING: Break down complex queries into sequential analytical steps.
-2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction.
+2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction. ADD A CAVEAT (do not refuse) and proceed to help.
 3. CITATION REQUIRED: When making legal assertions, cite relevant authorities using inline references [1], [2].
 4. NO HALLUCINATION: If uncertain, explicitly say "I am not certain — please verify."
 5. DEPTH OVER SPEED: Provide thorough, structured analysis.
-6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested.`
+6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested.
+7. ALWAYS HELP: Never refuse to assist with a legal question because of jurisdiction. Provide your best analysis with a caveat instead.`
         : '';
 
     const preferredModelName =
