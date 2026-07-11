@@ -1405,9 +1405,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 </div>
             ) : (
                 <>
-                    <div className="flex-1 flex overflow-hidden">
+                    <div className="flex-1 flex overflow-hidden relative">
                      {showHistory && (
-                        <aside className="w-80 border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-slate-50/30 dark:bg-zinc-900/30 animate-in slide-in-from-left duration-300">
+                        <aside className={`absolute inset-0 z-20 sm:relative sm:inset-auto sm:w-64 sm:flex-shrink-0 border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 ${isMobile ? 'shadow-2xl' : ''}`}>
                         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 space-y-2">
                             <button
                                 onClick={() => {
@@ -1523,7 +1523,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             }
                         }
                     }}
-                    className={`flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white dark:bg-zinc-950 transition-all ${isMobile && showHistory ? 'opacity-40 blur-sm pointer-events-none' : ''}`}
+                    className={`flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white dark:bg-zinc-950 transition-all min-w-0`}
                 >
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8">
