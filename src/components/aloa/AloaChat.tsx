@@ -19,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
+import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
 import JurisdictionReasoning from './JurisdictionReasoning';
 import { 
@@ -169,8 +170,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     // Load messages for active conversation
     useEffect(() => {
-        if (!activeConversationId) return;
-        if (isGeneratingRef.current && messages.length > 0) return; // Prevent over-writing optimistic UI during first message
+        if (!activeConversationId) {
+            // No active conversation — clear messages so the empty state shows
+            setMessages([]);
+            return;
+        }
+        // Don't reload if we're actively generating (optimistic UI)
+        if (isGeneratingRef.current && messages.length > 0) return;
 
         const loadMessages = async () => {
             setIsLoading(true);
@@ -860,6 +866,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 title: title
                             });
                             setActiveConversationId(currentConvId);
+                            // Persist the new conversation ID immediately so
+                            // it survives page reloads (the AloaProvider's
+                            // session persistence uses this).
+                            try {
+                                saveAloaSession('global', {
+                                    conversationId: currentConvId,
+                                    lastMessageAt: Date.now(),
+                                });
+                            } catch { /* ignore */ }
                         }
                         void saveMessageMutation({
                             conversationId: currentConvId!,
@@ -1430,6 +1445,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </div>
                             <button
                                 onClick={() => {
+                                    // "New Search" — clears the current conversation
+                                    // and starts fresh. The previous conversation
+                                    // is NOT deleted — it remains in the History list
+                                    // and can be reopened at any time.
                                     setActiveConversationId(null);
                                     setMessages([]);
                                     setShowHistory(false);
