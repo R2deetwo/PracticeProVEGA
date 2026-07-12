@@ -1446,6 +1446,7 @@ ${sourceList}
                                     author: currentUser?.name || 'PracticePro',
                                     firmName: appState?.firmDetails?.name || '',
                                 });
+                                addToast('Document exported as DOCX.', { type: 'success' });
                                 } catch (e) {
                                     console.error('[DraftPro] getHTML failed on DOCX export:', e);
                                     addToast('Could not export — document has an internal error.', { type: 'error' });
@@ -1453,6 +1454,31 @@ ${sourceList}
                             }}
                             size="lg"
                             disabled={!editor}
+                        />
+                        {/* PDF Export — opens the print dialog where the user
+                            can "Save as PDF". This is the most reliable way
+                            to generate a PDF in the browser without requiring
+                            heavy libraries like jsPDF or pdfmake. */}
+                        <ToolbarBtn
+                            icon={DownloadIcon}
+                            label="PDF"
+                            onClick={() => {
+                                if (!editor) return;
+                                // Check for unfilled placeholders first
+                                let hasPlaceholders = false;
+                                editor.state.doc.descendants((node) => {
+                                    if (node.type.name === 'legalPlaceholder') hasPlaceholders = true;
+                                });
+                                if (hasPlaceholders) {
+                                    addToast('Cannot export: Please fill all placeholders first.', { type: 'error' });
+                                    setActiveModal('fill_placeholders');
+                                    return;
+                                }
+                                addToast('Opening print dialog — select "Save as PDF" to export.', { type: 'info' });
+                                setTimeout(() => window.print(), 500);
+                            }}
+                            size="lg"
+                            disabled={!editor || isDrafting}
                         />
                         <ToolbarBtn
                             icon={PageBreakIcon}

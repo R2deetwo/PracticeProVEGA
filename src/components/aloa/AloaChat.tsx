@@ -2005,11 +2005,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         } else if (action.type === 'draft') {
             // ─── Open existing draft in a NEW TAB ────────────────────────
             //
-            // This is called from a button click — which IS a user gesture.
-            // So window.open() should work without being blocked.
+            // KEY PRINCIPLES:
+            // 1. "Open Item" ALWAYS opens in a NEW TAB on desktop
+            // 2. If a draft already exists (stored in localStorage), open THAT —
+            //    NEVER create a new draft
+            // 3. If no draft exists, re-draft using the original prompt
             //
-            // KEY PRINCIPLE: "Open Item" should ALWAYS open in a new tab
-            // on desktop. If no draft exists, re-draft directly.
+            // This is called from a button click — which IS a user gesture —
+            // so window.open() should work. If the popup blocker catches it,
+            // we tell the user to allow popups (we do NOT silently open in-place).
             const cfg = action.config || {};
             try {
                 const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
@@ -2021,56 +2025,90 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     });
                     const editorUrl = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`;
 
-                    // On desktop, ALWAYS open in a new tab.
-                    // This is a user gesture (button click), so window.open
-                    // should work. We try multiple strategies:
-                    // 1. openDraftInTab (uses window.open with full URL)
-                    // 2. Direct window.open(url, '_blank')
-                    // 3. Fall back to in-place only if both fail
+                    // ─── Check if we have stored content ────────────────
+                    const stored = loadDraftSession(fid, key);
+                    const hasStoredContent = stored?.content && stored.content.trim().length > 0;
+
+                    // ─── On desktop, ALWAYS open in a new tab ───────────
                     if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-                        // Strategy 1: openDraftInTab
+                        // Save the draft content to localStorage FIRST so the
+                        // new tab can load it. If we have stored content,
+                        // make sure it's saved. If not, we'll re-draft.
+                        if (!hasStoredContent) {
+                            // No stored content — save the prompt so the new
+                            // tab auto-drafts with the original prompt
+                            import('../../utils/draftSession').then(({ saveDraftSession }) => {
+                                saveDraftSession(fid, key, {
+                                    title: cfg.draftTitle,
+                                    content: '', // empty — will auto-draft
+                                    draftPrompt: cfg.draftPrompt || cfg.draftTitle,
+                                    matterId: cfg.matterId,
+                                    updatedAt: new Date().toISOString(),
+                                    savedAt: Date.now(),
+                                });
+                            });
+                        }
+
+                        // Try to open in a new tab.
+                        // This is a user gesture (button click), so window.open
+                        // should work. If it returns null, the popup was blocked.
+                        let openedNewTab = false;
+
+                        // Strategy 1: openDraftInTab (handles dedup + registry)
                         const result = openDraftInTab({
                             key,
                             url: editorUrl,
                             title: cfg.draftTitle,
                         });
-                        if (result !== 'in-place') return;
-
-                        // Strategy 2: Direct window.open
-                        try {
-                            const win = window.open(editorUrl, '_blank');
-                            if (win && !win.closed) {
-                                win.focus();
-                                return;
-                            }
-                        } catch {
-                            // continue to fallback
+                        if (result === 'new-tab' || result === 'existing-tab') {
+                            openedNewTab = true;
                         }
 
-                        // If we get here, popup was blocked.
-                        // Show a toast AND open in-place as fallback.
-                        addToast(`Pop-up blocked — opening in this tab instead. Allow pop-ups for this site to open drafts in a new tab.`, { type: 'info' });
+                        // Strategy 2: Direct window.open (if Strategy 1 fell back to in-place)
+                        if (!openedNewTab) {
+                            try {
+                                const win = window.open(editorUrl, '_blank');
+                                if (win && !win.closed) {
+                                    win.focus();
+                                    openedNewTab = true;
+                                }
+                            } catch {
+                                // continue to fallback
+                            }
+                        }
+
+                        if (openedNewTab) {
+                            // Success — draft opened in a new tab
+                            if (hasStoredContent) {
+                                addToast(`Opened "${cfg.draftTitle}" in a new tab.`, { type: 'success' });
+                            } else {
+                                addToast(`Drafting "${cfg.draftTitle}" in a new tab…`, { type: 'info' });
+                            }
+                            return;
+                        }
+
+                        // Popup was blocked — tell the user, do NOT silently open in-place
+                        addToast(`Pop-up blocked! Please allow pop-ups for this site to open drafts in a new tab. (Click the pop-up icon in your address bar → Allow)`, { type: 'error' });
+                        return;
                     }
 
-                    // Check if we have stored content
-                    const stored = loadDraftSession(fid, key);
-                    if (stored?.content && stored.content.trim().length > 0) {
+                    // ─── Mobile: open in-place ──────────────────────────
+                    if (hasStoredContent) {
                         openEditorRef.current(null, {
                             ...cfg,
                             draftContent: stored.content,
                             disableAutoDraft: true,
                             draftPrompt: undefined,
                         });
-                        return;
+                    } else {
+                        // No stored content → re-draft directly
+                        addToast(`Re-opening "${cfg.draftTitle}" in DraftPro…`, { type: 'info' });
+                        openEditorRef.current(null, {
+                            ...cfg,
+                            draftPrompt: cfg.draftPrompt || cfg.draftTitle,
+                            disableAutoDraft: false,
+                        });
                     }
-
-                    // No stored content → re-draft directly
-                    addToast(`Re-opening "${cfg.draftTitle}" in DraftPro…`, { type: 'info' });
-                    openEditorRef.current(null, {
-                        ...cfg,
-                        draftPrompt: cfg.draftPrompt || cfg.draftTitle,
-                        disableAutoDraft: false,
-                    });
                     return;
                 }
             } catch (e) {

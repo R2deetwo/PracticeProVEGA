@@ -138,8 +138,10 @@ export function openDraftInTab(opts: {
     return 'new-tab';
   }
 
-  // Pop-up blocked — fall back to in-place navigation
-  window.location.href = opts.url;
+  // Pop-up blocked — return 'in-place' so the caller can decide what to do.
+  // We do NOT navigate in-place here because that would replace the current
+  // tab (the ALOA chat). The caller (executeStoredAction) handles this by
+  // showing an error toast telling the user to allow pop-ups.
   return 'in-place';
 }
 
