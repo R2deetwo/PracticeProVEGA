@@ -700,10 +700,6 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             setIsSaved(false);
 
             // SAFETY NET: Snapshot the current document HTML before wiping.
-            // If the AI fails or returns garbage, the user can restore their
-            // previous work via a toast button. Previously, Redraft destroyed
-            // the document with no undo path — a misclick could lose hours
-            // of manual edits.
             const preDraftHtml = editor.getHTML();
             const preDraftTitle = title;
 
@@ -712,7 +708,6 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             editor.setEditable(false);
 
             // Buffer for the final cleanup pass (placeholder conversion, etc.)
-            // but we ALSO stream into the editor live so the user sees progress.
             let draftBuffer = '';
             let lastStreamUpdate = 0;
 
@@ -720,23 +715,26 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             const abortController = new AbortController();
             (window as any).stopDrafting = () => abortController.abort();
 
-            // Clear editor content — canvas stays white, overlay indicator shows on top
-            editor.commands.setContent('<p></p>');
+            // Clear editor content — canvas stays white
+            try {
+                editor.commands.setContent('<p></p>');
+            } catch (e) {
+                console.error('[DraftPro] setContent failed on clear:', e);
+            }
+
+            // Track if this effect has been cleaned up — prevents calling
+            // editor methods on a destroyed editor instance.
+            let isCancelled = false;
 
             aiService.streamDraft(
                 [{ role: 'user', content: activeDraftPrompt }],
                 { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
+                    if (isCancelled || !editor || editor.isDestroyed) return;
                     draftBuffer += chunk;
-                    // Stream text directly into the editor so the user sees it
-                    // appear in real-time on the white page. We throttle updates
-                    // to ~4 per second to avoid ProseMirror thrashing.
                     const now = Date.now();
                     if (now - lastStreamUpdate > 250) {
                         lastStreamUpdate = now;
-                        // Show the raw streaming text (no placeholder conversion yet —
-                        // that happens in the final pass to avoid mid-stream flicker
-                        // as partial [LABEL] tokens are completed).
                         let preview = draftBuffer
                             .replace(/```html/g, '')
                             .replace(/```/g, '')
@@ -744,17 +742,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             .replace(/\r/g, '');
                         preview = preview.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
                         if (preview.trim()) {
-                            editor.commands.setContent(preview);
+                            try {
+                                editor.commands.setContent(preview);
+                            } catch (e) {
+                                console.error('[DraftPro] setContent failed during stream:', e);
+                            }
                         }
                     }
                 },
                 abortController.signal
             ).then(() => {
+                if (isCancelled || !editor || editor.isDestroyed) return;
                 setIsDrafting(false);
-                editor?.setEditable(true); // Re-enable editing
+                editor.setEditable(true);
                 const trimmedBuffer = draftBuffer.trim();
                 if (editor && trimmedBuffer) {
-                    // Final cleanup pass — convert [LABEL] tokens to color-coded placeholders
                     let cleanDraft = trimmedBuffer
                         .replace(/```html/g, '')
                         .replace(/```/g, '')
@@ -768,33 +770,37 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
                     });
 
-                    editor.commands.setContent(processedDraft);
+                    try {
+                        editor.commands.setContent(processedDraft);
+                    } catch (e) {
+                        console.error('[DraftPro] setContent failed on final:', e);
+                    }
                     addToast('Drafting complete', { type: 'success' });
 
                     persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                 } else {
                     const currentContent = editor?.getHTML() || '';
                     if (currentContent === '<p></p>' || !currentContent) {
-                        editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
-                        // Offer restore of the pre-draft content
-                        addToast('Drafting returned empty. Restore your previous work?', {
-                            type: 'info',
-                            action: { label: 'Restore', onClick: () => { editor?.commands.setContent(preDraftHtml); setTitle(preDraftTitle); } },
-                            duration: 15000,
-                        } as any);
+                        try {
+                            editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
+                        } catch (e) {
+                            console.error('[DraftPro] setContent failed on empty:', e);
+                        }
+                        addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
                     }
                 }
             }).catch(e => {
+                if (isCancelled) return;
                 console.error("Drafting error:", e);
                 setIsDrafting(false);
-                editor?.setEditable(true); // Re-enable editing even on error
+                if (editor && !editor.isDestroyed) {
+                    editor.setEditable(true);
+                }
                 if (e.name === 'AbortError') {
                     addToast('Drafting cancelled.', { type: 'info' });
-                    // Keep whatever was streamed so far — don't wipe it
                 } else {
                     const trimmedBuffer = draftBuffer.trim();
-                    if (editor && trimmedBuffer) {
-                        // We have content despite the error — finalize it
+                    if (editor && !editor.isDestroyed && trimmedBuffer) {
                         let cleanDraft = trimmedBuffer
                             .replace(/```html/g, '')
                             .replace(/```/g, '')
@@ -805,19 +811,26 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             const cat = resolveCategory(label);
                             return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
                         });
-                        editor.commands.setContent(processedDraft);
+                        try {
+                            editor.commands.setContent(processedDraft);
+                        } catch (err) {
+                            console.error('[DraftPro] setContent failed on error recovery:', err);
+                        }
                         addToast('Draft completed (with minor stream error).', { type: 'success' });
                         persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                     } else {
-                        // Complete failure — offer to restore the pre-draft content
-                        addToast(`Drafting failed: ${e.message}. Restore your previous work?`, {
-                            type: 'error',
-                            action: { label: 'Restore', onClick: () => { editor?.commands.setContent(preDraftHtml); setTitle(preDraftTitle); } },
-                            duration: 30000,
-                        } as any);
+                        addToast(`Drafting failed: ${e.message}`, { type: 'error' });
                     }
                 }
             });
+
+            return () => {
+                isCancelled = true;
+                abortController.abort();
+                if (editor && !editor.isDestroyed) {
+                    editor.setEditable(true);
+                }
+            };
         }
     }, [editor, activeDraftPrompt, appState]);
 
