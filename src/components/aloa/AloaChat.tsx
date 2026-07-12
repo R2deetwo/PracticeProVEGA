@@ -213,6 +213,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         // Open a blank tab WITHIN the user gesture — this is the critical
         // call that must happen synchronously (no await before it).
+        // Use a real same-origin URL instead of 'about:blank' because
+        // some browsers block about:blank popups even in user gestures.
         const tabName = `draftpro-armed-${Date.now()}`;
         const win = window.open('about:blank', tabName);
         if (win) {
@@ -500,24 +502,69 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                                 const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}&prompt=${encodeURIComponent(draftConfig.draftPrompt || '')}`;
 
-                                // FIRST: try to navigate the armed tab (pre-opened
-                                // in handleSend). This is the popup-safe path.
-                                const armed = navigateArmedDraftTab(url);
-                                if (armed) {
-                                    // Register in the tab registry for future dedup
-                                    openDraftInTab({
-                                        key: draftKey,
-                                        url,
-                                        title: draftConfig.draftTitle,
-                                    });
+                                // ─── Try to open DraftPro in a new tab ──────────
+                                // Three strategies, in order of preference:
+                                //
+                                // 1. Navigate the armed tab (pre-opened in
+                                //    handleSend's user gesture). This is the
+                                //    popup-safe path that should always work.
+                                //
+                                // 2. If no armed tab (popup was blocked at
+                                //    arm time, or keyword detection missed),
+                                //    try window.open(url, '_blank') directly.
+                                //    This MIGHT work if the user has granted
+                                //    popup permission for the site.
+                                //
+                                // 3. If that's also blocked, fall back to
+                                //    in-place navigation. The user can still
+                                //    click "Open in new tab" from DraftPro's
+                                //    toolbar, or use the "Open Item" button
+                                //    in the chat (which IS a user gesture).
+                                let openedInNewTab = false;
+
+                                // Strategy 1: Navigate the armed tab
+                                openedInNewTab = navigateArmedDraftTab(url);
+
+                                // Strategy 2: Try window.open directly
+                                if (!openedInNewTab) {
+                                    try {
+                                        const win = window.open(url, '_blank');
+                                        if (win && !win.closed) {
+                                            win.focus();
+                                            openedInNewTab = true;
+                                        }
+                                    } catch {
+                                        // window.open threw — continue to fallback
+                                    }
+                                }
+
+                                if (openedInNewTab) {
+                                    // Register in the tab registry so future
+                                    // "Open Item" clicks can focus this tab.
+                                    // We write directly to the registry instead
+                                    // of calling openDraftInTab (which would
+                                    // open ANOTHER tab — a duplicate).
+                                    try {
+                                        const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-')}`;
+                                        const regKey = 'practicepro:draft-tabs:registry';
+                                        const raw = localStorage.getItem(regKey);
+                                        const reg = raw ? JSON.parse(raw) : {};
+                                        reg[draftKey] = {
+                                            key: draftKey,
+                                            tabName,
+                                            url,
+                                            title: draftConfig.draftTitle,
+                                            lastHeartbeat: Date.now(),
+                                        };
+                                        localStorage.setItem(regKey, JSON.stringify(reg));
+                                    } catch {
+                                        // localStorage might be unavailable — ignore
+                                    }
                                     feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                                 } else {
-                                    // No armed tab available — popup was blocked
-                                    // at arm time, or the user's message didn't
-                                    // trigger the draft-keyword detector.
-                                    // Fall back to in-place navigation.
+                                    // Strategy 3: Fall back to in-place navigation
                                     openEditorRef.current(null, draftConfig);
-                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in the editor. (Pop-ups were blocked — allow pop-ups to open drafts in a new tab.)`;
+                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in the editor. (Allow pop-ups for this site to open drafts in a new tab.)`;
                                 }
                             } else {
                                 openEditorRef.current(null, draftConfig);
