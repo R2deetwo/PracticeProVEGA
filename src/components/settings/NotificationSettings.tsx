@@ -52,7 +52,7 @@ export const NotificationSettings: React.FC = () => {
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
-  const { isProperty, isLegal } = useProduct();
+  const { isProperty, isLegal, hasPropertyFeatures } = useProduct();
   const { onUpdateUser } = useDataActions();
 
   const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
@@ -245,8 +245,11 @@ export const NotificationSettings: React.FC = () => {
       {Object.entries(NOTIFICATION_TYPES).map(([category, types]) => {
         const meta = CATEGORY_META[category];
         if (!meta) return null;
-        // Hide irrelevant categories based on product
-        if (category === 'property' && !isProperty) return null;
+        // Hide irrelevant categories based on product.
+        // IMPORTANT: use hasPropertyFeatures (not isProperty) so Komplete
+        // firms keep their property notification settings. isProperty is
+        // only for the assistant name (ARIA vs ALOA).
+        if (category === 'property' && !hasPropertyFeatures) return null;
         if (category === 'legal' && !isLegal) return null;
 
         return (

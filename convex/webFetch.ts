@@ -193,3 +193,151 @@ export const fetchUrlContent = action({
     }
   },
 });
+
+/**
+ * Web Search — server-side Convex action that searches the web for current
+ * information and returns a list of result snippets with URLs.
+ *
+ * Used by ALOA's `search_web` tool so the AI can actively look up fresh
+ * information (recent laws, news, current data) rather than relying on
+ * its training data alone.
+ *
+ * Implementation: uses DuckDuckGo's HTML search endpoint (no API key
+ * required, no rate limits for reasonable usage). We fetch the HTML
+ * results page and parse out the result titles, URLs, and snippets.
+ */
+export const searchWeb = action({
+  args: {
+    query: v.string(),
+  },
+  handler: async (_ctx, args) => {
+    const { query } = args;
+
+    if (!query || query.trim().length === 0) {
+      return {
+        success: false,
+        error: "EMPTY_QUERY",
+        message: "Search query cannot be empty.",
+      };
+    }
+
+    try {
+      // DuckDuckGo HTML endpoint — no API key required.
+      // We add &kl=ng-en to bias toward Nigerian English results but
+      // still include international results when relevant.
+      const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=ng-en`;
+
+      const response = await fetch(searchUrl, {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(15000),
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: "SEARCH_HTTP_ERROR",
+          message: `Search engine returned HTTP ${response.status}.`,
+        };
+      }
+
+      const html = await response.text();
+      const results: Array<{
+        title: string;
+        url: string;
+        snippet: string;
+      }> = [];
+
+      // Parse DuckDuckGo HTML results.
+      // DDG wraps result links in <a class="result__a" href="...">Title</a>
+      // and snippets in <a class="result__snippet" ...>Snippet text</a>.
+      // We use regex to extract these. This is intentionally resilient to
+      // minor markup changes — if parsing fails, we return whatever we got.
+      const linkRegex = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+      const snippetRegex = /<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
+
+      const links: Array<{ url: string; title: string }> = [];
+      let linkMatch: RegExpExecArray | null;
+      while ((linkMatch = linkRegex.exec(html)) !== null) {
+        const rawUrl = linkMatch[1];
+        const rawTitle = linkMatch[2]
+          .replace(/<[^>]+>/g, "")
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim();
+        // DDG wraps URLs in a redirect like //duckduckgo.com/l/?uddg=<encoded>
+        let cleanUrl = rawUrl;
+        try {
+          if (rawUrl.includes("uddg=")) {
+            const uddgMatch = rawUrl.match(/uddg=([^&]+)/);
+            if (uddgMatch) {
+              cleanUrl = decodeURIComponent(uddgMatch[1]);
+            }
+          }
+          // Some DDG URLs start with // (protocol-relative)
+          if (cleanUrl.startsWith("//")) {
+            cleanUrl = "https:" + cleanUrl;
+          }
+          // Validate
+          new URL(cleanUrl);
+        } catch {
+          // Skip invalid URLs
+          continue;
+        }
+        if (rawTitle && cleanUrl) {
+          links.push({ url: cleanUrl, title: rawTitle });
+        }
+      }
+
+      const snippets: string[] = [];
+      let snippetMatch: RegExpExecArray | null;
+      while ((snippetMatch = snippetRegex.exec(html)) !== null) {
+        const snippet = snippetMatch[1]
+          .replace(/<[^>]+>/g, "")
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .trim();
+        if (snippet) snippets.push(snippet);
+      }
+
+      // Combine links and snippets
+      for (let i = 0; i < links.length && i < 8; i++) {
+        results.push({
+          title: links[i].title,
+          url: links[i].url,
+          snippet: snippets[i] || "",
+        });
+      }
+
+      return {
+        success: true,
+        query,
+        results,
+      };
+    } catch (err: any) {
+      if (err.name === "TimeoutError" || err.name === "AbortError") {
+        return {
+          success: false,
+          error: "TIMEOUT",
+          message: "The search took too long. Please try again.",
+        };
+      }
+      return {
+        success: false,
+        error: "SEARCH_ERROR",
+        message: `Web search failed: ${err.message || "Unknown error"}`,
+      };
+    }
+  },
+});

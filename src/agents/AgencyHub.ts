@@ -287,6 +287,7 @@ Proactively mention these if they relate to the user's current query or context.
     3.  **Drafting**: Use \`start_drafting\` for documents.
     4.  **Specialized Research**: Use \`search_legal_repo\` for ${isAtriumMode ? 'property regulations and portfolio documents' : 'Nigerian locus classicus and statutes'}.
     5.  **Data Recall**: Use \`query_firm_data\` and \`analyze_document\`.
+    6.  **Live Web Search**: Use \`search_web\` to look up CURRENT information online — recent laws, news, current data, or anything that may be newer than your training data. Use \`fetch_web_page\` to read a specific URL in depth (either one the user provides, or a promising result from \`search_web\`). ALWAYS use these tools when the user asks you to "look up", "search online", "find on the web", or "google" something — do NOT answer from your training data when fresh info is requested.
 
     ## OPERATIONAL GUIDELINES:
     - **PROACTIVE STRATEGY**: Don't just answer; suggest next steps. (e.g., "I've drafted the Writ; should I now create a task for service?")

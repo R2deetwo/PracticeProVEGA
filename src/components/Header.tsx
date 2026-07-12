@@ -39,7 +39,7 @@ const Header: React.FC = React.memo(() => {
     const { clientMessages } = matterState;
     const chatMessages: any[] = []; // chat messages loaded per-conversation in MessagesView
     const permissions = usePermissions();
-    const { isProperty } = useProduct();
+    const { isProperty, hasPropertyFeatures } = useProduct();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
     const notificationsRef = useRef<HTMLDivElement>(null);
@@ -50,9 +50,11 @@ const Header: React.FC = React.memo(() => {
         () => (sessionStorage.getItem('practicepro_demo_product') as 'vega' | 'atrium') || 'vega'
     );
 
-    // Fetch inbound tenant messages for notification bell (Atrium/Property only)
+    // Fetch inbound tenant messages for notification bell.
+    // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
+    // also get resident messages. isProperty is only for the assistant name.
     const headerFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, isProperty && headerFirmId ? { firmId: headerFirmId } : 'skip') || [];
+    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, hasPropertyFeatures && headerFirmId ? { firmId: headerFirmId } : 'skip') || [];
 
     const rawUserName = currentUser?.name || currentUser?.email?.split('@')[0] || 'User';
     const displayUserName = isProperty ? rawUserName.replace(/Lawyer/g, 'Manager').replace(/Attorney/g, 'Agent') : rawUserName;

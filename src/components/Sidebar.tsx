@@ -195,7 +195,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const counts = {
         updatedMatters: (matterState.clientMessages || []).filter(m => !m.isRead && m.authorId !== currentUser.id).length,
         tasks: (executionState.tasks || []).filter(t => t && t.assignedUsers && t.assignedUsers.includes(currentUser.id) && t.status !== 'done').length,
-        messages: chatNotificationCount + (isProperty ? inboundUnread + portalUnread : 0),
+        // Use hasPropertyFeatures (not isProperty) so Komplete firms also
+        // see unread resident/portal messages in the badge count.
+        messages: chatNotificationCount + (hasPropertyFeatures ? inboundUnread + portalUnread : 0),
     };
 
     const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;

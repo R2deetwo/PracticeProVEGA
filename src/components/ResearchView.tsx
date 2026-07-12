@@ -15,16 +15,17 @@ import { ResearchStudio } from './research/ResearchStudio';
 import LawReportsView from './research/LawReportsView';
 import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
-import { ChevronRightIcon, LockClosedIcon } from '../constants';
+import { ChevronRightIcon, LockClosedIcon, ResearchIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
 
 const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 dark:text-zinc-500 p-8">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-20 h-20 text-slate-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 2H20v15H6.5A2.5 2.5 0 0 1 4 14.5v-10A2.5 2.5 0 0 1 6.5 2z" />
-        </svg>
-        <h3 className="mt-4 text-lg font-semibold text-slate-600 dark:text-zinc-300">PracticePro Research</h3>
+        {/* Use the SAME ResearchIcon that appears in the sidebar navigation
+            so the page is visually consistent with its entry point. */}
+        <div className="w-20 h-20 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center mb-4">
+            <ResearchIcon className="w-12 h-12 text-primary-500 dark:text-primary-400" />
+        </div>
+        <h3 className="mt-2 text-lg font-semibold text-slate-600 dark:text-zinc-300">PracticePro Research</h3>
         <p className="mt-2 text-sm max-w-sm">Create a notebook to organise your case sources and run AI-powered legal analysis.</p>
         <button
             onClick={onClick}
@@ -255,8 +256,19 @@ const ResearchView: React.FC = () => {
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900">
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
-                <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Research</h2>
-                <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex gap-1 border border-slate-200 dark:border-zinc-700">
+                {/* Page header: same ResearchIcon as the sidebar nav, paired
+                    with the "Research" title and "PracticePro Research" subtitle
+                    so the page identity matches its navigation entry point. */}
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center flex-shrink-0">
+                        <ResearchIcon className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+                    </div>
+                    <div className="min-w-0">
+                        <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Research</h2>
+                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 -mt-0.5 truncate">PracticePro Research</p>
+                    </div>
+                </div>
+                <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0">
                     {tabDef.map(tab => (
                         <button
                             key={tab.id}

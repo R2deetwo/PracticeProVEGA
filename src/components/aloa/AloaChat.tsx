@@ -544,6 +544,80 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     ? `Search encountered an issue. I can still help with general property guidance.`
                                     : `Legal search encountered an issue. I can still help with general legal guidance.`;
                         }
+                    } else if (name === 'search_web') {
+                        // ── LIVE WEB SEARCH ──────────────────────────────────
+                        // The AI actively searches the web for current information.
+                        // This is DIFFERENT from the reactive URL-fetching above
+                        // (which only triggers when the user pastes a URL).
+                        // search_web lets the AI decide on its own that it needs
+                        // fresh info, then formulate a search query.
+                        const { query } = args;
+                        feedbackMessage = `Searching the web for "${query}"…`;
+                        try {
+                            // Use the Convex web search action to get fresh results.
+                            // Falls back to a simple URL-list if the action is unavailable.
+                            let webResults: any[] = [];
+                            try {
+                                const searchRes = await convex.action(api.webFetch.searchWeb, { query });
+                                if (searchRes.success && searchRes.results) {
+                                    webResults = searchRes.results;
+                                }
+                            } catch (searchErr) {
+                                console.warn('[search_web] convex action failed:', searchErr);
+                            }
+
+                            toolOutput = {
+                                results: webResults,
+                                note: webResults.length === 0
+                                    ? 'Web search returned no results. The user may need to provide more specific keywords.'
+                                    : undefined,
+                            };
+
+                            actionData = {
+                                type: 'web_search',
+                                query,
+                                results: webResults,
+                                label: webResults.length > 0 ? 'View Web Results' : undefined,
+                            };
+
+                            feedbackMessage = webResults.length > 0
+                                ? `I found ${webResults.length} web result(s) for "${query}". Reading the most relevant ones now…`
+                                : `I couldn't find web results for "${query}". Could you refine the search or share a specific URL?`;
+                        } catch (err: any) {
+                            toolOutput = { error: err.message };
+                            feedbackMessage = `Web search encountered an issue: ${err.message}. I'll answer from my training data instead.`;
+                        }
+                    } else if (name === 'fetch_web_page') {
+                        // ── FETCH + READ A SPECIFIC WEB PAGE ─────────────────
+                        // Used after search_web to read a result in depth, OR
+                        // when the user provides a URL and wants ALOA to
+                        // actually READ the page (not just show a preview).
+                        const { url } = args;
+                        feedbackMessage = `Reading ${url}…`;
+                        try {
+                            const result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                            if (result.success && result.content) {
+                                toolOutput = {
+                                    success: true,
+                                    url: result.url,
+                                    title: result.title,
+                                    description: result.description,
+                                    content: result.content,
+                                    contentType: result.contentType,
+                                };
+                                feedbackMessage = `I've read "${result.title}". Analyzing the content now…`;
+                            } else {
+                                toolOutput = {
+                                    success: false,
+                                    error: result.error || 'FETCH_FAILED',
+                                    message: result.message || 'Could not fetch the page.',
+                                };
+                                feedbackMessage = `I couldn't read that page: ${result.message || 'unknown error'}. You can paste the text directly if you have it.`;
+                            }
+                        } catch (err: any) {
+                            toolOutput = { error: err.message };
+                            feedbackMessage = `Failed to fetch the page: ${err.message}. Please try again or paste the text directly.`;
+                        }
                     }
                 }
 

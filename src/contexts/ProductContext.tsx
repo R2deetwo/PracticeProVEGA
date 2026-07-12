@@ -80,14 +80,29 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       // Fall back to firm's saved product setting
       rawProduct = (appState.firmDetails as any).product || "unified";
 
-      // SAFETY NET: If the firm's subscription plan is Komplete or Enterprise,
-      // force the product to 'unified' regardless of what firmDetails.product says.
+      // ─── SAFETY NET (Komplete/Enterprise plan enforcement) ──────────────
+      // If the firm's subscription plan is Komplete or Enterprise, force
+      // the product to 'unified' regardless of what firmDetails.product says.
       // These plans ALWAYS include both legal and property features.
-      // This fixes the bug where a firm on Komplete plan had product='vega'
-      // (set during signup) and couldn't see Properties — with no way to fix it
-      // since the Product Type selector was removed from settings.
+      //
+      // WHY THIS EXISTS: A firm on Komplete plan might have product='vega'
+      // (set during signup before the plan was upgraded). Without this check,
+      // they'd lose access to Properties, Units, Resident messages, etc.
+      //
+      // WHY IT'S CRITICAL: The user has reported property features disappearing
+      // from Komplete firms multiple times. This safety net is the LAST line
+      // of defense. If you're tempted to remove or weaken it, DON'T.
+      // Instead, fix the upstream bug that's setting the wrong product value.
       const plan = (appState.firmDetails as any).subscriptionPlan;
-      if (plan === 'Komplete' || plan === 'Enterprise') {
+      const planStr = typeof plan === 'string' ? plan.toLowerCase() : '';
+      if (
+        planStr === 'komplete' ||
+        planStr === 'enterprise' ||
+        // Also catch the case where product is explicitly 'komplete' even if
+        // the plan field is missing — some legacy firms store it this way.
+        (appState.firmDetails as any).product === 'komplete' ||
+        (appState.firmDetails as any).product === 'unified'
+      ) {
         rawProduct = 'unified';
       }
     } else if (currentUser?.product) {

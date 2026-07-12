@@ -228,6 +228,29 @@ export const tools: FunctionDeclaration[] = [
             },
             required: ["query"]
         }
+    },
+    {
+        name: "search_web",
+        description: "Searches the live web for current information. Use this when the user asks about recent events, current laws, news, or any information that may be newer than your training data. Also use when the user asks you to 'look up', 'search', 'find online', or 'google' something. Returns a list of result snippets with URLs.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                query: { type: Type.STRING, description: "The search query" },
+                jurisdiction: { type: Type.STRING, description: "Optional jurisdiction hint (e.g. 'Nigeria', 'United States', 'UK') to bias results" }
+            },
+            required: ["query"]
+        }
+    },
+    {
+        name: "fetch_web_page",
+        description: "Fetches and reads the full content of a specific web page URL. Use this AFTER search_web to read a promising result in depth, or when the user provides a URL directly. Returns the page's main text content (up to 50k chars), title, and description.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                url: { type: Type.STRING, description: "The full URL to fetch (must include http:// or https://)" }
+            },
+            required: ["url"]
+        }
     }
 ];
 
