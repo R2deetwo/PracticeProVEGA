@@ -834,7 +834,16 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         addToast('Draft completed (with minor stream error).', { type: 'success' });
                         persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
                     } else {
-                        addToast(`Drafting failed: ${e.message}`, { type: 'error' });
+                        // Drafting failed with no content — show error message
+                        // in the editor and a toast. The key fix: ensure
+                        // isDrafting is ALWAYS set to false here so the
+                        // "Preparing your document..." overlay disappears.
+                        try {
+                            editor?.commands.setContent(`<p style="color:#ef4444; text-align:center; padding:24px;"><i>Drafting failed: ${e.message || 'Unknown error'}. Check your AI API key in Settings → AI Settings.</i></p>`);
+                        } catch (err) {
+                            console.error('[DraftPro] setContent failed on error display:', err);
+                        }
+                        addToast(`Drafting failed: ${e.message}. Check your AI API key in Settings → AI Settings.`, { type: 'error' });
                     }
                 }
             });

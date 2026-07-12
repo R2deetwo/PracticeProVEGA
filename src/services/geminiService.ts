@@ -708,7 +708,14 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     const modelsToTry = AI_CONFIG.gemini.fallbackPlan;
     let lastError = null;
 
-    const clientKey = getGeminiApiKey();
+    // Use firm-level key if available, fall back to client-side key.
+    // Previously streamDraft only used getGeminiApiKey() which checks
+    // localStorage and VITE_GEMINI_API_KEY — but NOT the firm's
+    // aiSettings.firmGeminiApiKey. This caused drafting to fail with
+    // "No Gemini API key found" when the user had set their key in
+    // Settings → AI Settings (which stores it on the firm record).
+    const firmKey = context.appState?.firmDetails?.aiSettings?.firmGeminiApiKey;
+    const clientKey = firmKey || getGeminiApiKey();
     if (!clientKey) {
         throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
     }
