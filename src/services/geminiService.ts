@@ -126,12 +126,25 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "start_drafting",
-        description: "Starts drafting a document in the Law Editor. Use this when the user asks to write, draft, or create a document.",
+        description: "Starts drafting a document in the Law Editor. Use this when the user asks to write, draft, or create a document. In research mode, pass the citations array so they appear in the draft.",
         parameters: {
             type: Type.OBJECT,
             properties: {
                 title: { type: Type.STRING, description: "Title of the document" },
-                prompt: { type: Type.STRING, description: "Detailed instructions for the drafting agent" }
+                prompt: { type: Type.STRING, description: "Detailed instructions for the drafting agent" },
+                citations: {
+                    type: Type.ARRAY,
+                    description: "Citations to include in the draft (research mode). Pass the same citations you used in your response.",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: { type: Type.STRING, enum: ["case", "statute", "regulation", "journal", "book", "web", "other"], description: "Type of citation" },
+                            text: { type: Type.STRING, description: "Full citation text (e.g., 'Adekunle v. State (1989) 5 NWLR (Pt. 123) 456')" },
+                            url: { type: Type.STRING, description: "Source URL if available" },
+                            jurisdiction: { type: Type.STRING, description: "Country/region (e.g., 'Nigeria', 'UK', 'US')" }
+                        }
+                    }
+                }
             },
             required: ["prompt"]
         }
@@ -310,11 +323,40 @@ export const sendMessage = async (
 You are operating in RESEARCH MODE. Apply these rules:
 1. MULTI-STEP REASONING: Break down complex queries into sequential analytical steps. Think through each step before responding.
 2. JURISDICTION DETECTION: Before answering any legal question, identify the governing jurisdiction. ADD A CAVEAT (do not refuse) — say "The following analysis is based on [jurisdiction] legal frameworks. Verify with local counsel for jurisdiction-specific requirements." Then proceed to help.
-3. CITATION REQUIRED: When making legal assertions, cite relevant authorities (case law, statutes, rules). Use inline references like [1], [2] and list sources at the end.
+3. CITATION REQUIRED: When making legal assertions, cite relevant authorities (case law, statutes, rules). Use inline markers like [1], [2] in the body text.
 4. NO HALLUCINATION: If you are not certain about a statute, case, or rule, explicitly say "I am not certain about this — please verify" rather than fabricating.
 5. DEPTH OVER SPEED: Take time to provide thorough, structured analysis. Avoid superficial summaries when the user needs depth.
 6. ANTI-LAZINESS: Do not provide generic overviews when specific analysis is requested. If the user asks about a specific provision, analyze THAT provision in detail.
-7. ALWAYS HELP: Never refuse to assist with a legal question because of jurisdiction. Provide your best analysis with a caveat instead.`
+7. ALWAYS HELP: Never refuse to assist with a legal question because of jurisdiction. Provide your best analysis with a caveat instead.
+
+## CITATION PROTOCOL (MANDATORY IN RESEARCH MODE)
+When making legal assertions, you MUST cite relevant authorities using inline markers.
+
+FORMAT:
+1. Use [1], [2], [3] etc. as inline citation markers in the body text
+2. At the END of your response, include a "## Sources" block listing each source
+
+SOURCE LINE FORMAT (use the pipe-separated structure):
+[1] | type | citation text | url | jurisdiction
+
+Where:
+- type is one of: case, statute, regulation, journal, book, web, other
+- citation text is the full citation (e.g., "Adekunle v. State (1989) 5 NWLR (Pt. 123) 456")
+- url is the source URL (if available, otherwise leave empty)
+- jurisdiction is the country/region (e.g., "Nigeria", "UK", "US")
+
+EXAMPLE:
+In the landmark case of Adekunle v. State [1], the Supreme Court held that...
+Section 36 of the Constitution [2] guarantees the right to fair hearing...
+
+## Sources
+[1] | case | Adekunle v. State (1989) 5 NWLR (Pt. 123) 456 | | Nigeria
+[2] | statute | Constitution of the Federal Republic of Nigeria 1999 (as amended), s. 36 | | Nigeria
+
+IMPORTANT:
+- Only cite REAL cases and statutes that you are confident exist
+- If you are unsure of a citation, do NOT include it — uncited assertions are better than false citations
+- When calling start_drafting, pass the citations array so they appear in the draft`
         : '';
 
     const preferredModelName =

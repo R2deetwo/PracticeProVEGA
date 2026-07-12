@@ -141,6 +141,7 @@ export const WordProcessor: React.FC = () => {
                     disableAloaAutoOpen={disableAutoDraft || !currentHistoryEntry?.context?.autoStartDrafting}
                     onBack={goBack}
                     linkedMatterId={linkedMatterId}
+                    citations={currentHistoryEntry?.context?.citations}
                 />
             </div>
         </div>

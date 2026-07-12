@@ -19,6 +19,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { handleCleanCopy } from '../../utils/copyUtils';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
+import { CitationRegistry } from '../../utils/citationRegistry';
+import { parseAIResponseForCitations } from '../../utils/citationParser';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
@@ -149,6 +151,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [expandedErrorIds, setExpandedErrorIds] = useState<Set<string>>(new Set());
     const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatScrollRef = useRef<HTMLElement>(null);
+    const [showScrollButtons, setShowScrollButtons] = useState(false);
+    const [isAtBottom, setIsAtBottom] = useState(true);
 
     // Refs for callbacks
     const liveSessionRef = useRef<any>(null);
@@ -157,6 +162,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const nextStartTimeRef = useRef<number>(0);
     const isGeneratingRef = useRef<boolean>(false);
     const aiQueueRef = useRef(getGlobalAIQueue());
+
+    // ─── Citation Registry (per-conversation) ────────────────────────────
+    // Populated when ALOA responds in research mode with [1], [2] markers
+    // and a "## Sources" block. When the user sends the content to DraftPro,
+    // the citations travel with it so they appear in the draft.
+    const citationRegistryRef = useRef<CitationRegistry>(new CitationRegistry());
+
     const [pendingQueueCount, setPendingQueueCount] = useState(0);
 
     const openModalRef = useRef(openModal);
@@ -288,6 +300,28 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isLoading]);
+
+    // ─── Scroll-to-top and scroll-to-bottom ──────────────────────────────
+    // Track scroll position to show/hide the floating buttons. When the
+    // user is at the top, show "scroll to bottom". When at the bottom,
+    // show "scroll to top". When in the middle, show both.
+    const handleChatScroll = () => {
+        const el = chatScrollRef.current;
+        if (!el) return;
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        const distanceFromTop = scrollTop;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        setIsAtBottom(distanceFromBottom < 50);
+        setShowScrollButtons(distanceFromTop > 200 || distanceFromBottom > 200);
+    };
+
+    const scrollToTop = () => {
+        chatScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     // Load messages for active conversation
     useEffect(() => {
@@ -453,11 +487,34 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         isTerminal = true;
 
                     } else if (name === 'start_drafting') {
-                        const draftConfig = {
+                        const draftConfig: any = {
                             openedByAloa: true,
                             draftTitle: args.title || 'New Draft',
-                            draftPrompt: args.prompt
+                            draftPrompt: args.prompt,
                         };
+
+                        // ─── Attach citations (research mode) ────────────────
+                        // If the AI passed a citations array in the tool call,
+                        // add them to the registry and attach to the draft.
+                        // Also include any citations from earlier in the
+                        // conversation (the registry accumulates across
+                        // messages within the same conversation).
+                        if (args.citations && Array.isArray(args.citations) && args.citations.length > 0) {
+                            for (const cite of args.citations) {
+                                citationRegistryRef.current.add({
+                                    type: cite.type || 'other',
+                                    text: cite.text || '',
+                                    rawText: cite.text || '',
+                                    url: cite.url,
+                                    jurisdiction: cite.jurisdiction,
+                                });
+                            }
+                        }
+                        // Always attach the current registry state to the draft
+                        const citationsPayload = citationRegistryRef.current.toJSON();
+                        if (citationsPayload.citations.length > 0) {
+                            draftConfig.citations = citationsPayload;
+                        }
 
                         // ─── Jurisdictional Reasoning ─────────────────────────────
                         // Compute the jurisdictional analysis before drafting so we can
@@ -1321,14 +1378,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     if (currentResponse.text && currentResponse.text.trim()) {
                         const validatedText = validateAIResponse(currentResponse.text, isProperty);
-                        const parsedForm = tryParseInteractiveForm(validatedText);
+
+                        // ─── Parse citations (research mode) ─────────────────
+                        // If in research mode, parse the AI response for [1], [2]
+                        // markers and a "## Sources" block. Populate the
+                        // citation registry so citations travel with the
+                        // content when sent to DraftPro.
+                        let displayText = validatedText;
+                        let messageCitations: any = undefined;
+                        if (effectiveModel === 'research') {
+                            const parsed = parseAIResponseForCitations(validatedText, citationRegistryRef.current);
+                            if (parsed.hasSources) {
+                                displayText = parsed.displayText;
+                                messageCitations = citationRegistryRef.current.toJSON();
+                            }
+                        }
+
+                        const parsedForm = tryParseInteractiveForm(displayText);
                         const modelMsg: AloaMessage = {
                             id: streamMsgId,
                             role: 'model',
-                            content: parsedForm ? '' : validatedText,
+                            content: parsedForm ? '' : displayText,
                             interactiveForm: parsedForm ?? undefined,
-                            modelUsed: currentResponse.modelUsed
-                        };
+                            modelUsed: currentResponse.modelUsed,
+                            // Attach citations to the message so they can be
+                            // rendered in the chat and passed to DraftPro
+                            ...(messageCitations ? { citations: messageCitations } : {}),
+                        } as any;
                         setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
 
                         // ─── Handle the armed draft tab ──────────────────────
@@ -1514,20 +1590,26 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // send that content to DraftPro for proper editing. This converts the
     // ALOA markdown to HTML and opens the editor with the content pre-loaded
     // and auto-draft DISABLED (so the user keeps the exact content).
-    const handleDraftInDraftPro = (content: string) => {
+    const handleDraftInDraftPro = (content: string, msgCitations?: any) => {
         const title = extractDocumentTitle(content);
         const html = aloaContentToDraftHtml(content);
 
         // Build the draft config — pass the content as draftContent so
         // DraftPro loads it directly. disableAutoDraft=true so it doesn't
         // re-generate (the AI already wrote the content).
-        const draftConfig = {
+        const draftConfig: any = {
             openedByAloa: true,
             draftTitle: title,
             draftContent: html,
             disableAutoDraft: true,
             draftPrompt: undefined,
         };
+
+        // Attach citations if available (from the message or the registry)
+        const citationsToAttach = msgCitations || citationRegistryRef.current.toJSON();
+        if (citationsToAttach && citationsToAttach.citations && citationsToAttach.citations.length > 0) {
+            draftConfig.citations = citationsToAttach;
+        }
 
         // Save to localStorage first so the draft persists
         const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
@@ -1981,6 +2063,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     </aside>
 
                 <main
+                    ref={chatScrollRef as any}
+                    onScroll={handleChatScroll}
                     onClick={(e) => {
                         if (isMobile && showHistory) {
                             setShowHistory(false);
@@ -2202,7 +2286,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             and all DraftPro features — without re-generating. */}
                                         {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && isFormalDocument(msg.content) && (
                                             <button
-                                                onClick={() => handleDraftInDraftPro(msg.content || '')}
+                                                onClick={() => handleDraftInDraftPro(msg.content || '', (msg as any).citations)}
                                                 className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"
                                                 title="Send this document to DraftPro for proper editing"
                                             >
@@ -2280,6 +2364,39 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
                     <div ref={messagesEndRef} />
                 </main>
+
+                {/* ─── Floating Scroll Buttons ───────────────────────────
+                    Like Z.ai — a "scroll to top" button when the user has
+                    scrolled down, and a "scroll to bottom" button when
+                    they've scrolled up. Both show when in the middle. */}
+                {showScrollButtons && (
+                    <div className="absolute bottom-24 right-4 flex flex-col gap-2 z-30">
+                        {/* Scroll to top */}
+                        <button
+                            onClick={scrollToTop}
+                            className="w-9 h-9 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full shadow-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center group"
+                            title="Scroll to top"
+                            aria-label="Scroll to top"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                            </svg>
+                        </button>
+                        {/* Scroll to bottom — only show when not at bottom */}
+                        {!isAtBottom && (
+                            <button
+                                onClick={scrollToBottom}
+                                className="w-9 h-9 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all flex items-center justify-center"
+                                title="Scroll to bottom"
+                                aria-label="Scroll to bottom"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <footer className="flex-shrink-0 p-4 sm:p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">

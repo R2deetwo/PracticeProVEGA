@@ -50,6 +50,8 @@ import { getAssistantName } from '../../../utils/assistantIdentity';
 import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
+import Citation from './extensions/Citation';
+import { CitationRegistry } from '../../../utils/citationRegistry';
 import { FontSize } from './extensions/FontSize';
 import { LineHeight } from './extensions/LineHeight';
 import { exportHtmlToDocx } from '../../../utils/docxExport';
@@ -413,6 +415,10 @@ export interface DraftProEditorProps {
     disableAloaAutoOpen?: boolean;
     onBack?: () => void;
     linkedMatterId?: string;
+    /** Citations from ALOA research mode. When present, the editor
+     *  displays a Sources panel and passes the citations to the drafting
+     *  AI so it can cite them inline. */
+    citations?: { citations: any[] };
 }
 
 export type DocumentEditorProps = DraftProEditorProps;
@@ -427,6 +433,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     onContentChange,
     onBack,
     linkedMatterId,
+    citations,
 }) => {
     const { addToast } = useUI();
     const { appState } = useDataState();
@@ -496,6 +503,19 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
+
+    // ─── Citation Registry ──────────────────────────────────────────────
+    // Hydrated from the `citations` prop (passed from ALOA when sending
+    // content from research mode to DraftPro). When the drafting AI runs,
+    // the source list is prepended to the prompt so the AI can cite them
+    // inline as [1], [2], etc.
+    const [citationRegistry] = useState<CitationRegistry>(() => {
+        if (citations && citations.citations && citations.citations.length > 0) {
+            return CitationRegistry.fromJSON(citations as any);
+        }
+        return new CitationRegistry();
+    });
+    const [showCitationPanel, setShowCitationPanel] = useState(false);
 
     // ─── AI Feature Pulse ────────────────────────────────────────────────
     // After a draft completes, briefly pulse the Redraft and Auto-Format
@@ -664,6 +684,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             LegalPlaceholder,
             LegalPartiesGroup,
             PageBreak,
+            Citation,
             AutoPagination,
         ],
         content: initialContent || '',
@@ -814,8 +835,24 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // editor methods on a destroyed editor instance.
             let isCancelled = false;
 
+            // ─── Build the drafting prompt with citations ───────────────
+            // If we have citations from ALOA research mode, prepend the
+            // source list to the prompt so the AI can cite them inline.
+            let draftingPromptWithContext = activeDraftPrompt;
+            const allCitations = citationRegistry.getAll();
+            if (allCitations.length > 0) {
+                const sourceList = citationRegistry.renderReferenceList('nigerian');
+                draftingPromptWithContext = `${activeDraftPrompt}
+
+--- CITATION INSTRUCTIONS ---
+You have access to the following verified sources. Cite them inline as [n] where n matches the source number. Do NOT invent new citations — only use the sources listed below. If you need a citation that isn't listed, leave an uncited assertion instead.
+
+${sourceList}
+--- END CITATION INSTRUCTIONS ---`;
+            }
+
             aiService.streamDraft(
-                [{ role: 'user', content: activeDraftPrompt }],
+                [{ role: 'user', content: draftingPromptWithContext }],
                 { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
                     if (isCancelled || !editor || editor.isDestroyed) return;
@@ -2029,6 +2066,87 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 firmName={appState?.firmDetails?.name}
                 onPrint={handlePrint}
             />
+
+            {/* ── Sources Panel (Citations) ──
+                Shows when the document has citations (from ALOA research mode).
+                Renders as a slide-in sidebar listing all sources, with the
+                reference list formatted in Nigerian style. */}
+            {citationRegistry.getAll().length > 0 && (
+                <>
+                    {/* Floating "Sources" button — always visible when citations exist */}
+                    <button
+                        onClick={() => setShowCitationPanel(!showCitationPanel)}
+                        className="fixed bottom-20 right-4 z-[70] flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors text-xs font-bold no-print"
+                        title="View sources"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+                        Sources ({citationRegistry.getAll().length})
+                    </button>
+
+                    {/* Slide-in panel */}
+                    {showCitationPanel && (
+                        <div className="fixed top-0 right-0 h-full w-80 bg-white dark:bg-zinc-900 shadow-2xl z-[71] flex flex-col border-l border-slate-200 dark:border-zinc-800 no-print animate-in slide-in-from-right duration-200">
+                            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                    </svg>
+                                    Sources & Citations
+                                </h3>
+                                <button
+                                    onClick={() => setShowCitationPanel(false)}
+                                    className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                                {citationRegistry.getAll().map((cite: any) => (
+                                    <div key={cite.id} className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
+                                        <div className="flex items-start gap-2">
+                                            <span className="flex-shrink-0 w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full flex items-center justify-center text-xs font-bold">
+                                                {cite.number}
+                                            </span>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-medium text-slate-900 dark:text-white leading-relaxed">{cite.text}</p>
+                                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">
+                                                        {cite.type}
+                                                    </span>
+                                                    {cite.jurisdiction && (
+                                                        <span className="text-[9px] font-medium text-slate-500 dark:text-zinc-400">
+                                                            {cite.jurisdiction}
+                                                        </span>
+                                                    )}
+                                                    {cite.url && (
+                                                        <a
+                                                            href={cite.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-[9px] font-bold text-blue-600 dark:text-blue-400 hover:underline"
+                                                        >
+                                                            Open ↗
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="p-3 border-t border-slate-200 dark:border-zinc-800">
+                                <p className="text-[10px] text-slate-500 dark:text-zinc-400 text-center">
+                                    Citations are referenced inline as [{citationRegistry.getAll().map((c: any) => c.number).join('], [')}]
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
 
             {/* ── In-App Modals ── */}
             {
