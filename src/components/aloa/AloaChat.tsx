@@ -158,6 +158,120 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const navigateToRef = useRef(navigateTo);
     const openEditorRef = useRef(openEditor);
 
+    // ─── Pre-opened DraftPro tab (popup-safe pattern) ──────────────────
+    // Browsers block window.open() if it's not called within a user-gesture
+    // call stack. By the time the AI responds with a `start_drafting` tool
+    // call (after multiple awaits + a multi-second LLM round-trip), the
+    // user gesture is long gone and the popup is blocked.
+    //
+    // FIX: In handleSend, BEFORE any await, we synchronously open a blank
+    // tab if the user's message looks like a draft request. We hold the
+    // Window proxy in this ref. When the AI later decides to draft, we
+    // navigate the held tab to the editor URL instead of calling
+    // window.open() (which would be blocked).
+    //
+    // If the AI doesn't end up drafting, we close the armed tab after a
+    // timeout so the user isn't left with a stray blank tab.
+    const armedDraftTabRef = useRef<Window | null>(null);
+    const armedDraftTabTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    /**
+     * Detect whether a user message looks like a draft request.
+     * If so, we pre-open a blank tab synchronously (in the user gesture)
+     * so window.open() isn't blocked later by the popup blocker.
+     */
+    const maybeArmDraftTab = (message: string) => {
+        if (typeof window === 'undefined') return;
+        // Only on desktop — mobile doesn't use tabs
+        if (window.innerWidth < 768) return;
+        // Skip if running in Capacitor native
+        if ((window as any).Capacitor?.isNativePlatform?.()) return;
+
+        const draftKeywords = /\b(draft|generate|write me|create.*(?:agreement|contract|motion|letter|notice|pleading|affidavit|deed|lease|tenancy|will|petition|summons|brief|memo|memorandum))\b/i;
+        if (!draftKeywords.test(message)) return;
+
+        // Close any previously armed tab that wasn't used
+        if (armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+            // Don't close if it has actual content (user navigated it)
+            try {
+                if (armedDraftTabRef.current.location.href === 'about:blank' || armedDraftTabRef.current.location.href === '') {
+                    armedDraftTabRef.current.close();
+                }
+            } catch {
+                // cross-origin — can't read location, leave it
+            }
+        }
+        // Clear any previous auto-close timer
+        if (armedDraftTabTimerRef.current) {
+            clearTimeout(armedDraftTabTimerRef.current);
+        }
+
+        // Open a blank tab WITHIN the user gesture — this is the critical
+        // call that must happen synchronously (no await before it).
+        const tabName = `draftpro-armed-${Date.now()}`;
+        const win = window.open('about:blank', tabName);
+        if (win) {
+            armedDraftTabRef.current = win;
+            // Show a loading message so the user knows something is happening
+            try {
+                win.document.write(`
+                    <html><head><title>Opening DraftPro…</title>
+                    <style>
+                        body { margin:0; display:flex; align-items:center; justify-content:center; height:100vh; background:#0f172a; color:#f8fafc; font-family:Inter,system-ui,sans-serif; }
+                        .spinner { width:32px; height:32px; border:3px solid rgba(255,255,255,0.1); border-top-color:#10b981; border-radius:50%; animation:spin 1s linear infinite; margin-right:12px; }
+                        @keyframes spin { to { transform:rotate(360deg) } }
+                    </style></head>
+                    <body><div class="spinner"></div><div>Preparing DraftPro…</div></body></html>
+                `);
+            } catch {
+                // ignore — some browsers block document.write on cross-origin tabs
+            }
+
+            // Auto-close the armed tab if the AI doesn't draft within 30s
+            // (e.g., the user's message wasn't actually a draft request,
+            // or the AI decided to answer in chat instead)
+            armedDraftTabTimerRef.current = setTimeout(() => {
+                if (armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+                    try {
+                        if (armedDraftTabRef.current.location.href === 'about:blank' ||
+                            armedDraftTabRef.current.location.href.includes('blank')) {
+                            armedDraftTabRef.current.close();
+                        }
+                    } catch {
+                        // cross-origin — can't verify, leave it
+                    }
+                }
+                armedDraftTabRef.current = null;
+                armedDraftTabTimerRef.current = null;
+            }, 30000);
+        }
+    };
+
+    /**
+     * Navigate the armed draft tab to the editor URL. Called from the
+     * `start_drafting` tool handler when the AI decides to draft.
+     * Returns true if the tab was successfully navigated, false otherwise.
+     */
+    const navigateArmedDraftTab = (url: string): boolean => {
+        if (armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+            try {
+                armedDraftTabRef.current.location.href = url;
+                armedDraftTabRef.current.focus();
+                // Clear the auto-close timer — the tab is now in use
+                if (armedDraftTabTimerRef.current) {
+                    clearTimeout(armedDraftTabTimerRef.current);
+                    armedDraftTabTimerRef.current = null;
+                }
+                armedDraftTabRef.current = null;
+                return true;
+            } catch {
+                // cross-origin error — can't navigate, fall through
+                armedDraftTabRef.current = null;
+            }
+        }
+        return false;
+    };
+
     useEffect(() => {
         openModalRef.current = openModal;
         navigateToRef.current = navigateTo;
@@ -357,9 +471,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                         // On desktop, open the draft in a new browser tab so the
                         // user can keep the ALOA chat open alongside the editor.
-                        // The AI response handler is async, so window.open() may be
-                        // blocked by the browser's popup blocker. We use window.open()
-                        // with the FULL URL (not blank) which has a higher success rate.
+                        //
+                        // POPUP-SAFE PATTERN: We DO NOT call window.open() here
+                        // because we're in an async context (after multiple awaits
+                        // + a multi-second LLM round-trip). The browser's user-
+                        // gesture token has expired, so window.open() would be
+                        // blocked and return null.
+                        //
+                        // Instead, we use the "armed tab" that was pre-opened
+                        // synchronously in handleSend (before any await). That
+                        // tab is already showing a "Preparing DraftPro…" spinner.
+                        // We navigate it to the editor URL here.
+                        //
+                        // If no armed tab exists (user's message didn't look
+                        // like a draft request, or popup was blocked at arm
+                        // time), we fall back to in-place navigation.
                         try {
                             const fid = coreState?.firmDetails?.id || '';
                             const draftKey = draftSessionKey({
@@ -368,13 +494,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             });
                             if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                                 const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}&prompt=${encodeURIComponent(draftConfig.draftPrompt || '')}`;
-                                const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-')}`;
-                                // Try opening with the full URL directly — this has a
-                                // higher chance of succeeding than openDraftInTab which
-                                // uses window.open('', name) for dedup.
-                                const win = window.open(url, tabName);
-                                if (win && !win.closed) {
-                                    win.focus();
+
+                                // FIRST: try to navigate the armed tab (pre-opened
+                                // in handleSend). This is the popup-safe path.
+                                const armed = navigateArmedDraftTab(url);
+                                if (armed) {
                                     // Register in the tab registry for future dedup
                                     openDraftInTab({
                                         key: draftKey,
@@ -383,9 +507,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     });
                                     feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                                 } else {
-                                    // Popup blocked — navigate in-place
+                                    // No armed tab available — popup was blocked
+                                    // at arm time, or the user's message didn't
+                                    // trigger the draft-keyword detector.
+                                    // Fall back to in-place navigation.
                                     openEditorRef.current(null, draftConfig);
-                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in the editor. (Allow pop-ups to open drafts in a new tab.)`;
+                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in the editor. (Pop-ups were blocked — allow pop-ups to open drafts in a new tab.)`;
                                 }
                             } else {
                                 openEditorRef.current(null, draftConfig);
@@ -793,6 +920,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const handleSend = async (overrideContent?: string) => {
         const content = overrideContent ?? textInput;
         if (!content.trim() && pendingAttachments.length === 0) return;
+
+        // ─── PRE-OPEN DRAFT TAB (popup-safe pattern) ────────────────────
+        // MUST run BEFORE any await. Browsers only allow window.open()
+        // inside the user's click call stack. By the time the AI responds
+        // with a `start_drafting` tool call (after multiple awaits), the
+        // user gesture is gone and the popup would be blocked.
+        //
+        // We detect draft-intent from the user's message and open a blank
+        // tab NOW (synchronously). The tab shows a "Preparing DraftPro…"
+        // spinner. When the AI later decides to draft, we navigate this
+        // held tab to the editor URL — no popup blocker issue.
+        //
+        // If the AI doesn't draft (e.g., user's message wasn't actually
+        // a draft request), the armed tab auto-closes after 30s.
+        maybeArmDraftTab(content);
 
         // ─── API KEY PRE-FLIGHT VALIDATION ──────────────────────────────
         // Check that a valid Gemini API key exists BEFORE we do any work.
@@ -1535,8 +1677,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             ) : (
                 <>
                     <div className="flex-1 flex overflow-hidden relative">
-                     {showHistory && (
-                        <aside className="absolute inset-0 z-20 border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 shadow-2xl">
+                     {/* History sidebar — kept MOUNTED (hidden via CSS) so the
+                         reactive useQuery subscription in ConversationList
+                         stays alive even when the sidebar is closed. This
+                         ensures the conversation list is always up-to-date
+                         when the user reopens the sidebar. Previously this
+                         was conditionally rendered ({showHistory && ...}),
+                         which unmounted ConversationList and lost the
+                         subscription — causing the user to see a stale/empty
+                         list and think their previous conversations were lost. */}
+                     <aside className={`absolute inset-0 z-20 border-r border-slate-200 dark:border-zinc-800 flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 shadow-2xl ${showHistory ? 'flex' : 'hidden'}`}>
                         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 space-y-2">
                             <div className="flex items-center justify-between mb-1">
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">History</h3>
@@ -1640,9 +1790,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </section>
                         </div>
                     </aside>
-                )}
 
-                <main 
+                <main
                     onClick={(e) => {
                         if (isMobile && showHistory) {
                             setShowHistory(false);

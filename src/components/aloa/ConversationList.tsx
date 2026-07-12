@@ -1,8 +1,23 @@
-
-import React, { useState, useEffect } from 'react';
+/**
+ * ConversationList — shows the user's ALOA conversation history.
+ *
+ * CRITICAL FIX: Previously used imperative `convex.query()` + `setInterval(5000)`
+ * (polling). This meant:
+ *   1. New conversations didn't appear in the list until up to 5s after creation
+ *   2. When the sidebar unmounted (user clicked "New Search"), polling stopped
+ *      entirely — so reopening the sidebar showed a stale/empty list
+ *   3. The user concluded previous conversations were "lost" even though they
+ *      were safely stored in Convex
+ *
+ * Now uses Convex's reactive `useQuery` hook, which subscribes to the
+ * `aloaConversations` table. The instant a conversation is created or
+ * updated, Convex pushes the new list to the client — no polling, no
+ * remount delay, no silent staleness.
+ */
+import React from 'react';
+import { useQuery } from 'convex/react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
-import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { MessagingIcon as MessageSquareIcon, TrashIcon } from '../../constants';
 
@@ -15,28 +30,22 @@ interface ConversationListProps {
 export const ConversationList: React.FC<ConversationListProps> = ({ activeId, onSelect, onDelete }) => {
     const { currentUser } = useAuth();
     const { coreState } = useCoreState();
-    const convex = useConvex();
-    const [conversations, setConversations] = useState<any[]>([]);
 
-    useEffect(() => {
-        if (!currentUser?.id || !coreState.firmDetails?.id) return;
+    // Reactive query — automatically re-runs whenever the underlying
+    // `aloaConversations` table changes in Convex. No polling needed.
+    // Pass 'skip' when we don't have the required args yet so the hook
+    // doesn't fire with empty strings.
+    const conversations = useQuery(
+        api.myFunctions.getAloaConversations,
+        currentUser?.id && coreState.firmDetails?.id
+            ? { userId: currentUser.id, firmId: coreState.firmDetails.id }
+            : 'skip'
+    );
 
-        const load = async () => {
-            try {
-                const list = await convex.query(api.myFunctions.getAloaConversations, {
-                    userId: currentUser.id,
-                    firmId: coreState.firmDetails.id
-                });
-                setConversations(list);
-            } catch (e) {
-                console.error("Failed to load ARIA conversations:", e);
-            }
-        };
-        load();
-
-        const interval = setInterval(load, 5000);
-        return () => clearInterval(interval);
-    }, [currentUser?.id, coreState.firmDetails?.id, convex]);
+    // Loading state — only show briefly on first load
+    if (conversations === undefined) {
+        return <div className="p-4 text-center text-xs text-slate-400 italic">Loading history…</div>;
+    }
 
     if (conversations.length === 0) {
         return <div className="p-4 text-center text-xs text-slate-400 italic">No history yet</div>;

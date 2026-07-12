@@ -103,20 +103,34 @@ export function useVersionCheck(): VersionCheckState {
           // User stays on their current (working) version.
           return;
         }
-        if (status === 'building') {
-          // Build not yet verified — wait.
-          return;
-        }
         if (status === 'healthy') {
           // Healthy — but wait for a short stable delay to ensure the
           // deploy is fully propagated (CDN edges, etc.).
-          const stableSince = data.stableSince ? new Date(data.stableSince).getTime() : 0;
+          const stableSince = data.stableSince ? new Date(data.stableSince).getTime() : Date.now();
           const elapsed = Date.now() - stableSince;
           if (elapsed < STABLE_DELAY_MS) {
             // Build is healthy but too fresh — wait for the delay.
             // (Will be re-checked on next poll.)
             return;
           }
+        }
+        // ─── FALLBACK: status === 'building' but SHA differs ──────────
+        // If the status is still 'building' after 2 minutes since builtAt,
+        // the mark-healthy.cjs script likely failed (or hasn't run yet).
+        // In this case, we treat the deploy as healthy anyway — the user
+        // has been waiting too long for the floater to appear.
+        //
+        // This fixes the issue where the refresh floater NEVER appeared
+        // because version.json was stuck at status='building' on Vercel.
+        if (status === 'building') {
+          const builtAt = data.builtAt ? new Date(data.builtAt).getTime() : 0;
+          const sinceBuild = Date.now() - builtAt;
+          if (sinceBuild < 120000) {
+            // Less than 2 minutes since build — give mark-healthy time to run
+            return;
+          }
+          // More than 2 minutes — treat as healthy and prompt
+          // (falls through to the "All gates passed" block below)
         }
 
         // All gates passed — show the prompt. The user decides when to refresh.

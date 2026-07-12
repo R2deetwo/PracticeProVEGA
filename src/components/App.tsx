@@ -1240,8 +1240,17 @@ export const App: React.FC = () => {
             )}
             {((!currentUser) || (currentUser && flowState !== 'splash')) && (
                 <>
-                    <ModalManager />
-                    <ToastContainer />
+                    {/* Wrap ModalManager and ToastContainer in their own ErrorBoundary
+                        so a malformed toast/modal payload can't take down the entire app.
+                        Previously these were rendered OUTSIDE the inner ErrorBoundary,
+                        which meant any render error in them propagated all the way up
+                        to ConvexErrorBoundary and crashed the whole app. */}
+                    <ErrorBoundary fallback={null}>
+                        <ModalManager />
+                    </ErrorBoundary>
+                    <ErrorBoundary fallback={null}>
+                        <ToastContainer />
+                    </ErrorBoundary>
                 </>
             )}
             {/* Onboarding Tour only shown for non-portal users; portal users get a simpler experience */}

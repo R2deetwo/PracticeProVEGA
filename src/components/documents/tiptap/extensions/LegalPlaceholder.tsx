@@ -13,6 +13,16 @@ const CATEGORY_STYLES: Record<PlaceholderCategory, { border: string; bg: string;
   freetext:  { border: 'border-amber-500',  bg: 'bg-amber-100/50',  text: 'text-amber-900 dark:text-amber-200',  abbr: 'T' },
 };
 
+// Safe fallback for any category string that isn't in CATEGORY_STYLES.
+// This prevents a TypeError ("Cannot read properties of undefined")
+// when the AI emits a data-category value we don't recognize.
+const SAFE_FALLBACK_STYLE = CATEGORY_STYLES.freetext;
+
+function safeGetStyle(category: string | null | undefined) {
+  if (!category) return SAFE_FALLBACK_STYLE;
+  return CATEGORY_STYLES[category as PlaceholderCategory] ?? SAFE_FALLBACK_STYLE;
+}
+
 export function resolveCategory(label: string, explicit?: string | null): PlaceholderCategory {
   if (explicit && CATEGORY_STYLES[explicit as PlaceholderCategory]) return explicit as PlaceholderCategory;
   // 1. Check the explicit registry first
@@ -51,7 +61,14 @@ export default Node.create({
         default: null,
         parseHTML: element => {
           const explicit = element.getAttribute('data-category');
-          if (explicit) return explicit;
+          // Validate the explicit category against our known set.
+          // If the AI emitted an unrecognized data-category value,
+          // fall back to resolving from the label rather than
+          // passing through an invalid string that could crash
+          // the React node view.
+          if (explicit && CATEGORY_STYLES[explicit as PlaceholderCategory]) {
+            return explicit;
+          }
           const label = element.getAttribute('data-label') || '';
           return resolveCategory(label, null);
         },
@@ -75,10 +92,13 @@ export default Node.create({
 });
 
 const LegalPlaceholderComponent = (props: any) => {
-  const { node, getPos, editor } = props;
+  const { node } = props;
   const label = node.attrs.label || 'PLACEHOLDER';
   const category = resolveCategory(label, node.attrs.category);
-  const style = CATEGORY_STYLES[category];
+  // Use the safe getter — if category is somehow invalid (shouldn't happen
+  // after the parseHTML fix, but defensive), we fall back to freetext style
+  // instead of crashing the entire editor.
+  const style = safeGetStyle(category);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
