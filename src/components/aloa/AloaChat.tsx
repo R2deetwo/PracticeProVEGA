@@ -155,6 +155,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [showScrollButtons, setShowScrollButtons] = useState(false);
     const [isAtBottom, setIsAtBottom] = useState(true);
 
+    // ─── Web Fetch Results (for UI display) ──────────────────────────────
+    // When ALOA fetches web content (either from URLs in the user's message
+    // or from auto-searching in research mode), the results are stored here
+    // and displayed in collapsible panels (like Claude's search results).
+    const [webFetchResults, setWebFetchResults] = useState<Array<{
+        url: string;
+        title: string;
+        success: boolean;
+        snippet: string;
+    }> | null>(null);
+
     // Refs for callbacks
     const liveSessionRef = useRef<any>(null);
     const audioOutputContextRef = useRef<AudioContext | null>(null);
@@ -790,16 +801,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         const { query } = args;
                         feedbackMessage = `Searching the web for "${query}"…`;
                         try {
-                            // Use the Convex web search action to get fresh results.
-                            // Falls back to a simple URL-list if the action is unavailable.
+                            // Use client-side web search (no Convex needed).
+                            // The Convex backend was never deployed, so
+                            // api.webFetch.searchWeb is undefined at runtime.
+                            // This client-side version uses CORS proxies.
                             let webResults: any[] = [];
                             try {
-                                const searchRes = await convex.action(api.webFetch.searchWeb, { query });
+                                const { searchWebClient } = await import('../../utils/webFetchClient');
+                                const searchRes = await searchWebClient(query);
                                 if (searchRes.success && searchRes.results) {
                                     webResults = searchRes.results;
                                 }
                             } catch (searchErr) {
-                                console.warn('[search_web] convex action failed:', searchErr);
+                                console.warn('[search_web] client search failed:', searchErr);
                             }
 
                             toolOutput = {
@@ -831,7 +845,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         const { url } = args;
                         feedbackMessage = `Reading ${url}…`;
                         try {
-                            const result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                            // Use client-side fetch (no Convex needed)
+                            const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
+                            const result = await fetchUrlContentClient(url);
                             if (result.success && result.content) {
                                 toolOutput = {
                                     success: true,
@@ -1045,6 +1061,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // a draft request), the armed tab auto-closes after 30s.
         maybeArmDraftTab(content);
 
+        // Clear previous web fetch results when starting a new message
+        setWebFetchResults(null);
+
         // ─── API KEY PRE-FLIGHT VALIDATION ──────────────────────────────
         // Check that a valid Gemini API key exists BEFORE we do any work.
         // If missing, show a graceful error card instead of letting the
@@ -1234,40 +1253,137 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     };
                     capturedAiContext.isFirmSearchEnabled = true;
 
-                    // ── LIVE WEB QUERYING ──────────────────────────────
+                    // Determine the effective model (needed for auto web search below)
+                    const effectiveModel = preferredModel === 'auto' ? 'flash' : preferredModel;
+
+                    // ── LIVE WEB QUERYING (CLIENT-SIDE — no Convex needed) ──
                     // Detect URLs in the user's message and fetch their content
-                    // before sending to the AI. The fetched content is injected
-                    // into the AI context so the model can "read" the web page.
+                    // using client-side CORS proxies. The fetched content is
+                    // injected into the AI context so the model can "read" the
+                    // web page.
+                    //
+                    // PREVIOUSLY this used `convex.action(api.webFetch.fetchUrlContent)`
+                    // but that was UNDEFINED at runtime because the Convex backend
+                    // was never deployed. Every web fetch silently failed in a
+                    // try/catch, so ALOA never actually read any websites.
+                    //
+                    // NOW we use `fetchUrlContentClient` from webFetchClient.ts
+                    // which works entirely client-side via CORS proxies.
                     const urls = content.match(URL_REGEX);
                     let webContent = '';
                     if (urls && urls.length > 0) {
-                        setAloaStatus('Fetching web content…');
+                        setAloaStatus(`Reading ${urls.length} website${urls.length > 1 ? 's' : ''}…`);
                         try {
+                            const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
                             const fetchResults = await Promise.all(
                                 urls.slice(0, 3).map(async (url) => {
                                     try {
-                                        const result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                                        const result = await fetchUrlContentClient(url);
                                         if (result.success && result.content) {
-                                            return `\n--- WEB CONTENT FROM ${url} ---\nTitle: ${result.title}\n${result.content}\n--- END WEB CONTENT ---\n`;
-                                        } else {
-                                            return `\n[Could not fetch ${url}: ${result.message}]\n`;
+                                            return {
+                                                url,
+                                                title: result.title || url,
+                                                content: result.content,
+                                                success: true,
+                                            };
                                         }
+                                        return { url, success: false, message: result.message };
                                     } catch {
-                                        return `\n[Could not fetch ${url}]\n`;
+                                        return { url, success: false, message: 'Fetch failed' };
                                     }
                                 })
                             );
-                            webContent = fetchResults.join('\n');
+
+                            // Build the web content string for the AI
+                            const successfulFetches = fetchResults.filter(r => r.success);
+                            if (successfulFetches.length > 0) {
+                                webContent = successfulFetches.map(r =>
+                                    `\n--- WEB CONTENT FROM ${r.url} ---\nTitle: ${r.title}\n${r.content}\n--- END WEB CONTENT ---\n`
+                                ).join('\n');
+                            }
+
+                            // Show web fetch results in the UI (like Claude's search panels)
+                            setWebFetchResults(fetchResults.map(r => ({
+                                url: r.url,
+                                title: r.title || r.url,
+                                success: r.success,
+                                snippet: r.success ? (r.content || '').substring(0, 200) + '...' : (r.message || 'Failed to fetch'),
+                            })));
+
                             if (webContent) {
                                 // Inject the web content into the last user message
                                 // so the AI sees it as part of the conversation
                                 const lastMsg = capturedMessages[capturedMessages.length - 1];
                                 if (lastMsg && lastMsg.role === 'user') {
-                                    lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was fetched for you to analyze:]\n${webContent}`;
+                                    lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was fetched for you to analyze. Use this information to provide an accurate, informed response:]\n${webContent}`;
                                 }
                             }
                         } catch {
                             // If web fetching fails entirely, continue without it
+                        }
+                    }
+
+                    // ── AUTO WEB SEARCH IN RESEARCH MODE ──────────────────
+                    // In research mode, if the user's message doesn't contain a URL
+                    // but asks a legal question, automatically search the web for
+                    // relevant information before sending to the AI.
+                    if (effectiveModel === 'research' && (!urls || urls.length === 0)) {
+                        const legalKeywords = /\b(law|legal|statute|regulation|compliance|contract|agreement|liability|jurisdiction|court|rights|obligations|duty|tort|negligence|breach|damages|injunction|liability|hipaa|gdpr|ccpa|privacy|employment|independent contractor|misclassification|AB5|professional|ethics|fee|referral|witness|expert)\b/i;
+                        if (legalKeywords.test(content)) {
+                            setAloaStatus('Searching the web for legal authorities…');
+                            try {
+                                const { searchWebClient } = await import('../../utils/webFetchClient');
+                                // Extract a search query from the user's message
+                                const searchQuery = content.substring(0, 200).replace(/\n/g, ' ');
+                                const searchResult = await searchWebClient(searchQuery);
+
+                                if (searchResult.success && searchResult.results.length > 0) {
+                                    // Show search results in the UI
+                                    setWebFetchResults(searchResult.results.map(r => ({
+                                        url: r.url,
+                                        title: r.title,
+                                        success: true,
+                                        snippet: r.snippet,
+                                    })));
+
+                                    // Fetch the top 2 results for deeper content
+                                    setAloaStatus('Reading top search results…');
+                                    const topResults = searchResult.results.slice(0, 2);
+                                    const deepFetches = await Promise.all(
+                                        topResults.map(async (r) => {
+                                            try {
+                                                const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
+                                                const fetchResult = await fetchUrlContentClient(r.url);
+                                                if (fetchResult.success && fetchResult.content) {
+                                                    return {
+                                                        url: r.url,
+                                                        title: fetchResult.title || r.title,
+                                                        content: fetchResult.content.substring(0, 5000),
+                                                        success: true,
+                                                    };
+                                                }
+                                                return { url: r.url, title: r.title, content: r.snippet, success: true };
+                                            } catch {
+                                                return { url: r.url, title: r.title, content: r.snippet, success: true };
+                                            }
+                                        })
+                                    );
+
+                                    const deepContent = deepFetches
+                                        .filter(r => r.success && r.content)
+                                        .map(r => `\n--- WEB CONTENT FROM ${r.url} ---\nTitle: ${r.title}\n${r.content}\n--- END WEB CONTENT ---\n`)
+                                        .join('\n');
+
+                                    if (deepContent) {
+                                        const lastMsg = capturedMessages[capturedMessages.length - 1];
+                                        if (lastMsg && lastMsg.role === 'user') {
+                                            lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was found via web search and fetched for your analysis. Use this to provide accurate, cited information:]\n${deepContent}`;
+                                        }
+                                    }
+                                }
+                            } catch {
+                                // search failed — continue without it
+                            }
                         }
                     }
 
@@ -1276,7 +1392,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     }
 
                     const wantsToolAction = /\b(create|open|add|new|draft|navigate|show me|find my|schedule|invoice|task|matter|contact)\b/i.test(content);
-                    const effectiveModel = preferredModel === 'auto' ? 'flash' : preferredModel;
 
                     if (!wantsToolAction) {
                         setAloaStatus('Writing…');
@@ -2351,6 +2466,67 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </div>
                         </div>
                     ))}
+
+                    {/* ─── Web Fetch Results Panel (like Claude's search panels) ──
+                        Shows the URLs ALOA has fetched and read, with titles
+                        and snippets. Collapsible. Clears when the response
+                        completes. */}
+                    {webFetchResults && webFetchResults.length > 0 && (
+                        <div className="mx-auto max-w-2xl mb-4">
+                            <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
+                                <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
+                                    <div className="flex items-center gap-2">
+                                        <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                        </svg>
+                                        <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-200">
+                                            {webFetchResults.length} web result{webFetchResults.length > 1 ? 's' : ''} {isLoading && '· reading…'}
+                                        </span>
+                                    </div>
+                                    {!isLoading && (
+                                        <button
+                                            onClick={() => setWebFetchResults(null)}
+                                            className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                                    {webFetchResults.map((r, i) => (
+                                        <a
+                                            key={i}
+                                            href={r.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-start gap-2 px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors border-b border-slate-100 dark:border-zinc-700/50 last:border-0"
+                                        >
+                                            <div className={`flex-shrink-0 w-4 h-4 rounded-full flex items-center justify-center mt-0.5 ${r.success ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-red-100 dark:bg-red-900/40'}`}>
+                                                {r.success ? (
+                                                    <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg className="w-2.5 h-2.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[11px] font-semibold text-slate-800 dark:text-zinc-200 truncate">{r.title}</p>
+                                                <p className="text-[9px] text-slate-500 dark:text-zinc-500 truncate">{r.url}</p>
+                                                {r.snippet && (
+                                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{r.snippet}</p>
+                                                )}
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {isLoading && aloaStatus && (
                         <div className="flex items-center gap-2 px-2 py-1">
