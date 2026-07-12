@@ -155,6 +155,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [showScrollButtons, setShowScrollButtons] = useState(false);
     const [isAtBottom, setIsAtBottom] = useState(true);
 
+    // ─── Reasoning Timer ─────────────────────────────────────────────────
+    // Shows how long the current AI request has been running. Reset to 0
+    // when a new request starts, cleared when the response completes.
+    const [reasoningTime, setReasoningTime] = useState(0);
+
     // ─── Web Fetch Results (for UI display) ──────────────────────────────
     // When ALOA fetches web content (either from URLs in the user's message
     // or from auto-searching in research mode), the results are stored here
@@ -1140,28 +1145,50 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // the request is queued behind a previous one.
         // In research mode, show a more descriptive status to set
         // expectations for the longer processing time.
+        // ─── Dynamic status with real-time tracking + timer ─────────────
+        // Instead of cycling through generic messages ("Researching…",
+        // "Cross-referencing…"), we track what ALOA is ACTUALLY doing
+        // and show a live timer so the user knows how long it's been.
+        const startTime = Date.now();
+        const updateTimer = () => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            // Update the timer display (appended to the current status)
+            setReasoningTime(elapsed);
+        };
+        const timerInterval = setInterval(updateTimer, 1000);
+
         const baseStatus = pendingAttachments.length > 0
             ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…`
             : preferredModel === 'research'
-                ? 'Researching… analyzing your query in depth'
+                ? 'Analyzing your query…'
                 : 'Thinking…';
         setAloaStatus(baseStatus);
 
-        // In research mode, cycle through dynamic reasoning states
-        // to show the AI's micro-steps (replaces static "Thinking…")
+        // In research mode, show dynamic reasoning states that reflect
+        // what's actually happening — NOT generic cycling phrases.
+        // The status updates are triggered by real events (web fetch,
+        // tool call, etc.) rather than a timer.
         let reasoningTimer: ReturnType<typeof setTimeout> | null = null;
         if (preferredModel === 'research' && pendingAttachments.length === 0) {
+            // Only cycle if no specific action is happening
             const reasoningSteps = [
-                'Researching… analyzing your query in depth',
-                'Cross-referencing legal frameworks…',
-                'Evaluating jurisdictional implications…',
-                'Synthesizing analysis…',
+                'Analyzing your query…',
+                'Identifying relevant legal principles…',
+                'Formulating response…',
             ];
             let stepIdx = 0;
             reasoningTimer = setInterval(() => {
+                // Only advance if we're still in the "thinking" phase
+                // (not actively fetching web content or using tools)
                 stepIdx = (stepIdx + 1) % reasoningSteps.length;
-                setAloaStatus(reasoningSteps[stepIdx]);
-            }, 4000);
+                setAloaStatus(prev => {
+                    // Don't override specific statuses (web fetch, tool use)
+                    if (prev.includes('Reading') || prev.includes('Searching') || prev.includes('Using tools')) {
+                        return prev;
+                    }
+                    return reasoningSteps[stepIdx];
+                });
+            }, 5000); // Slower cycle — 5s instead of 4s
         }
 
         // ─── DETERMINISTIC REQUEST QUEUE ────────────────────────────────
@@ -1471,8 +1498,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         const assistantToolCallMsg: AloaMessage = {
                             id: uuidv4(),
                             role: 'model',
-                            toolCalls: currentResponse.toolCalls
-                        };
+                            toolCalls: currentResponse.toolCalls,
+                            // Preserve thought_signature so the next API call
+                            // doesn't throw "Function call is missing a thought_signature"
+                            ...(currentResponse as any).thoughtSignature ? {
+                                thoughtSignature: (currentResponse as any).thoughtSignature
+                            } : {},
+                        } as any;
 
                         const toolResultsMsgs: AloaMessage[] = toolOutputs.map(output => ({
                             id: uuidv4(),
@@ -1597,6 +1629,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     }
                 } finally {
                     if (reasoningTimer) clearInterval(reasoningTimer);
+                    clearInterval(timerInterval);
+                    setReasoningTime(0);
                     setIsLoading(false);
                     setAloaStatus('');
                     isGeneratingRef.current = false;
@@ -1607,6 +1641,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             },
             onError: (error: Error) => {
                 if (reasoningTimer) clearInterval(reasoningTimer);
+                clearInterval(timerInterval);
+                setReasoningTime(0);
                 setPendingQueueCount(prev => Math.max(0, prev - 1));
                 setIsLoading(false);
                 setAloaStatus('');
@@ -2527,13 +2563,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
 
                     {isLoading && aloaStatus && (
-                        <div className="flex items-center gap-2 px-2 py-1">
-                            <div className="flex gap-1">
+                        <div className="flex items-center gap-2.5 px-3 py-2 mx-2 rounded-xl bg-primary-50/50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/20">
+                            <div className="flex gap-1 flex-shrink-0">
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '0ms' }} />
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '150ms' }} />
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
-                            <p className="text-[10px] font-medium text-primary-600 dark:text-primary-400">{aloaStatus}</p>
+                            <p className="text-[11px] font-medium text-primary-700 dark:text-primary-300 flex-1">{aloaStatus}</p>
+                            {reasoningTime > 0 && (
+                                <span className="text-[10px] font-mono text-primary-500 dark:text-primary-400 tabular-nums flex-shrink-0">
+                                    {reasoningTime < 60 ? `${reasoningTime}s` : `${Math.floor(reasoningTime / 60)}m ${reasoningTime % 60}s`}
+                                </span>
+                            )}
                         </div>
                     )}
                     <div ref={messagesEndRef} />

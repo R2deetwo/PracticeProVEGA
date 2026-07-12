@@ -45,8 +45,25 @@ const CORS_PROXIES = [
         buildUrl: (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     },
     {
+        name: 'allorigins-get',
+        buildUrl: (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+        // This proxy returns JSON with a .contents field
+        extractContent: (raw: string) => {
+            try {
+                const data = JSON.parse(raw);
+                return data.contents || '';
+            } catch {
+                return raw;
+            }
+        },
+    },
+    {
         name: 'cors-anywhere',
         buildUrl: (url: string) => `https://cors-anywhere.herokuapp.com/${url}`,
+    },
+    {
+        name: 'thingproxy',
+        buildUrl: (url: string) => `https://thingproxy.freeboard.io/fetch/${url}`,
     },
 ];
 
@@ -81,9 +98,15 @@ export async function fetchUrlContentClient(url: string): Promise<WebFetchResult
                 continue; // try next proxy
             }
 
-            const html = await response.text();
-            if (!html || html.length < 100) {
+            const rawText = await response.text();
+            if (!rawText || rawText.length < 100) {
                 continue; // empty response, try next
+            }
+
+            // Some proxies return JSON with a .contents field (allorigins /get)
+            const html = proxy.extractContent ? proxy.extractContent(rawText) : rawText;
+            if (!html || html.length < 100) {
+                continue;
             }
 
             // Parse the HTML

@@ -381,11 +381,32 @@ IMPORTANT:
         }
 
         if (msg.role === 'model' && msg.toolCalls) {
+            const parts: any[] = msg.toolCalls.map(tc => ({
+                functionCall: { name: tc.name, args: tc.args }
+            }));
+            // ─── Preserve thought_signature if present ──────────────────
+            // Gemini API requires thought_signature in functionCall parts
+            // for tools to work correctly. If the original response included
+            // a thought part (with thought_signature), we MUST include it
+            // when sending the tool call back to the API.
+            // Without this, the API throws: "Function call is missing a
+            // thought_signature in functionCall parts."
+            if ((msg as any).thoughtSignature) {
+                parts.unshift({
+                    thought: true,
+                    thoughtSignature: (msg as any).thoughtSignature,
+                });
+            }
+            // Also check if the toolCalls themselves have thought signatures
+            // (Gemini sometimes attaches them per-call)
+            msg.toolCalls.forEach((tc: any, i: number) => {
+                if (tc.thoughtSignature && parts[i] && parts[i].functionCall) {
+                    parts[i].thoughtSignature = tc.thoughtSignature;
+                }
+            });
             contents.push({
                 role: 'model',
-                parts: msg.toolCalls.map(tc => ({
-                    functionCall: { name: tc.name, args: tc.args }
-                }))
+                parts,
             });
             continue;
         }
@@ -473,11 +494,20 @@ IMPORTANT:
                     const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
                     const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
 
+                    // ─── Capture thought_signature ──────────────────────────
+                    // Gemini API includes a thoughtSignature in the response
+                    // when using thinking models. We MUST preserve this and
+                    // send it back when making the next request (after tool
+                    // execution). Without it, the API throws:
+                    // "Function call is missing a thought_signature"
+                    const thoughtPart = candidate?.content?.parts?.find((p: any) => p.thought === true || p.thoughtSignature);
+                    const thoughtSignature = thoughtPart?.thoughtSignature || undefined;
+
                     const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
                     const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
                     const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
                     const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
-                    return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName}` };
+                    return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName}`, thoughtSignature } as any;
                 }
 
                 // Non-OK response — parse error and try next model
@@ -507,11 +537,15 @@ IMPORTANT:
             const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
             const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
 
+            // Capture thought_signature (same as direct path above)
+            const thoughtPart = candidate?.content?.parts?.find((p: any) => p.thought === true || p.thoughtSignature);
+            const thoughtSignature = thoughtPart?.thoughtSignature || undefined;
+
             const isPropertyView = currentHistoryEntry?.view === 'atriumEngine' || ['properties', 'propertyDetail'].includes(currentHistoryEntry?.view);
             const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
             const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
             const { sanitized } = validateAIResponse(rawText || '', agent as 'ARIA' | 'ALOA');
-            return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName} (Proxy)` };
+            return { text: sanitized, toolCalls: functionCalls, modelUsed: `${modelName} (Proxy)`, thoughtSignature } as any;
         } catch (proxyErr: any) {
             lastError = proxyErr;
             console.warn(`[AI Proxy] ${modelName} failed via Convex:`, proxyErr.message);
