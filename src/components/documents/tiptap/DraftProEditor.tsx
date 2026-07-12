@@ -718,7 +718,15 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         },
         onUpdate: ({ editor: e }) => {
             setIsSaved(false);
-            onContentChange?.(e.getHTML());
+            // Wrap getHTML in try/catch — if any custom node extension has
+            // a serialization issue (e.g., the content-hole-on-atom bug
+            // that crashed DraftPro), we don't want it to take down the
+            // entire editor. Fall back to empty string and log the error.
+            try {
+                onContentChange?.(e.getHTML());
+            } catch (htmlErr) {
+                console.error('[DraftPro] getHTML failed in onUpdate:', htmlErr);
+            }
 
             // Count pageBreak nodes for pagination (structural, not scroll-based)
             let breaks = 0;
@@ -997,9 +1005,14 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
     const handleManualSave = useCallback(() => {
         if (editor) {
-            onSave?.(editor.getHTML());
-            setIsSaved(true);
-            addToast('Document saved successfully', { type: 'success' });
+            try {
+                onSave?.(editor.getHTML());
+                setIsSaved(true);
+                addToast('Document saved successfully', { type: 'success' });
+            } catch (e) {
+                console.error('[DraftPro] getHTML failed on save:', e);
+                addToast('Could not save — document has an internal error. Please try editing and saving again.', { type: 'error' });
+            }
         }
     }, [editor, onSave, addToast]);
 
@@ -1309,7 +1322,9 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             onClick={() => {
                                 // Save the current draft to localStorage so
                                 // the new tab can pick it up.
-                                const currentContent = editor?.getHTML() || '';
+                                let currentContent = '';
+                                try { currentContent = editor?.getHTML() || ''; }
+                                catch (e) { console.error('[DraftPro] getHTML failed on open-in-new-tab:', e); }
                                 if (currentContent && currentContent !== '<p></p>' && persistDraftRef.current) {
                                     persistDraftRef.current(currentContent, title || 'Untitled Draft', draftPrompt);
                                 }
@@ -1386,13 +1401,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                             label="DOCX"
                             onClick={() => {
                                 if (!editor) return;
-                                const html = editor.getHTML();
-                                const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
-                                exportHtmlToDocx(html, safeTitle, {
+                                try {
+                                    const html = editor.getHTML();
+                                    const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
+                                    exportHtmlToDocx(html, safeTitle, {
                                     title: title || 'Document',
                                     author: currentUser?.name || 'PracticePro',
                                     firmName: appState?.firmDetails?.name || '',
                                 });
+                                } catch (e) {
+                                    console.error('[DraftPro] getHTML failed on DOCX export:', e);
+                                    addToast('Could not export — document has an internal error.', { type: 'error' });
+                                }
                             }}
                             size="lg"
                             disabled={!editor}
@@ -1999,7 +2019,10 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             <PrintPreviewDrawer
                 isOpen={showPrintPreview}
                 onClose={() => setShowPrintPreview(false)}
-                html={editor?.getHTML() || ''}
+                html={(() => {
+                    try { return editor?.getHTML() || ''; }
+                    catch { return '<p style="color:#ef4444;text-align:center;padding:24px;"><i>Preview unavailable — document has an internal error.</i></p>'; }
+                })()}
                 title={title || 'Untitled Document'}
                 letterheadHtml={undefined}
                 authorName={currentUser?.name}

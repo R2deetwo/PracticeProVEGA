@@ -36,7 +36,11 @@ export default Node.create({
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['span', mergeAttributes(HTMLAttributes, { 'data-type': 'legal-context' }), 0];
+        // CRITICAL: Do NOT include a content hole (the `0` argument) here.
+        // This node is `atom: true` (a leaf node — it has no children).
+        // ProseMirror throws "Content hole not allowed in a leaf node spec"
+        // when renderHTML includes `0` on an atom node.
+        return ['span', mergeAttributes(HTMLAttributes, { 'data-type': 'legal-context' })];
     },
 
     addNodeView() {
