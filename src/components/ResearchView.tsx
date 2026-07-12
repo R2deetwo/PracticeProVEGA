@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMatterState } from '../contexts/MatterContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
@@ -53,6 +53,53 @@ const ResearchView: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     const selectedNotebookId = currentHistoryEntry.selectedResearchNotebookId || null;
+
+    // ─── Auto-create notebook from DraftPro "Send to Research" ────────
+    // When the user clicks "Send to Research" in DraftPro, we navigate
+    // here with context containing: autoStartResearch, researchQuery, sources
+    // This effect creates a notebook, adds the citations as sources, and
+    // auto-starts the research chat with the query.
+    const [hasProcessedResearchContext, setHasProcessedResearchContext] = useState(false);
+    useEffect(() => {
+        if (hasProcessedResearchContext) return;
+        const ctx = currentHistoryEntry?.context || (window.history.state?.state as any) || {};
+        if (ctx.autoStartResearch && ctx.sources && Array.isArray(ctx.sources) && ctx.sources.length > 0) {
+            setHasProcessedResearchContext(true);
+            const sources: any[] = ctx.sources;
+            const query: string = ctx.researchQuery || 'Analyze these legal sources:';
+            const docTitle: string = ctx.documentTitle || 'Draft Research';
+
+            // Create a new research notebook
+            const notebook = dataHandlers.handleAddResearchNotebook({
+                name: `Citation Research — ${docTitle.substring(0, 40)}`,
+                firmId: currentUser?.firmId || coreState?.firmDetails?.id || '',
+                userId: currentUser?.id || '',
+            });
+
+            if (notebook?.id) {
+                // Select the notebook
+                updateCurrentHistoryEntry({ selectedResearchNotebookId: notebook.id });
+
+                // Add each citation as a source
+                for (const cite of sources) {
+                    dataHandlers.handleAddResearchSource(notebook.id, {
+                        name: `[${cite.number}] ${cite.text.substring(0, 60)}`,
+                        type: 'text',
+                        content: `Citation [${cite.number}]: ${cite.text}\nType: ${cite.type}\nJurisdiction: ${cite.jurisdiction || 'N/A'}\nURL: ${cite.url || 'N/A'}`,
+                    });
+                }
+
+                // Auto-send the research query as the first message
+                setTimeout(() => {
+                    dataHandlers.handleSendResearchMessage(
+                        notebook.id,
+                        `${query}\n\nPlease verify each citation — confirm it exists, check the citation format is correct, and identify any potential issues. Provide a validity assessment for each source.`,
+                        []
+                    );
+                }, 500);
+            }
+        }
+    }, [currentHistoryEntry?.context, hasProcessedResearchContext]);
 
     const handleSelectNotebook = (id: string) => {
         updateCurrentHistoryEntry({ selectedResearchNotebookId: id });
@@ -221,7 +268,7 @@ const ResearchView: React.FC = () => {
                                 messages={messagesForNotebook}
                                 sources={sourcesForNotebook}
                                 selectedSourceIds={selectedSourceIds}
-                                onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds, sourcesForNotebook)}
+                                onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
                             />
                         </div>
 

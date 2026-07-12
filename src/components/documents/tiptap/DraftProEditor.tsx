@@ -2149,20 +2149,21 @@ ${sourceList}
                                         const sourcesText = citations.map(c =>
                                             `[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`
                                         ).join('\n');
-                                        // Navigate to research with the sources
+                                        // Navigate to research with the sources + full context
                                         navigateTo('research', null, {
                                             autoStartResearch: true,
-                                            researchQuery: `Analyze these legal sources from my draft "${title || 'Untitled Document'}":\n\n${sourcesText}`,
+                                            documentTitle: title || 'Untitled Document',
+                                            researchQuery: `Verify and validate the following ${citations.length} legal citation(s) from my draft "${title || 'Untitled Document'}":\n\n${sourcesText}`,
                                             sources: citations,
                                         });
-                                        addToast(`Sent ${citations.length} source${citations.length > 1 ? 's' : ''} to Research Center.`, { type: 'success' });
+                                        addToast(`Sent ${citations.length} source${citations.length > 1 ? 's' : ''} to Research Center for verification.`, { type: 'success' });
                                     }}
                                     className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                                     </svg>
-                                    Send All to Research Center
+                                    Verify All Citations in Research
                                 </button>
                             </div>
 
@@ -2174,10 +2175,11 @@ ${sourceList}
                                         onSendToResearch={(c) => {
                                             navigateTo('research', null, {
                                                 autoStartResearch: true,
-                                                researchQuery: `Analyze this legal source:\n\n[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`,
+                                                documentTitle: title || 'Untitled Document',
+                                                researchQuery: `Verify this legal citation:\n\n[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`,
                                                 sources: [c],
                                             });
-                                            addToast(`Sent source [${c.number}] to Research Center.`, { type: 'success' });
+                                            addToast(`Sent source [${c.number}] to Research Center for verification.`, { type: 'success' });
                                         }}
                                     />
                                 ))}
