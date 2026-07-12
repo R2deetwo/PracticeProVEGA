@@ -435,6 +435,42 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const signerContext = useSignerContext();
     const { openWithContext, openPanel } = useAloa();
 
+    // ─── New-tab detection ──────────────────────────────────────────────
+    // DraftPro can be opened in two ways:
+    //   1. In a NEW browser tab via window.open() (from ALOA "start drafting"
+    //      or from the DocumentList). In this case the parent app shell is
+    //      still open in another tab, so the user doesn't need a Back button
+    //      — closing the tab returns them to the app.
+    //   2. In the SAME tab via in-app navigation (mobile, or desktop when
+    //      pop-ups are blocked). Here the user DOES need a Back button to
+    //      return to the app shell, because there's no other tab to fall
+    //      back to.
+    //
+    // Detection signals:
+    //   - URL contains ?draftKey= (always set when opened via draftTabs)
+    //   - window.opener is non-null (set by window.open() in same-origin)
+    //   - window.name starts with "draftpro-" (set by registerDraftTab)
+    //
+    // We compute this ONCE on mount — it doesn't change during the lifetime
+    // of the component.
+    const isInNewTab = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasDraftKey = !!urlParams.get('draftKey');
+            if (!hasDraftKey) return false; // in-app navigation, no draftKey
+            // window.opener is null when the tab wasn't opened via window.open
+            // (e.g. popup was blocked and we fell back to window.location.href).
+            // It's also null on refresh, but a refresh preserves window.name,
+            // so we check both signals.
+            const hasOpener = window.opener !== null && window.opener !== undefined;
+            const hasDraftTabName = !!(window.name && window.name.startsWith('draftpro-'));
+            return hasOpener || hasDraftTabName;
+        } catch {
+            return false;
+        }
+    }, []);
+
     // States
     // Number of explicit pageBreak nodes currently in the document
     const [pageBreakCount, setPageBreakCount] = useState(0);
@@ -1143,26 +1179,40 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             {/* ── Top bar (Title + Meta) ── */}
             <div className="flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 h-12 flex items-center justify-between z-[60] no-print">
                 <div className="flex items-center gap-3 min-w-0">
-                    <button
-                        onClick={() => {
-                            // If we have a custom onBack handler (in-app nav), use it.
-                            if (onBack) { onBack(); return; }
-                            // Otherwise: if there's history in this tab, go back.
-                            // If not (e.g. opened in a new tab via draftTabs), go to
-                            // the dashboard so the user isn't stuck on the editor.
-                            if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.origin)) {
-                                window.history.back();
-                            } else {
-                                window.location.href = '/';
-                            }
-                        }}
-                        className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white text-xs font-bold transition-colors"
-                    >
-                        <ChevronDown className="w-4 h-4 rotate-90" />
-                        <span className="hidden sm:inline">Back</span>
-                    </button>
+                    {/* ── Back button ─────────────────────────────────────────
+                        Only shown when DraftPro is NOT in a dedicated new tab.
+                        When a draft opens via window.open() (detected via
+                        ?draftKey= + window.opener / window.name="draftpro-*"),
+                        the parent app shell is still alive in another tab, so
+                        a Back button here is redundant — the user just closes
+                        this tab to return. Showing one would imply in-app
+                        navigation that doesn't exist (this tab has no history).
+                        When popup-blocked or on mobile, DraftPro opens in-place
+                        and the Back button is essential to return to the app. */}
+                    {!isInNewTab && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    // If we have a custom onBack handler (in-app nav), use it.
+                                    if (onBack) { onBack(); return; }
+                                    // Otherwise: if there's history in this tab, go back.
+                                    // If not (e.g. opened in a new tab via draftTabs), go to
+                                    // the dashboard so the user isn't stuck on the editor.
+                                    if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.origin)) {
+                                        window.history.back();
+                                    } else {
+                                        window.location.href = '/';
+                                    }
+                                }}
+                                className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white text-xs font-bold transition-colors"
+                            >
+                                <ChevronDown className="w-4 h-4 rotate-90" />
+                                <span className="hidden sm:inline">Back</span>
+                            </button>
 
-                    <div className="w-px h-4 bg-slate-200 dark:bg-zinc-800" />
+                            <div className="w-px h-4 bg-slate-200 dark:bg-zinc-800" />
+                        </>
+                    )}
 
                     <input autoComplete="off" data-lpignore="true" 
                         value={title || ''}
@@ -1180,21 +1230,25 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Open in new tab — visible on all viewport sizes (was hidden md:flex
-                        which made it invisible on mobile and low-contrast on desktop). */}
-                    <button
-                        onClick={() => {
-                            const url = window.location.href;
-                            window.open(url, '_blank');
-                        }}
-                        className="flex items-center justify-center p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                        title="Open in new tab"
-                        aria-label="Open in new tab"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                    </button>
+                    {/* Open in new tab — only relevant when not already in a new tab.
+                        When DraftPro is already in its own dedicated tab (via
+                        draftTabs), this button is redundant and confusing —
+                        clicking it would just open another copy of the same draft. */}
+                    {!isInNewTab && (
+                        <button
+                            onClick={() => {
+                                const url = window.location.href;
+                                window.open(url, '_blank');
+                            }}
+                            className="flex items-center justify-center p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                            title="Open in new tab"
+                            aria-label="Open in new tab"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                            </svg>
+                        </button>
+                    )}
                     <button
                         onClick={handlePrint}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm active:scale-95"
