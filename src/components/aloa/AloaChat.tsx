@@ -342,7 +342,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                         // On desktop, open the draft in a new browser tab so the
                         // user can keep the ALOA chat open alongside the editor.
-                        // Dedup: if a tab is already open for this draft, focus it.
+                        // The AI response handler is async, so window.open() may be
+                        // blocked by the browser's popup blocker. We use window.open()
+                        // with the FULL URL (not blank) which has a higher success rate.
                         try {
                             const fid = coreState?.firmDetails?.id || '';
                             const draftKey = draftSessionKey({
@@ -351,18 +353,24 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             });
                             if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                                 const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}&prompt=${encodeURIComponent(draftConfig.draftPrompt || '')}`;
-                                const result = openDraftInTab({
-                                    key: draftKey,
-                                    url,
-                                    title: draftConfig.draftTitle,
-                                });
-                                if (result === 'existing-tab') {
-                                    feedbackMessage = `Opened the existing draft tab for "${draftConfig.draftTitle}".`;
-                                } else if (result === 'new-tab') {
+                                const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-')}`;
+                                // Try opening with the full URL directly — this has a
+                                // higher chance of succeeding than openDraftInTab which
+                                // uses window.open('', name) for dedup.
+                                const win = window.open(url, tabName);
+                                if (win && !win.closed) {
+                                    win.focus();
+                                    // Register in the tab registry for future dedup
+                                    openDraftInTab({
+                                        key: draftKey,
+                                        url,
+                                        title: draftConfig.draftTitle,
+                                    });
                                     feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                                 } else {
-                                    // in-place fallback (mobile or popup blocked)
+                                    // Popup blocked — navigate in-place
                                     openEditorRef.current(null, draftConfig);
+                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in the editor. (Allow pop-ups to open drafts in a new tab.)`;
                                 }
                             } else {
                                 openEditorRef.current(null, draftConfig);
