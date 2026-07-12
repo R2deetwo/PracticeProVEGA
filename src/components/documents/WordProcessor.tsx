@@ -110,15 +110,44 @@ export const WordProcessor: React.FC = () => {
             documentTitle.toLowerCase().includes(kw)
         );
 
+        // ─── Convert HTML to clean plain text ────────────────────────
+        // The DocumentForm shows content in a <textarea>. If we pass raw
+        // HTML, the user sees <p>, <strong>, <span> tags — "weird text".
+        // Convert to clean plain text that preserves line breaks and
+        // structure but strips all HTML tags.
+        const cleanText = htmlToPlainText(content);
+
         openModal('newDocument', null, {
             draftTitle: documentTitle,
-            draftContent: content,
+            draftContent: cleanText,
             matterId: linkedMatterId,
             openedByAloa: false,
             isCourtProcess: isPotentialCourtProcess,
+            // Also pass the original HTML so the document is stored with
+            // full formatting (the form can use this for the actual save)
+            draftHtml: content,
         });
         if (firmId && sessionKey) clearDraftSession(firmId, sessionKey);
         setIsSaved(true);
+    };
+
+    /**
+     * Convert HTML to clean plain text — preserves line breaks, lists,
+     * and headings, but strips all HTML tags. The result is readable
+     * text (not "<p>Hello</p>" but "Hello").
+     */
+    const htmlToPlainText = (html: string): string => {
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        // Replace block elements with newlines
+        temp.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6, li, tr, br').forEach(el => {
+            el.appendChild(document.createTextNode('\n'));
+        });
+        // Get text content
+        let text = temp.textContent || '';
+        // Clean up extra whitespace
+        text = text.replace(/\n{3,}/g, '\n\n').trim();
+        return text;
     };
 
     return (
