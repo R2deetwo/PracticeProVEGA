@@ -96,41 +96,19 @@ export function useVersionCheck(): VersionCheckState {
           return;
         }
 
-        // Different SHA → potential update. Check health before prompting.
-        const status = data.status || 'building';
-        if (status === 'broken') {
-          // Known-broken build — never prompt, even if SHA differs.
-          // User stays on their current (working) version.
-          return;
-        }
-        if (status === 'healthy') {
-          // Healthy — but wait for a short stable delay to ensure the
-          // deploy is fully propagated (CDN edges, etc.).
-          const stableSince = data.stableSince ? new Date(data.stableSince).getTime() : Date.now();
-          const elapsed = Date.now() - stableSince;
-          if (elapsed < STABLE_DELAY_MS) {
-            // Build is healthy but too fresh — wait for the delay.
-            // (Will be re-checked on next poll.)
-            return;
-          }
-        }
-        // ─── FALLBACK: status === 'building' but SHA differs ──────────
-        // If the status is still 'building' after 2 minutes since builtAt,
-        // the mark-healthy.cjs script likely failed (or hasn't run yet).
-        // In this case, we treat the deploy as healthy anyway — the user
-        // has been waiting too long for the floater to appear.
+        // ─── DIFFERENT SHA → SHOW THE FLOATER IMMEDIATELY ─────────────
+        // The user explicitly requested: "the refresh to get updates should
+        // show everytime we have a new push". We do NOT wait for:
+        //   - status === 'healthy' (mark-healthy.cjs often fails silently)
+        //   - stableSince delay (unnecessary — Vercel atomic deploys are
+        //     already live by the time version.json is updated)
+        //   - 2-minute grace period (just adds latency)
         //
-        // This fixes the issue where the refresh floater NEVER appeared
-        // because version.json was stuck at status='building' on Vercel.
-        if (status === 'building') {
-          const builtAt = data.builtAt ? new Date(data.builtAt).getTime() : 0;
-          const sinceBuild = Date.now() - builtAt;
-          if (sinceBuild < 120000) {
-            // Less than 2 minutes since build — give mark-healthy time to run
-            return;
-          }
-          // More than 2 minutes — treat as healthy and prompt
-          // (falls through to the "All gates passed" block below)
+        // The ONLY exception: status === 'broken' — if the deploy is known
+        // to be broken, don't prompt the user to refresh into a broken build.
+        const status = data.status || 'healthy';
+        if (status === 'broken') {
+          return;
         }
 
         // All gates passed — show the prompt. The user decides when to refresh.

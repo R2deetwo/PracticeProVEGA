@@ -17,6 +17,7 @@ import { tools } from '../../services/geminiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { handleCleanCopy } from '../../utils/copyUtils';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
@@ -120,7 +121,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const getFileUrl = useQuery as any;
 
     // ─── Phase 2: Proactive Intelligence & Conversation Memory ──────────
-    const firmId = coreState?.firmDetails?.id;
+    // Use currentUser.firmId (reliably populated from the user document)
+    // instead of coreState.firmDetails.id (which is undefined for real
+    // admin/staff users because the firms table has _id, not id).
+    const firmId = currentUser?.firmId || coreState?.firmDetails?.id;
     const userId = currentUser?.id;
 
     // Fetch cross-session conversation memory for context injection
@@ -487,7 +491,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         // like a draft request, or popup was blocked at arm
                         // time), we fall back to in-place navigation.
                         try {
-                            const fid = coreState?.firmDetails?.id || '';
+                            const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
                             const draftKey = draftSessionKey({
                                 matterId: undefined,
                                 title: draftConfig.draftTitle,
@@ -762,7 +766,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         try {
                             const convexMsgId = await saveMessageMutation({
                                 conversationId: activeConversationId!,
-                                firmId: coreState.firmDetails?.id || '',
+                                firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 message: modelMsg
                             });
                             if (actionData && actionData.context) {
@@ -1086,7 +1090,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         if (!currentConvId) {
                             const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
                             currentConvId = await createConversationMutation({
-                                firmId: coreState.firmDetails?.id || '',
+                                firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id || '',
                                 title: title
                             });
@@ -1103,7 +1107,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                         void saveMessageMutation({
                             conversationId: currentConvId!,
-                            firmId: coreState.firmDetails?.id || '',
+                            firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             userId: currentUser?.id,
                             message: newUserMsg
                         });
@@ -1118,7 +1122,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         setAloaStatus('Searching records…');
                         return await brain.search({
                             query,
-                            firmId: coreState.firmDetails?.id || '',
+                            firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             scope: isProperty ? 'property' : 'legal',
                             convexQuery: (name: any, args: any) => convex.query(name, args)
                         });
@@ -1197,7 +1201,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 if (!isDemo && currentConvId) {
                                     void saveMessageMutation({
                                         conversationId: currentConvId,
-                                        firmId: coreState.firmDetails?.id || '',
+                                        firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                         userId: currentUser?.id,
                                         message: modelMsg
                                     });
@@ -1282,7 +1286,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         if (!isDemo && currentConvId) {
                             void saveMessageMutation({
                                 conversationId: currentConvId,
-                                firmId: coreState.firmDetails?.id || '',
+                                firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id,
                                 message: modelMsg
                             });
@@ -1410,7 +1414,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             // 1. Create a new research notebook
             const notebook = handleAddResearchNotebook({
                 name: notebookName,
-                firmId: coreState?.firmDetails?.id || '',
+                firmId: currentUser?.firmId || coreState?.firmDetails?.id || '',
                 userId: currentUser?.id || '',
             });
 
@@ -1515,7 +1519,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             // stored content), we tell the user instead of silently regenerating.
             const cfg = action.config || {};
             try {
-                const fid = coreState?.firmDetails?.id || '';
+                // Use currentUser.firmId (reliably populated) instead of
+                // coreState.firmDetails.id (which is undefined for real users
+                // because the firms table has _id, not id).
+                const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
                 if (fid && cfg.draftTitle) {
                     const key = draftSessionKey({
                         matterId: cfg.matterId,
@@ -1603,7 +1610,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </h2>
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
                         </div>
-                        {activeView === 'chat' && (
+                        {activeView === 'chat' && getAssistantFullName(isProperty) && (
                             <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
                                 {getAssistantFullName(isProperty)}
                             </p>
@@ -1826,9 +1833,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
                                 {getAssistantName(isProperty)}
                             </h3>
-                            <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
-                                {getAssistantFullName(isProperty)}
-                            </p>
+                            {getAssistantFullName(isProperty) && (
+                                <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-4">
+                                    {getAssistantFullName(isProperty)}
+                                </p>
+                            )}
                             <p className="text-sm text-slate-500 dark:text-zinc-500 max-w-[260px] leading-relaxed">
                                 {isAtrium
                                     ? 'I can help manage your property portfolio, track revenue, handle tenant communications, and monitor defaulters.'
@@ -1900,7 +1909,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             : 'bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50'
                                     }`}>
                                     {msg.content && (
-                                        <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }} />
+                                        <div
+                                            className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2"
+                                            dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(msg.content) }}
+                                            onCopy={handleCleanCopy}
+                                        />
                                     )}
                                     {/* Attachment thumbnails/files */}
                                     {msg.attachments && msg.attachments.length > 0 && (

@@ -89,7 +89,7 @@ const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
 
 const PropertyDetailViewContent: React.FC = () => {
     const { openEditor, navigateTo, addToast, openModal, selectedId: propertyId } = useUI();
-    const { isProperty } = useProduct();
+    const { isProperty, hasPropertyFeatures } = useProduct();
     const { matterState } = useMatterState();
     const { financeState } = useFinanceState();
     const { documentState } = useDocumentState();
@@ -303,7 +303,11 @@ const PropertyDetailViewContent: React.FC = () => {
     }, [allPropertyLedgerEntries]);
 
     const propertyDocuments = useMemo(() => {
-        if (isProperty && property) {
+        // Use hasPropertyFeatures (not isProperty) so Komplete firms also
+        // see property documents when viewing a property. Previously this
+        // used isProperty, which is only true for pure Atrium — so Komplete
+        // users fell into the else branch and saw matter documents instead.
+        if (hasPropertyFeatures && property) {
             const propPrefix = `prop_${property.id}_`;
             const addressPart = (property.address || '').split(',')[0].toLowerCase();
             return documentState.documents.filter(d => {
@@ -317,7 +321,7 @@ const PropertyDetailViewContent: React.FC = () => {
             const matterIds = linkedMatters.map(m => m.id);
             return documentState.documents.filter(d => d && matterIds.includes(d.matterId!));
         }
-    }, [documentState.documents, linkedMatters, isProperty, property, property?.id, property?.address]);
+    }, [documentState.documents, linkedMatters, hasPropertyFeatures, property, property?.id, property?.address]);
 
     // --- Now safe to early-return after all hooks have been called ---
     if (!property) return (

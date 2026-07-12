@@ -1297,12 +1297,35 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     {/* Open in new tab — only relevant when not already in a new tab.
                         When DraftPro is already in its own dedicated tab (via
                         draftTabs), this button is redundant and confusing —
-                        clicking it would just open another copy of the same draft. */}
+                        clicking it would just open another copy of the same draft.
+
+                        PERSISTENCE: Before opening the new tab, we save the
+                        current draft content to localStorage so the new tab
+                        can load it. Without this, the new tab opens with an
+                        empty editor because the draft content only exists in
+                        this tab's in-memory state. */}
                     {!isInNewTab && (
                         <button
                             onClick={() => {
-                                const url = window.location.href;
-                                window.open(url, '_blank');
+                                // Save the current draft to localStorage so
+                                // the new tab can pick it up.
+                                const currentContent = editor?.getHTML() || '';
+                                if (currentContent && currentContent !== '<p></p>' && persistDraftRef.current) {
+                                    persistDraftRef.current(currentContent, title || 'Untitled Draft', draftPrompt);
+                                }
+                                // Build the URL with the draftKey so the new
+                                // tab loads the saved draft (not a fresh one).
+                                const url = new URL(window.location.href);
+                                // If there's no draftKey in the URL yet, add one
+                                // so the new tab knows to load from localStorage.
+                                if (!url.searchParams.get('draftKey') && title) {
+                                    // We need a stable key — use a hash of the title
+                                    // + timestamp so it doesn't collide with other drafts.
+                                    const key = `draft:general:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`;
+                                    url.searchParams.set('draftKey', key);
+                                    url.searchParams.set('title', encodeURIComponent(title));
+                                }
+                                window.open(url.toString(), '_blank');
                             }}
                             className="flex items-center justify-center p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                             title="Open in new tab"

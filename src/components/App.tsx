@@ -739,21 +739,36 @@ export const App: React.FC = () => {
     // - URL query param: /messaging?app=atrium (shows in address bar)
     useEffect(() => {
         if (!currentUser) return;
-        const productName = currentUser.product === 'atrium' ? 'Atrium'
-            : currentUser.product === 'property' ? 'Atrium'
-            : currentUser.product === 'legal' ? 'Vega'
+        // Use the canonical `product` from ProductContext — it already applies
+        // the Komplete/Enterprise safety net (forces 'unified' regardless of
+        // whatever raw value firmDetails.product contains). Previously this
+        // used `currentUser.product` directly, which meant Komplete (unified)
+        // firms got ?app=vega in the URL — causing confusion and making it
+        // look like the app was in legal-only mode.
+        const productName = product === 'atrium' ? 'Atrium'
+            : product === 'vega' ? 'Vega'
+            : product === 'unified' ? 'Komplete'
             : 'PracticePro';
         const viewLabel = view ? view.charAt(0).toUpperCase() + view.slice(1) : 'Dashboard';
         document.title = `${productName} — ${viewLabel} | PracticePro`;
 
-        // Update URL with ?app= query param (doesn't trigger navigation)
+        // Update URL with ?app= query param (doesn't trigger navigation).
+        // Komplete firms get ?app=komplete so the URL accurately reflects
+        // their product mode. This is purely informational — nothing in the
+        // app reads this param to determine features (ProductContext is the
+        // source of truth). But having the correct value prevents user
+        // confusion ("why does my URL say vega when I'm on Komplete?").
         const url = new URL(window.location.href);
-        const expectedApp = currentUser.product === 'atrium' || currentUser.product === 'property' ? 'atrium' : 'vega';
+        const expectedApp = product === 'atrium'
+            ? 'atrium'
+            : product === 'unified'
+            ? 'komplete'
+            : 'vega';
         if (url.searchParams.get('app') !== expectedApp) {
             url.searchParams.set('app', expectedApp);
             window.history.replaceState({}, '', url.toString());
         }
-    }, [currentUser, view]);
+    }, [currentUser, product, view]);
 
     const handleReset = async () => {
         const ok = await confirmAction({

@@ -33,13 +33,18 @@ export function getAssistantName(isProperty: boolean): string {
 
 /**
  * Returns the FULL unabbreviated name for the current product.
- * - Legal → "Advanced Legal Office Assistant"
+ * - Legal → "" (just "ALOA" is enough — user requested removing the
+ *   "Advanced Legal Office Assistant" subtitle from headers)
  * - Property → "Asset & Revenue Intelligence Assistant"
+ *
+ * NOTE: The user explicitly asked to remove the "Advanced Legal Office
+ * Assistant" tagline from the ALOA header — "ALOA is enough". We return
+ * an empty string for legal mode so the subtitle line is hidden.
  */
 export function getAssistantFullName(isProperty: boolean): string {
     return isProperty
         ? 'Asset & Revenue Intelligence Assistant'
-        : 'Advanced Legal Office Assistant';
+        : '';  // ALOA is enough — no subtitle
 }
 
 /**

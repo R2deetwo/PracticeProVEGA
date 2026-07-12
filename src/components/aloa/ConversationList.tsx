@@ -17,7 +17,6 @@
 import React from 'react';
 import { useQuery } from 'convex/react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCoreState } from '../../contexts/CoreContext';
 import { api } from '../../../convex/_generated/api';
 import { MessagingIcon as MessageSquareIcon, TrashIcon } from '../../constants';
 
@@ -29,16 +28,21 @@ interface ConversationListProps {
 
 export const ConversationList: React.FC<ConversationListProps> = ({ activeId, onSelect, onDelete }) => {
     const { currentUser } = useAuth();
-    const { coreState } = useCoreState();
 
     // Reactive query — automatically re-runs whenever the underlying
     // `aloaConversations` table changes in Convex. No polling needed.
     // Pass 'skip' when we don't have the required args yet so the hook
     // doesn't fire with empty strings.
+    //
+    // IMPORTANT: Use `currentUser.firmId` (not `coreState.firmDetails.id`)
+    // because the `firms` Convex table has `_id` but NOT `id` — so
+    // `firmDetails.id` is undefined for real admin/staff users, which
+    // silently skips the query and shows "Loading history…" forever.
+    // `currentUser.firmId` is reliably populated from the user document.
     const conversations = useQuery(
         api.myFunctions.getAloaConversations,
-        currentUser?.id && coreState.firmDetails?.id
-            ? { userId: currentUser.id, firmId: coreState.firmDetails.id }
+        currentUser?.id && currentUser?.firmId
+            ? { userId: currentUser.id, firmId: currentUser.firmId }
             : 'skip'
     );
 
