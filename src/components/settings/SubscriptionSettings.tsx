@@ -4,10 +4,14 @@ import { FirmDetails, SubscriptionPlan, User, FirmSpecialty } from '../../types'
 import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
 import { ShieldCheckIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
+import { useProduct } from '../../contexts/ProductContext';
 import {
     getTiersForProduct,
     DISPLAY_TIER_IDS,
@@ -557,6 +561,37 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;
     const normalizedCurrent = currentPlan;
 
+    // ─── Fix Product Mode ──────────────────────────────────────────────
+    // If the firm is on a Komplete/Enterprise plan but the product field
+    // says 'vega' or 'atrium', show a warning + fix button. This handles
+    // the recurring bug where Komplete firms lose property features because
+    // their product field is stale.
+    const { product: activeProduct, isUnified } = useProduct();
+    const { currentUser } = useAuth();
+    const [isFixingProduct, setIsFixingProduct] = useState(false);
+    const fixProductModeMutation = useMutation(api.myFunctions.fixProductMode);
+    const needsProductFix = !isUnified && (
+        currentPlan === SubscriptionPlan.Komplete ||
+        currentPlan === SubscriptionPlan.Enterprise
+    );
+    const handleFixProductMode = async () => {
+        if (!currentUser?.firmId) return;
+        setIsFixingProduct(true);
+        try {
+            const result = await fixProductModeMutation({
+                firmId: currentUser.firmId,
+                product: 'unified',
+            });
+            addToast(`✓ Product mode fixed to Komplete (unified). Updated ${result.updatedUsers} user(s). Please refresh the page.`, { type: 'success' });
+            // Force a page refresh so all components pick up the new product mode
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (err: any) {
+            addToast(`Failed to fix product mode: ${err.message}`, { type: 'error' });
+        } finally {
+            setIsFixingProduct(false);
+        }
+    };
+
     return (
         <div className="space-y-8">
             {/* Header */}
@@ -565,6 +600,47 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Subscription & Billing</h3>
                     <p className="text-slate-500 dark:text-zinc-400 max-w-2xl">Manage your Firm / Organization's plan and seat allocation.</p>
                 </div>
+
+                {/* ─── Fix Product Mode Warning ─────────────────────────── */}
+                {needsProductFix && (
+                    <div className="w-full md:w-auto bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-4 flex flex-col gap-3">
+                        <div className="flex items-start gap-2">
+                            <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div className="text-sm">
+                                <p className="font-bold text-amber-800 dark:text-amber-200">Product Mode Mismatch Detected</p>
+                                <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
+                                    Your plan is <strong>{currentPlan}</strong> but your product mode is <strong>{activeProduct}</strong>.
+                                    This means property features (Properties page, Units on dashboard) are hidden.
+                                    Click below to fix this permanently.
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleFixProductMode}
+                            disabled={isFixingProduct}
+                            className="w-full md:w-auto px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {isFixingProduct ? (
+                                <>
+                                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                    </svg>
+                                    Fixing...
+                                </>
+                            ) : (
+                                <>
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Fix Product Mode → Komplete
+                                </>
+                            )}
+                        </button>
+                    </div>
+                )}
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-1 rounded-lg">
                         <button onClick={() => setIsAnnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${!isAnnual ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Monthly</button>

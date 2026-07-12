@@ -81,28 +81,52 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       rawProduct = (appState.firmDetails as any).product || "unified";
 
       // ─── SAFETY NET (Komplete/Enterprise plan enforcement) ──────────────
-      // If the firm's subscription plan is Komplete or Enterprise, force
-      // the product to 'unified' regardless of what firmDetails.product says.
-      // These plans ALWAYS include both legal and property features.
+      // If ANY of the following signals indicate Komplete/Enterprise, force
+      // the product to 'unified'. This is the LAST line of defense against
+      // the recurring "properties disappearing for Komplete firms" bug.
       //
-      // WHY THIS EXISTS: A firm on Komplete plan might have product='vega'
-      // (set during signup before the plan was upgraded). Without this check,
-      // they'd lose access to Properties, Units, Resident messages, etc.
+      // Signals checked:
+      // 1. firmDetails.subscriptionPlan === 'Komplete' or 'Enterprise'
+      // 2. firmDetails.product === 'komplete' or 'unified'
+      // 3. currentUser.product === 'unified' or 'komplete'
+      // 4. firmDetails has property data (properties array exists and non-empty)
       //
-      // WHY IT'S CRITICAL: The user has reported property features disappearing
-      // from Komplete firms multiple times. This safety net is the LAST line
-      // of defense. If you're tempted to remove or weaken it, DON'T.
-      // Instead, fix the upstream bug that's setting the wrong product value.
+      // WHY SO AGGRESSIVE: The user has reported property features disappearing
+      // from Komplete firms MULTIPLE times. Each time, the root cause is that
+      // firmDetails.product is stale ('vega') and the subscriptionPlan field
+      // is missing or not set to 'Komplete'. Rather than rely on a single
+      // field, we check ALL available signals.
       const plan = (appState.firmDetails as any).subscriptionPlan;
       const planStr = typeof plan === 'string' ? plan.toLowerCase() : '';
-      if (
-        planStr === 'komplete' ||
-        planStr === 'enterprise' ||
-        // Also catch the case where product is explicitly 'komplete' even if
-        // the plan field is missing — some legacy firms store it this way.
-        (appState.firmDetails as any).product === 'komplete' ||
-        (appState.firmDetails as any).product === 'unified'
-      ) {
+      const firmProduct = (appState.firmDetails as any).product;
+      const userProduct = currentUser?.product;
+
+      // Check 1: subscription plan
+      const planIsKomplete = planStr === 'komplete' || planStr === 'enterprise';
+
+      // Check 2: firm product field
+      const firmProductIsUnified = firmProduct === 'komplete' || firmProduct === 'unified';
+
+      // Check 3: user product field (the user's own record)
+      // Cast to string because the type doesn't include 'komplete' but
+      // the database might store it.
+      const userProductStr = typeof userProduct === 'string' ? userProduct.toLowerCase() : '';
+      const userProductIsUnified = userProductStr === 'unified' || userProductStr === 'komplete';
+
+      // Check 4: firm has property data (if properties array exists and is
+      // non-empty, this firm DOES property management — so they should be
+      // unified or atrium, never pure vega)
+      const hasPropertyData = Array.isArray((appState as any).properties) && (appState as any).properties.length > 0;
+
+      if (planIsKomplete || firmProductIsUnified || userProductIsUnified) {
+        rawProduct = 'unified';
+      }
+      // Additional safety: if the firm has property data but product is 'vega',
+      // they SHOULD be unified (you can't have properties on a legal-only plan).
+      // This catches the case where a Komplete firm downgraded in the DB but
+      // still has property records.
+      else if (hasPropertyData && firmProduct === 'vega') {
+        console.warn('[ProductContext] Firm has property data but product=vega — forcing unified. Check the firms table in Convex.');
         rawProduct = 'unified';
       }
     } else if (currentUser?.product) {
@@ -111,7 +135,7 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
       const userProduct = currentUser.product;
       if (userProduct === 'legal' || userProduct === 'vega') rawProduct = 'vega';
       else if (userProduct === 'property' || userProduct === 'atrium') rawProduct = 'atrium';
-      else rawProduct = userProduct;
+      else rawProduct = userProduct; // catches 'unified' and 'komplete'
     }
 
     // Aliases — map legacy/alternate product names to canonical ones.

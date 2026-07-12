@@ -1854,6 +1854,55 @@ export const updateFirmSettings = mutation({
   }
 });
 
+/**
+ * fixProductMode — fixes the firm's `product` field when it's stale.
+ *
+ * PROBLEM: Some Komplete-plan firms have `product: 'vega'` in the database
+ * (set during signup before the plan was upgraded). This causes the app to
+ * show legal-only mode (no Properties page, no Units on dashboard) even
+ * though the firm is on a Komplete plan.
+ *
+ * This mutation updates the firm's `product` field to match their actual
+ * plan. It's called from the Settings UI when the user clicks "Fix Product Mode".
+ */
+export const fixProductMode = mutation({
+  args: { firmId: v.string(), product: v.string() },
+  handler: async (ctx, args) => {
+    // Verify the caller is a member of this firm
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+    const user = await ctx.db
+      .query("users")
+      .withIndex("email", (q) => q.eq("email", identity.email!))
+      .first();
+    if (!user || user.firmId !== args.firmId) {
+      throw new Error("Not authorized to modify this firm");
+    }
+
+    // Validate the product value
+    const validProducts = ['atrium', 'vega', 'unified', 'komplete', 'property', 'legal', 'sentry'];
+    if (!validProducts.includes(args.product)) {
+      throw new Error(`Invalid product value: ${args.product}. Must be one of: ${validProducts.join(', ')}`);
+    }
+
+    // Update the firm record
+    await ctx.db.patch(args.firmId as any, { product: args.product });
+
+    // Also update all users in this firm to match
+    const firmUsers = await ctx.db
+      .query("users")
+      .withIndex("firmId", (q) => q.eq("firmId", args.firmId))
+      .collect();
+    for (const u of firmUsers) {
+      await ctx.db.patch(u._id, { product: args.product });
+    }
+
+    return { success: true, product: args.product, updatedUsers: firmUsers.length };
+  }
+});
+
 export const getJoinedFirms = query({
   args: { firmIds: v.array(v.string()) },
   handler: async (ctx, args) => {
