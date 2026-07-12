@@ -699,8 +699,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             setIsDrafting(true);
             setIsSaved(false);
 
-            // SAFETY NET: Snapshot the current document HTML before wiping.
-            const preDraftHtml = editor.getHTML();
+            // SAFETY NET: If the editor is already destroyed or null, bail out.
+            if (editor.isDestroyed) {
+                setIsDrafting(false);
+                return;
+            }
             const preDraftTitle = title;
 
             // Disable the editor during drafting so the user can't type
@@ -714,6 +717,16 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // Setup AbortController to allow user to stop the draft
             const abortController = new AbortController();
             (window as any).stopDrafting = () => abortController.abort();
+
+            // SAFETY TIMEOUT: If drafting doesn't complete within 90 seconds,
+            // force-abort it so the user isn't stuck on "Preparing your document..."
+            // forever. This handles network issues, API timeouts, and hung streams.
+            const safetyTimeout = setTimeout(() => {
+                if (!abortController.signal.aborted) {
+                    console.warn('[DraftPro] Drafting timed out after 90s — aborting');
+                    abortController.abort();
+                }
+            }, 90000);
 
             // Clear editor content — canvas stays white
             try {
@@ -752,6 +765,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 },
                 abortController.signal
             ).then(() => {
+                clearTimeout(safetyTimeout);
                 if (isCancelled || !editor || editor.isDestroyed) return;
                 setIsDrafting(false);
                 editor.setEditable(true);
@@ -790,6 +804,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     }
                 }
             }).catch(e => {
+                clearTimeout(safetyTimeout);
                 if (isCancelled) return;
                 console.error("Drafting error:", e);
                 setIsDrafting(false);
@@ -826,6 +841,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
             return () => {
                 isCancelled = true;
+                clearTimeout(safetyTimeout);
                 abortController.abort();
                 if (editor && !editor.isDestroyed) {
                     editor.setEditable(true);

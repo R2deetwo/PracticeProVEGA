@@ -247,6 +247,35 @@ export function buildJurisdictionalReasoning(
   const j = getJurisdiction(stateKey);
   const p = prompt.toLowerCase();
 
+  // ── NON-NIGERIAN JURISDICTION DETECTION ──
+  // If the prompt explicitly references a foreign jurisdiction, do NOT
+  // default to Nigerian courts. Return a generic court caption and a
+  // jurisdictional caveat instead.
+  const foreignJurisdictions: { keywords: string[]; name: string }[] = [
+    { keywords: ['san francisco', 'california', 'ca ', 'u.s.', 'us ', 'united states', 'america', 'american', 'delaware', 'new york', 'ny ', 'texas', 'florida', 'washington state', 'illinois', 'chicago'], name: 'United States' },
+    { keywords: ['united kingdom', 'uk ', 'england', 'london', 'british', 'wales', 'scotland'], name: 'United Kingdom' },
+    { keywords: ['european union', 'eu ', 'germany', 'france', 'spain', 'italy', 'netherlands'], name: 'European Union' },
+    { keywords: ['canada', 'canadian', 'ontario', 'toronto', 'vancouver'], name: 'Canada' },
+    { keywords: ['australia', 'australian', 'sydney', 'melbourne'], name: 'Australia' },
+    { keywords: ['south africa', 'south african', 'johannesburg', 'cape town'], name: 'South Africa' },
+    { keywords: ['ghana', 'ghanaian', 'accra'], name: 'Ghana' },
+    { keywords: ['kenya', 'kenyan', 'nairobi'], name: 'Kenya' },
+    { keywords: ['dubai', 'uae', 'emirates'], name: 'United Arab Emirates' },
+    { keywords: ['singapore', 'singaporean'], name: 'Singapore' },
+    { keywords: ['india', 'indian', 'mumbai', 'delhi'], name: 'India' },
+  ];
+
+  for (const fj of foreignJurisdictions) {
+    if (fj.keywords.some(kw => p.includes(kw))) {
+      return {
+        court: `[JURISDICTION: ${fj.name}]`,
+        jurisdiction: fj.name,
+        reasoning: `This matter pertains to ${fj.name} jurisdiction. Drafting using general legal principles applicable to ${fj.name}. Verify with local counsel in ${fj.name} for jurisdiction-specific requirements, court formatting, and procedural rules.`,
+      };
+    }
+  }
+
+  // ── NIGERIAN COURT DETECTION (only for Nigerian matters) ──
   // Detect explicit court overrides
   if (p.includes('federal high court') || p.includes('fhc')) {
     return {
@@ -277,7 +306,7 @@ export function buildJurisdictionalReasoning(
     };
   }
 
-  // Default: High Court of the firm's state
+  // Default: High Court of the firm's state (Nigerian only)
   return {
     court: `${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION`,
     jurisdiction: j.name,
