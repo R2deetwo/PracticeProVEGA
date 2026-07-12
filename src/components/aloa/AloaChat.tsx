@@ -107,7 +107,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const { coreState, isDataLoaded } = useCoreState();
     const { deleteItem, handleAddResearchNotebook, handleAddResearchSource } = useDataActions();
     const { currentUser } = useAuth();
-    const { navigateTo, openModal, openEditor, currentHistoryEntry, isOnline } = useUI();
+    const { navigateTo, openModal, openEditor, currentHistoryEntry, isOnline, addToast } = useUI();
     const { isProperty, isAtrium } = useProduct();
     const convex = useConvex();
     const { confirm, ConfirmDialog } = useConfirm();
@@ -228,7 +228,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         );
     };
 
-    const handleToolExecution = async (toolCalls: any[]): Promise<{ outputs: any[]; isTerminal: boolean }> => {
+    const handleToolExecution = async (toolCalls: any[], conversationContext?: string): Promise<{ outputs: any[]; isTerminal: boolean }> => {
         if (!toolCalls || toolCalls.length === 0) return { outputs: [], isTerminal: false };
 
         const outputs: any[] = [];
@@ -341,8 +341,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         // ─── Jurisdictional Reasoning ─────────────────────────────
                         // Compute the jurisdictional analysis before drafting so we can
                         // show the user WHY a particular court was selected.
+                        //
+                        // IMPORTANT: We combine the AI's extracted prompt WITH the
+                        // user's original conversation message. The AI sometimes
+                        // extracts only "Draft a tenancy agreement" as the prompt,
+                        // stripping the jurisdiction context (e.g. "for a property
+                        // in San Francisco"). By checking the full conversation
+                        // text, we correctly detect foreign jurisdictions instead
+                        // of erroneously defaulting to the firm's home state.
+                        const draftPromptText = args.prompt || draftConfig.draftTitle || '';
                         const jurisdictionAnalysis = buildJurisdictionalReasoning(
-                            args.prompt || draftConfig.draftTitle || '',
+                            `${draftPromptText} ${conversationContext || ''}`,
                             coreState?.firmDetails?.defaultStateOfPractice
                         );
 
@@ -1003,7 +1012,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
                         iterationCount++;
                         setAloaStatus('Using tools…');
-                        const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls);
+                        // Build a conversation context string from recent user
+                        // messages so tool handlers (especially start_drafting)
+                        // can detect jurisdiction from the user's ORIGINAL
+                        // message, not just the AI's extracted args.
+                        const conversationContext = capturedMessages
+                            .filter(m => m.role === 'user')
+                            .slice(-3) // last 3 user messages for context
+                            .map(m => typeof m.content === 'string' ? m.content : '')
+                            .join(' \n ');
+                        const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls, conversationContext);
 
                         if (isTerminal) {
                             setMessages(prev => prev.filter(m => m.id !== streamMsgId));
@@ -1275,6 +1293,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             // and saved to localStorage for this config, open the editor with
             // the saved content and auto-draft DISABLED. This prevents the
             // "click Open item in chat → re-drafts from scratch" bug.
+            //
+            // KEY PRINCIPLE: "Open Item" should ALWAYS open the existing draft,
+            // NEVER generate a fresh one. If no draft exists (tab closed, no
+            // stored content), we tell the user instead of silently regenerating.
             const cfg = action.config || {};
             try {
                 const fid = coreState?.firmDetails?.id || '';
@@ -1284,7 +1306,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         title: cfg.draftTitle,
                         documentId: cfg.documentId,
                     });
-                    const stored = loadDraftSession(fid, key);
 
                     // ─── Tab-driven desktop workflow ───────────────────────
                     // On desktop, if a tab is already open for this draft,
@@ -1299,6 +1320,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         return;
                     }
 
+                    const stored = loadDraftSession(fid, key);
                     if (stored?.content && stored.content.trim().length > 0) {
                         // On desktop, open in a new tab so the user can keep
                         // the chat open alongside the draft.
@@ -1318,10 +1340,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         });
                         return;
                     }
+
+                    // ─── No draft exists ──────────────────────────────────
+                    // The draft was never generated, or the tab was closed
+                    // before the draft could be saved. Instead of silently
+                    // regenerating (which surprises the user), tell them what
+                    // happened and let them decide whether to draft again.
+                    addToast(`This draft is no longer available (the editor tab may have been closed before the draft finished). Ask me to draft it again if you'd like.`, { type: 'info' });
+                    return;
                 }
             } catch (e) {
                 console.warn('[executeStoredAction] draft lookup failed', e);
             }
+            // Fallback: open the editor with the original config.
+            // This path is only reached if firmId or draftTitle is missing.
             openEditorRef.current(null, action.config);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);

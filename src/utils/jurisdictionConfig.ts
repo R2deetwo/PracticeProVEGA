@@ -251,18 +251,87 @@ export function buildJurisdictionalReasoning(
   // If the prompt explicitly references a foreign jurisdiction, do NOT
   // default to Nigerian courts. Return a generic court caption and a
   // jurisdictional caveat instead.
+  //
+  // The keywords are matched as substrings (case-insensitive). We include
+  // common city names, state abbreviations (with word boundaries), and
+  // country names. This is intentionally broad — false positives (detecting
+  // a foreign jurisdiction when the matter is actually Nigerian) are rare
+  // and less harmful than false negatives (defaulting to Lagos for a
+  // San Francisco matter).
   const foreignJurisdictions: { keywords: string[]; name: string }[] = [
-    { keywords: ['san francisco', 'california', 'ca ', 'u.s.', 'us ', 'united states', 'america', 'american', 'delaware', 'new york', 'ny ', 'texas', 'florida', 'washington state', 'illinois', 'chicago'], name: 'United States' },
-    { keywords: ['united kingdom', 'uk ', 'england', 'london', 'british', 'wales', 'scotland'], name: 'United Kingdom' },
-    { keywords: ['european union', 'eu ', 'germany', 'france', 'spain', 'italy', 'netherlands'], name: 'European Union' },
-    { keywords: ['canada', 'canadian', 'ontario', 'toronto', 'vancouver'], name: 'Canada' },
-    { keywords: ['australia', 'australian', 'sydney', 'melbourne'], name: 'Australia' },
-    { keywords: ['south africa', 'south african', 'johannesburg', 'cape town'], name: 'South Africa' },
-    { keywords: ['ghana', 'ghanaian', 'accra'], name: 'Ghana' },
-    { keywords: ['kenya', 'kenyan', 'nairobi'], name: 'Kenya' },
-    { keywords: ['dubai', 'uae', 'emirates'], name: 'United Arab Emirates' },
+    { keywords: [
+        'san francisco', 'california', 'u.s.', 'u.s.a.', 'united states', 'united states of america',
+        'america', 'american', 'delaware', 'new york', 'texas', 'florida',
+        'washington state', 'illinois', 'chicago', 'los angeles', 'seattle',
+        'boston', 'houston', 'atlanta', 'miami', 'dallas', 'phoenix',
+        'philadelphia', 'san diego', 'denver', 'las vegas', 'portland',
+        'sacramento', 'austin', 'georgia', 'virginia', 'michigan', 'ohio',
+        'pennsylvania', 'new jersey', 'arizona', 'nevada', 'oregon',
+        'massachusetts', 'washington d.c.', 'washington dc',
+        // State abbreviations with word boundaries (matched via regex below)
+      ], name: 'United States' },
+    { keywords: [
+        'united kingdom', 'uk ', 'u.k.', 'england', 'london', 'british',
+        'wales', 'scotland', 'manchester', 'birmingham', 'liverpool', 'leeds',
+        'glasgow', 'edinburgh', 'cardiff', 'belfast',
+      ], name: 'United Kingdom' },
+    { keywords: [
+        'european union', 'e.u.', 'germany', 'france', 'spain', 'italy',
+        'netherlands', 'belgium', 'austria', 'sweden', 'norway', 'denmark',
+        'finland', 'poland', 'portugal', 'greece', 'ireland', 'switzerland',
+        'berlin', 'paris', 'madrid', 'rome', 'amsterdam', 'vienna', 'stockholm',
+      ], name: 'European Union' },
+    { keywords: [
+        'canada', 'canadian', 'ontario', 'toronto', 'vancouver', 'montreal',
+        'calgary', 'ottawa', 'edmonton', 'quebec', 'british columbia',
+        'alberta', 'manitoba', 'saskatchewan', 'nova scotia',
+      ], name: 'Canada' },
+    { keywords: [
+        'australia', 'australian', 'sydney', 'melbourne', 'brisbane',
+        'perth', 'adelaide', 'canberra', 'queensland', 'victoria',
+        'new south wales', 'nsw',
+      ], name: 'Australia' },
+    { keywords: [
+        'south africa', 'south african', 'johannesburg', 'cape town',
+        'durban', 'pretoria', 'western cape', 'gauteng',
+      ], name: 'South Africa' },
+    { keywords: ['ghana', 'ghanaian', 'accra', 'kumasi'], name: 'Ghana' },
+    { keywords: ['kenya', 'kenyan', 'nairobi', 'mombasa'], name: 'Kenya' },
+    { keywords: ['dubai', 'uae', 'u.a.e.', 'emirates', 'abu dhabi', 'sharjah'], name: 'United Arab Emirates' },
+    { keywords: ['saudi arabia', 'saudi', 'riyadh', 'jeddah'], name: 'Saudi Arabia' },
+    { keywords: ['qatar', 'doha'], name: 'Qatar' },
     { keywords: ['singapore', 'singaporean'], name: 'Singapore' },
-    { keywords: ['india', 'indian', 'mumbai', 'delhi'], name: 'India' },
+    { keywords: ['hong kong', 'hongkong'], name: 'Hong Kong' },
+    { keywords: ['japan', 'japanese', 'tokyo', 'osaka'], name: 'Japan' },
+    { keywords: ['south korea', 'korean', 'seoul', 'busan'], name: 'South Korea' },
+    { keywords: ['china', 'chinese', 'beijing', 'shanghai', 'shenzhen', 'guangzhou'], name: 'China' },
+    { keywords: ['india', 'indian', 'mumbai', 'delhi', 'bangalore', 'chennai', 'kolkata', 'hyderabad'], name: 'India' },
+    { keywords: ['pakistan', 'pakistani', 'karachi', 'lahore', 'islamabad'], name: 'Pakistan' },
+    { keywords: ['bangladesh', 'dhaka', 'chittagong'], name: 'Bangladesh' },
+    { keywords: ['brazil', 'brazilian', 'são paulo', 'sao paulo', 'rio de janeiro', 'brasilia'], name: 'Brazil' },
+    { keywords: ['mexico', 'mexican', 'mexico city', 'guadalajara', 'monterrey'], name: 'Mexico' },
+    { keywords: ['argentina', 'argentine', 'buenos aires'], name: 'Argentina' },
+    { keywords: ['chile', 'chilean', 'santiago'], name: 'Chile' },
+    { keywords: ['colombia', 'colombian', 'bogotá', 'bogota'], name: 'Colombia' },
+    { keywords: ['egypt', 'egyptian', 'cairo', 'alexandria'], name: 'Egypt' },
+    { keywords: ['morocco', 'moroccan', 'casablanca', 'rabat'], name: 'Morocco' },
+    { keywords: ['tanzania', 'dar es salaam', 'dodoma'], name: 'Tanzania' },
+    { keywords: ['uganda', 'kampala'], name: 'Uganda' },
+    { keywords: ['zimbabwe', 'harare', 'bulawayo'], name: 'Zimbabwe' },
+    { keywords: ['rwanda', 'kigali'], name: 'Rwanda' },
+  ];
+
+  // Also check US state abbreviations as whole words (e.g. "CA", "NY", "TX")
+  // to catch "San Francisco, CA" without matching "ca" inside other words.
+  const usStateAbbrevs = [
+    '\bAL\b', '\bAK\b', '\bAZ\b', '\bAR\b', '\bCA\b', '\bCO\b', '\bCT\b',
+    '\bDE\b', '\bFL\b', '\bGA\b', '\bHI\b', '\bID\b', '\bIL\b', '\bIN\b',
+    '\bIA\b', '\bKS\b', '\bKY\b', '\bLA\b', '\bME\b', '\bMD\b', '\bMA\b',
+    '\bMI\b', '\bMN\b', '\bMS\b', '\bMO\b', '\bMT\b', '\bNE\b', '\bNV\b',
+    '\bNH\b', '\bNJ\b', '\bNM\b', '\bNY\b', '\bNC\b', '\bND\b', '\bOH\b',
+    '\bOK\b', '\bOR\b', '\bPA\b', '\bRI\b', '\bSC\b', '\bSD\b', '\bTN\b',
+    '\bTX\b', '\bUT\b', '\bVT\b', '\bVA\b', '\bWA\b', '\bWV\b', '\bWI\b', '\bWY\b',
+    '\bDC\b',
   ];
 
   for (const fj of foreignJurisdictions) {
@@ -272,6 +341,22 @@ export function buildJurisdictionalReasoning(
         jurisdiction: fj.name,
         reasoning: `This matter pertains to ${fj.name} jurisdiction. Drafting using general legal principles applicable to ${fj.name}. Verify with local counsel in ${fj.name} for jurisdiction-specific requirements, court formatting, and procedural rules.`,
       };
+    }
+  }
+
+  // Check US state abbreviations (regex word-boundary match)
+  for (const abbrev of usStateAbbrevs) {
+    try {
+      const re = new RegExp(abbrev, 'i');
+      if (re.test(prompt)) {
+        return {
+          court: `[JURISDICTION: United States]`,
+          jurisdiction: 'United States',
+          reasoning: `This matter references a US state (${abbrev.replace(/\\b/g, '')}). Drafting using general legal principles applicable to the United States. Verify with local counsel for state-specific requirements, court formatting, and procedural rules.`,
+        };
+      }
+    } catch {
+      // regex error — skip
     }
   }
 

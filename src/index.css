@@ -1498,3 +1498,35 @@ nav,
   -webkit-overflow-scrolling: touch;
   will-change: transform;
 }
+
+/* ─── DraftPro AI Feature Pulse ───────────────────────────────────────
+   After a draft completes, the Redraft and Auto-Format buttons briefly
+   pulse with a soft blue/emerald ring glow to draw the user's attention
+   to the fact that they can continue editing with AI. The pulse is
+   subtle (not too bright, not too slow) and runs 3 cycles over ~2.4s. */
+@keyframes draftpro-ai-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+  20% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.35), 0 0 12px 2px rgba(59, 130, 246, 0.2);
+    transform: scale(1.03);
+  }
+  40% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+  60% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 0 10px 2px rgba(59, 130, 246, 0.15);
+    transform: scale(1.02);
+  }
+  80% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+.draftpro-ai-pulse {
+  animation: draftpro-ai-pulse 2.4s ease-out 1;
+  border-radius: 0.5rem;
+}

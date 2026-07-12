@@ -426,6 +426,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     onTitleChange,
     onContentChange,
     onBack,
+    linkedMatterId,
 }) => {
     const { addToast } = useUI();
     const { appState } = useDataState();
@@ -495,6 +496,36 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
+
+    // ─── AI Feature Pulse ────────────────────────────────────────────────
+    // After a draft completes, briefly pulse the Redraft and Auto-Format
+    // buttons to draw the user's attention to the fact that they can
+    // continue editing with AI. The pulse is subtle (a gentle ring glow
+    // that fades in/out 3 times over ~2.4s) and only triggers once per
+    // draft completion — not on every edit.
+    const [showAiPulse, setShowAiPulse] = useState(false);
+    const aiPulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const triggerAiPulse = useCallback(() => {
+        // Clear any previous pulse timer so we don't overlap
+        if (aiPulseTimeoutRef.current) clearTimeout(aiPulseTimeoutRef.current);
+        setShowAiPulse(true);
+        // Auto-clear after 3 pulse cycles (~2.5s)
+        aiPulseTimeoutRef.current = setTimeout(() => {
+            setShowAiPulse(false);
+            aiPulseTimeoutRef.current = null;
+        }, 2500);
+    }, []);
+
+    // Clean up the pulse timeout on unmount to prevent setState on
+    // an unmounted component (React warning + potential memory leak).
+    useEffect(() => {
+        return () => {
+            if (aiPulseTimeoutRef.current) {
+                clearTimeout(aiPulseTimeoutRef.current);
+                aiPulseTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     // The prompt currently being drafted against. Synced from the `draftPrompt`
     // prop ONLY when autoStartDrafting is true. Redraft updates this state to
@@ -803,41 +834,66 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             ).then(() => {
                 clearTimeout(safetyTimeout);
                 if (isCancelled || !editor || editor.isDestroyed) return;
-                setIsDrafting(false);
-                editor.setEditable(true);
-                const trimmedBuffer = draftBuffer.trim();
-                if (editor && trimmedBuffer) {
-                    let cleanDraft = trimmedBuffer
-                        .replace(/```html/g, '')
-                        .replace(/```/g, '')
-                        .replace(/\\n/g, '\n')
-                        .replace(/\r/g, '');
+                // Wrap the entire completion handler in try/catch so that
+                // ANY error (e.g. a ReferenceError from a typo, a setContent
+                // failure that escapes its inner catch, etc.) is caught and
+                // logged instead of propagating as an unhandled promise
+                // rejection that crashes the React app. The user has already
+                // seen the draft stream in — we must NOT lose it to a crash
+                // in post-processing.
+                try {
+                    setIsDrafting(false);
+                    editor.setEditable(true);
+                    const trimmedBuffer = draftBuffer.trim();
+                    if (editor && trimmedBuffer) {
+                        let cleanDraft = trimmedBuffer
+                            .replace(/```html/g, '')
+                            .replace(/```/g, '')
+                            .replace(/\\n/g, '\n')
+                            .replace(/\r/g, '');
 
-                    cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-                    const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                        const cat = resolveCategory(label);
-                        return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
-                    });
+                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
+                            const cat = resolveCategory(label);
+                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
+                        });
 
-                    try {
-                        editor.commands.setContent(processedDraft);
-                    } catch (e) {
-                        console.error('[DraftPro] setContent failed on final:', e);
-                    }
-                    addToast('Drafting complete', { type: 'success' });
-
-                    persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
-                } else {
-                    const currentContent = editor?.getHTML() || '';
-                    if (currentContent === '<p></p>' || !currentContent) {
                         try {
-                            editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
+                            editor.commands.setContent(processedDraft);
                         } catch (e) {
-                            console.error('[DraftPro] setContent failed on empty:', e);
+                            console.error('[DraftPro] setContent failed on final:', e);
                         }
-                        addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
+                        addToast('Drafting complete', { type: 'success' });
+
+                        persistDraftRef.current?.(processedDraft, title || 'Untitled Draft', activeDraftPrompt);
+
+                        // ─── Pulse the AI feature buttons ──────────────────
+                        // After the draft appears, briefly pulse the Redraft
+                        // and Auto-Format buttons so the user notices they
+                        // can continue editing with AI. Subtle and non-blocking.
+                        triggerAiPulse();
+                    } else {
+                        const currentContent = editor?.getHTML() || '';
+                        if (currentContent === '<p></p>' || !currentContent) {
+                            try {
+                                editor?.commands.setContent('<p style="color:#94a3b8; text-align:center; padding:24px;"><i>The AI returned an empty response. Please try again with a more specific prompt.</i></p>');
+                            } catch (e) {
+                                console.error('[DraftPro] setContent failed on empty:', e);
+                            }
+                            addToast('Drafting returned empty. Try a more specific prompt.', { type: 'info' });
+                        }
                     }
+                } catch (completionErr) {
+                    // Safety net: any unexpected error in the completion
+                    // handler must NOT crash the app or leave isDrafting
+                    // stuck on. Force-clear the overlay and log the error.
+                    console.error('[DraftPro] Completion handler error (recovered):', completionErr);
+                    setIsDrafting(false);
+                    if (editor && !editor.isDestroyed) {
+                        try { editor.setEditable(true); } catch {}
+                    }
+                    addToast('Draft completed (post-processing issue — your content is preserved).', { type: 'info' });
                 }
             }).catch(e => {
                 clearTimeout(safetyTimeout);
@@ -850,36 +906,44 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 if (e.name === 'AbortError') {
                     addToast('Drafting cancelled.', { type: 'info' });
                 } else {
-                    const trimmedBuffer = draftBuffer.trim();
-                    if (editor && !editor.isDestroyed && trimmedBuffer) {
-                        let cleanDraft = trimmedBuffer
-                            .replace(/```html/g, '')
-                            .replace(/```/g, '')
-                            .replace(/\\n/g, '\n')
-                            .replace(/\r/g, '');
-                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                            const cat = resolveCategory(label);
-                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
-                        });
-                        try {
-                            editor.commands.setContent(processedDraft);
-                        } catch (err) {
-                            console.error('[DraftPro] setContent failed on error recovery:', err);
+                    try {
+                        const trimmedBuffer = draftBuffer.trim();
+                        if (editor && !editor.isDestroyed && trimmedBuffer) {
+                            let cleanDraft = trimmedBuffer
+                                .replace(/```html/g, '')
+                                .replace(/```/g, '')
+                                .replace(/\\n/g, '\n')
+                                .replace(/\r/g, '');
+                            cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                            const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
+                                const cat = resolveCategory(label);
+                                return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
+                            });
+                            try {
+                                editor.commands.setContent(processedDraft);
+                            } catch (err) {
+                                console.error('[DraftPro] setContent failed on error recovery:', err);
+                            }
+                            addToast('Draft completed (with minor stream error).', { type: 'success' });
+                            persistDraftRef.current?.(processedDraft, title || 'Untitled Draft', activeDraftPrompt);
+                        } else {
+                            // Drafting failed with no content — show error message
+                            // in the editor and a toast. The key fix: ensure
+                            // isDrafting is ALWAYS set to false here so the
+                            // "Preparing your document..." overlay disappears.
+                            try {
+                                editor?.commands.setContent(`<p style="color:#ef4444; text-align:center; padding:24px;"><i>Drafting failed: ${e.message || 'Unknown error'}. Check your AI API key in Settings → AI Settings.</i></p>`);
+                            } catch (err) {
+                                console.error('[DraftPro] setContent failed on error display:', err);
+                            }
+                            addToast(`Drafting failed: ${e.message}. Check your AI API key in Settings → AI Settings.`, { type: 'error' });
                         }
-                        addToast('Draft completed (with minor stream error).', { type: 'success' });
-                        persistDraftRef.current?.(processedDraft, documentTitle, activeDraftPrompt);
-                    } else {
-                        // Drafting failed with no content — show error message
-                        // in the editor and a toast. The key fix: ensure
-                        // isDrafting is ALWAYS set to false here so the
-                        // "Preparing your document..." overlay disappears.
-                        try {
-                            editor?.commands.setContent(`<p style="color:#ef4444; text-align:center; padding:24px;"><i>Drafting failed: ${e.message || 'Unknown error'}. Check your AI API key in Settings → AI Settings.</i></p>`);
-                        } catch (err) {
-                            console.error('[DraftPro] setContent failed on error display:', err);
-                        }
-                        addToast(`Drafting failed: ${e.message}. Check your AI API key in Settings → AI Settings.`, { type: 'error' });
+                    } catch (recoveryErr) {
+                        // Even the error-recovery path failed. Make sure we
+                        // still clear the overlay so the user isn't stuck.
+                        console.error('[DraftPro] Error recovery failed:', recoveryErr);
+                        setIsDrafting(false);
+                        addToast('Drafting encountered an error. Please try again.', { type: 'error' });
                     }
                 }
             });
@@ -1620,22 +1684,26 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                         Auto-Format) — matching the pattern used in other groups
                         (e.g. amber for Placeholder/Fill in Insert/Legal Tools). */}
                     <ToolbarGroup label="DraftPro AI" variant="ai">
-                        <ToolbarBtn
-                            icon={RedraftIcon}
-                            label="Redraft"
-                            onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
-                            size="lg"
-                            disabled={!editor || isDrafting}
-                            className="text-blue-600 dark:text-blue-400"
-                        />
-                        {!isProperty && (
+                        <div className={showAiPulse ? 'draftpro-ai-pulse' : ''}>
                             <ToolbarBtn
-                                icon={Wand}
-                                label="Auto-Format"
-                                onClick={() => setActiveModal('auto_format_rules')}
+                                icon={RedraftIcon}
+                                label="Redraft"
+                                onClick={() => { setRedraftContext(''); setActiveModal('redraft'); }}
                                 size="lg"
-                                className="text-emerald-600 dark:text-emerald-400"
+                                disabled={!editor || isDrafting}
+                                className="text-blue-600 dark:text-blue-400"
                             />
+                        </div>
+                        {!isProperty && (
+                            <div className={showAiPulse ? 'draftpro-ai-pulse' : ''}>
+                                <ToolbarBtn
+                                    icon={Wand}
+                                    label="Auto-Format"
+                                    onClick={() => setActiveModal('auto_format_rules')}
+                                    size="lg"
+                                    className="text-emerald-600 dark:text-emerald-400"
+                                />
+                            </div>
                         )}
                     </ToolbarGroup>
 
