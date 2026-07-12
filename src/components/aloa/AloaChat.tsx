@@ -1407,8 +1407,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 <>
                     <div className="flex-1 flex overflow-hidden relative">
                      {showHistory && (
-                        <aside className={`absolute inset-0 z-20 sm:relative sm:inset-auto sm:w-64 sm:flex-shrink-0 border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 ${isMobile ? 'shadow-2xl' : ''}`}>
+                        <aside className="absolute inset-0 z-20 border-r border-slate-200 dark:border-zinc-800 flex flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 shadow-2xl">
                         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 space-y-2">
+                            <div className="flex items-center justify-between mb-1">
+                                <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">History</h3>
+                                <button
+                                    onClick={() => setShowHistory(false)}
+                                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                             <button
                                 onClick={() => {
                                     setActiveConversationId(null);
