@@ -18,6 +18,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { handleCleanCopy } from '../../utils/copyUtils';
+import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
@@ -1283,6 +1284,66 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         };
                         setMessages(prev => prev.map(m => m.id === streamMsgId ? modelMsg : m));
 
+                        // ─── Handle the armed draft tab ──────────────────────
+                        // If we pre-opened a blank "Preparing DraftPro…" tab
+                        // (because the user's message looked like a draft
+                        // request) but the AI responded with text in the
+                        // chat instead of calling start_drafting, we need
+                        // to deal with the armed tab:
+                        //
+                        // 1. If the response IS a formal document, keep the
+                        //    tab open — the user can click "Draft in DraftPro"
+                        //    to send the content there, and we'll use the
+                        //    armed tab. We update the tab to show a message
+                        //    telling the user to click the button.
+                        //
+                        // 2. If the response is NOT a formal document (just
+                        //    a conversational answer), close the armed tab
+                        //    — it's not needed.
+                        if (armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+                            if (isFormalDocument(validatedText)) {
+                                // Keep the tab open — show a message telling
+                                // the user to click "Draft in DraftPro"
+                                try {
+                                    const title = extractDocumentTitle(validatedText);
+                                    armedDraftTabRef.current.document.write(`
+                                        <html><head><title>${title}</title>
+                                        <style>
+                                            body { margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0f172a; color:#f8fafc; font-family:Inter,system-ui,sans-serif; padding:2rem; text-align:center; }
+                                            .icon { width:48px; height:48px; background:#16a34a; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-bottom:1rem; }
+                                            .icon svg { width:24px; height:24px; color:white; }
+                                            h1 { font-size:1.25rem; font-weight:700; margin-bottom:0.5rem; }
+                                            p { font-size:0.875rem; color:#94a3b8; max-width:400px; line-height:1.5; }
+                                        </style></head>
+                                        <body>
+                                            <div class="icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" /></svg></div>
+                                            <h1>Document Ready in Chat</h1>
+                                            <p>Your document "${title}" is ready in the ALOA chat. Click <strong>"Draft in DraftPro"</strong> below the response to open it here for editing.</p>
+                                        </body></html>
+                                    `);
+                                    // Don't clear the ref — handleDraftInDraftPro
+                                    // will use it when the user clicks the button.
+                                } catch {
+                                    // cross-origin — can't write, leave the spinner
+                                }
+                            } else {
+                                // Not a formal document — close the armed tab
+                                try {
+                                    if (armedDraftTabRef.current.location.href === 'about:blank' ||
+                                        armedDraftTabRef.current.location.href.includes('blank')) {
+                                        armedDraftTabRef.current.close();
+                                    }
+                                } catch {
+                                    // cross-origin — can't verify, leave it
+                                }
+                                armedDraftTabRef.current = null;
+                                if (armedDraftTabTimerRef.current) {
+                                    clearTimeout(armedDraftTabTimerRef.current);
+                                    armedDraftTabTimerRef.current = null;
+                                }
+                            }
+                        }
+
                         if (!isDemo && currentConvId) {
                             void saveMessageMutation({
                                 conversationId: currentConvId,
@@ -1400,6 +1461,73 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         setTimeout(() => setCopiedMessageId(null), 2000);
     };
 
+    // ─── Draft in DraftPro ────────────────────────────────────────────────
+    // When ALOA generates a formal document/letter in the chat (instead of
+    // calling start_drafting), the user can click "Draft in DraftPro" to
+    // send that content to DraftPro for proper editing. This converts the
+    // ALOA markdown to HTML and opens the editor with the content pre-loaded
+    // and auto-draft DISABLED (so the user keeps the exact content).
+    const handleDraftInDraftPro = (content: string) => {
+        const title = extractDocumentTitle(content);
+        const html = aloaContentToDraftHtml(content);
+
+        // Build the draft config — pass the content as draftContent so
+        // DraftPro loads it directly. disableAutoDraft=true so it doesn't
+        // re-generate (the AI already wrote the content).
+        const draftConfig = {
+            openedByAloa: true,
+            draftTitle: title,
+            draftContent: html,
+            disableAutoDraft: true,
+            draftPrompt: undefined,
+        };
+
+        // Save to localStorage first so the draft persists
+        const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+        if (fid) {
+            const key = draftSessionKey({
+                matterId: undefined,
+                title: title,
+            });
+            try {
+                import('../../utils/draftSession').then(({ saveDraftSession }) => {
+                    saveDraftSession(fid, key, {
+                        title,
+                        content: html,
+                        draftPrompt: undefined,
+                        matterId: undefined,
+                        updatedAt: new Date().toISOString(),
+                        savedAt: Date.now(),
+                    });
+                });
+            } catch (e) {
+                console.warn('[handleDraftInDraftPro] save failed', e);
+            }
+
+            // On desktop, try to open in a new tab
+            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                // Try the armed tab first (if one was pre-opened)
+                const url = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(title)}`;
+                const armed = navigateArmedDraftTab(url);
+                if (armed) {
+                    openDraftInTab({ key, url, title });
+                    addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
+                    return;
+                }
+                // Fall back to opening a new tab via openDraftInTab
+                const result = openDraftInTab({ key, url, title });
+                if (result !== 'in-place') {
+                    addToast(`Opened "${title}" in DraftPro (new tab).`, { type: 'success' });
+                    return;
+                }
+            }
+        }
+
+        // Mobile or popup blocked — open in-place
+        openEditorRef.current(null, draftConfig);
+        addToast(`Opened "${title}" in DraftPro.`, { type: 'success' });
+    };
+
     // ─── Send to Research Studio ──────────────────────────────────────────
     // Takes an uploaded document from the ALOA chat and sends it to the
     // Research Studio as a new source in a new (or existing) notebook.
@@ -1509,19 +1637,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         } else if (action.type === 'navigate') {
             navigateToRef.current(action.target, null, action.context);
         } else if (action.type === 'draft') {
-            // Defensive persistence check: if a draft was already generated
-            // and saved to localStorage for this config, open the editor with
-            // the saved content and auto-draft DISABLED. This prevents the
-            // "click Open item in chat → re-drafts from scratch" bug.
+            // ─── Open existing draft (or re-draft if not available) ────────
             //
-            // KEY PRINCIPLE: "Open Item" should ALWAYS open the existing draft,
-            // NEVER generate a fresh one. If no draft exists (tab closed, no
-            // stored content), we tell the user instead of silently regenerating.
+            // KEY PRINCIPLE: "Open Item" should ALWAYS open the existing draft.
+            // If no draft exists (tab closed, no stored content), we DON'T
+            // show a "draft closed" toast and ask the user to re-type their
+            // request — that's a terrible UX. Instead, we re-draft directly
+            // using the original prompt, so the user gets their document
+            // without having to repeat themselves.
             const cfg = action.config || {};
             try {
-                // Use currentUser.firmId (reliably populated) instead of
-                // coreState.firmDetails.id (which is undefined for real users
-                // because the firms table has _id, not id).
                 const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
                 if (fid && cfg.draftTitle) {
                     const key = draftSessionKey({
@@ -1532,8 +1657,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     // ─── Tab-driven desktop workflow ───────────────────────
                     // On desktop, if a tab is already open for this draft,
-                    // focus it instead of navigating in-place. This preserves
-                    // the user's workspace across multiple drafts.
+                    // focus it instead of navigating in-place.
                     if (isDraftTabOpen(key)) {
                         openDraftInTab({
                             key,
@@ -1564,19 +1688,30 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         return;
                     }
 
-                    // ─── No draft exists ──────────────────────────────────
+                    // ─── No draft exists → RE-DRAFT DIRECTLY ──────────────
                     // The draft was never generated, or the tab was closed
-                    // before the draft could be saved. Instead of silently
-                    // regenerating (which surprises the user), tell them what
-                    // happened and let them decide whether to draft again.
-                    addToast(`This draft is no longer available (the editor tab may have been closed before the draft finished). Ask me to draft it again if you'd like.`, { type: 'info' });
+                    // before the draft could be saved. Instead of showing a
+                    // toast and asking the user to re-type their request,
+                    // we re-draft directly using the original prompt. This
+                    // gives the user their document without friction.
+                    //
+                    // We pass the original draftPrompt so DraftPro auto-starts
+                    // drafting. If there's no stored prompt, we use the title
+                    // as the prompt (the AI will generate a document based on
+                    // the title).
+                    addToast(`Re-opening "${cfg.draftTitle}" in DraftPro…`, { type: 'info' });
+                    openEditorRef.current(null, {
+                        ...cfg,
+                        // Re-enable auto-drafting with the original prompt
+                        draftPrompt: cfg.draftPrompt || cfg.draftTitle,
+                        disableAutoDraft: false,
+                    });
                     return;
                 }
             } catch (e) {
                 console.warn('[executeStoredAction] draft lookup failed', e);
             }
             // Fallback: open the editor with the original config.
-            // This path is only reached if firmId or draftTitle is missing.
             openEditorRef.current(null, action.config);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);
@@ -1981,7 +2116,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {/* Action buttons row — hover-only on desktop, tap-to-reveal on touch.
                                         Copy AND Save are hidden for messages that have a toolAction
                                         (the output is a structured document opened in DraftPro or a
-                                        modal — not copyable/saveable text). Edit remains for user messages. */}
+                                        modal — not copyable/saveable text). Edit remains for user messages.
+                                        "Draft in DraftPro" appears when the AI's response contains a
+                                        formal document/letter — letting the user send it to DraftPro
+                                        for proper editing with formatting preserved. */}
                                     <div className={`flex gap-0.5 mt-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                         {!msg.toolAction && (
                                             <button
@@ -2001,6 +2139,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 </>
                                             )}
                                         </button>
+                                        )}
+
+                                        {/* ─── Draft in DraftPro ──────────────────────────
+                                            Shows ONLY when:
+                                            1. The message is from the AI (role === 'model')
+                                            2. The message has NO toolAction (not already a draft)
+                                            3. The message is NOT an error
+                                            4. The content is detected as a formal document
+                                               (letter, agreement, affidavit, etc.)
+
+                                            When clicked, converts the ALOA markdown to HTML and
+                                            opens DraftPro with the content pre-loaded. The user
+                                            gets a proper editor with formatting, placeholders,
+                                            and all DraftPro features — without re-generating. */}
+                                        {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && isFormalDocument(msg.content) && (
+                                            <button
+                                                onClick={() => handleDraftInDraftPro(msg.content || '')}
+                                                className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"
+                                                title="Send this document to DraftPro for proper editing"
+                                            >
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                Draft in DraftPro
+                                            </button>
                                         )}
 
                                         {msg.role === 'user' && (
