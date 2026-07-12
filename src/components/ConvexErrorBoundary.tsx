@@ -57,7 +57,27 @@ class ConvexErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: any, errorInfo: ErrorInfo) {
         const msg = error?.message || String(error) || '';
-        console.error('[ConvexErrorBoundary] Caught error:', msg);
+        console.error('[ConvexErrorBoundary] Caught error:', msg, errorInfo?.componentStack);
+
+        // Auto-recover from non-Convex errors after 2 seconds (max 3 attempts).
+        // This handles transient React rendering errors (e.g., from async editor
+        // state updates) that would otherwise leave the user stuck on the error
+        // screen. The auto-recovery simply clears the error state and lets React
+        // re-render — if the underlying issue is transient, the app recovers
+        // seamlessly. If it's persistent, the user still sees the error screen
+        // after 3 attempts.
+        if (!isConvexRelatedError(msg)) {
+            if (this.state.retryCount < 3) {
+                this.retryTimer = setTimeout(() => {
+                    this.setState(prev => ({
+                        hasError: false,
+                        isConvexError: false,
+                        errorMessage: '',
+                        retryCount: prev.retryCount + 1,
+                    }));
+                }, 2000);
+            }
+        }
 
         // Clear stale session on Convex errors so on retry the user lands on login cleanly
         if (isConvexRelatedError(msg)) {
