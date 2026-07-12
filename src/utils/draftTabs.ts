@@ -108,8 +108,12 @@ export function openDraftInTab(opts: {
 
   // Check if there's a live tab for this key
   if (existing && now - existing.lastHeartbeat < 15000) {
-    // Try to focus the existing tab
-    const win = window.open('', existing.tabName);
+    // Try to focus the existing tab.
+    // IMPORTANT: Use the FULL URL (not '') because popup blockers
+    // block window.open('', name) even in user-gesture contexts.
+    // By opening with the real URL, the browser treats it as a
+    // legitimate navigation, not a popup attempt.
+    const win = window.open(opts.url, existing.tabName);
     if (win && !win.closed) {
       win.focus();
       return 'existing-tab';

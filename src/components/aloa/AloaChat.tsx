@@ -1881,14 +1881,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         } else if (action.type === 'navigate') {
             navigateToRef.current(action.target, null, action.context);
         } else if (action.type === 'draft') {
-            // ─── Open existing draft (or re-draft if not available) ────────
+            // ─── Open existing draft in a NEW TAB ────────────────────────
             //
-            // KEY PRINCIPLE: "Open Item" should ALWAYS open the existing draft.
-            // If no draft exists (tab closed, no stored content), we DON'T
-            // show a "draft closed" toast and ask the user to re-type their
-            // request — that's a terrible UX. Instead, we re-draft directly
-            // using the original prompt, so the user gets their document
-            // without having to repeat themselves.
+            // This is called from a button click — which IS a user gesture.
+            // So window.open() should work without being blocked.
+            //
+            // KEY PRINCIPLE: "Open Item" should ALWAYS open in a new tab
+            // on desktop. If no draft exists, re-draft directly.
             const cfg = action.config || {};
             try {
                 const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
@@ -1898,55 +1897,55 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         title: cfg.draftTitle,
                         documentId: cfg.documentId,
                     });
+                    const editorUrl = `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`;
 
-                    // ─── Tab-driven desktop workflow ───────────────────────
-                    // On desktop, if a tab is already open for this draft,
-                    // focus it instead of navigating in-place.
-                    if (isDraftTabOpen(key)) {
-                        openDraftInTab({
+                    // On desktop, ALWAYS open in a new tab.
+                    // This is a user gesture (button click), so window.open
+                    // should work. We try multiple strategies:
+                    // 1. openDraftInTab (uses window.open with full URL)
+                    // 2. Direct window.open(url, '_blank')
+                    // 3. Fall back to in-place only if both fail
+                    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                        // Strategy 1: openDraftInTab
+                        const result = openDraftInTab({
                             key,
-                            url: `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`,
+                            url: editorUrl,
                             title: cfg.draftTitle,
                         });
-                        return;
+                        if (result !== 'in-place') return;
+
+                        // Strategy 2: Direct window.open
+                        try {
+                            const win = window.open(editorUrl, '_blank');
+                            if (win && !win.closed) {
+                                win.focus();
+                                return;
+                            }
+                        } catch {
+                            // continue to fallback
+                        }
+
+                        // If we get here, popup was blocked.
+                        // Show a toast AND open in-place as fallback.
+                        addToast(`Pop-up blocked — opening in this tab instead. Allow pop-ups for this site to open drafts in a new tab.`, { type: 'info' });
                     }
 
+                    // Check if we have stored content
                     const stored = loadDraftSession(fid, key);
                     if (stored?.content && stored.content.trim().length > 0) {
-                        // On desktop, open in a new tab so the user can keep
-                        // the chat open alongside the draft.
-                        if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-                            const result = openDraftInTab({
-                                key,
-                                url: `/editor?draftKey=${encodeURIComponent(key)}&title=${encodeURIComponent(cfg.draftTitle)}`,
-                                title: cfg.draftTitle,
-                            });
-                            if (result !== 'in-place') return;
-                        }
                         openEditorRef.current(null, {
                             ...cfg,
                             draftContent: stored.content,
                             disableAutoDraft: true,
-                            draftPrompt: undefined, // do NOT re-trigger drafting
+                            draftPrompt: undefined,
                         });
                         return;
                     }
 
-                    // ─── No draft exists → RE-DRAFT DIRECTLY ──────────────
-                    // The draft was never generated, or the tab was closed
-                    // before the draft could be saved. Instead of showing a
-                    // toast and asking the user to re-type their request,
-                    // we re-draft directly using the original prompt. This
-                    // gives the user their document without friction.
-                    //
-                    // We pass the original draftPrompt so DraftPro auto-starts
-                    // drafting. If there's no stored prompt, we use the title
-                    // as the prompt (the AI will generate a document based on
-                    // the title).
+                    // No stored content → re-draft directly
                     addToast(`Re-opening "${cfg.draftTitle}" in DraftPro…`, { type: 'info' });
                     openEditorRef.current(null, {
                         ...cfg,
-                        // Re-enable auto-drafting with the original prompt
                         draftPrompt: cfg.draftPrompt || cfg.draftTitle,
                         disableAutoDraft: false,
                     });
@@ -1955,7 +1954,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             } catch (e) {
                 console.warn('[executeStoredAction] draft lookup failed', e);
             }
-            // Fallback: open the editor with the original config.
             openEditorRef.current(null, action.config);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);
