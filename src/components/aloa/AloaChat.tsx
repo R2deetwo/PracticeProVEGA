@@ -1350,42 +1350,96 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                     }
 
-                    // ── AUTO WEB SEARCH IN RESEARCH MODE ──────────────────
+                    // ── PARALLEL WEB SEARCH IN RESEARCH MODE (like Claude) ──
                     // In research mode, if the user's message doesn't contain a URL
                     // but asks a legal question, automatically search the web for
-                    // relevant information before sending to the AI.
+                    // relevant information using MULTIPLE PARALLEL QUERIES.
+                    //
+                    // Instead of one search, we generate 2-3 different search
+                    // queries from the user's message and run them ALL IN PARALLEL.
+                    // This matches how Claude does it (the screenshot showed
+                    // multiple search panels appearing at once).
                     if (effectiveModel === 'research' && (!urls || urls.length === 0)) {
-                        const legalKeywords = /\b(law|legal|statute|regulation|compliance|contract|agreement|liability|jurisdiction|court|rights|obligations|duty|tort|negligence|breach|damages|injunction|liability|hipaa|gdpr|ccpa|privacy|employment|independent contractor|misclassification|AB5|professional|ethics|fee|referral|witness|expert)\b/i;
+                        const legalKeywords = /\b(law|legal|statute|regulation|compliance|contract|agreement|liability|jurisdiction|court|rights|obligations|duty|tort|negligence|breach|damages|injunction|liability|hipaa|gdpr|ccpa|privacy|employment|independent contractor|misclassification|AB5|professional|ethics|fee|referral|witness|expert|advisory|advise|counsel)\b/i;
                         if (legalKeywords.test(content)) {
-                            setAloaStatus('Searching the web for legal authorities…');
+                            setAloaStatus('Searching the web (parallel queries)…');
                             try {
-                                const { searchWebClient } = await import('../../utils/webFetchClient');
-                                // Extract a search query from the user's message
-                                const searchQuery = content.substring(0, 200).replace(/\n/g, ' ');
-                                const searchResult = await searchWebClient(searchQuery);
+                                const { searchWebClient, fetchUrlContentClient } = await import('../../utils/webFetchClient');
 
-                                if (searchResult.success && searchResult.results.length > 0) {
-                                    // Show search results in the UI
-                                    setWebFetchResults(searchResult.results.map(r => ({
+                                // ─── Generate multiple search queries ────────
+                                // Extract key topics from the user's message
+                                // and generate 2-3 different search angles.
+                                const searchQueries: string[] = [];
+
+                                // Query 1: The full question (truncated)
+                                searchQueries.push(content.substring(0, 150).replace(/\n/g, ' ').trim());
+
+                                // Query 2: Extract legal terms + jurisdiction
+                                const jurisdictionMatch = content.match(/\b(nigeria|california|san francisco|united states|US|UK|new york|texas|florida|ghana|kenya|south africa|india|canada|australia)\b/i);
+                                const legalTermMatch = content.match(/\b(expert witness|independent contractor|tenancy|lease|employment|hipaa|ccpa|gdpr|privacy|contract|agreement|liability|negligence|breach|damages|injunction|compliance|statute|regulation)\b/i);
+                                if (legalTermMatch && jurisdictionMatch) {
+                                    searchQueries.push(`${legalTermMatch[0]} ${jurisdictionMatch[0]} legal requirements`);
+                                } else if (legalTermMatch) {
+                                    searchQueries.push(`${legalTermMatch[0]} legal requirements law`);
+                                }
+
+                                // Query 3: Specific statutes/rules if mentioned
+                                const statuteMatch = content.match(/\b(AB5|Section \d+|Civil Code|Labor Code|Constitution|Rules of (Professional Conduct|Civil Procedure))\b/i);
+                                if (statuteMatch) {
+                                    searchQueries.push(`${statuteMatch[0]} legal requirements`);
+                                }
+
+                                // Limit to 3 queries max
+                                const queriesToRun = searchQueries.slice(0, 3);
+
+                                // ─── Run all searches IN PARALLEL ───────────
+                                setAloaStatus(`Running ${queriesToRun.length} web searches in parallel…`);
+                                const searchResults = await Promise.all(
+                                    queriesToRun.map(async (query) => {
+                                        try {
+                                            const result = await searchWebClient(query);
+                                            return { query, result, success: result.success };
+                                        } catch {
+                                            return { query, result: { success: false, results: [], query }, success: false };
+                                        }
+                                    })
+                                );
+
+                                // Collect all unique results
+                                const allResults: Array<{ url: string; title: string; snippet: string; query: string }> = [];
+                                const seenUrls = new Set<string>();
+                                for (const sr of searchResults) {
+                                    if (sr.success && sr.result.results) {
+                                        for (const r of sr.result.results) {
+                                            if (!seenUrls.has(r.url)) {
+                                                seenUrls.add(r.url);
+                                                allResults.push({ ...r, query: sr.query });
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (allResults.length > 0) {
+                                    // Show ALL search results in the UI (like Claude's panels)
+                                    setWebFetchResults(allResults.map(r => ({
                                         url: r.url,
                                         title: r.title,
                                         success: true,
                                         snippet: r.snippet,
                                     })));
 
-                                    // Fetch the top 2 results for deeper content
-                                    setAloaStatus('Reading top search results…');
-                                    const topResults = searchResult.results.slice(0, 2);
+                                    // Fetch the top 4 results IN PARALLEL for deeper content
+                                    setAloaStatus(`Reading ${Math.min(4, allResults.length)} web pages in parallel…`);
+                                    const topResults = allResults.slice(0, 4);
                                     const deepFetches = await Promise.all(
                                         topResults.map(async (r) => {
                                             try {
-                                                const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
                                                 const fetchResult = await fetchUrlContentClient(r.url);
                                                 if (fetchResult.success && fetchResult.content) {
                                                     return {
                                                         url: r.url,
                                                         title: fetchResult.title || r.title,
-                                                        content: fetchResult.content.substring(0, 5000),
+                                                        content: fetchResult.content.substring(0, 8000),
                                                         success: true,
                                                     };
                                                 }
@@ -1404,7 +1458,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     if (deepContent) {
                                         const lastMsg = capturedMessages[capturedMessages.length - 1];
                                         if (lastMsg && lastMsg.role === 'user') {
-                                            lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was found via web search and fetched for your analysis. Use this to provide accurate, cited information:]\n${deepContent}`;
+                                            lastMsg.content = `${typeof lastMsg.content === 'string' ? lastMsg.content : ''}\n\n[The following web content was found via ${queriesToRun.length} parallel web searches and fetched for your analysis. Use this to provide accurate, cited information:]\n${deepContent}`;
                                         }
                                     }
                                 }
@@ -1478,7 +1532,39 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
                         iterationCount++;
-                        setAloaStatus('Using tools…');
+
+                        // ─── Show which tools are being called ──────────────
+                        // Make tool use evident — list the tool names in the
+                        // status so the user can see exactly what ALOA is doing.
+                        const toolNames = currentResponse.toolCalls.map((tc: any) => {
+                            // Convert tool name to a human-readable label
+                            const name = tc.name || '';
+                            if (name === 'search_web') return 'web search';
+                            if (name === 'fetch_web_page') return 'reading page';
+                            if (name === 'search_legal_repo') return 'legal repo';
+                            if (name === 'query_firm_data') return 'firm data';
+                            if (name === 'analyze_document') return 'analyzing doc';
+                            if (name === 'start_drafting') return 'drafting';
+                            if (name === 'create_matter') return 'new matter';
+                            if (name === 'create_contact') return 'new contact';
+                            if (name === 'create_task') return 'new task';
+                            if (name === 'create_event') return 'new event';
+                            if (name === 'create_property') return 'new property';
+                            if (name === 'navigate_to') return 'navigating';
+                            if (name === 'execute_quick_action') return 'executing';
+                            if (name === 'update_open_form') return 'filling form';
+                            return name.replace(/_/g, ' ');
+                        });
+
+                        if (toolNames.length === 1) {
+                            setAloaStatus(`Using tool: ${toolNames[0]}…`);
+                        } else if (toolNames.length > 1) {
+                            // Multiple tools called in parallel
+                            setAloaStatus(`Running ${toolNames.length} tools in parallel: ${toolNames.join(' · ')}…`);
+                        } else {
+                            setAloaStatus('Using tools…');
+                        }
+
                         // Build a conversation context string from recent user
                         // messages so tool handlers (especially start_drafting)
                         // can detect jurisdiction from the user's ORIGINAL
