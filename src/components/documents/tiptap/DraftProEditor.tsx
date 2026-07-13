@@ -1494,7 +1494,10 @@ ${sourceList}
                 better visual scannability. */}
             {!focusMode && (
             <div className="flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 shadow-sm z-50">
-                <div className="flex items-stretch gap-0 px-1 py-1 overflow-x-auto custom-scrollbar no-scrollbar">
+                {/* Ribbon — wraps to fit the page width instead of spilling.
+                    Uses flex-wrap so toolbar groups flow to the next line
+                    when there isn't enough horizontal space. */}
+                <div className="flex flex-wrap items-stretch gap-0 px-1 py-1">
 
                     <ToolbarGroup label="File">
                         <ToolbarBtn icon={NewDocumentIcon} label="New" onClick={handleNewDocument} size="lg" disabled={!editor || isDrafting} />
