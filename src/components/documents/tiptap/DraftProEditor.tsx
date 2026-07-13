@@ -242,9 +242,9 @@ const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; classN
         ? 'text-[8px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5'
         : 'text-[8px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5';
     return (
-    <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-2 last:border-r-0 ${variantClass} ${className}`}>
+    <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-1 last:border-r-0 ${variantClass} ${className}`}>
         {/* Buttons area — items-end so all groups align at the bottom */}
-        <div className="flex items-end gap-0.5 py-0.5 flex-1 min-h-[28px]">
+        <div className="flex items-end gap-0 py-0.5 flex-1 min-h-[24px]">
             {children}
         </div>
         {/* Strict baseline label — fixed height, perfectly level across all groups */}
@@ -268,13 +268,12 @@ const ToolbarBtn: React.FC<{
     size?: 'sm' | 'md' | 'lg';
     className?: string;
 }> = ({ icon: Icon, label, onClick, active, disabled, size = 'md', className = '' }) => {
-    // Touch targets: minimum 32px on mobile (p-2 with w-4 h-4 icon = 32px),
-    // slightly larger on desktop. Previously p-0.5/p-1 which was ~20-24px —
-    // far below the 44px HIG minimum and hard to tap on mobile.
+    // Compact sizing — tight enough to fit all groups on one line.
+    // Still tappable (28px+ on desktop, 32px on mobile via p-2).
     const sizeClasses = {
-        sm: 'p-2 sm:p-1.5',
-        md: 'p-2 sm:p-1.5',
-        lg: 'p-2 sm:p-1.5 flex-col gap-0.5 min-w-[38px] sm:min-w-[42px]'
+        sm: 'p-1.5 sm:p-1',
+        md: 'p-1.5 sm:p-1',
+        lg: 'p-1.5 sm:p-1 flex-col gap-0 min-w-[30px] sm:min-w-[34px]'
     };
 
     return (
@@ -293,8 +292,8 @@ const ToolbarBtn: React.FC<{
         ${className}
       `}
         >
-            <Icon className="w-4 h-4" />
-            {size === 'lg' && label && <span className="text-[9px] sm:text-[8px] font-medium leading-none">{label}</span>}
+            <Icon className="w-3.5 h-3.5" />
+            {size === 'lg' && label && <span className="text-[8px] font-medium leading-none">{label}</span>}
         </button>
     );
 };
@@ -1494,10 +1493,10 @@ ${sourceList}
                 better visual scannability. */}
             {!focusMode && (
             <div className="flex-shrink-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 shadow-sm z-50">
-                {/* Ribbon — wraps to fit the page width instead of spilling.
-                    Uses flex-wrap so toolbar groups flow to the next line
-                    when there isn't enough horizontal space. */}
-                <div className="flex flex-wrap items-stretch gap-0 px-1 py-1">
+                {/* Ribbon — ONE LINE, compact. Uses overflow-x-auto as a
+                    fallback for very narrow screens, but the compact
+                    sizing should fit everything on one line on desktop. */}
+                <div className="flex items-stretch gap-0 px-0.5 py-0.5 overflow-x-auto custom-scrollbar no-scrollbar">
 
                     <ToolbarGroup label="File">
                         <ToolbarBtn icon={NewDocumentIcon} label="New" onClick={handleNewDocument} size="lg" disabled={!editor || isDrafting} />
