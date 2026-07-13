@@ -54,11 +54,14 @@ import Citation from './extensions/Citation';
 import { CitationRegistry } from '../../../utils/citationRegistry';
 import { FontSize } from './extensions/FontSize';
 import { LineHeight } from './extensions/LineHeight';
-import { exportHtmlToDocx } from '../../../utils/docxExport';
+import { exportHtmlToDocx, exportHtmlToDocxBlob, exportHtmlToPdfBlob } from '../../../utils/docxExport';
+import { uploadBlobToConvex } from '../../../utils/convexUpload';
 import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
 import { useDataState, useDataActions } from '../../../contexts/DataContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useMutation } from 'convex/react';
+import { api } from '../../../../convex/_generated/api';
 import { useAloa } from '../../../contexts/AloaProvider';
 import { HeaderRenderer } from '../HeaderRenderer';
 import { HeaderDesigner } from '../HeaderDesigner';
@@ -437,11 +440,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 }) => {
     const { addToast, navigateTo } = useUI();
     const { appState } = useDataState();
-    const { handleUpdateFirmDetails, addItem } = useDataActions();
+    const { handleUpdateFirmDetails, addItem, handleAddDocumentAndAnalyze } = useDataActions();
     const { currentUser } = useAuth();
     const { isProperty, isUnified } = useProduct();
     const signerContext = useSignerContext();
     const { openWithContext, openPanel } = useAloa();
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
     // ─── New-tab detection ──────────────────────────────────────────────
     // DraftPro can be opened in two ways:
@@ -1053,6 +1057,82 @@ ${sourceList}
         }
     }, [editor, onSave, addToast]);
 
+    // ─── Save as DOCX/PDF and add to Documents section ──────────────────
+    // Generates a DOCX or PDF file, uploads it to Convex storage, and
+    // creates a Document record so it appears in the Documents section.
+    // The user can then download, preview, or share the file from there.
+    const [isSavingFile, setIsSavingFile] = useState(false);
+    const saveAsFile = useCallback(async (format: 'docx' | 'pdf') => {
+        if (!editor) return;
+        try {
+            setIsSavingFile(true);
+            const html = editor.getHTML();
+            const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
+            const filename = `${safeTitle}.${format}`;
+            const mimeType = format === 'docx'
+                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                : 'application/pdf';
+
+            addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
+
+            // Generate the Blob
+            let blob: Blob;
+            if (format === 'docx') {
+                blob = exportHtmlToDocxBlob(html, {
+                    title: title || 'Document',
+                    author: currentUser?.name || 'PracticePro',
+                    firmName: appState?.firmDetails?.name || '',
+                });
+            } else {
+                blob = await exportHtmlToPdfBlob(html, {
+                    title: title || 'Document',
+                    author: currentUser?.name || 'PracticePro',
+                    firmName: appState?.firmDetails?.name || '',
+                });
+            }
+
+            // Upload to Convex storage
+            addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
+            const storageId = await uploadBlobToConvex(blob, generateUploadUrl);
+
+            // Create a Document record so it appears in the Documents section
+            await handleAddDocumentAndAnalyze({
+                title: title || 'Untitled Document',
+                firmId: appState?.firmDetails?.id || currentUser?.firmId || '',
+                categoryId: 'drafts',
+                dateFiled: new Date().toISOString(),
+                source: 'generated',
+                uploadedBy: currentUser?.id,
+                content: html, // Keep HTML for in-app editing
+                file: {
+                    name: filename,
+                    type: mimeType,
+                    size: blob.size,
+                    filePath: '',
+                    storageId, // The Convex storage ID — this is the key
+                },
+            });
+
+            // Also trigger a browser download
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(blobUrl);
+
+            addToast(`${format.toUpperCase()} saved to Documents and downloaded.`, { type: 'success' });
+            setIsSaved(true);
+        } catch (err: any) {
+            console.error(`[DraftPro] Save as ${format} failed:`, err);
+            addToast(`Failed to save as ${format.toUpperCase()}: ${err.message}`, { type: 'error' });
+        } finally {
+            setIsSavingFile(false);
+        }
+    }, [editor, title, currentUser, appState, addToast, generateUploadUrl, handleAddDocumentAndAnalyze]);
+
     // Clears the editor and resets the title for a fresh start.
     const handleNewDocument = useCallback(() => {
         if (!editor) return;
@@ -1432,53 +1512,21 @@ ${sourceList}
                             size="lg"
                             disabled={!editor}
                         />
-                        {/* DOCX Export — downloads a .docx file of the document */}
+                        {/* DOCX Export — saves to Documents section AND downloads */}
                         <ToolbarBtn
                             icon={DownloadIcon}
-                            label="DOCX"
-                            onClick={() => {
-                                if (!editor) return;
-                                try {
-                                    const html = editor.getHTML();
-                                    const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
-                                    exportHtmlToDocx(html, safeTitle, {
-                                    title: title || 'Document',
-                                    author: currentUser?.name || 'PracticePro',
-                                    firmName: appState?.firmDetails?.name || '',
-                                });
-                                addToast('Document exported as DOCX.', { type: 'success' });
-                                } catch (e) {
-                                    console.error('[DraftPro] getHTML failed on DOCX export:', e);
-                                    addToast('Could not export — document has an internal error.', { type: 'error' });
-                                }
-                            }}
+                            label={isSavingFile ? "…" : "DOCX"}
+                            onClick={() => saveAsFile('docx')}
                             size="lg"
-                            disabled={!editor}
+                            disabled={!editor || isDrafting || isSavingFile}
                         />
-                        {/* PDF Export — opens the print dialog where the user
-                            can "Save as PDF". This is the most reliable way
-                            to generate a PDF in the browser without requiring
-                            heavy libraries like jsPDF or pdfmake. */}
+                        {/* PDF Export — saves to Documents section AND downloads */}
                         <ToolbarBtn
                             icon={DownloadIcon}
-                            label="PDF"
-                            onClick={() => {
-                                if (!editor) return;
-                                // Check for unfilled placeholders first
-                                let hasPlaceholders = false;
-                                editor.state.doc.descendants((node) => {
-                                    if (node.type.name === 'legalPlaceholder') hasPlaceholders = true;
-                                });
-                                if (hasPlaceholders) {
-                                    addToast('Cannot export: Please fill all placeholders first.', { type: 'error' });
-                                    setActiveModal('fill_placeholders');
-                                    return;
-                                }
-                                addToast('Opening print dialog — select "Save as PDF" to export.', { type: 'info' });
-                                setTimeout(() => window.print(), 500);
-                            }}
+                            label={isSavingFile ? "…" : "PDF"}
+                            onClick={() => saveAsFile('pdf')}
                             size="lg"
-                            disabled={!editor || isDrafting}
+                            disabled={!editor || isDrafting || isSavingFile}
                         />
                         <ToolbarBtn
                             icon={PageBreakIcon}

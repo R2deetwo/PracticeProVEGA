@@ -260,14 +260,30 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
         return { groups, unassigned };
     }, [filteredDocuments, selectedCategory, matters]);
 
-    const handleDownload = (doc: Document) => {
-        if (!doc.file?.dataUrl) return;
-        const link = document.createElement('a');
-        link.href = doc.file.dataUrl;
-        link.download = doc.file.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleDownload = async (doc: Document) => {
+        if (!doc.file) return;
+
+        // If the file has a storageId, download from Convex storage
+        if (doc.file.storageId) {
+            try {
+                const { downloadFromConvex } = await import('../utils/convexUpload');
+                await downloadFromConvex(doc.file.storageId, doc.file.name);
+                return;
+            } catch (err) {
+                console.error('Download from Convex failed:', err);
+                // Fall through to dataUrl if available
+            }
+        }
+
+        // Fall back to dataUrl (base64 — used by older documents)
+        if (doc.file.dataUrl) {
+            const link = document.createElement('a');
+            link.href = doc.file.dataUrl;
+            link.download = doc.file.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     };
 
     const handleDelete = (doc: Document) => {
