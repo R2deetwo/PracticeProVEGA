@@ -414,7 +414,7 @@ export const EMPTY_APP_STATE: AppState = {
         bankAccounts: [], 
         integrations: { googleCalendar: false, googleDrive: false, googleContacts: false, googleMeet: false },
         subscriptionPlan: SubscriptionPlan.Core,
-        product: 'vega'
+        product: 'unified'  // Permissive default — prevents hiding property features during loading
     },
     firmActivity: [],
     notifications: [],

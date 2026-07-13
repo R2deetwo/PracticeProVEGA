@@ -76,6 +76,7 @@ export default defineSchema({
     joinedFirmIds: v.optional(v.array(v.string())),
     isVerified: nullableBoolean,
     verificationCode: nullableString,
+    welcomeEmailSent: nullableBoolean,
     password: nullableString,
     lockedUntil: nullableNumber,
     failedLoginAttempts: nullableNumber,

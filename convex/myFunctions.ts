@@ -1491,7 +1491,27 @@ export const verifyCode = mutation({
     if (!user) return { success: false, message: "User not found." };
     if (user.verificationCode !== args.code) return { success: false, message: "Invalid code." };
 
-    await ctx.db.patch(user._id, { isVerified: true, verificationCode: null });
+    // ─── Trigger welcome email on first verification ──────────────────
+    // The welcome email is sent ONCE — guarded by the welcomeEmailSent
+    // field. If the user re-verifies (e.g., after a password reset),
+    // we don't send another welcome email. This keeps verification
+    // (transactional code) and welcome (onboarding) separate.
+    if (!user.welcomeEmailSent) {
+      await ctx.db.patch(user._id, {
+        isVerified: true,
+        verificationCode: null,
+        welcomeEmailSent: true,
+      });
+      // Send welcome email via scheduler (async — doesn't block verification)
+      await ctx.scheduler.runAfter(0, internal.myFunctions.sendWelcomeEmail, {
+        email: user.email || args.email,
+        product: user.product || undefined,
+        name: user.name || undefined,
+      });
+    } else {
+      await ctx.db.patch(user._id, { isVerified: true, verificationCode: null });
+    }
+
     return { success: true };
   }
 });
@@ -2720,6 +2740,123 @@ export const sendRecoveryEmail = internalAction({
     await sendBrevoEmail({
       to: args.email,
       subject: `Reset your PracticePro ${brand.name} Password`,
+      html,
+      productName: brand.name,
+    });
+  }
+});
+
+/**
+ * sendWelcomeEmail — Sent ONCE after a user verifies their email.
+ *
+ * This is SEPARATE from the verification email:
+ *   - Verification email: "Here's your code" — transactional, no product info
+ *   - Welcome email: "Welcome to PracticePro [Product]" — onboarding, includes
+ *     product info, tier, and learning material links
+ *
+ * The welcome email is triggered from the `verifyCode` mutation (guarded
+ * by `welcomeEmailSent` field on the user record) so it's sent exactly once.
+ *
+ * Content includes:
+ *   - Personalized welcome with the product name (VEGA / ATRIUM / KOMPLETE)
+ *   - Product tagline and what they can do
+ *   - Getting started links (dashboard, ALOA, DraftPro, etc.)
+ *   - Learning material / help center link
+ */
+export const sendWelcomeEmail = internalAction({
+  args: {
+    email: v.string(),
+    product: v.optional(v.string()),
+    name: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const brand = getProductBranding(args.product);
+    const userName = args.name || 'there';
+
+    // Product-specific getting started guides
+    const gettingStartedLinks: Record<string, { label: string; url: string }[]> = {
+      legal: [
+        { label: 'Create your first Matter', url: 'https://practicepro.ng/help/matters' },
+        { label: 'Meet ALOA — your AI assistant', url: 'https://practicepro.ng/help/aloa' },
+        { label: 'Draft documents with DraftPro', url: 'https://practicepro.ng/help/draftpro' },
+      ],
+      property: [
+        { label: 'Add your first Property', url: 'https://practicepro.ng/help/properties' },
+        { label: 'Meet ARIA — your AI assistant', url: 'https://practicepro.ng/help/aria' },
+        { label: 'Manage tenants & rent', url: 'https://practicepro.ng/help/tenants' },
+      ],
+      unified: [
+        { label: 'Create your first Matter', url: 'https://practicepro.ng/help/matters' },
+        { label: 'Add your first Property', url: 'https://practicepro.ng/help/properties' },
+        { label: 'Meet ALOA — your AI assistant', url: 'https://practicepro.ng/help/aloa' },
+        { label: 'Draft documents with DraftPro', url: 'https://practicepro.ng/help/draftpro' },
+      ],
+    };
+
+    const links = gettingStartedLinks[args.product || 'legal'] || gettingStartedLinks.legal;
+    const linksHtml = links.map(l =>
+      `<a href="${l.url}" style="display: block; padding: 12px 16px; margin-bottom: 8px; background: #f7fafc; border-radius: 8px; color: #2d3748; text-decoration: none; font-size: 15px; font-weight: 500; border-left: 3px solid ${brand.accent};">${l.label} →</a>`
+    ).join('');
+
+    const html = `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a5c 100%); padding: 40px 24px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800;">
+            Welcome to PracticePro <span style="color: ${brand.accent};">${brand.name}</span>
+          </h1>
+          <p style="color: #a0aec0; margin: 8px 0 0 0; font-size: 15px;">${brand.tagline}</p>
+        </div>
+
+        <!-- Body -->
+        <div style="padding: 40px 32px;">
+          <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">
+            Hi ${userName},
+          </p>
+          <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 24px 0;">
+            Welcome to PracticePro ${brand.name}! Your email has been verified and your account is ready.
+            We're excited to have you on board.
+          </p>
+
+          <p style="color: #1a202c; font-size: 16px; font-weight: 600; margin: 0 0 16px 0;">
+            Get Started in 3 Steps:
+          </p>
+
+          <div style="margin-bottom: 32px;">
+            ${linksHtml}
+          </div>
+
+          <div style="background: #f7fafc; border-radius: 10px; padding: 20px; margin-bottom: 32px;">
+            <p style="color: #1a202c; font-size: 15px; font-weight: 600; margin: 0 0 8px 0;">
+              📚 Learning Resources
+            </p>
+            <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">
+              Visit our <a href="https://practicepro.ng/help" style="color: #4f46e5; text-decoration: none; font-weight: 600;">Help Center</a>
+              for tutorials, video guides, and best practices. You can also access help anytime
+              from within the app by clicking the "?" icon.
+            </p>
+          </div>
+
+          <p style="color: #4a5568; font-size: 14px; line-height: 1.6; margin: 0;">
+            If you have any questions, just ask ALOA (or ARIA) — your built-in AI assistant
+            can help you navigate the app, draft documents, and manage your practice.
+          </p>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #0d1b2a; padding: 24px 32px; text-align: center;">
+          <p style="color: #718096; font-size: 13px; margin: 0;">
+            PracticePro — Legal & Property Practice Management<br>
+            <a href="https://practicepro.ng" style="color: #4a5568; text-decoration: none;">practicepro.ng</a>
+          </p>
+        </div>
+      </div>
+    `;
+
+    await sendBrevoEmail({
+      to: args.email,
+      subject: `Welcome to PracticePro ${brand.name}! 🎉`,
       html,
       productName: brand.name,
     });

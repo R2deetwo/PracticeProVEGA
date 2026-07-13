@@ -226,7 +226,7 @@ const BillingCalculator: React.FC<{
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-amber-400/70 uppercase tracking-[0.2em]">Enterprise</p>
-                            <h3 className="text-lg font-black text-white">Projected Subscription Billing</h3>
+                            <h3 className="text-lg font-black text-white">Projected Billing</h3>
                         </div>
                     </div>
 
@@ -593,12 +593,12 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
                 <div>
-                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Subscription & Billing</h3>
-                    <p className="text-slate-500 dark:text-zinc-400 max-w-2xl">Manage your Firm / Organization's plan and seat allocation.</p>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Billing & Plans</h3>
+                    <p className="text-slate-500 dark:text-zinc-400 max-w-2xl">Manage your plan, billing cycle, and seat allocation.</p>
                 </div>
 
                 {/* ─── Fix Product Mode Warning ─────────────────────────── */}

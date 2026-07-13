@@ -73,8 +73,16 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
 
     let rawProduct = "unified";
 
-    if (demoProd) {
-      // Demo switcher takes highest priority
+    // ─── Defense-in-depth: ignore demo flag for real users ──────────────
+    // The demo flag ('practicepro_demo_product') is set by LeadCaptureModal
+    // when the user clicks "Try Demo". It should ONLY apply to the demo
+    // user (demo@practicepro.ng). For real users, we ignore it and use
+    // the firm/user data instead. This prevents a stale demo flag from
+    // overriding a Komplete firm's product mode.
+    const isDemoUser = currentUser?.email === 'demo@practicepro.ng';
+
+    if (demoProd && isDemoUser) {
+      // Demo switcher takes highest priority — but only for the demo user
       rawProduct = demoProd;
     } else if (currentUser && isDataLoaded && appState?.firmDetails) {
       // Fall back to firm's saved product setting

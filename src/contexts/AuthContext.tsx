@@ -429,6 +429,16 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
             // 3. Set Session
             setSessionToken(token);
+
+            // ─── Clear demo product flag on real login ──────────────────
+            // The demo flag ('practicepro_demo_product') is set by the
+            // LeadCaptureModal when a user clicks "Try Demo". If demo login
+            // fails (which it always does in production), the flag is left
+            // behind in sessionStorage and ProductContext reads it as the
+            // product — bypassing the safety net that should force Komplete
+            // firms to 'unified'. Clearing it here ensures real users get
+            // their actual product from firmDetails, not a stale demo flag.
+            sessionStorage.removeItem('practicepro_demo_product');
             
             const sessionData = JSON.stringify({ token });
             
@@ -602,6 +612,9 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith('draft_newMatter_'));
             keysToRemove.forEach(k => localStorage.removeItem(k));
         } catch { /* Non-critical */ }
+
+        // Clear the demo product flag so it doesn't persist into the next session
+        sessionStorage.removeItem('practicepro_demo_product');
 
         // SECURITY: When a portal user logs out, only clear the PORTAL session.
         if (isPortalUser) {

@@ -486,7 +486,7 @@ export const SettingsView: React.FC = () => {
             case 'firm': return <FirmSettings {...props} onEnableDevMode={props.onEnableDevMode} />;
             case 'subscription':
                 return isDemo
-                    ? demoGate("Subscription Management", "View and manage your firm's billing and plans after you create an account.")
+                    ? demoGate("Billing & Plans", "View and manage your firm's billing and plans after you create an account.")
                     : <SubscriptionSettings firmDetails={props.firmDetails} onUpdateFirmDetails={props.onUpdateFirmDetails} />;
             case 'security': return <SecuritySettings activities={coreState.firmActivity} users={props.users} onEnableDevMode={props.onEnableDevMode} />;
             case 'agents':
