@@ -23,12 +23,12 @@ export enum ModalType {
 export const tools: FunctionDeclaration[] = [
     {
         name: "navigate_to",
-        description: "Navigates to a specific view within the app. Use camelCase view names: 'dashboard', 'matters', 'matterDetail' (with selectedId=matter_id), 'tasks', 'contacts', 'documents', 'calendar', 'properties', 'billing', 'research'. NEVER use snake_case or kebab-case. NEVER pass a matter title as selectedId — always use the matter's ID.",
+        description: "Navigates to a specific view within the app. Use camelCase view names: 'dashboard', 'matters', 'matterDetail' (with selectedId=matter_id), 'tasks', 'contacts', 'documents', 'calendar', 'properties', 'billing', 'research'. NEVER use snake_case or kebab-case. NEVER pass a matter title as selectedId — always use the matter's ID. If the user mentions a matter by name, call query_firm_data first to find the matter ID, then call navigate_to with that ID.",
         parameters: {
             type: Type.OBJECT,
             properties: {
                 view: { type: Type.STRING, description: "View name in camelCase: 'dashboard', 'matters', 'matterDetail', 'tasks', 'contacts', 'documents', 'calendar', 'properties', 'billing', 'research'" },
-                selectedId: { type: Type.STRING, description: "The ID (not title) of the item to select. Required for detail views like matterDetail." },
+                selectedId: { type: Type.STRING, description: "The ID (not title) of the item to select. Required for detail views like matterDetail. If you don't have the ID, call query_firm_data first to find it." },
                 context: { type: Type.OBJECT, description: "Nav context." }
             },
             required: ["view"]
@@ -168,15 +168,15 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "query_firm_data",
-        description: "Searches through the firm's data for specific items. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'.",
+        description: "Searches through the firm's data for specific items. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'. IMPORTANT: When a user mentions a matter by NAME (e.g., 'Review Nigerian Sino Truck v Chinedu'), use this tool with category='matters' and the matter name as the query to find the matter ID. NEVER ask the user for a matter ID — search for it by title instead.",
         parameters: {
             type: Type.OBJECT,
             properties: {
-                query: { type: Type.STRING, description: "Keywords to search for." },
+                query: { type: Type.STRING, description: "Keywords or matter title to search for." },
                 category: {
                     type: Type.STRING,
                     enum: ["all", "tasks", "notes", "matters", "documents", "endorsements"],
-                    description: "Optional category to narrow down the search."
+                    description: "Optional category to narrow down the search. Use 'matters' when looking for a matter by title."
                 }
             },
             required: ["query"]
