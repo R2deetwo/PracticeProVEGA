@@ -51,16 +51,54 @@ export const parseAloaMarkdown = (text: string): string => {
                     .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
                     .trim();
                 
-                // Detect legal tasks (procedural or drafting)
+                // Detect legal tasks (procedural or drafting) and color-code by priority
                 const isTask = content.match(/^(Prepare|File|Draft|Search|Review|Send|Create|Analyze)\b/i);
                 if (isTask) {
-                    return `<li class="text-sm leading-relaxed group/task">
-                        <span 
-                            class="cursor-pointer text-primary-600 dark:text-primary-400 font-bold hover:underline decoration-2 underline-offset-4 decoration-primary-300 flex items-center gap-2 aloa-interactive-task"
+                    // ─── Color-coding system for ALOA suggestions ──────
+                    // 🔴 RED (High Priority / Action Items): Critical actions,
+                    //    missed deadlines, urgent tasks
+                    //    Keywords: File, Prepare, Send (time-sensitive actions)
+                    // 🟢 GREEN (General Review / Status Items): Navigation,
+                    //    status updates, standard reviews
+                    //    Keywords: Review, Create (non-urgent actions)
+                    // 🔵 BLUE (Informational / Research Items): Insights,
+                    //    documents, data-driven suggestions
+                    //    Keywords: Search, Analyze, Draft (research/creation)
+
+                    const actionWord = isTask[1].toLowerCase();
+                    let colorClass = '';
+                    let badgeText = '';
+                    let borderColor = '';
+
+                    if (['file', 'prepare', 'send'].includes(actionWord)) {
+                        // Red — high priority / action items
+                        colorClass = 'text-red-600 dark:text-red-400 hover:decoration-red-400';
+                        borderColor = 'border-l-2 border-red-400 pl-2';
+                        badgeText = 'High Priority';
+                    } else if (['review', 'create'].includes(actionWord)) {
+                        // Green — general review / status items
+                        colorClass = 'text-emerald-600 dark:text-emerald-400 hover:decoration-emerald-400';
+                        borderColor = 'border-l-2 border-emerald-400 pl-2';
+                        badgeText = 'Review';
+                    } else if (['search', 'analyze', 'draft'].includes(actionWord)) {
+                        // Blue — informational / research items
+                        colorClass = 'text-blue-600 dark:text-blue-400 hover:decoration-blue-400';
+                        borderColor = 'border-l-2 border-blue-400 pl-2';
+                        badgeText = 'Research';
+                    } else {
+                        // Default — primary color
+                        colorClass = 'text-primary-600 dark:text-primary-400 hover:decoration-primary-300';
+                        borderColor = '';
+                        badgeText = 'Action';
+                    }
+
+                    return `<li class="text-sm leading-relaxed group/task ${borderColor} rounded-r-sm">
+                        <span
+                            class="cursor-pointer ${colorClass} font-bold hover:underline decoration-2 underline-offset-4 flex items-center gap-2 aloa-interactive-task"
                             data-task-title="${content.replace(/"/g, '&quot;')}"
                         >
                             ${content}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/40 text-[8px] font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity translate-y-px">Review Task</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-700 text-[8px] font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity translate-y-px">${badgeText}</span>
                         </span>
                     </li>`;
                 }

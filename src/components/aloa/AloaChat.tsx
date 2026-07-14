@@ -137,9 +137,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     );
 
     // Fetch un-dismissed proactive insights (deadlines, anomalies, briefings)
+    // Only fetch if the user hasn't disabled AI suggestions in settings
+    const showAiSuggestions = (currentUser as any).showAiSuggestions !== false;
     const proactiveInsights = useQuery(
         api.proactive.getInsights,
-        firmId ? { firmId, dismissed: false, limit: 10 } : 'skip'
+        showAiSuggestions && firmId ? { firmId, dismissed: false, limit: 10 } : 'skip'
     );
 
     const [textInput, setTextInput] = useState('');
@@ -503,8 +505,49 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         isTerminal = true; // Modal opened — no second API call needed
 
                     } else if (name === 'navigate_to') {
-                        feedbackMessage = `Navigating to ${args.view}...`;
-                        navigateToRef.current(args.view, args.selectedId, args.context);
+                        // ─── Normalize view names ────────────────────────
+                        // The AI sometimes passes snake_case (matter_details) or
+                        // variations (matter-details, MatterDetail) instead of
+                        // the camelCase the app expects (matterDetail).
+                        // Normalize all variations to the correct view name.
+                        const viewAliases: Record<string, string> = {
+                            'matter_details': 'matterDetail',
+                            'matter-details': 'matterDetail',
+                            'matterdetail': 'matterDetail',
+                            'contact_details': 'contactDetail',
+                            'contact-details': 'contactDetail',
+                            'document_details': 'documentDetail',
+                            'document-details': 'documentDetail',
+                            'property_details': 'propertyDetail',
+                            'property-details': 'propertyDetail',
+                        };
+                        const normalizedView = viewAliases[(args.view || '').toLowerCase()] || args.view;
+
+                        // ─── Validate the selectedId ─────────────────────
+                        // The AI sometimes passes the matter TITLE as the
+                        // selectedId instead of the actual ID. This causes
+                        // the URL to become /matters/Matter%20Title which
+                        // results in a 404. If the selectedId looks like a
+                        // title (contains spaces or is very long), try to
+                        // find the actual matter by title.
+                        let selectedId = args.selectedId;
+                        if (selectedId && (selectedId.includes(' ') || selectedId.length > 50)) {
+                            // Looks like a title, not an ID — try to find the matter
+                            const matter = matterState.matters.find(m =>
+                                m.title.toLowerCase() === selectedId.toLowerCase()
+                            );
+                            if (matter) {
+                                selectedId = matter.id;
+                            } else {
+                                // Can't find the matter — show a toast instead of navigating to a 404
+                                addToast(`Could not find "${selectedId}". Try searching for it in the Matters list.`, { type: 'info' });
+                                isTerminal = true;
+                                continue;
+                            }
+                        }
+
+                        feedbackMessage = `Navigating to ${normalizedView}...`;
+                        navigateToRef.current(normalizedView, selectedId, args.context);
                         isTerminal = true;
 
                     } else if (name === 'start_drafting') {
@@ -2348,20 +2391,44 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             setShowHistory(false);
                             return;
                         }
-                        
+
                         const target = e.target as HTMLElement;
                         const taskEl = target.closest('.aloa-interactive-task');
                         if (taskEl) {
                             const taskTitle = taskEl.getAttribute('data-task-title');
                             if (taskTitle) {
-                                const isDraftable = taskTitle.match(/^(Draft|Prepare|Create)\b/i);
-                                if (isDraftable) {
-                                    openEditorRef.current(null, { 
-                                        draftTitle: taskTitle, 
+                                // ─── Fix: Only open DraftPro for actual drafting tasks ──
+                                // "Create a new task" should open the task modal, NOT DraftPro.
+                                // Only "Draft" and "Prepare" are drafting actions.
+                                // "Create" is too broad — it matches "Create a new task",
+                                // "Create a contact", "Create a matter" etc.
+                                const isDraftingAction = taskTitle.match(/^(Draft|Prepare)\b/i);
+                                const isTaskCreation = taskTitle.match(/^Create.{0,5}(a )?(new )?task\b/i);
+                                const isMatterCreation = taskTitle.match(/^Create.{0,5}(a )?(new )?matter\b/i);
+                                const isContactCreation = taskTitle.match(/^Create.{0,5}(a )?(new )?contact\b/i);
+                                const isEventCreation = taskTitle.match(/^Create.{0,5}(a )?(new )?(event|meeting|hearing)\b/i);
+
+                                if (isDraftingAction) {
+                                    // Draft/Prepare → open DraftPro
+                                    openEditorRef.current(null, {
+                                        draftTitle: taskTitle,
                                         isCourtProcess: true,
-                                        openedByAloa: true 
+                                        openedByAloa: true
                                     });
+                                } else if (isTaskCreation) {
+                                    // Create task → open task modal
+                                    openModalRef.current('newTask', null, { openedByAloa: true });
+                                } else if (isMatterCreation) {
+                                    // Create matter → open matter modal
+                                    openModalRef.current('newMatter', null, { openedByAloa: true });
+                                } else if (isContactCreation) {
+                                    // Create contact → open contact modal
+                                    openModalRef.current('newContact', null, { openedByAloa: true });
+                                } else if (isEventCreation) {
+                                    // Create event → open event modal
+                                    openModalRef.current('newEvent', null, { openedByAloa: true });
                                 } else {
+                                    // Everything else → ask ALOA
                                     setTextInput(`I want to ${taskTitle.toLowerCase()}`);
                                 }
                             }

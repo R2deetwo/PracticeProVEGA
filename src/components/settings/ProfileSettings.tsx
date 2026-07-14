@@ -202,6 +202,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                 isChecked={currentUser.showProTips}
                                 onToggle={() => onUpdateUser({ showProTips: !currentUser.showProTips })}
                             />
+                            <NotificationToggle
+                                label="AI Matter Suggestions"
+                                description="Show proactive AI suggestions on your dashboard, matters, and ALOA panel (stalled matters, overdue tasks, deadline alerts)."
+                                isChecked={(currentUser as any).showAiSuggestions !== false}
+                                onToggle={() => onUpdateUser({ showAiSuggestions: !(currentUser as any).showAiSuggestions } as any)}
+                            />
                         </div>
                     </SettingsCard>
                 </div>

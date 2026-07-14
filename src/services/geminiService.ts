@@ -23,12 +23,12 @@ export enum ModalType {
 export const tools: FunctionDeclaration[] = [
     {
         name: "navigate_to",
-        description: "Navigates to a specific view within the app.",
+        description: "Navigates to a specific view within the app. Use camelCase view names: 'dashboard', 'matters', 'matterDetail' (with selectedId=matter_id), 'tasks', 'contacts', 'documents', 'calendar', 'properties', 'billing', 'research'. NEVER use snake_case or kebab-case. NEVER pass a matter title as selectedId — always use the matter's ID.",
         parameters: {
             type: Type.OBJECT,
             properties: {
-                view: { type: Type.STRING, description: "View name." },
-                selectedId: { type: Type.STRING, description: "Item ID." },
+                view: { type: Type.STRING, description: "View name in camelCase: 'dashboard', 'matters', 'matterDetail', 'tasks', 'contacts', 'documents', 'calendar', 'properties', 'billing', 'research'" },
+                selectedId: { type: Type.STRING, description: "The ID (not title) of the item to select. Required for detail views like matterDetail." },
                 context: { type: Type.OBJECT, description: "Nav context." }
             },
             required: ["view"]
