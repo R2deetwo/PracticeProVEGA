@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useConvex, useMutation, useAction, useQuery } from 'convex/react';
 import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
@@ -185,6 +185,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const nextStartTimeRef = useRef<number>(0);
     const isGeneratingRef = useRef<boolean>(false);
     const aiQueueRef = useRef(getGlobalAIQueue());
+
+    // ─── Stop Request (Kill Switch) ─────────────────────────────────────
+    // When the user clicks "Stop", we abort the current AI request via
+    // the queue's AbortController, clean up the loading state, and
+    // return ALOA to an idle, responsive state.
+    const handleStopRequest = useCallback(() => {
+        aiQueueRef.current.cancelAll();
+        setIsLoading(false);
+        setAloaStatus('');
+        setReasoningTime(0);
+        isGeneratingRef.current = false;
+        // Remove any empty model message (the streaming placeholder)
+        setMessages(prev => prev.filter(m => m.content || m.attachments || m.toolAction || m.isError));
+        addToast('Request cancelled.', { type: 'info' });
+    }, [addToast]);
 
     // ─── Citation Registry (per-conversation) ────────────────────────────
     // Populated when ALOA responds in research mode with [1], [2] markers
@@ -2788,6 +2803,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {reasoningTime < 60 ? `${reasoningTime}s` : `${Math.floor(reasoningTime / 60)}m ${reasoningTime % 60}s`}
                                 </span>
                             )}
+                            {/* ─── Stop Request (Kill Switch) ───────────────
+                                Visible whenever ALOA is loading. Clicking
+                                aborts the current request instantly. */}
+                            <button
+                                onClick={handleStopRequest}
+                                className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-[10px] font-bold transition-colors flex-shrink-0"
+                                title="Cancel request"
+                            >
+                                <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                                </svg>
+                                Stop
+                            </button>
                         </div>
                     )}
                     <div ref={messagesEndRef} />

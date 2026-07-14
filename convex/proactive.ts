@@ -326,7 +326,8 @@ export const detectAnomalies = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
-    const FOURTEEN_DAYS = 14 * 86400000;
+    // Stale matter threshold: 30 days (was 14 — too aggressive)
+    const STALE_THRESHOLD = 30 * 86400000;
     const FORTY_EIGHT_H = 48 * 3600000;
     const todayStr = new Date().toISOString().split("T")[0];
     let created = 0;
@@ -351,7 +352,7 @@ export const detectAnomalies = internalMutation({
               : matter.updatedAt as number)
           : matter._creationTime;
 
-        if (now - lastUpdate > FOURTEEN_DAYS) {
+        if (now - lastUpdate > STALE_THRESHOLD) {
           const daysStalled = Math.floor((now - lastUpdate) / 86400000);
           // ─── DedupKey WITHOUT todayStr ──────────────────────────────
           // Previously this included todayStr, so a NEW insight was created
@@ -361,7 +362,7 @@ export const detectAnomalies = internalMutation({
           // We DO include a rough staleness bucket (e.g., "14-30 days",
           // "30-60 days", "60+ days") so the insight refreshes when the
           // staleness level changes significantly.
-          const stallBucket = daysStalled < 30 ? '14-30' : daysStalled < 60 ? '30-60' : '60+';
+          const stallBucket = daysStalled < 60 ? '30-60' : daysStalled < 90 ? '60-90' : '90+';
           const dedupKey = `anomaly|stalled|${matter._id}|${stallBucket}`;
           const existing = await ctx.db
             .query("proactive_insights")
