@@ -2383,27 +2383,40 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     : 'I can help draft legal documents, manage cases, research Nigerian law, and streamline your practice operations.'}
                             </p>
 
-                            {/* ─── Proactive Insight Badges ────────────────── */}
+                            {/* ─── Proactive Insight Badges ──────────────────
+                                These show system-generated alerts (deadline reminders,
+                                anomaly detections, morning briefings). They are
+                                CLICKABLE — clicking a badge tells ALOA to show
+                                the details of that insight type. */}
                             {proactiveInsights && proactiveInsights.length > 0 && (
                                 <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-[300px]">
                                     {proactiveInsights.filter(i => i.severity === 'critical').length > 0 && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50">
+                                        <button
+                                            onClick={() => setTextInput("Show me the urgent alerts and their details")}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+                                            title="Click to see what's urgent"
+                                        >
                                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                            {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent
-                                        </span>
+                                            {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent — Click to view
+                                        </button>
                                     )}
                                     {proactiveInsights.filter(i => i.severity === 'warning').length > 0 && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50">
+                                        <button
+                                            onClick={() => setTextInput("Show me the warnings and what they mean")}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                                            title="Click to see what the warnings are about"
+                                        >
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''}
-                                        </span>
+                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''} — Click to view
+                                        </button>
                                     )}
                                     {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                        <button
                                             onClick={() => setTextInput("Show me today's morning briefing")}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                                         >
                                             ☀️ Briefing Ready
-                                        </span>
+                                        </button>
                                     )}
                                 </div>
                             )}
