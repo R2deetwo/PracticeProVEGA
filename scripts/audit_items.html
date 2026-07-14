@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+body {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.6;
+  color: #1a202c;
+  max-width: 100%;
+}
+h1 {
+  color: #4A694C;
+  font-size: 22pt;
+  border-bottom: 3px solid #4A694C;
+  padding-bottom: 8px;
+  margin-top: 30px;
+}
+h2 {
+  color: #4A694C;
+  font-size: 16pt;
+  margin-top: 28px;
+  border-bottom: 1px solid #cbd5e0;
+  padding-bottom: 4px;
+}
+h3 {
+  color: #2d3748;
+  font-size: 13pt;
+  margin-top: 20px;
+}
+p {
+  margin: 8px 0;
+}
+strong {
+  color: #1a202c;
+}
+code {
+  background: #f7fafc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 10pt;
+  color: #c5221f;
+}
+pre {
+  background: #1a202c;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 9pt;
+  line-height: 1.5;
+}
+pre code {
+  background: transparent;
+  color: #e2e8f0;
+  padding: 0;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 10pt;
+}
+th {
+  background: #4A694C;
+  color: white;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 700;
+}
+td {
+  border: 1px solid #e2e8f0;
+  padding: 6px 10px;
+}
+tr:nth-child(even) {
+  background: #f7fafc;
+}
+hr {
+  border: none;
+  border-top: 1px solid #cbd5e0;
+  margin: 24px 0;
+}
+ul, ol {
+  margin: 8px 0;
+  padding-left: 24px;
+}
+li {
+  margin: 4px 0;
+}
+</style>
+</head>
+<body>
+<h1>PracticePro — Remaining Items from 6-Pillar Audit</h1>
+<h2>Context for Another LLM</h2>
+<p>PracticePro is a legal practice management platform built with Vite/React + Convex backend. It has three products:
+- <strong>Vega</strong> (legal-only) — assistant name: ALOA
+- <strong>Atrium</strong> (property-only) — assistant name: ARIA
+- <strong>Komplete</strong> (both legal + property) — assistant name: ALOA (default), has both feature sets</p>
+<p><strong>Tech Stack:</strong> React 18, TypeScript, Tailwind CSS, Convex (backend/database), Framer Motion, TipTap (rich text editor for DraftPro), Vercel (deployment)</p>
+<p><strong>Brand Colors:</strong> Primary = Dark Moss Green <code>#4A694C</code> (RGB 74, 105, 76)</p>
+<hr />
+<h2>PILLAR 1: UI Consistency &amp; Visual Polish</h2>
+<h3>Issue 1.1: Border-Radius Scale Not Enforced (Medium)</h3>
+<p><strong>Current State:</strong> 4 different border-radii are mixed freely across 250+ component files:
+- <code>rounded-md</code> (219 uses)
+- <code>rounded-lg</code> (1049 uses)
+- <code>rounded-xl</code> (880 uses)
+- <code>rounded-2xl</code> (304 uses)</p>
+<p><strong>What Needs to Happen:</strong>
+1. Create a <code>STYLE_GUIDE.md</code> document that defines a 3-tier radius scale:
+   - <code>rounded-md</code> for inputs, buttons, small chips
+   - <code>rounded-lg</code> for cards, list items, dropdowns
+   - <code>rounded-2xl</code> for modals, hero blocks, large containers
+2. Consider enforcing via <code>eslint-plugin-tailwindcss</code> with <code>no-restricted-syntax</code> rule
+3. Audit each component file and standardize — this is a manual pass through <code>src/components/</code></p>
+<h3>Issue 1.2: ALOA Suggestion Colors (Already Fixed, Verify)</h3>
+<p><strong>Status:</strong> Fixed in <code>src/utils/markdownUtils.ts</code> — uses <code>#FCE8E6</code> (red), <code>#E6F4EA</code> (mint), <code>#E8F0FE</code> (blue) with darker text colors. CalendarView borders also fixed. Verify after deploy.</p>
+<hr />
+<h2>PILLAR 2: Navigation Integrity</h2>
+<h3>Issue 2.1: portalTermsOfUse Route Not Kebab-Cased (Low)</h3>
+<p><strong>File:</strong> <code>src/contexts/UIContext.tsx:514-538</code>
+<strong>Current:</strong> Other public docs use kebab-case URLs (<code>/privacy-policy</code>, <code>/terms-of-service</code>), but <code>portalTermsOfUse</code> falls through to <code>/portalTermsOfUse</code> (camelCase).
+<strong>Fix:</strong> Add <code>else if (newView === 'portalTermsOfUse') path = '/portal-terms-of-use';</code> in the <code>navigateTo</code> function, and add the corresponding route mapping in <code>src/components/App.tsx</code> router.</p>
+<h3>Issue 2.2: ALOA "aloaHelp" Modal Title Hardcoded (Low)</h3>
+<p><strong>File:</strong> <code>src/contexts/UIContext.tsx:150</code>
+<strong>Current:</strong> <code>case 'aloaHelp': return 'ARIA Help';</code> — hardcoded as ARIA. ModalManager.tsx overrides this to 'AI Assistant Help', so it never reaches the DOM. But any direct caller of <code>getModalTitle('aloaHelp')</code> would get the wrong name.
+<strong>Fix:</strong> Change to <code>return 'AI Assistant Help';</code> (neutral) or call <code>getAssistantName()</code> (requires React context, not available in this pure function).</p>
+<hr />
+<h2>PILLAR 3: Core UX &amp; Diary Workflows</h2>
+<h3>Issue 3.1: Diary Mode — Task Pinning from ALOA (Medium)</h3>
+<p><strong>Current:</strong> Diary Mode exists and works (<code>src/components/CalendarView.tsx</code> — DiaryModeView component). Tasks with due dates appear in the diary.
+<strong>Gap:</strong> When ALOA creates a task via <code>create_task</code> tool, the task doesn't automatically appear in the diary because the <code>dueDate</code> parameter is optional and the AI doesn't always set it.
+<strong>Fix:</strong> Update the <code>create_task</code> tool description in <code>src/services/geminiService.ts</code> to tell the AI: "Always set dueDate when creating a task — it will appear in the lawyer's Diary Mode on that date."</p>
+<h3>Issue 3.2: Stale Matter — Also Check for Documents/Notes (Medium)</h3>
+<p><strong>File:</strong> <code>convex/proactive.ts:347-355</code>
+<strong>Current:</strong> Staleness is calculated from <code>matter.updatedAt</code> or <code>_creationTime</code> only. It doesn't check if documents or notes were added to the matter recently.
+<strong>Fix:</strong> Also query <code>documents</code> and <code>notePages</code> tables for the matter's most recent activity. Use the latest timestamp across matter updates, document uploads, and note additions.</p>
+<hr />
+<h2>PILLAR 4: AI Engine UX</h2>
+<h3>Issue 4.1: Manual-to-Auto Focus Reset (Low — Partially Fixed)</h3>
+<p><strong>Current:</strong> Auto-focus is now called after Stop and after response completion. But there's no "Auto Mode" vs "Manual Mode" concept in the current architecture — ALOA is always in a single mode.
+<strong>If Needed:</strong> If the user wants a true "Auto Mode" that resets after manual interactions, this would require:
+1. A <code>mode</code> state in AloaChat (<code>'auto' | 'manual'</code>)
+2. A useEffect that watches for user interactions and resets to 'auto' after a timeout
+3. Visual indicator showing the current mode</p>
+<h3>Issue 4.2: cancelAll Defensive Reset (Low)</h3>
+<p><strong>File:</strong> <code>src/utils/aiRequestQueue.ts:101-113</code>
+<strong>Current:</strong> <code>cancelAll()</code> only aborts if <code>this.queue.length &gt; 0</code>. If the queue is empty (task already shifted), it's a no-op. The <code>processing</code> flag is reset by the <code>finally</code> block, but there's a tiny race window.
+<strong>Fix:</strong> Add <code>this.processing = false;</code> inside <code>cancelAll()</code> as a defensive reset.</p>
+<hr />
+<h2>PILLAR 5: Copywriting &amp; Documentation</h2>
+<h3>Issue 5.1: "ARIA" Used on Vega (Legal) Surfaces (High)</h3>
+<p>The assistant name for Vega (legal) is <strong>ALOA</strong>, not ARIA. But several files hardcode "ARIA" on surfaces that appear for legal users:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Line</th>
+<th>Issue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/app/page.tsx</code></td>
+<td>1177-1178</td>
+<td>FAQ says "How does ARIA, the AI assistant, work?" on Vega landing page</td>
+</tr>
+<tr>
+<td><code>src/components/WhatsNew.tsx</code></td>
+<td>242, 251, 300, 302</td>
+<td>Release notes say "ARIA is now aware of…"</td>
+</tr>
+<tr>
+<td><code>src/components/settings/AgentSettings.tsx</code></td>
+<td>326</td>
+<td>"ARIA's memory is built from your portfolio's documents…"</td>
+</tr>
+<tr>
+<td><code>src/components/details/AiIntakeAnalysis.tsx</code></td>
+<td>51</td>
+<td>"Generated by ARIA®" on legal matter intake</td>
+</tr>
+<tr>
+<td><code>src/components/modals/DemoUpsellModal.tsx</code></td>
+<td>48</td>
+<td>"ARIA® AI is just getting warmed up."</td>
+</tr>
+<tr>
+<td><code>src/components/settings/AIUsageDashboard.tsx</code></td>
+<td>58</td>
+<td>Hardcoded <code>label: 'ARIA®'</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fix:</strong> Import <code>getAssistantName</code> from <code>src/utils/assistantIdentity.ts</code> and use <code>getAssistantName(isProperty)</code> instead of hardcoded "ARIA". For static marketing pages (<code>page.tsx</code>), use product-neutral copy or branch on the active product.</p>
+<p><strong>Note:</strong> <code>src/utils/assistantIdentity.ts</code> already has <code>getAssistantName(isProperty)</code> which returns 'ARIA' for Atrium and 'ALOA' for Vega/Komplete. The <code>isProperty</code> flag comes from <code>useProduct()</code> hook.</p>
+<h3>Issue 5.2: Style Guide Document (Needed)</h3>
+<p><strong>Current:</strong> No <code>STYLE_GUIDE.md</code> exists. The brand color spec, radius scale, shadow scale, and spacing grid are not documented anywhere.
+<strong>What to Create:</strong> A <code>STYLE_GUIDE.md</code> in the project root with:
+1. <strong>Brand Colors:</strong> Primary Moss Green <code>#4A694C</code>, semantic colors (red/mint/blue)
+2. <strong>Radius Scale:</strong> <code>rounded-md</code> (inputs), <code>rounded-lg</code> (cards), <code>rounded-2xl</code> (modals)
+3. <strong>Shadow Scale:</strong> <code>shadow-sm</code> (default), <code>shadow-md</code> (hover), <code>shadow-xl</code> (modals)
+4. <strong>Spacing:</strong> Golden Ratio increments (8px, 13px, 21px, 34px, 55px)
+5. <strong>Typography:</strong> Font families, sizes, weights
+6. <strong>Component Patterns:</strong> Button styles, input styles, card styles</p>
+<hr />
+<h2>PILLAR 6: Performance &amp; Database</h2>
+<h3>Issue 6.1: Missing Convex Indexes (High — Requires <code>npx convex deploy</code>)</h3>
+<p><strong>File:</strong> <code>convex/schema.ts</code></p>
+<p>Missing indexes that cause table scans (<code>.filter()</code> after <code>.withIndex()</code>):</p>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Missing Index</th>
+<th>Used By</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>matters</code></td>
+<td><code>by_status</code> (status)</td>
+<td><code>proactive.ts:346</code>, <code>myFunctions.ts:3349</code></td>
+<td>Filters all firms' matters by status after firm index</td>
+</tr>
+<tr>
+<td><code>matters</code></td>
+<td><code>by_client</code> (firmId, clientId)</td>
+<td><code>myFunctions.ts:3346-3350</code></td>
+<td>Cascading delete checks</td>
+</tr>
+<tr>
+<td><code>tasks</code></td>
+<td><code>by_status</code> (firmId, status)</td>
+<td>Dashboard counts, report filters</td>
+<td>Scans all tasks per firm</td>
+</tr>
+<tr>
+<td><code>tasks</code></td>
+<td><code>by_dueDate</code> (firmId, dueDate)</td>
+<td>Deadline scanner</td>
+<td>Scans all tasks per firm</td>
+</tr>
+<tr>
+<td><code>proactive_insights</code></td>
+<td><code>by_firm_entity</code> (firmId, entityType, entityId)</td>
+<td><code>proactive.ts:375-379</code></td>
+<td>Dedup check scans all insights per firm</td>
+</tr>
+<tr>
+<td><code>documents</code></td>
+<td><code>by_status</code> (firmId, status)</td>
+<td>Archived/published filtering</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>documents</code></td>
+<td><code>by_category</code> (firmId, categoryId)</td>
+<td>Category filtering</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Fix:</strong> Add these indexes to the schema, then run <code>npx convex dev</code> to push. Then convert <code>.filter()</code> chains to <code>.withIndex()</code> predicates in the consuming queries.</p>
+<p><strong>How to Add an Index (example):</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// In convex/schema.ts, find the matters table definition:</span>
+<span class="nx">matters</span><span class="o">:</span><span class="w"> </span><span class="kt">defineTable</span><span class="p">({</span>
+<span class="w">  </span><span class="c1">// ... existing fields</span>
+<span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">index</span><span class="p">(</span><span class="s2">&quot;by_firm&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firmId&quot;</span><span class="p">])</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">index</span><span class="p">(</span><span class="s2">&quot;by_status&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firmId&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;status&quot;</span><span class="p">])</span><span class="w">           </span><span class="c1">// NEW</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">index</span><span class="p">(</span><span class="s2">&quot;by_client&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;firmId&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;clientId&quot;</span><span class="p">])</span><span class="w">          </span><span class="c1">// NEW</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">index</span><span class="p">(</span><span class="s2">&quot;by_custom_id&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+</code></pre></div>
+
+<h3>Issue 6.2: No searchIndex — Full-Text Search Done Client-Side (High)</h3>
+<p><strong>File:</strong> <code>convex/schema.ts</code> (entire file), <code>src/components/FullScreenSearch.tsx:27-41</code></p>
+<p><strong>Current:</strong> No <code>searchIndex</code> defined anywhere. Full-text search uses Fuse.js which loads ALL matters/contacts/documents/tasks into memory. For firms with &gt;5k records, this will cause lag.</p>
+<p><strong>Fix:</strong> Add Convex <code>searchIndex</code> to key tables:</p>
+<div class="codehilite"><pre><span></span><code><span class="nx">matters</span><span class="o">:</span><span class="w"> </span><span class="kt">defineTable</span><span class="p">({</span>
+<span class="w">  </span><span class="c1">// ... fields</span>
+<span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">searchIndex</span><span class="p">(</span><span class="s2">&quot;search_title&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">searchField</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;title&quot;</span><span class="w"> </span><span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">searchIndex</span><span class="p">(</span><span class="s2">&quot;search_suit&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">searchField</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;suitNumber&quot;</span><span class="w"> </span><span class="p">})</span>
+
+<span class="nx">contacts</span><span class="o">:</span><span class="w"> </span><span class="kt">defineTable</span><span class="p">({</span>
+<span class="w">  </span><span class="c1">// ... fields</span>
+<span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">searchIndex</span><span class="p">(</span><span class="s2">&quot;search_name&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">searchField</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;name&quot;</span><span class="w"> </span><span class="p">})</span>
+
+<span class="nx">documents</span><span class="o">:</span><span class="w"> </span><span class="kt">defineTable</span><span class="p">({</span>
+<span class="w">  </span><span class="c1">// ... fields</span>
+<span class="p">})</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">searchIndex</span><span class="p">(</span><span class="s2">&quot;search_title&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">searchField</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;title&quot;</span><span class="w"> </span><span class="p">})</span>
+</code></pre></div>
+
+<p>Then update <code>FullScreenSearch.tsx</code> to use Convex <code>search()</code> queries instead of client-side Fuse.js.</p>
+<h3>Issue 6.3: N+1 Query Pattern in Anomaly Detection Cron (Medium)</h3>
+<p><strong>File:</strong> <code>convex/proactive.ts:335-380</code></p>
+<p><strong>Current:</strong> For each firm, iterates all active matters and runs 2 DB queries per matter (dedup check + entity check). For a firm with 500 matters, that's 1000 sequential queries per cron tick.</p>
+<p><strong>Fix:</strong> Batch the queries:
+1. Fetch all non-dismissed insights for the firm in ONE query
+2. Build a <code>Set</code> of <code>dedupKey</code> strings in memory
+3. Build a <code>Map</code> of <code>entityType:entityId</code> → existing insight
+4. Check membership against these in-memory structures instead of querying per matter</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">// Before the loop:</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">allFirmInsights</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">ctx</span><span class="p">.</span><span class="nx">db</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">query</span><span class="p">(</span><span class="s2">&quot;proactive_insights&quot;</span><span class="p">)</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">withIndex</span><span class="p">(</span><span class="s2">&quot;by_firm&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">q</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">q</span><span class="p">.</span><span class="nx">eq</span><span class="p">(</span><span class="s2">&quot;firmId&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">firmId</span><span class="p">))</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">q</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">q</span><span class="p">.</span><span class="nx">eq</span><span class="p">(</span><span class="nx">q</span><span class="p">.</span><span class="nx">field</span><span class="p">(</span><span class="s2">&quot;dismissed&quot;</span><span class="p">),</span><span class="w"> </span><span class="kc">false</span><span class="p">))</span>
+<span class="w">  </span><span class="p">.</span><span class="nx">collect</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">existingDedupKeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Set</span><span class="p">(</span><span class="nx">allFirmInsights</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">i</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">i</span><span class="p">.</span><span class="nx">dedupKey</span><span class="p">));</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">existingEntities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Set</span><span class="p">(</span><span class="nx">allFirmInsights</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">i</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">i</span><span class="p">.</span><span class="nx">entityType</span><span class="si">}</span><span class="sb">:</span><span class="si">${</span><span class="nx">i</span><span class="p">.</span><span class="nx">entityId</span><span class="si">}</span><span class="sb">`</span><span class="p">));</span>
+
+<span class="c1">// Inside the loop, replace DB queries with:</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">existingDedupKeys</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="nx">dedupKey</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="nx">existingEntities</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="sb">`matter:</span><span class="si">${</span><span class="nx">matter</span><span class="p">.</span><span class="nx">_id</span><span class="si">}</span><span class="sb">`</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// create insight</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h3>Issue 6.4: Convex Backend Not Deployed (Critical for Several Features)</h3>
+<p><strong>Current State:</strong> <code>npx convex deploy</code> has NOT been run. Several backend changes are in the code but not live:
+- <code>welcomeEmailSent</code> field on users schema
+- <code>sendWelcomeEmail</code> internalAction
+- <code>fixProductMode</code> mutation
+- <code>searchWeb</code> action (for ALOA web search)
+- Proactive insight dedupKey fixes (no more daily duplicates)
+- 30-day stale matter threshold</p>
+<p><strong>Action Required:</strong> Run <code>npx convex dev</code> or <code>npx convex deploy</code> from a machine with Convex credentials configured. This will:
+1. Push the new schema (with <code>welcomeEmailSent</code> field)
+2. Push all new mutations/actions
+3. Regenerate <code>convex/_generated/api.d.ts</code> and <code>api.js</code> (so frontend type errors for <code>api.webFetch.*</code> resolve)</p>
+<hr />
+<h2>Summary — Priority Action List</h2>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Issue</th>
+<th>Effort</th>
+<th>Requires Convex Deploy?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong></td>
+<td>Run <code>npx convex deploy</code></td>
+<td>5 min</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>Add Convex indexes (matters.by_status, tasks.by_status, etc.)</td>
+<td>30 min</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>Add Convex searchIndex (matters.title, contacts.name, documents.title)</td>
+<td>30 min</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>Fix "ARIA" → "ALOA" on Vega surfaces (6 files)</td>
+<td>1 hour</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>High</strong></td>
+<td>Batch anomaly detection cron queries</td>
+<td>1 hour</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>Create STYLE_GUIDE.md</td>
+<td>1 hour</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>Enforce border-radius scale</td>
+<td>2-3 hours</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>Stale matter: also check documents/notes activity</td>
+<td>1 hour</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>Diary Mode: AI always sets task dueDate</td>
+<td>15 min</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>portalTermsOfUse kebab-case route</td>
+<td>15 min</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>aloaHelp modal title fix</td>
+<td>5 min</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>cancelAll defensive processing reset</td>
+<td>5 min</td>
+<td>No</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>Full auto-mode/manual-mode system</td>
+<td>3+ hours</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
