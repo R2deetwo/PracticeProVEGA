@@ -268,6 +268,186 @@ const DiaryEventTile: React.FC<{
 };
 
 // ══════════════════════════════════════════════════════════════════════════
+// DiaryModeView — chronological daily agenda for lawyers
+// ══════════════════════════════════════════════════════════════════════════
+
+interface DiaryModeViewProps {
+    selectedDate: Date;
+    events: any[];
+    tasks: any[];
+    openModal: (modal: any, id?: any, context?: any) => void;
+    eventTypes: any[];
+    users: any[];
+}
+
+const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tasks, openModal, eventTypes, users }) => {
+    const dateStr = selectedDate.toISOString().split('T')[0];
+
+    // Filter events and tasks for the selected date
+    const dayEvents = events.filter(e => {
+        const eventDate = typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0];
+        return eventDate === dateStr;
+    });
+
+    const dayTasks = tasks.filter(t => {
+        if (!t.dueDate) return false;
+        const taskDate = typeof t.dueDate === 'string' ? t.dueDate.split('T')[0] : new Date(t.dueDate).toISOString().split('T')[0];
+        return taskDate === dateStr;
+    });
+
+    // Categorize events
+    const courtAppearances = dayEvents.filter(e => {
+        const type = (e.type || '').toLowerCase();
+        return type.includes('court') || type.includes('hearing') || type.includes('trial') || type.includes('fixture');
+    });
+
+    const deadlines = dayTasks.filter(t => {
+        const title = (t.title || '').toLowerCase();
+        return title.includes('appeal') || title.includes('deadline') || title.includes('statutory') || title.includes('file') || title.includes('submit');
+    });
+
+    const officeTasks = dayTasks.filter(t => !deadlines.includes(t));
+    const consultations = dayEvents.filter(e => {
+        const type = (e.type || '').toLowerCase();
+        return type.includes('meeting') || type.includes('consultation') || type.includes('client');
+    });
+
+    const formatDateLong = (date: Date) => {
+        return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    };
+
+    const formatTime = (dateStr: string) => {
+        try {
+            const d = new Date(dateStr);
+            return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        } catch { return ''; }
+    };
+
+    const SectionHeader: React.FC<{ title: string; count: number; color: string }> = ({ title, count, color }) => (
+        <div className="flex items-center gap-2 mb-3 mt-6 first:mt-0">
+            <div className={`w-1.5 h-6 rounded-full ${color}`} />
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
+            <span className="text-xs font-medium text-slate-400">({count})</span>
+        </div>
+    );
+
+    const EmptySection: React.FC<{ message: string }> = ({ message }) => (
+        <div className="pl-3.5 py-2 text-xs text-slate-400 dark:text-zinc-500 italic border-l border-slate-100 dark:border-zinc-800 ml-1">
+            {message}
+        </div>
+    );
+
+    return (
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-900">
+            <div className="max-w-2xl mx-auto px-6 py-8">
+                {/* Date header */}
+                <div className="mb-6 pb-4 border-b border-slate-100 dark:border-zinc-800">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{formatDateLong(selectedDate)}</h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                        {dayEvents.length + dayTasks.length} item{dayEvents.length + dayTasks.length !== 1 ? 's' : ''} scheduled
+                    </p>
+                </div>
+
+                {/* 1. Court Appearances & Fixtures */}
+                <SectionHeader title="Court Appearances & Fixtures" count={courtAppearances.length} color="bg-red-500" />
+                {courtAppearances.length === 0 ? (
+                    <EmptySection message="No court appearances scheduled for today." />
+                ) : (
+                    <div className="space-y-2">
+                        {courtAppearances.map(event => (
+                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#FCE8E6] dark:bg-[#FCE8E6]/10 border border-[#FCE8E6] cursor-pointer hover:shadow-sm transition-all"
+                                onClick={() => openModal('editEvent', event.id)}>
+                                <div className="flex-shrink-0 text-xs font-mono font-bold text-[#C5221F] w-12">
+                                    {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-[#C5221F] truncate">{event.title}</p>
+                                    {event.location && <p className="text-xs text-slate-500 mt-0.5">{event.location}</p>}
+                                    {event.matterId && <p className="text-[10px] text-slate-400 mt-0.5">Linked to matter</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* 2. Statutory Deadlines */}
+                <SectionHeader title="Statutory Deadlines" count={deadlines.length} color="bg-amber-500" />
+                {deadlines.length === 0 ? (
+                    <EmptySection message="No statutory deadlines due today." />
+                ) : (
+                    <div className="space-y-2">
+                        {deadlines.map(task => (
+                            <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 cursor-pointer hover:shadow-sm transition-all"
+                                onClick={() => openModal('editTask', task.id)}>
+                                <div className="flex-shrink-0 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 w-12">
+                                    {task.dueDate ? formatTime(task.dueDate) : '⚠'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-amber-800 dark:text-amber-300 truncate">{task.title}</p>
+                                    {task.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.description}</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* 3. Office Tasks & Client Consultations */}
+                <SectionHeader title="Office Tasks & Client Consultations" count={officeTasks.length + consultations.length} color="bg-blue-500" />
+                {officeTasks.length === 0 && consultations.length === 0 ? (
+                    <EmptySection message="No tasks or consultations scheduled for today." />
+                ) : (
+                    <div className="space-y-2">
+                        {consultations.map(event => (
+                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#E8F0FE] dark:bg-[#E8F0FE]/10 border border-[#E8F0FE] cursor-pointer hover:shadow-sm transition-all"
+                                onClick={() => openModal('editEvent', event.id)}>
+                                <div className="flex-shrink-0 text-xs font-mono font-bold text-[#1A73E8] w-12">
+                                    {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-[#1A73E8] truncate">{event.title}</p>
+                                    {event.location && <p className="text-xs text-slate-500 mt-0.5">{event.location}</p>}
+                                </div>
+                            </div>
+                        ))}
+                        {officeTasks.map(task => (
+                            <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-700 cursor-pointer hover:shadow-sm transition-all"
+                                onClick={() => openModal('editTask', task.id)}>
+                                <div className="flex-shrink-0 text-xs font-mono font-bold text-slate-500 w-12">
+                                    {task.dueDate ? formatTime(task.dueDate) : '☐'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">{task.title}</p>
+                                    {task.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.description}</p>}
+                                    {task.assignedUsers && task.assignedUsers.length > 0 && (
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Assigned to {task.assignedUsers.length} person{task.assignedUsers.length > 1 ? 's' : ''}</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Quick add */}
+                <div className="mt-8 pt-4 border-t border-slate-100 dark:border-zinc-800 flex gap-2">
+                    <button
+                        onClick={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
+                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        + Add Event
+                    </button>
+                    <button
+                        onClick={() => openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })}
+                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                    >
+                        + Add Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ══════════════════════════════════════════════════════════════════════════
 // CalendarView — Premium executive planner
 // ══════════════════════════════════════════════════════════════════════════
 export const CalendarView: React.FC = () => {
@@ -468,6 +648,21 @@ export const CalendarView: React.FC = () => {
                             })}
                         </div>
                     </div>
+                ) : localViewMode === 'diary' ? (
+                    /* ═══ DIARY MODE — chronological daily agenda for lawyers ═══
+                       A clean, vertical chronological daily agenda view mimicking
+                       a physical legal diary. Organized into sections:
+                       1. Court Appearances & Fixtures
+                       2. Statutory Deadlines
+                       3. Office Tasks & Client Consultations */
+                    <DiaryModeView
+                        selectedDate={selectedDateObj}
+                        events={events}
+                        tasks={executionState.tasks || []}
+                        openModal={openModal}
+                        eventTypes={eventTypes}
+                        users={props.users}
+                    />
                 ) : (
                     /* ═══ WEEK / DAY VIEW — timeline architecture ═══ */
                     <div ref={scrollContainerRef} className="flex-1 overflow-auto custom-scrollbar relative overscroll-contain pb-14 md:pb-0" style={{ WebkitOverflowScrolling: 'touch' }}>

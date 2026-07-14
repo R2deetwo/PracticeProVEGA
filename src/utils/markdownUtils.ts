@@ -52,53 +52,49 @@ export const parseAloaMarkdown = (text: string): string => {
                     .trim();
                 
                 // Detect legal tasks (procedural or drafting) and color-code by priority
+                // Using soft, semantic, desaturated functional colors that don't clash
+                // with the brand Moss Green (#4A694C)
                 const isTask = content.match(/^(Prepare|File|Draft|Search|Review|Send|Create|Analyze)\b/i);
                 if (isTask) {
-                    // ─── Color-coding system for ALOA suggestions ──────
-                    // 🔴 RED (High Priority / Action Items): Critical actions,
-                    //    missed deadlines, urgent tasks
-                    //    Keywords: File, Prepare, Send (time-sensitive actions)
-                    // 🟢 GREEN (General Review / Status Items): Navigation,
-                    //    status updates, standard reviews
-                    //    Keywords: Review, Create (non-urgent actions)
-                    // 🔵 BLUE (Informational / Research Items): Insights,
-                    //    documents, data-driven suggestions
-                    //    Keywords: Search, Analyze, Draft (research/creation)
-
                     const actionWord = isTask[1].toLowerCase();
-                    let colorClass = '';
+                    let bgClass = '';
+                    let textClass = '';
+                    let badgeBg = '';
                     let badgeText = '';
-                    let borderColor = '';
 
                     if (['file', 'prepare', 'send'].includes(actionWord)) {
-                        // Red — high priority / action items
-                        colorClass = 'text-red-600 dark:text-red-400 hover:decoration-red-400';
-                        borderColor = 'border-l-2 border-red-400 pl-2';
+                        // 🔴 High Priority — Soft Red background, Dark Red text
+                        bgClass = 'bg-[#FCE8E6] dark:bg-[#FCE8E6]/10';
+                        textClass = 'text-[#C5221F] dark:text-[#C5221F]';
+                        badgeBg = 'bg-[#C5221F]/10';
                         badgeText = 'High Priority';
                     } else if (['review', 'create'].includes(actionWord)) {
-                        // Green — general review / status items
-                        colorClass = 'text-emerald-600 dark:text-emerald-400 hover:decoration-emerald-400';
-                        borderColor = 'border-l-2 border-emerald-400 pl-2';
+                        // 🟢 Review/Status — Soft Mint background, Dark Emerald text
+                        // (distinct from brand Moss Green)
+                        bgClass = 'bg-[#E6F4EA] dark:bg-[#E6F4EA]/10';
+                        textClass = 'text-[#137333] dark:text-[#137333]';
+                        badgeBg = 'bg-[#137333]/10';
                         badgeText = 'Review';
                     } else if (['search', 'analyze', 'draft'].includes(actionWord)) {
-                        // Blue — informational / research items
-                        colorClass = 'text-blue-600 dark:text-blue-400 hover:decoration-blue-400';
-                        borderColor = 'border-l-2 border-blue-400 pl-2';
+                        // 🔵 Info/Research — Soft Blue background, Dark Blue text
+                        bgClass = 'bg-[#E8F0FE] dark:bg-[#E8F0FE]/10';
+                        textClass = 'text-[#1A73E8] dark:text-[#1A73E8]';
+                        badgeBg = 'bg-[#1A73E8]/10';
                         badgeText = 'Research';
                     } else {
-                        // Default — primary color
-                        colorClass = 'text-primary-600 dark:text-primary-400 hover:decoration-primary-300';
-                        borderColor = '';
+                        bgClass = 'bg-slate-50 dark:bg-zinc-800/50';
+                        textClass = 'text-slate-700 dark:text-zinc-300';
+                        badgeBg = 'bg-slate-200 dark:bg-zinc-700';
                         badgeText = 'Action';
                     }
 
-                    return `<li class="text-sm leading-relaxed group/task ${borderColor} rounded-r-sm">
+                    return `<li class="text-sm leading-relaxed group/task">
                         <span
-                            class="cursor-pointer ${colorClass} font-bold hover:underline decoration-2 underline-offset-4 flex items-center gap-2 aloa-interactive-task"
+                            class="cursor-pointer ${textClass} font-bold hover:underline decoration-2 underline-offset-4 flex items-center gap-2 aloa-interactive-task px-2.5 py-1.5 rounded-lg ${bgClass} transition-colors"
                             data-task-title="${content.replace(/"/g, '&quot;')}"
                         >
                             ${content}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-700 text-[8px] font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity translate-y-px">${badgeText}</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md ${badgeBg} text-[8px] font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity">${badgeText}</span>
                         </span>
                     </li>`;
                 }
