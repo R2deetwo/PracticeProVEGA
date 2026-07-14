@@ -160,6 +160,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // when a new request starts, cleared when the response completes.
     const [reasoningTime, setReasoningTime] = useState(0);
 
+    // ─── Insight Detail Panel ───────────────────────────────────────────
+    // When the user clicks a proactive insight badge, this opens a detail
+    // panel showing each insight with actionable buttons (Go to Matter, etc.)
+    const [showInsightPanel, setShowInsightPanel] = useState<'critical' | 'warning' | null>(null);
+
     // ─── Web Fetch Results (for UI display) ──────────────────────────────
     // When ALOA fetches web content (either from URLs in the user's message
     // or from auto-searching in research mode), the results are stored here
@@ -2385,29 +2390,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                             {/* ─── Proactive Insight Badges ──────────────────
                                 These show system-generated alerts (deadline reminders,
-                                anomaly detections, morning briefings). They are
-                                CLICKABLE — clicking a badge tells ALOA to show
-                                the details of that insight type. */}
+                                anomaly detections, morning briefings).
+
+                                When clicked, they open an INSIGHT DETAIL PANEL
+                                (not just injecting text into the chat). The panel
+                                shows each insight with:
+                                - Title and description
+                                - How many days stale/overdue (for matters/tasks)
+                                - "Go to Matter" / "Go to Task" action button
+                                - "Dismiss" button to clear the insight */}
                             {proactiveInsights && proactiveInsights.length > 0 && (
                                 <div className="mt-4 flex flex-wrap gap-2 justify-center max-w-[300px]">
                                     {proactiveInsights.filter(i => i.severity === 'critical').length > 0 && (
                                         <button
-                                            onClick={() => setTextInput("Show me the urgent alerts and their details")}
+                                            onClick={() => setShowInsightPanel('critical')}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
-                                            title="Click to see what's urgent"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                                            {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent — Click to view
+                                            {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent — View
                                         </button>
                                     )}
                                     {proactiveInsights.filter(i => i.severity === 'warning').length > 0 && (
                                         <button
-                                            onClick={() => setTextInput("Show me the warnings and what they mean")}
+                                            onClick={() => setShowInsightPanel('warning')}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
-                                            title="Click to see what the warnings are about"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''} — Click to view
+                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''} — View
                                         </button>
                                     )}
                                     {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
@@ -2716,6 +2725,129 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
                     <div ref={messagesEndRef} />
                 </main>
+
+                {/* ─── Insight Detail Panel ────────────────────────────────
+                    When the user clicks a proactive insight badge, this panel
+                    slides in from the right showing each insight with:
+                    - Title and body description
+                    - Entity type (Matter, Task, Event)
+                    - "Go to Matter/Task" action button that navigates directly
+                    - "Dismiss" button to clear the insight
+                    - "Ask ALOA" button to get AI help with the insight */}
+                {showInsightPanel && proactiveInsights && (
+                    <div className="absolute inset-0 z-[60] bg-black/20" onClick={() => setShowInsightPanel(null)}>
+                        <div
+                            className="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    {showInsightPanel === 'critical' ? (
+                                        <><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Urgent Alerts</>
+                                    ) : (
+                                        <><span className="w-2 h-2 rounded-full bg-amber-500" /> Warnings</>
+                                    )}
+                                </h3>
+                                <button
+                                    onClick={() => setShowInsightPanel(null)}
+                                    className="p-1 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Insight cards */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                                {proactiveInsights
+                                    .filter(i => i.severity === showInsightPanel)
+                                    .map((insight: any) => {
+                                        // Extract days from the body text (e.g., "14 days" or "3 hour(s)")
+                                        const daysMatch = insight.body?.match(/(\d+)\s+day/);
+                                        const hoursMatch = insight.body?.match(/(\d+)\s+hour/);
+                                        const timeText = daysMatch ? `${daysMatch[1]} days stale` : hoursMatch ? `${hoursMatch[1]} hours left` : '';
+
+                                        // Determine the navigation target
+                                        const navTarget = insight.entityType === 'matter' ? 'matterDetail'
+                                            : insight.entityType === 'task' ? 'tasks'
+                                            : insight.entityType === 'event' ? 'calendar'
+                                            : null;
+
+                                        return (
+                                            <div key={insight._id || insight.id} className={`p-3 rounded-xl border ${showInsightPanel === 'critical' ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' : 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-900/30'}`}>
+                                                <div className="flex items-start gap-2">
+                                                    <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${showInsightPanel === 'critical' ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'}`}>
+                                                        <svg className={`w-4 h-4 ${showInsightPanel === 'critical' ? 'text-red-600' : 'text-amber-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d={insight.entityType === 'matter' ? "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" : insight.entityType === 'task' ? "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" : "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"} />
+                                                        </svg>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-bold text-slate-900 dark:text-white">{insight.title}</p>
+                                                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">{insight.body}</p>
+                                                        {timeText && (
+                                                            <span className={`inline-block mt-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${showInsightPanel === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}`}>
+                                                                {timeText}
+                                                            </span>
+                                                        )}
+                                                        {/* Action buttons */}
+                                                        <div className="flex gap-1.5 mt-2.5">
+                                                            {navTarget && insight.entityId && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        navigateTo(navTarget, insight.entityId);
+                                                                        setShowInsightPanel(null);
+                                                                    }}
+                                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-900 dark:bg-zinc-700 text-white rounded-md text-[10px] font-bold hover:bg-slate-800 dark:hover:bg-zinc-600 transition-colors"
+                                                                >
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                                                    </svg>
+                                                                    Go to {insight.entityType}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => {
+                                                                    setTextInput(`Help me with this alert: ${insight.title} — ${insight.body}`);
+                                                                    setShowInsightPanel(null);
+                                                                }}
+                                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-md text-[10px] font-bold hover:bg-primary-700 transition-colors"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                                                                </svg>
+                                                                Ask ALOA
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
+                                <button
+                                    onClick={() => {
+                                        setTextInput(`Show me all ${showInsightPanel === 'critical' ? 'urgent alerts' : 'warnings'} and help me prioritize what to do first`);
+                                        setShowInsightPanel(null);
+                                    }}
+                                    className="flex-1 px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors"
+                                >
+                                    Ask ALOA to prioritize
+                                </button>
+                                <button
+                                    onClick={() => setShowInsightPanel(null)}
+                                    className="px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* ─── Floating Scroll Buttons ───────────────────────────
                     Like Z.ai — a "scroll to top" button when the user has
