@@ -355,7 +355,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                 ) : (
                     <div className="space-y-2">
                         {courtAppearances.map(event => (
-                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#FCE8E6] dark:bg-[#FCE8E6]/10 border border-[#FCE8E6] cursor-pointer hover:shadow-sm transition-all"
+                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#FCE8E6] dark:bg-[#FCE8E6]/10 border border-[#C5221F]/30 cursor-pointer hover:shadow-sm transition-all"
                                 onClick={() => openModal('editEvent', event.id)}>
                                 <div className="flex-shrink-0 text-xs font-mono font-bold text-[#C5221F] w-12">
                                     {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}
@@ -398,7 +398,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                 ) : (
                     <div className="space-y-2">
                         {consultations.map(event => (
-                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#E8F0FE] dark:bg-[#E8F0FE]/10 border border-[#E8F0FE] cursor-pointer hover:shadow-sm transition-all"
+                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#E8F0FE] dark:bg-[#E8F0FE]/10 border border-[#1A73E8]/30 cursor-pointer hover:shadow-sm transition-all"
                                 onClick={() => openModal('editEvent', event.id)}>
                                 <div className="flex-shrink-0 text-xs font-mono font-bold text-[#1A73E8] w-12">
                                     {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}

@@ -186,6 +186,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const isGeneratingRef = useRef<boolean>(false);
     const aiQueueRef = useRef(getGlobalAIQueue());
 
+    // ─── Chat Input Ref ─────────────────────────────────────────────────
+    // Used to auto-focus the input after Stop/response completion
+    const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
     // ─── Stop Request (Kill Switch) ─────────────────────────────────────
     // When the user clicks "Stop", we abort the current AI request via
     // the queue's AbortController, clean up the loading state, and
@@ -199,6 +203,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // Remove any empty model message (the streaming placeholder)
         setMessages(prev => prev.filter(m => m.content || m.attachments || m.toolAction || m.isError));
         addToast('Request cancelled.', { type: 'info' });
+        // Auto-focus back to the chat input so the user can continue
+        setTimeout(() => chatInputRef.current?.focus(), 100);
     }, [addToast]);
 
     // ─── Citation Registry (per-conversation) ────────────────────────────
@@ -1783,6 +1789,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setIsLoading(false);
                     setAloaStatus('');
                     isGeneratingRef.current = false;
+                    // Auto-focus back to the chat input after response completes
+                    setTimeout(() => chatInputRef.current?.focus(), 100);
                 }
             },
             onSuccess: () => {
@@ -2868,6 +2876,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         const navTarget = insight.entityType === 'matter' ? 'matterDetail'
                                             : insight.entityType === 'task' ? 'tasks'
                                             : insight.entityType === 'event' ? 'calendar'
+                                            : insight.entityType === 'service_charge' ? 'atriumEngine'
+                                            : insight.entityType === 'firm' ? 'dashboard'
                                             : null;
 
                                         return (
@@ -3041,6 +3051,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     </button>
                     <div className={`flex-1 rounded-2xl flex items-end border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
                         <textarea
+                            ref={chatInputRef}
                             autoComplete="off"
                             data-lpignore="true"
                             value={textInput}

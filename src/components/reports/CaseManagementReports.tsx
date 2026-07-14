@@ -287,8 +287,8 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
         const { invoices } = financeState;
         const { users } = coreState;
 
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 21); // SYNCED WITH WIDGET (21 DAYS)
+        const staleCutoff = new Date();
+        staleCutoff.setDate(staleCutoff.getDate() - 30); // SYNCED WITH BACKEND (30 DAYS)
 
         const activeMatters = matters.filter(m => m.status === 'Active');
 
@@ -332,7 +332,7 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
 
         const staleMatters = activeMatters.filter(m => {
             const lastActivity = matterActivityMap.get(m.id);
-            return !lastActivity || lastActivity < thirtyDaysAgo;
+            return !lastActivity || lastActivity < staleCutoff;
         });
 
         const overdueTasks = tasks.filter(t => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date());
@@ -453,7 +453,7 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
                 className={`bg-white dark:bg-zinc-800 rounded-xl shadow-md p-6 border transition-all duration-1000 ${currentHistoryEntry?.context?.highlight ? 'ring-4 ring-primary-500/30 border-primary-500 shadow-2xl scale-[1.01]' : 'border-black/5 dark:border-white/5'}`}
             >
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold">{isProperty ? 'Stale Records' : 'Stale Matters'} <span className="text-slate-400 dark:text-zinc-500 font-normal text-sm">(No activity in 21+ days)</span></h3>
+                    <h3 className="text-lg font-bold">{isProperty ? 'Stale Records' : 'Stale Matters'} <span className="text-slate-400 dark:text-zinc-500 font-normal text-sm">(No activity in 30+ days)</span></h3>
                     <p className="text-xs text-slate-400 dark:text-zinc-500">Hover a row to set a {isProperty ? 'file' : 'file'} review reminder</p>
                 </div>
                 <div className="overflow-x-auto">

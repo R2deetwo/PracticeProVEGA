@@ -181,11 +181,12 @@ export function useAIInsight(): AIInsight {
       };
     }
 
-    // Priority 3: Stale active matters (no activity in 21+ days)
+    // Priority 3: Stale active matters (no activity in 30+ days)
+    // SYNCED with backend (convex/proactive.ts) — both use 30 days
     const staleMatters = (matterState.matters || []).filter(m => {
       if (m.status !== 'Active') return false;
       const last = new Date(m.stageLastUpdated || m.createdAt);
-      return (now.getTime() - last.getTime()) > 21 * 86400000;
+      return (now.getTime() - last.getTime()) > 30 * 86400000;
     });
     if (staleMatters.length > 0) {
       return {
