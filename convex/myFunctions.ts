@@ -394,10 +394,14 @@ export const getFirmData = query({
     // Nested tables are now fetched directly by firmId to catch items outside notebooks (e.g. endorsements)
 
     // --- PHASE 1: DATA MINIMIZATION (SERVER-SIDE PROJECTIONS) ---
-    // Strip heavy fields from documents to reduce bandwidth. 
-    // The 'content' field (base64 or large text) is NOT sent to the client list view.
+    // NOTE: We NO LONGER strip 'content' from documents. Previously this
+    // was stripped to reduce bandwidth, but it caused documents to appear
+    // empty in the Documents section — the user could see the title but
+    // not the actual content. The content field is essential for the
+    // DocumentDetailView to render the document.
+    // We still strip AI analysis fields (those are fetched on-demand).
     const lightDocuments = (documents || []).map((doc: any) => {
-      const { content, summary, riskAnalysis, extractedMetadata, dataProtectionAnalysis, rpcReview, intakeAnalysis, ...lightDoc } = doc;
+      const { summary, riskAnalysis, extractedMetadata, dataProtectionAnalysis, rpcReview, intakeAnalysis, ...lightDoc } = doc;
       return lightDoc;
     });
 

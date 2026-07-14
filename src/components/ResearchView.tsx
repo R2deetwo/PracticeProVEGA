@@ -230,6 +230,13 @@ const ResearchView: React.FC = () => {
                                     selectedSourceIds={selectedSourceIds}
                                     onToggleSelection={toggleSourceSelection}
                                     onAddSource={() => openModal('addResearchSource', null, { notebookId: selectedNotebook.id })}
+                                    onAddWebSource={(source) => {
+                                        dataHandlers.handleAddResearchSource(selectedNotebook.id, {
+                                            name: source.name,
+                                            type: source.type,
+                                            content: source.content,
+                                        });
+                                    }}
                                     onDeleteSource={dataHandlers.handleDeleteResearchSource}
                                     onOpenInDraftPro={(source) => {
                                         // Open the source content in DraftPro

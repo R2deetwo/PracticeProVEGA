@@ -13,6 +13,7 @@ interface ResearchSourceColumnProps {
     onDeleteSource?: (sourceId: string, sourceName: string) => void;
     onOpenInDraftPro?: (source: ResearchSource) => void;
     isLoading?: boolean;
+    onAddWebSource?: (source: { name: string; type: string; content: string; url?: string }) => void;
 }
 
 const SourceCard: React.FC<{
@@ -120,8 +121,60 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
     onBack,
     onDeleteSource,
     onOpenInDraftPro,
-    isLoading
+    isLoading,
+    onAddWebSource
 }) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<Array<{ title: string; url: string; snippet: string }>>([]);
+    const [showResults, setShowResults] = useState(false);
+
+    const handleWebSearch = async () => {
+        if (!searchQuery.trim()) return;
+        setIsSearching(true);
+        setShowResults(true);
+        try {
+            const { searchWebClient, fetchUrlContentClient } = await import('../../utils/webFetchClient');
+            const result = await searchWebClient(searchQuery);
+            if (result.success && result.results.length > 0) {
+                setSearchResults(result.results.slice(0, 8));
+            } else {
+                setSearchResults([]);
+            }
+        } catch (err) {
+            console.error('[Research] Web search failed:', err);
+            setSearchResults([]);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const handleAddSourceFromSearch = async (result: { title: string; url: string; snippet: string }) => {
+        if (!onAddWebSource) return;
+        // Fetch the full content of the URL
+        try {
+            const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
+            const fetchResult = await fetchUrlContentClient(result.url);
+            onAddWebSource({
+                name: result.title,
+                type: 'web',
+                content: fetchResult.success && fetchResult.content
+                    ? fetchResult.content.substring(0, 20000)
+                    : result.snippet,
+                url: result.url,
+            });
+        } catch {
+            onAddWebSource({
+                name: result.title,
+                type: 'web',
+                content: result.snippet,
+                url: result.url,
+            });
+        }
+        // Remove from search results
+        setSearchResults(prev => prev.filter(r => r.url !== result.url));
+    };
+
     return (
         <div className="h-full flex flex-col bg-slate-50 dark:bg-zinc-900/50">
             {/* Header */}
@@ -143,6 +196,66 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
                     )}
                 </div>
             </div>
+
+            {/* ─── Web Search Input ──────────────────────────────── */}
+            <div className="px-3 py-2 border-b border-slate-200 dark:border-zinc-700">
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !isSearching) handleWebSearch(); }}
+                        placeholder="Search the web for sources..."
+                        className="w-full pl-8 pr-3 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-slate-700 dark:text-zinc-200"
+                    />
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                    {searchQuery && (
+                        <button
+                            onClick={() => { setSearchQuery(''); setShowResults(false); setSearchResults([]); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                            <DismissIcon className="w-3 h-3" />
+                        </button>
+                    )}
+                </div>
+                {isSearching && (
+                    <p className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
+                        <span className="w-2 h-2 border border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        Searching the web...
+                    </p>
+                )}
+            </div>
+
+            {/* ─── Search Results ────────────────────────────────── */}
+            {showResults && !isSearching && (
+                <div className="px-3 py-2 max-h-64 overflow-y-auto custom-scrollbar border-b border-slate-200 dark:border-zinc-700">
+                    {searchResults.length === 0 ? (
+                        <p className="text-[10px] text-slate-400 text-center py-3">No results found. Try a different query.</p>
+                    ) : (
+                        <>
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-2">{searchResults.length} web results — click + to add as source</p>
+                            {searchResults.map((result, i) => (
+                                <div key={i} className="group flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-zinc-800 transition-colors mb-1">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 truncate">{result.title}</p>
+                                        <p className="text-[9px] text-slate-400 truncate">{result.url}</p>
+                                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{result.snippet}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleAddSourceFromSearch(result)}
+                                        className="flex-shrink-0 p-1 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
+                                        title="Add as source"
+                                    >
+                                        <PlusIcon className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                </div>
+            )}
 
             {/* Add Source */}
             <div className="px-3 py-2">

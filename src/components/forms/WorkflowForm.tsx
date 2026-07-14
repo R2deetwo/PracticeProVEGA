@@ -79,7 +79,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!type.trim()) {
             addToast(`Please provide a workflow type (${isProperty ? 'Category' : 'Practice Area'}).`, { type: 'error' });
@@ -103,11 +103,9 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                 }
 
                 // Find existing parent or create new parent container
-                // Use the passed workflowToEdit OR find by type name string (AI flow often passes string type)
                 let parentWorkflow = workflowToEdit || workflows.find(w => w.type.toLowerCase() === type.toLowerCase());
 
                 if (parentWorkflow && onUpdateWorkflow) {
-                    // Update existing
                     const updatedWorkflow = {
                         ...parentWorkflow,
                         subCategories: {
@@ -115,13 +113,12 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                             [subCategoryName]: { stages: finalStages, suggestions: {} }
                         }
                     };
-                    onUpdateWorkflow(updatedWorkflow);
+                    await onUpdateWorkflow(updatedWorkflow);
                 } else if (onAddWorkflow) {
-                    // Create NEW parent with this sub-category
-                    onAddWorkflow({
+                    await onAddWorkflow({
                         firmId: coreState.firmDetails.id,
                         type: type as MatterType,
-                        default: { stages: ['Intake', 'InProgress', 'Closed'], suggestions: {} }, // Generic default
+                        default: { stages: ['Intake', 'InProgress', 'Closed'], suggestions: {} },
                         subCategories: {
                             [subCategoryName]: { stages: finalStages, suggestions: {} }
                         }
@@ -130,15 +127,15 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
             }
             // CASE 2: Editing Existing Root Workflow
             else if (isEditing && workflowToEdit && onUpdateWorkflow) {
-                onUpdateWorkflow({
+                await onUpdateWorkflow({
                     ...workflowToEdit,
-                    type: type as MatterType, // Allow renaming type? careful.
+                    type: type as MatterType,
                     default: { ...workflowToEdit.default, stages: finalStages }
                 });
             }
             // CASE 3: Creating New Root Workflow
             else if (onAddWorkflow) {
-                onAddWorkflow({
+                await onAddWorkflow({
                     firmId: coreState.firmDetails.id,
                     type: type as MatterType,
                     default: { stages: finalStages, suggestions: {} },
@@ -146,9 +143,11 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                 });
             }
 
+            addToast('Workflow saved successfully.', { type: 'success' });
             onClose();
-        } catch (e) {
+        } catch (e: any) {
             console.error("Workflow save failed", e);
+            addToast(`Failed to save workflow: ${e.message || 'Unknown error'}`, { type: 'error' });
         } finally {
             setIsSubmitting(false);
         }
