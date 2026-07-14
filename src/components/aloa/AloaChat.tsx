@@ -474,15 +474,34 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     }
 
                     if (category === 'all' || category === 'matters') {
+                        // Return FULL matter details including ID so the AI
+                        // can navigate to the matter detail page.
+                        // Previously only returned { title, status, ref } —
+                        // missing the ID, so the AI said "I cannot display
+                        // the details" because it had no ID to navigate with.
                         results.matters = (matterState.matters || []).filter(m =>
                             m.title.toLowerCase().includes(query) || m.referenceNumber.toLowerCase().includes(query)
-                        ).slice(0, 5).map(m => ({ title: m.title, status: m.status, ref: m.referenceNumber }));
+                        ).slice(0, 5).map(m => ({
+                            id: m.id,
+                            title: m.title,
+                            status: m.status,
+                            ref: m.referenceNumber,
+                            matterType: (m as any).matterType || '',
+                            court: (m as any).court || '',
+                            suitNumber: (m as any).suitNumber || '',
+                            clientId: (m as any).clientId || '',
+                            stage: (m as any).stage || '',
+                            assignedUsers: (m as any).assignedUsers || [],
+                            createdAt: (m as any).createdAt,
+                            updatedAt: (m as any).updatedAt,
+                            description: (m as any).description || '',
+                        }));
                     }
 
                     if (category === 'all' || category === 'documents') {
                         results.documents = (documentState.documents || []).filter(d =>
                             d.title.toLowerCase().includes(query)
-                        ).slice(0, 5).map(d => ({ title: d.title, status: d.litigationStatus }));
+                        ).slice(0, 5).map(d => ({ id: d.id, title: d.title, status: d.litigationStatus }));
                     }
 
                     toolOutput = { results };

@@ -168,7 +168,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "query_firm_data",
-        description: "Searches through the firm's data for specific items. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'. IMPORTANT: When a user mentions a matter by NAME (e.g., 'Review Nigerian Sino Truck v Chinedu'), use this tool with category='matters' and the matter name as the query to find the matter ID. NEVER ask the user for a matter ID — search for it by title instead.",
+        description: "Searches through the firm's data for specific items. Returns full details including IDs for navigation. Use this when the user asks 'Find notes about X', 'What are my tasks relating to Y', or 'Show me endorsements for Z'. IMPORTANT: When a user mentions a matter by NAME (e.g., 'Review Nigerian Sino Truck v Chinedu'), use this tool with category='matters' and the matter name as the query. The results include the matter ID — use that ID with navigate_to to open the matter detail page. NEVER ask the user for a matter ID — search for it by title instead. NEVER say 'I cannot display the details' — if you found the matter, navigate to it.",
         parameters: {
             type: Type.OBJECT,
             properties: {
