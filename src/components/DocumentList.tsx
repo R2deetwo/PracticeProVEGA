@@ -293,13 +293,14 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
             onConfirm: async () => {
                 try {
                     await deleteItem('documents', doc.id, doc.title);
+                    // Only show ONE toast — deleteItem already shows a toast
+                    // on error ("Document removed."), so we only show a toast
+                    // on success here. No duplicate error toast.
                     addToast("Document deleted successfully.", { type: 'success' });
                 } catch (err: any) {
+                    // deleteItem already handled the error and showed a toast.
+                    // Don't show a duplicate — just log for debugging.
                     console.error('Delete document error:', err);
-                    // Don't show a scary error — the deleteItem function already
-                    // handles Convex failures gracefully (shows 'removed' toast).
-                    // This catch is for unexpected React/state errors.
-                    addToast("Document removed.", { type: 'info' });
                 } finally {
                     closeModal();
                 }
