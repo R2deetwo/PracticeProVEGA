@@ -71,12 +71,12 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_task",
-        description: "Opens the New Task form. Extract details like title, dueDate, matterId, priority, etc.",
+        description: "Opens the New Task form. Extract details like title, dueDate, matterId, priority, etc. Always set dueDate when creating a task so it automatically appears in the user's chronological Diary Mode view on that date.",
         parameters: {
             type: Type.OBJECT,
             properties: {
                 title: { type: Type.STRING },
-                dueDate: { type: Type.STRING, description: "ISO Date string" },
+                dueDate: { type: Type.STRING, description: "ISO Date string. ALWAYS provide this — the task will appear in the lawyer's Diary Mode on this date." },
                 matterId: { type: Type.STRING },
                 priority: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
                 description: { type: Type.STRING }

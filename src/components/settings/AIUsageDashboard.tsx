@@ -55,7 +55,7 @@ interface RateLimitData {
 
 const AGENT_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   ARIA: {
-    label: 'ARIA®',
+    label: 'AI Assistant',
     color: 'text-blue-400',
     icon: <Bot className="w-3.5 h-3.5" />,
   },

@@ -147,7 +147,7 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'newDirectMessage': return 'New Message';
         case 'externalCounsel': return 'External Counsel Access';
         case 'newExternalCounsel': return 'Invite External Counsel';
-        case 'aloaHelp': return 'ARIA Help';
+        case 'aloaHelp': return 'AI Assistant Help';
         case 'feedback': return 'Send Feedback';
         case 'newBankAccount': return 'Add Bank Account';
         case 'editBankAccount': return 'Edit Bank Account';
@@ -522,6 +522,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         else if (newView === 'cookiePolicy') path = '/cookie-policy';
         else if (newView === 'privacyPolicy') path = '/privacy-policy';
         else if (newView === 'termsOfService') path = '/terms-of-service';
+        else if (newView === 'portalTermsOfUse') path = '/portal-terms-of-use';
         else if (newView === 'dataProcessingAgreement') path = '/data-processing-agreement';
         else if (newView === 'matterDetail') path = `/matters/${safeId}`;
         else if (newView === 'contactDetail') path = `/contacts/${safeId}`;

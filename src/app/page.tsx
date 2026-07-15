@@ -1174,8 +1174,8 @@ function FAQSection() {
       a: 'No. Every PracticePro plan includes both VEGA (document drafting) and Atrium (property management). You get the complete platform — there are no hidden add-on costs for individual products.',
     },
     {
-      q: 'How does ARIA, the AI assistant, work?',
-      a: 'ARIA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian professional formatting, review content for completeness, or suggest improvements. ARIA understands Nigerian professional terminology, regulatory structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
+      q: 'How does ALOA, the AI assistant, work?',
+      a: 'ALOA is built into the VEGA document editor. You can ask it to draft documents, apply Nigerian professional formatting, review content for completeness, or suggest improvements. ALOA understands Nigerian professional terminology, regulatory structures, and document conventions. It runs entirely within PracticePro — your data never leaves our secure environment.',
     },
     {
       q: 'Is my client data safe and NDPA-compliant?',

@@ -45,7 +45,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
                 };
             case 'ai':
                 return {
-                    headline: "ARIA® AI is just getting warmed up.",
+                    headline: "AI Assistant is just getting warmed up.",
                     subline: isProperty ? "You've tasted the power of deep property analysis. Unlock full, unlimited AI analysis by creating your account." : "You've tasted the power of deep legal research. Unlock full, unlimited AI analysis by creating your account.",
                     icon: <SparklesIcon className="w-12 h-12 text-purple-500 animate-pulse" />
                 };

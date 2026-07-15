@@ -110,6 +110,10 @@ export class AIRequestQueue {
             const task = this.queue.pop()!;
             clearTimeout(task.timeoutId);
         }
+        // Defensive reset — ensures the processing flag is cleared
+        // even if the queue was empty (race condition where the task
+        // was already shifted but the finally block hasn't run yet)
+        this.processing = false;
     }
 
     private async processNext(): Promise<void> {

@@ -239,7 +239,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         description: 'PracticePro now features a production-grade Procedural Intelligence engine. We have unified our architecture to bring court rules, statutes, and case law directly into your firm\'s database for fast, bandwidth-efficient research.',
         features: [
             { icon: 'shield', label: 'Unified Legal Repository', text: 'All legal modules (Lagos HC Rules, FHC Rules, NWLR) are now hosted natively in your firm\'s Convex environment. Reduced cross-service latency and significantly lower data bandwidth usage.' },
-            { icon: 'brain', label: 'Procedural Awareness', text: 'ARIA is now aware of specific Nigerian court rules. It can provide step-by-step guidance for originating processes, motions, and enforcement based on verified legal modules.' },
+            { icon: 'brain', label: 'Procedural Awareness', text: 'ALOA is now aware of specific Nigerian court rules. It can provide step-by-step guidance for originating processes, motions, and enforcement based on verified legal modules.' },
             { icon: 'search', label: 'Usage Analytics & Tracking', text: 'Firm administrators can now track module usage and AI token consumption via the new Legal Intelligence tab in the ppIndex dashboard.' },
         ],
     },
@@ -248,7 +248,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.10.0',
         date: '2026-03-24',
         title: 'ARIA: Your Administrative Assistant',
-        description: 'ARIA is stepping out of the library and into the office. It now understands your entire firm\'s schedule and can assist with team availability, tasks, and scheduling.',
+        description: 'ALOA is stepping out of the library and into the office. It now understands your entire firm\'s schedule and can assist with team availability, tasks, and scheduling.',
         features: [
             { icon: 'calendar', label: 'Top-Level Scheduling Intelligence', text: 'ARIA now has a 14-day chronological radar. Ask "Who is free next week?" and it will cross-reference your team\'s calendar and provide availability insights.' },
             { icon: 'bolt', label: 'Instant Task Delegation', text: 'Ask ARIA to schedule a meeting with a client or delegate a task to a team member based on their schedule, and it will immediately prep the required workflow forms for you.' },
@@ -297,9 +297,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.6.0',
         date: '2026-03-04',
         title: 'Deep Intelligence & Temporal Awareness',
-        description: 'ARIA is now significantly smarter. It can read full documents via ALDIA and understands exactly what date it is today to help with your schedule.',
+        description: 'ALOA is now significantly smarter. It can read full documents via ALDIA and understands exactly what date it is today to help with your schedule.',
         features: [
-            { icon: 'document', label: 'ALDIA Integration', text: 'ARIA can now call the ALDIA agent tool to provide deep semantic summaries and risk analysis of your documents.' },
+            { icon: 'document', label: 'ALDIA Integration', text: 'ALOA can now call the ALDIA agent tool to provide deep semantic summaries and risk analysis of your documents.' },
             { icon: 'calendar', label: 'Time Awareness', text: 'Fixed chronological context: ARIA now knows the current date and time to correctly identify upcoming matters.' },
             { icon: 'brain', label: 'Zero-Friction Brain', text: 'Memory indexing now runs silently in the background using your own Gemini key from Settings.' },
         ],

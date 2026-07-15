@@ -5,6 +5,7 @@ import { useConvex } from 'convex/react';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { setCustomApiKey, getCustomApiKey } from '../../utils/aiUtils';
+import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
@@ -322,9 +323,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
                     <SettingsCard title="Brain — Memory Index" id="brain-index">
                         <p className="text-xs text-slate-600 dark:text-zinc-400 mb-3">
-                            {isProperty
-                                ? "ARIA's memory is built from your portfolio's documents and notes. This allows the AI to recall specific facts instead of guessing."
-                                : "ALOA's memory is built from your firm's documents and notes. This allows the AI to recall specific facts instead of guessing."}
+                            {`${getAssistantName(isProperty)}'s memory is built from your ${isProperty ? "portfolio's" : "firm's"} documents and notes. This allows the AI to recall specific facts instead of guessing.`}
                         </p>
                         <SeedBrainButton
                             firmId={firmDetails.id}
