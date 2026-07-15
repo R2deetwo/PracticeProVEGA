@@ -361,33 +361,106 @@ export function buildJurisdictionalReasoning(
   }
 
   // ── NIGERIAN COURT DETECTION (only for Nigerian matters) ──
-  // Detect explicit court overrides
+  // Detect explicit court overrides FIRST (user names the court)
   if (p.includes('federal high court') || p.includes('fhc')) {
     return {
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Federal High Court. Using ${j.federalHighCourtCaption} — federal matters (revenue, immigration, maritime, IP) fall under federal jurisdiction per Section 251 of the 1999 Constitution.`,
+      reasoning: `The prompt references the Federal High Court. Using ${j.federalHighCourtCaption} — federal matters (revenue, immigration, maritime, IP, corporate) fall under federal jurisdiction per Section 251 of the 1999 Constitution.`,
     };
   }
-  if (p.includes('magistrate')) {
+  if (p.includes('magistrate') || p.includes('district court')) {
     return {
       court: j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision),
       jurisdiction: j.name,
-      reasoning: `The prompt references the Magistrate Court. Using ${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)} — typically for landlord-tenant recovery and low-value civil claims.`,
+      reasoning: `The prompt references the Magistrate Court. Using ${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)} — a lower court of record with limited civil and criminal jurisdiction. Typically handles landlord-tenant recovery (where rent ≤ ₦50,000/year in most states), minor assaults, simple contract debts, and summary trials. Appeals lie to the State High Court.`,
     };
   }
   if (p.includes('customary court')) {
     return {
       court: `IN THE CUSTOMARY COURT OF ${j.name.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Customary Court. Using the Customary Court of ${j.name} — handles customary land disputes, inheritance, and family matters under native law and custom.`,
+      reasoning: `The prompt references the Customary Court. Using the Customary Court of ${j.name} — a lower court of record handling customary land disputes, inheritance under native law and custom, customary marriage/divorce, and minor civil claims governed by customary law. Appeals lie to the Customary Court of Appeal (where established) or the State High Court.`,
     };
   }
-  if (p.includes('national industrial court') || p.includes('nic')) {
+  if (p.includes('area court') || p.includes('sharia court')) {
+    return {
+      court: `IN THE AREA COURT OF ${j.name.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Area/Sharia Court. Using the Area Court of ${j.name} — a lower court of record in Northern Nigeria with jurisdiction over Islamic personal law matters (marriage, inheritance, waqf), minor civil claims under native law, and summary offences. Appeals lie to the Upper Area Court, then to the Sharia Court of Appeal (where established).`,
+    };
+  }
+  if (p.includes('upper area court')) {
+    return {
+      court: `IN THE UPPER AREA COURT OF ${j.name.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Upper Area Court. Using the Upper Area Court of ${j.name} — an appellate court over Area Courts in Northern Nigeria. Hears appeals from Area Courts and has original jurisdiction in more serious Islamic law matters. Appeals lie to the Sharia Court of Appeal.`,
+    };
+  }
+  if (p.includes('customary court of appeal')) {
+    return {
+      court: `IN THE CUSTOMARY COURT OF APPEAL, ${j.name.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Customary Court of Appeal. Using the Customary Court of Appeal of ${j.name} — an intermediate appellate court hearing appeals from Customary Courts on customary law matters (land, inheritance, marriage). Established per Section 280 of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
+    };
+  }
+  if (p.includes('sharia court of appeal')) {
+    return {
+      court: `IN THE SHARIA COURT OF APPEAL, ${j.name.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Sharia Court of Appeal. Using the Sharia Court of Appeal of ${j.name} — an intermediate appellate court hearing appeals from Upper Area Courts on Islamic personal law matters (marriage, inheritance, waqf, guardianship). Established per Section 275 of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
+    };
+  }
+  if (p.includes('national industrial court') || p.includes('nic') || p.includes('nicn')) {
     return {
       court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
       jurisdiction: 'Federal',
-      reasoning: `The prompt references the National Industrial Court. Using NICN — has exclusive jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution.`,
+      reasoning: `The prompt references the National Industrial Court. Using NICN — has EXCLUSIVE jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution. NICN also has powers to grant injunctions and equitable relief in trade disputes. Appeals lie directly to the Court of Appeal.`,
+    };
+  }
+  if (p.includes('court of appeal') || p.includes('appellate court')) {
+    return {
+      court: 'COURT OF APPEAL OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the Court of Appeal. The Court of Appeal is the intermediate appellate court — hears appeals from the Federal High Court, State High Courts, National Industrial Court, Customary Courts of Appeal, and Sharia Courts of Appeal. Established per Section 237 of the 1999 Constitution. Appeals lie to the Supreme Court.`,
+    };
+  }
+  if (p.includes('supreme court')) {
+    return {
+      court: 'SUPREME COURT OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the Supreme Court. The Supreme Court is the highest court in Nigeria — hears appeals from the Court of Appeal. Has original jurisdiction in disputes between the Federation and States, and between States (Section 232 of the 1999 Constitution). Its decisions are binding on all lower courts.`,
+    };
+  }
+  if (p.includes('tribunal')) {
+    // Generic tribunal detection — tax, investment, election, etc.
+    if (p.includes('tax') || p.includes('firsc') || p.includes('tid')) {
+      return {
+        court: 'FEDERAL INLAND REVENUE SERVICE TRIBUNAL / TAX APPEAL COMMISSION',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references a tax tribunal. Tax disputes in Nigeria may go to the Tax Appeal Tribunal (TAT) established by FIRS, or to the Federal High Court. The TAT hears disputes on assessments, penalties, and FIRS enforcement. Appeals from the TAT lie to the Federal High Court.`,
+      };
+    }
+    if (p.includes('election') || p.includes('ept')) {
+      return {
+        court: 'ELECTION PETITION TRIBUNAL',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references an Election Petition Tribunal. EPTs are established under the Electoral Act to hear petitions challenging elections to the Presidency, National Assembly, Governorship, and State Houses of Assembly. Appeals lie to the Court of Appeal.`,
+      };
+    }
+    if (p.includes('investment') || p.includes('sec') || p.includes('securities')) {
+      return {
+        court: 'INVESTMENT AND SECURITIES TRIBUNAL (IST)',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references the Investment and Securities Tribunal. The IST has exclusive jurisdiction over capital market, securities, and investment disputes per the Investments and Securities Act (ISA) 2025. Appeals lie to the Court of Appeal.`,
+      };
+    }
+  }
+  if (p.includes('code of conduct') || p.includes('cct')) {
+    return {
+      court: 'CODE OF CONDUCT TRIBUNAL',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the Code of Conduct Tribunal. The CCT hears cases of breach of the Code of Conduct for Public Officers (asset declaration, conflict of interest, foreign accounts, etc.) per the Fifth Schedule of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
     };
   }
 
@@ -404,60 +477,92 @@ export function buildJurisdictionalReasoning(
   // Subject Matter → Court mapping
   const subjectMatterRules: { keywords: string[]; court: string; jurisdiction: string; reasoning: string; conflict?: string }[] = [
     {
-      keywords: ['company', 'cama', 'corporate', 'incorporation', 'shareholder', 'board resolution', 'annual return'],
+      keywords: ['company', 'cama', 'corporate', 'incorporation', 'shareholder', 'board resolution', 'annual return', 'merger', 'acquisition', 'takeover'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
       reasoning: `Subject matter: Corporate/company law under CAMA 2020. The Federal High Court has exclusive jurisdiction over corporate matters per Section 251(1)(e) of the 1999 Constitution. ${j.name} Division applies based on the firm's default state of practice.`,
       conflict: `Company formation and corporate disputes fall under the EXCLUSIVE jurisdiction of the Federal High Court under CAMA 2020 — NOT the State High Court. Ensure filing is made at the appropriate FHC Division.`,
     },
     {
-      keywords: ['employment', 'labour', 'labor', 'worker', 'employee', 'employer', 'termination', 'dismissal', 'workplace', 'union', 'strike', 'industrial'],
+      keywords: ['employment', 'labour', 'labor', 'worker', 'employee', 'employer', 'termination', 'dismissal', 'workplace', 'union', 'strike', 'industrial', 'redundancy', 'unfair dismissal', 'wrongful termination'],
       court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
       jurisdiction: 'Federal',
       reasoning: `Subject matter: Employment/labour law. The National Industrial Court (NICN) has EXCLUSIVE jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution (as amended). This overrides any state-level court jurisdiction.`,
       conflict: `Employment and labour matters MUST be filed at the National Industrial Court — NOT the Federal High Court or State High Court. Even if the employer is a company (CAMA matter), employment disputes are severed and filed separately at NICN.`,
     },
     {
-      keywords: ['revenue', 'taxation', 'customs', 'excise', 'federal revenue', 'vat', 'company income tax'],
+      keywords: ['revenue', 'taxation', 'customs', 'excise', 'federal revenue', 'vat', 'company income tax', 'personal income tax', 'withholding tax', 'firs'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `Subject matter: Federal revenue/taxation. The Federal High Court has exclusive jurisdiction over revenue matters per Section 251(1)(a) of the 1999 Constitution.`,
+      reasoning: `Subject matter: Federal revenue/taxation. The Federal High Court has exclusive jurisdiction over revenue matters per Section 251(1)(a) of the 1999 Constitution. Note: Tax Appeal Tribunal (TAT) may have first-instance jurisdiction for FIRS assessments — check if the matter requires TAT exhaustion before FHC filing.`,
     },
     {
-      keywords: ['immigration', 'deportation', 'visa', 'passport', 'citizenship'],
+      keywords: ['immigration', 'deportation', 'visa', 'passport', 'citizenship', 'naturalization', 'expulsion'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
       reasoning: `Subject matter: Immigration. The Federal High Court has exclusive jurisdiction over immigration and citizenship matters per Section 251(1)(b) of the 1999 Constitution.`,
     },
     {
-      keywords: ['maritime', 'admiralty', 'shipping', 'sea', 'port', 'ocean'],
+      keywords: ['maritime', 'admiralty', 'shipping', 'sea', 'port', 'ocean', 'cargo', 'bill of lading', 'marine'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `Subject matter: Maritime/admiralty. The Federal High Court has exclusive jurisdiction over maritime matters per Section 251(1)(g) of the 1999 Constitution.`,
+      reasoning: `Subject matter: Maritime/admiralty. The Federal High Court has exclusive jurisdiction over maritime matters per Section 251(1)(g) of the 1999 Constitution and the Admiralty Jurisdiction Act.`,
     },
     {
-      keywords: ['intellectual property', 'copyright', 'trademark', 'patent', 'industrial design'],
+      keywords: ['intellectual property', 'copyright', 'trademark', 'patent', 'industrial design', 'trade secret', 'unfair competition'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `Subject matter: Intellectual property. The Federal High Court has exclusive jurisdiction over IP matters per Section 251(1)(f) of the 1999 Constitution.`,
+      reasoning: `Subject matter: Intellectual property. The Federal High Court has exclusive jurisdiction over IP matters per Section 251(1)(f) of the 1999 Constitution. This includes copyright (Copyright Act), trademarks (Trademarks Act), and patents (Patents and Designs Act).`,
     },
     {
-      keywords: ['land', 'tenancy', 'lease', 'property', 'landlord', 'tenant', 'rent', 'premises', 'eviction'],
+      keywords: ['banking', 'banks', 'central bank', 'cbn', 'ndic', 'bofia', 'financial institution'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Banking and financial institutions. The Federal High Court has jurisdiction over banking matters per Section 251(1)(d) of the 1999 Constitution and BOFIA 2020. This includes disputes between banks and customers where the CBN or NDIC is involved.`,
+    },
+    {
+      keywords: ['land', 'tenancy', 'lease', 'property', 'landlord', 'tenant', 'rent', 'premises', 'eviction', 'recovery of premises', 'certificate of occupancy', 'right of occupancy'],
       court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
       jurisdiction: j.name,
-      reasoning: `Subject matter: Land/property law. State High Courts have jurisdiction over land matters per Section 272 of the 1999 Constitution. ${j.name} ${j.defaultDivision} Judicial Division applies. For low-value landlord-tenant recovery, consider the Magistrate Court as an alternative.`,
+      reasoning: `Subject matter: Land/property law. State High Courts have jurisdiction over land matters per Section 272 of the 1999 Constitution. ${j.name} ${j.defaultDivision} Judicial Division applies. For low-value landlord-tenant recovery (rent ≤ threshold set by state law, typically ₦50,000/year in Lagos), consider the Magistrate Court. For customary land disputes, consider the Customary Court.`,
     },
     {
-      keywords: ['divorce', 'matrimonial', 'custody', 'maintenance', 'spouse', 'marriage'],
+      keywords: ['divorce', 'matrimonial', 'custody', 'maintenance', 'spouse', 'marriage', 'matrimonial causes', 'judicial separation', 'nullity'],
       court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
       jurisdiction: j.name,
-      reasoning: `Subject matter: Matrimonial/family law. The State High Court has jurisdiction over divorce and matrimonial causes under the Matrimonial Causes Act. ${j.name} ${j.defaultDivision} Judicial Division applies.`,
+      reasoning: `Subject matter: Matrimonial/family law (statutory marriage). The State High Court has jurisdiction over divorce and matrimonial causes under the Matrimonial Causes Act. ${j.name} ${j.defaultDivision} Judicial Division applies. Note: customary marriage dissolution is handled by the Customary Court; Islamic marriage dissolution by the Sharia/Area Court.`,
+      conflict: `Jurisdiction depends on the TYPE of marriage: statutory marriages → State High Court (Matrimonial Causes Act); customary marriages → Customary Court; Islamic marriages → Sharia/Area Court. Verify the marriage type before filing.`,
     },
     {
-      keywords: ['appeal', 'appellate', 'upper court', 'court of appeal', 'supreme court'],
+      keywords: ['probate', 'estate', 'will', 'testament', 'executor', 'administrator', 'letter of administration', 'inheritance', 'succession'],
+      court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Probate/succession. The State High Court has jurisdiction over probate matters (wills, letters of administration, estate administration) per Section 272 of the 1999 Constitution. ${j.name} ${j.defaultDivision} Judicial Division applies. Note: customary inheritance disputes go to the Customary Court; Islamic inheritance to the Sharia/Area Court.`,
+    },
+    {
+      keywords: ['criminal', 'offence', 'felony', 'misdemeanor', 'charge', 'defendant', 'prosecution', 'bail', 'trial'],
+      court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Criminal law. The State High Court has original jurisdiction over felonies and serious misdemeanors per Section 272 of the 1999 Constitution. ${j.name} ${j.defaultDivision} Judicial Division applies. Minor offences (simple misdemeanors, summary offences) may be handled by the Magistrate Court. Federal offences (cybercrime, terrorism, drug trafficking) go to the Federal High Court.`,
+      conflict: `Criminal jurisdiction depends on the offence classification: felonies → State High Court; misdemeanors → Magistrate Court (limited by maximum sentence); federal offences (terrorism, cybercrime, NDLEA, EFCC) → Federal High Court. Verify the specific offence and its classification before filing.`,
+    },
+    {
+      keywords: ['human rights', 'fundamental rights', 'enforcement of rights', 'freedom', 'section 46', 'section 34', 'section 35', 'section 36', 'section 40', 'section 41', 'section 42'],
+      court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Fundamental Rights Enforcement. Per Section 46 of the 1999 Constitution, the High Court (State or Federal) has jurisdiction to enforce fundamental rights. ${j.name} ${j.defaultDivision} Judicial Division applies. The Federal High Court also has concurrent jurisdiction. Filing is done via the Fundamental Rights (Enforcement Procedure) Rules 2009.`,
+    },
+    {
+      keywords: ['appeal', 'appellate', 'upper court'],
       court: 'COURT OF APPEAL OF NIGERIA',
       jurisdiction: 'Federal',
-      reasoning: `Hierarchy: Appellate jurisdiction. The Court of Appeal hears appeals from the Federal High Court, State High Courts, and NICN. Note: appeals from the National Industrial Court go directly to the Court of Appeal (not through the High Court).`,
+      reasoning: `Hierarchy: Appellate jurisdiction. The Court of Appeal hears appeals from: Federal High Court, State High Courts, National Industrial Court, Customary Courts of Appeal, Sharia Courts of Appeal, Election Petition Tribunals, Code of Conduct Tribunal, and Investment and Securities Tribunal. Appeals lie to the Supreme Court.`,
+    },
+    {
+      keywords: ['small claims', 'minor debt', 'small debt'],
+      court: j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision),
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Small claims/minor debts. The Magistrate Court has jurisdiction over minor civil claims up to the monetary limit set by state law (varies by state — e.g., ₦50,000 in some states, ₦100,000 in others). ${j.defaultDivision} Division applies. Some states have dedicated Small Claims Courts with simplified procedures for claims under ₦5,000,000 (e.g., Lagos Small Claims Court).`,
     },
   ];
 
@@ -478,6 +583,6 @@ export function buildJurisdictionalReasoning(
   return {
     court: `${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION`,
     jurisdiction: j.name,
-    reasoning: `No explicit court or subject matter specified. Defaulting to the High Court of ${j.name} (${j.defaultDivision} Judicial Division) per the firm's Default State of Practice setting. Citing ${j.highCourtRules}. If this matter involves corporate, employment, tax, or IP issues, the Federal High Court or NICN may have exclusive jurisdiction — verify before filing.`,
+    reasoning: `No explicit court or subject matter specified. Defaulting to the High Court of ${j.name} (${j.defaultDivision} Judicial Division) per the firm's Default State of Practice setting. Citing ${j.highCourtRules}. If this matter involves corporate (CAMA), employment, tax, banking, IP, immigration, or maritime issues, the Federal High Court or NICN may have exclusive jurisdiction — verify before filing. For minor civil claims, consider the Magistrate Court. For customary matters, consider the Customary or Area Court.`,
   };
 }
