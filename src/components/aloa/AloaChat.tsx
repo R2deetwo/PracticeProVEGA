@@ -171,11 +171,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // When ALOA fetches web content (either from URLs in the user's message
     // or from auto-searching in research mode), the results are stored here
     // and displayed in collapsible panels (like Claude's search results).
+    //
+    // The `content` field stores the full fetched text (up to 8000 chars)
+    // so it can be pushed to the Research Studio as a source. It's populated
+    // after the deep-fetch step completes.
     const [webFetchResults, setWebFetchResults] = useState<Array<{
         url: string;
         title: string;
         success: boolean;
         snippet: string;
+        content?: string;  // full fetched text (for "Push to Research")
     }> | null>(null);
 
     // Refs for callbacks
@@ -1446,11 +1451,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             }
 
                             // Show web fetch results in the UI (like Claude's search panels)
+                            // Store the full content (up to 8000 chars) for "Push to Research"
                             setWebFetchResults(fetchResults.map(r => ({
                                 url: r.url,
                                 title: r.title || r.url,
                                 success: r.success,
                                 snippet: r.success ? (r.content || '').substring(0, 200) + '...' : (r.message || 'Failed to fetch'),
+                                content: r.success ? (r.content || '').substring(0, 8000) : undefined,
                             })));
 
                             if (webContent) {
@@ -1565,6 +1572,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             }
                                         })
                                     );
+
+                                    // ─── Update webFetchResults with the full content ──
+                                    // Merge the deep-fetched content into the existing
+                                    // webFetchResults state so the "Push to Research"
+                                    // button can send the actual page text (not just
+                                    // the snippet) to the Research Studio.
+                                    setWebFetchResults(prev => {
+                                        if (!prev) return prev;
+                                        const contentMap = new Map(deepFetches.map(r => [r.url, r.content]));
+                                        return prev.map(r => ({
+                                            ...r,
+                                            content: contentMap.get(r.url) || r.content || r.snippet,
+                                        }));
+                                    });
 
                                     const deepContent = deepFetches
                                         .filter(r => r.success && r.content)
@@ -2100,6 +2121,64 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         } catch (e: any) {
             console.error('[Send to Research] Failed:', e);
             addToast('Could not send to Research Studio: ' + (e.message || 'Unknown error'), { type: 'error' });
+        }
+    };
+
+    // ─── Push Web Results to Research Studio ───────────────────────────
+    // Takes the web fetch results (from URL extraction or parallel search)
+    // and pushes them as sources into a NEW research notebook. Opens the
+    // Research Studio in a new tab so the user can do deeper analysis.
+    //
+    // This is triggered from the "Push to Research" button on the web
+    // results panel — a user gesture, so window.open works.
+    const handlePushWebResultsToResearch = async () => {
+        if (!webFetchResults || webFetchResults.length === 0) return;
+        const successfulResults = webFetchResults.filter(r => r.success);
+        if (successfulResults.length === 0) {
+            addToast('No successful web results to push.', { type: 'info' });
+            return;
+        }
+
+        try {
+            const notebookName = `Web Research — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+
+            // 1. Create a new research notebook
+            const notebook = handleAddResearchNotebook({
+                name: notebookName,
+                firmId: currentUser?.firmId || coreState?.firmDetails?.id || '',
+                userId: currentUser?.id || '',
+            });
+
+            if (!notebook?.id) {
+                addToast('Could not create research notebook.', { type: 'error' });
+                return;
+            }
+
+            // 2. Add each web result as a source
+            for (const r of successfulResults) {
+                handleAddResearchSource(notebook.id, {
+                    name: r.title || r.url,
+                    type: 'text',
+                    content: r.content || r.snippet || `Source: ${r.title}\nURL: ${r.url}`,
+                });
+            }
+
+            // 3. Open Research in a new tab with the notebook pre-selected
+            addToast(`Pushed ${successfulResults.length} web source${successfulResults.length > 1 ? 's' : ''} to Research Studio.`, { type: 'success' });
+            const ctx = { selectedNotebookId: notebook.id };
+            try {
+                const { openInNewTab, buildRouteUrlWithHashContext } = await import('../../utils/tabNavigation');
+                const url = buildRouteUrlWithHashContext('research', ctx);
+                const opened = openInNewTab(url);
+                if (!opened) {
+                    navigateTo('research', null, ctx);
+                }
+            } catch {
+                navigateTo('research', null, ctx);
+            }
+        } catch (e: any) {
+            console.error('[Push Web Results to Research] failed:', e);
+            addToast('Could not push to Research Studio: ' + (e.message || 'Unknown error'), { type: 'error' });
         }
     };
 
@@ -2839,16 +2918,35 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             {webFetchResults.length} web result{webFetchResults.length > 1 ? 's' : ''} {isLoading && '· reading…'}
                                         </span>
                                     </div>
-                                    {!isLoading && (
-                                        <button
-                                            onClick={() => setWebFetchResults(null)}
-                                            className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5"
-                                        >
-                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                    )}
+                                    <div className="flex items-center gap-1.5">
+                                        {/* ─── Push to Research button ──────────────────
+                                            Appears when not loading AND at least one result
+                                            has content. Pushes all successful web results
+                                            as sources into a new Research notebook, then
+                                            opens Research in a new tab. */}
+                                        {!isLoading && webFetchResults.some(r => r.success) && (
+                                            <button
+                                                onClick={handlePushWebResultsToResearch}
+                                                className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-md text-[9px] font-bold transition-colors border border-indigo-200 dark:border-indigo-800/50"
+                                                title="Push these web sources to a new Research notebook"
+                                            >
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                                </svg>
+                                                Push to Research
+                                            </button>
+                                        )}
+                                        {!isLoading && (
+                                            <button
+                                                onClick={() => setWebFetchResults(null)}
+                                                className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5"
+                                            >
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                     {webFetchResults.map((r, i) => (

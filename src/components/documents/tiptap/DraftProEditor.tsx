@@ -845,27 +845,49 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             const abortController = new AbortController();
             (window as any).stopDrafting = () => abortController.abort();
 
-            // SAFETY TIMEOUT: If drafting doesn't complete within 90 seconds,
+            // SAFETY TIMEOUT: If drafting doesn't complete within 60 seconds,
             // force-abort it so the user isn't stuck on "Preparing your document..."
             // forever. This handles network issues, API timeouts, and hung streams.
+            // Was 90s — too long. Most drafts complete in 10-30s. 60s is the
+            // outer bound; the inactivity timeout below catches stalls earlier.
             const safetyTimeout = setTimeout(() => {
                 if (!abortController.signal.aborted) {
-                    console.warn('[DraftPro] Drafting timed out after 90s — aborting');
+                    console.warn('[DraftPro] Drafting timed out after 60s — aborting');
                     abortController.abort();
                 }
-            }, 90000);
+            }, 60000);
 
             // HARD FORCE-CLEAR: Independent of the abort chain. If the streamDraft
             // promise never settles (even after abort), this ensures the overlay
-            // is cleared at 95s — no matter what. Previously the overlay could
+            // is cleared at 65s — no matter what. Previously the overlay could
             // stay forever if the promise didn't reject after abort.
             const forceClearTimeout = setTimeout(() => {
-                console.warn('[DraftPro] Force-clearing isDrafting after 95s (independent of abort)');
+                console.warn('[DraftPro] Force-clearing isDrafting after 65s (independent of abort)');
                 setIsDrafting(false);
                 if (editor && !editor.isDestroyed) {
                     try { editor.setEditable(true); } catch {}
                 }
-            }, 95000);
+            }, 65000);
+
+            // INACTIVITY TIMEOUT: If no chunks arrive for 25 seconds, the stream
+            // has likely stalled. This is MORE aggressive than the safety timeout
+            // because it catches the common case where the API connection opens
+            // (no error) but then hangs without sending data. The user sees the
+            // "Taking longer than expected…" warning in the overlay at 30s, so
+            // this fires just before that to abort and show a clear error.
+            let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+            const resetInactivityTimer = () => {
+                if (inactivityTimer) clearTimeout(inactivityTimer);
+                inactivityTimer = setTimeout(() => {
+                    if (!abortController.signal.aborted) {
+                        console.warn('[DraftPro] No chunks received for 25s — aborting (stream stalled)');
+                        abortController.abort();
+                    }
+                }, 25000);
+            };
+            // Start the first inactivity timer — if the first chunk doesn't
+            // arrive within 25s, the API is likely not responding at all.
+            resetInactivityTimer();
 
             // Clear editor content — canvas stays white
             try {
@@ -899,6 +921,10 @@ ${sourceList}
                 { appState, currentUser: currentUser!, signerContext },
                 (chunk) => {
                     if (isCancelled || !editor || editor.isDestroyed) return;
+                    // Reset the inactivity timer on each chunk — the stream
+                    // is alive. If no chunks arrive for 25s, the timer fires
+                    // and aborts.
+                    resetInactivityTimer();
                     draftBuffer += chunk;
                     const now = Date.now();
                     if (now - lastStreamUpdate > 250) {
@@ -922,6 +948,7 @@ ${sourceList}
             ).then(() => {
                 clearTimeout(safetyTimeout);
                 clearTimeout(forceClearTimeout);
+                if (inactivityTimer) clearTimeout(inactivityTimer);
                 if (isCancelled || !editor || editor.isDestroyed) return;
                 // Wrap the entire completion handler in try/catch so that
                 // ANY error (e.g. a ReferenceError from a typo, a setContent
@@ -987,6 +1014,7 @@ ${sourceList}
             }).catch(e => {
                 clearTimeout(safetyTimeout);
                 clearTimeout(forceClearTimeout);
+                if (inactivityTimer) clearTimeout(inactivityTimer);
                 if (isCancelled) return;
                 console.error("Drafting error:", e);
                 setIsDrafting(false);
@@ -994,7 +1022,32 @@ ${sourceList}
                     editor.setEditable(true);
                 }
                 if (e.name === 'AbortError') {
-                    addToast('Drafting cancelled.', { type: 'info' });
+                    // If we got partial content before the abort, show it
+                    // rather than leaving the page blank. This covers both
+                    // user-cancelled drafts and inactivity-timeout aborts
+                    // where the stream produced some content then stalled.
+                    const trimmedBuffer = draftBuffer.trim();
+                    if (editor && !editor.isDestroyed && trimmedBuffer) {
+                        let cleanDraft = trimmedBuffer
+                            .replace(/```html/g, '')
+                            .replace(/```/g, '')
+                            .replace(/\\n/g, '\n')
+                            .replace(/\r/g, '');
+                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
+                            const cat = resolveCategory(label);
+                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
+                        });
+                        try {
+                            editor.commands.setContent(processedDraft);
+                        } catch (err) {
+                            console.error('[DraftPro] setContent failed on abort recovery:', err);
+                        }
+                        addToast('Drafting stopped — partial content preserved. Click Redraft to try again.', { type: 'info' });
+                        persistDraftRef.current?.(processedDraft, title || 'Untitled Draft', activeDraftPrompt);
+                    } else {
+                        addToast('Drafting cancelled. Click Redraft to try again.', { type: 'info' });
+                    }
                 } else {
                     try {
                         const trimmedBuffer = draftBuffer.trim();
@@ -2239,7 +2292,24 @@ ${allCites.map((c: any) => {
                                 )}
                                 <EditorContent editor={editor} />
                                 {isDrafting && (
-                                    <GenerationOverlay label="Preparing your document..." />
+                                    <GenerationOverlay
+                                        label="Preparing your document..."
+                                        onCancel={() => {
+                                            // Cancel & Retry — abort current draft and re-trigger
+                                            (window as any).stopDrafting?.();
+                                            // Small delay to let abort propagate, then retry
+                                            setTimeout(() => {
+                                                if (activeDraftPrompt) {
+                                                    draftingPromptRef.current = null; // allow re-trigger
+                                                    setActiveDraftPrompt(activeDraftPrompt);
+                                                }
+                                            }, 300);
+                                        }}
+                                        onJustCancel={() => {
+                                            // Just cancel — no retry
+                                            (window as any).stopDrafting?.();
+                                        }}
+                                    />
                                 )}
                             </div>
                         </div>
