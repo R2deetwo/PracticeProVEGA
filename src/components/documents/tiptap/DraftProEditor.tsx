@@ -827,6 +827,18 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                 }
             }, 90000);
 
+            // HARD FORCE-CLEAR: Independent of the abort chain. If the streamDraft
+            // promise never settles (even after abort), this ensures the overlay
+            // is cleared at 95s — no matter what. Previously the overlay could
+            // stay forever if the promise didn't reject after abort.
+            const forceClearTimeout = setTimeout(() => {
+                console.warn('[DraftPro] Force-clearing isDrafting after 95s (independent of abort)');
+                setIsDrafting(false);
+                if (editor && !editor.isDestroyed) {
+                    try { editor.setEditable(true); } catch {}
+                }
+            }, 95000);
+
             // Clear editor content — canvas stays white
             try {
                 editor.commands.setContent('<p></p>');
@@ -881,6 +893,7 @@ ${sourceList}
                 abortController.signal
             ).then(() => {
                 clearTimeout(safetyTimeout);
+                clearTimeout(forceClearTimeout);
                 if (isCancelled || !editor || editor.isDestroyed) return;
                 // Wrap the entire completion handler in try/catch so that
                 // ANY error (e.g. a ReferenceError from a typo, a setContent
@@ -945,6 +958,7 @@ ${sourceList}
                 }
             }).catch(e => {
                 clearTimeout(safetyTimeout);
+                clearTimeout(forceClearTimeout);
                 if (isCancelled) return;
                 console.error("Drafting error:", e);
                 setIsDrafting(false);
@@ -999,6 +1013,7 @@ ${sourceList}
             return () => {
                 isCancelled = true;
                 clearTimeout(safetyTimeout);
+                clearTimeout(forceClearTimeout);
                 abortController.abort();
                 if (editor && !editor.isDestroyed) {
                     editor.setEditable(true);

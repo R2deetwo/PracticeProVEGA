@@ -391,10 +391,93 @@ export function buildJurisdictionalReasoning(
     };
   }
 
+  // ─── 3-AXIS JURISDICTION DETECTION (Subject Matter → Court) ────────
+  // Classify jurisdiction across three axes:
+  // 1. Subject Matter: What is the legal substance? (CAMA → FHC, Labor → NIC)
+  // 2. Geographical: Where did the cause of action arise? (state/division)
+  // 3. Hierarchy: Original vs Appellate jurisdiction
+  //
+  // This prevents the AI from defaulting to the High Court when the
+  // matter actually falls under exclusive federal or specialized
+  // jurisdiction (e.g., company formation → FHC under CAMA).
+
+  // Subject Matter → Court mapping
+  const subjectMatterRules: { keywords: string[]; court: string; jurisdiction: string; reasoning: string; conflict?: string }[] = [
+    {
+      keywords: ['company', 'cama', 'corporate', 'incorporation', 'shareholder', 'board resolution', 'annual return'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Corporate/company law under CAMA 2020. The Federal High Court has exclusive jurisdiction over corporate matters per Section 251(1)(e) of the 1999 Constitution. ${j.name} Division applies based on the firm's default state of practice.`,
+      conflict: `Company formation and corporate disputes fall under the EXCLUSIVE jurisdiction of the Federal High Court under CAMA 2020 — NOT the State High Court. Ensure filing is made at the appropriate FHC Division.`,
+    },
+    {
+      keywords: ['employment', 'labour', 'labor', 'worker', 'employee', 'employer', 'termination', 'dismissal', 'workplace', 'union', 'strike', 'industrial'],
+      court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `Subject matter: Employment/labour law. The National Industrial Court (NICN) has EXCLUSIVE jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution (as amended). This overrides any state-level court jurisdiction.`,
+      conflict: `Employment and labour matters MUST be filed at the National Industrial Court — NOT the Federal High Court or State High Court. Even if the employer is a company (CAMA matter), employment disputes are severed and filed separately at NICN.`,
+    },
+    {
+      keywords: ['revenue', 'taxation', 'customs', 'excise', 'federal revenue', 'vat', 'company income tax'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Federal revenue/taxation. The Federal High Court has exclusive jurisdiction over revenue matters per Section 251(1)(a) of the 1999 Constitution.`,
+    },
+    {
+      keywords: ['immigration', 'deportation', 'visa', 'passport', 'citizenship'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Immigration. The Federal High Court has exclusive jurisdiction over immigration and citizenship matters per Section 251(1)(b) of the 1999 Constitution.`,
+    },
+    {
+      keywords: ['maritime', 'admiralty', 'shipping', 'sea', 'port', 'ocean'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Maritime/admiralty. The Federal High Court has exclusive jurisdiction over maritime matters per Section 251(1)(g) of the 1999 Constitution.`,
+    },
+    {
+      keywords: ['intellectual property', 'copyright', 'trademark', 'patent', 'industrial design'],
+      court: j.federalHighCourtCaption,
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Intellectual property. The Federal High Court has exclusive jurisdiction over IP matters per Section 251(1)(f) of the 1999 Constitution.`,
+    },
+    {
+      keywords: ['land', 'tenancy', 'lease', 'property', 'landlord', 'tenant', 'rent', 'premises', 'eviction'],
+      court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Land/property law. State High Courts have jurisdiction over land matters per Section 272 of the 1999 Constitution. ${j.name} ${j.defaultDivision} Judicial Division applies. For low-value landlord-tenant recovery, consider the Magistrate Court as an alternative.`,
+    },
+    {
+      keywords: ['divorce', 'matrimonial', 'custody', 'maintenance', 'spouse', 'marriage'],
+      court: j.highCourtCaption + ' IN THE ' + j.defaultDivision.toUpperCase() + ' JUDICIAL DIVISION',
+      jurisdiction: j.name,
+      reasoning: `Subject matter: Matrimonial/family law. The State High Court has jurisdiction over divorce and matrimonial causes under the Matrimonial Causes Act. ${j.name} ${j.defaultDivision} Judicial Division applies.`,
+    },
+    {
+      keywords: ['appeal', 'appellate', 'upper court', 'court of appeal', 'supreme court'],
+      court: 'COURT OF APPEAL OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `Hierarchy: Appellate jurisdiction. The Court of Appeal hears appeals from the Federal High Court, State High Courts, and NICN. Note: appeals from the National Industrial Court go directly to the Court of Appeal (not through the High Court).`,
+    },
+  ];
+
+  // Check subject matter rules
+  for (const rule of subjectMatterRules) {
+    if (rule.keywords.some(kw => p.includes(kw))) {
+      return {
+        court: rule.court,
+        jurisdiction: rule.jurisdiction,
+        reasoning: rule.conflict
+          ? `${rule.reasoning}\n\n⚠️ JURISDICTIONAL WARNING: ${rule.conflict}`
+          : rule.reasoning,
+      };
+    }
+  }
+
   // Default: High Court of the firm's state (Nigerian only)
   return {
     court: `${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION`,
     jurisdiction: j.name,
-    reasoning: `No explicit court specified. Defaulting to the High Court of ${j.name} (${j.defaultDivision} Judicial Division) per the firm's Default State of Practice setting. Citing ${j.highCourtRules}.`,
+    reasoning: `No explicit court or subject matter specified. Defaulting to the High Court of ${j.name} (${j.defaultDivision} Judicial Division) per the firm's Default State of Practice setting. Citing ${j.highCourtRules}. If this matter involves corporate, employment, tax, or IP issues, the Federal High Court or NICN may have exclusive jurisdiction — verify before filing.`,
   };
 }

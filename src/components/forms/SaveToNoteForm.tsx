@@ -252,15 +252,19 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 setTranscriptionStatus('listening');
 
                 // Periodic AI update every 10 seconds for "near-live" feel.
-                // Each tick drains the accumulated chunks so we don't re-transcribe
-                // the same audio over and over (which was causing growing blobs and
-                // eventual failures).
+                // GUARDED: prevents concurrent processTranscription calls that
+                // race on contentRef and clobber each other's text.
                 transcriptionIntervalRef.current = setInterval(async () => {
+                    if (isProcessingTranscriptionRef.current) return; // Skip if still processing
                     if (mediaRecorderRef.current?.state === 'recording' && audioChunksRef.current.length > 0) {
-                        // Drain the chunks so the next tick starts fresh
-                        const chunksToProcess = audioChunksRef.current;
-                        audioChunksRef.current = [];
-                        await processTranscription(chunksToProcess);
+                        isProcessingTranscriptionRef.current = true;
+                        try {
+                            const chunksToProcess = audioChunksRef.current;
+                            audioChunksRef.current = [];
+                            await processTranscription(chunksToProcess);
+                        } finally {
+                            isProcessingTranscriptionRef.current = false;
+                        }
                     }
                 }, 10000);
 

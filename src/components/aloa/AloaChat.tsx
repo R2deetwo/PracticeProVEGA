@@ -235,6 +235,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // timeout so the user isn't left with a stray blank tab.
     const armedDraftTabRef = useRef<Window | null>(null);
     const armedDraftTabTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Track whether the armed tab has been navigated to a real URL.
+    // Previously we checked location.href.includes('blank') which was
+    // fragile — if the user's message contained the word "blank" (e.g.
+    // "draft a blank lease"), the URL-encoded query string would match
+    // and the timer would erroneously close an active editor tab.
+    const armedDraftTabNavigatedRef = useRef(false);
 
     /**
      * Detect whether a user message looks like a draft request.
@@ -290,14 +296,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 // ignore — some browsers block document.write on cross-origin tabs
             }
 
-            // Auto-close the armed tab if the AI doesn't draft within 30s
-            // (e.g., the user's message wasn't actually a draft request,
-            // or the AI decided to answer in chat instead)
+            // Auto-close the armed tab if the AI doesn't draft within 90s.
+            // Was 30s — too short for reasoning/thinking models that take
+            // 30-60s to respond. Now matches the DraftPro safety timeout.
             armedDraftTabTimerRef.current = setTimeout(() => {
-                if (armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+                // Only close if the tab hasn't been navigated to a real URL yet
+                if (!armedDraftTabNavigatedRef.current && armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
                     try {
                         if (armedDraftTabRef.current.location.href === 'about:blank' ||
-                            armedDraftTabRef.current.location.href.includes('blank')) {
+                            armedDraftTabRef.current.location.href === '') {
                             armedDraftTabRef.current.close();
                         }
                     } catch {
@@ -306,7 +313,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }
                 armedDraftTabRef.current = null;
                 armedDraftTabTimerRef.current = null;
-            }, 30000);
+            }, 90000);
         }
     };
 
@@ -320,6 +327,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             try {
                 armedDraftTabRef.current.location.href = url;
                 armedDraftTabRef.current.focus();
+                // Mark as navigated so the auto-close timer won't close it
+                armedDraftTabNavigatedRef.current = true;
                 // Clear the auto-close timer — the tab is now in use
                 if (armedDraftTabTimerRef.current) {
                     clearTimeout(armedDraftTabTimerRef.current);
@@ -1772,13 +1781,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 }
                             } else {
                                 // Not a formal document — close the armed tab
-                                try {
-                                    if (armedDraftTabRef.current.location.href === 'about:blank' ||
-                                        armedDraftTabRef.current.location.href.includes('blank')) {
-                                        armedDraftTabRef.current.close();
+                                if (!armedDraftTabNavigatedRef.current && armedDraftTabRef.current && !armedDraftTabRef.current.closed) {
+                                    try {
+                                        if (armedDraftTabRef.current.location.href === 'about:blank' ||
+                                            armedDraftTabRef.current.location.href === '') {
+                                            armedDraftTabRef.current.close();
+                                        }
+                                    } catch {
+                                        // cross-origin — can't verify, leave it
                                     }
-                                } catch {
-                                    // cross-origin — can't verify, leave it
                                 }
                                 armedDraftTabRef.current = null;
                                 if (armedDraftTabTimerRef.current) {
