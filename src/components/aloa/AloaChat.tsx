@@ -168,6 +168,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // panel showing each insight with actionable buttons (Go to Matter, etc.)
     const [showInsightPanel, setShowInsightPanel] = useState<'critical' | 'warning' | null>(null);
 
+    // ─── Insight Dismiss ────────────────────────────────────────────────
+    // Allows the user to dismiss individual insights or snooze them.
+    const dismissInsightMutation = useMutation(api.proactive.dismissInsight);
+    const handleDismissInsight = async (insightId: string) => {
+        try {
+            await dismissInsightMutation({ insightId: insightId as any });
+            addToast('Insight dismissed.', { type: 'info' });
+        } catch (e) {
+            console.warn('[Dismiss Insight] failed:', e);
+        }
+    };
+
     // ─── Web Fetch Results (for UI display) ──────────────────────────────
     // When ALOA fetches web content (either from URLs in the user's message
     // or from auto-searching in research mode), the results are stored here
@@ -2656,7 +2668,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Warning{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? 's' : ''} — View
+                                            {proactiveInsights.filter(i => i.severity === 'warning').length} Attention{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? '' : ''} — View
                                         </button>
                                     )}
                                     {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
@@ -3026,7 +3038,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {showInsightPanel === 'critical' ? (
                                         <><span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" /> Urgent Alerts</>
                                     ) : (
-                                        <><span className="w-2 h-2 rounded-full bg-amber-500" /> Warnings</>
+                                        <><span className="w-2 h-2 rounded-full bg-amber-500" /> ALOA's Attention</>
                                     )}
                                 </h3>
                                 <button
@@ -3074,7 +3086,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                             </span>
                                                         )}
                                                         {/* Action buttons */}
-                                                        <div className="flex gap-1.5 mt-2.5">
+                                                        <div className="flex gap-1.5 mt-2.5 flex-wrap">
                                                             {navTarget && insight.entityId && (
                                                                 <button
                                                                     onClick={() => {
@@ -3091,15 +3103,42 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                             )}
                                                             <button
                                                                 onClick={() => {
-                                                                    setTextInput(`Help me with this alert: ${insight.title} — ${insight.body}`);
+                                                                    setTextInput(`Help me with this: ${insight.title} — ${insight.body}`);
                                                                     setShowInsightPanel(null);
                                                                 }}
                                                                 className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-md text-[10px] font-bold hover:bg-primary-700 transition-colors"
                                                             >
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
                                                                 </svg>
                                                                 Ask ALOA
+                                                            </button>
+                                                            {/* Dismiss button — clears this insight permanently */}
+                                                            <button
+                                                                onClick={() => {
+                                                                    handleDismissInsight(insight._id || insight.id);
+                                                                }}
+                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-md text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                                                title="Dismiss this insight"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                                </svg>
+                                                                Dismiss
+                                                            </button>
+                                                            {/* Remind me later — snoozes by dismissing + toast */}
+                                                            <button
+                                                                onClick={() => {
+                                                                    handleDismissInsight(insight._id || insight.id);
+                                                                    addToast('Got it — I\'ll remind you about this later.', { type: 'info' });
+                                                                }}
+                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-md text-[10px] font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors border border-amber-200 dark:border-amber-800/50"
+                                                                title="Snooze this insight"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                Remind me later
                                                             </button>
                                                         </div>
                                                     </div>
@@ -3113,7 +3152,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
                                 <button
                                     onClick={() => {
-                                        setTextInput(`Show me all ${showInsightPanel === 'critical' ? 'urgent alerts' : 'warnings'} and help me prioritize what to do first`);
+                                        setTextInput(`Show me all ${showInsightPanel === 'critical' ? 'urgent alerts' : 'items needing attention'} and help me prioritize what to do first`);
                                         setShowInsightPanel(null);
                                     }}
                                     className="flex-1 px-3 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors"
