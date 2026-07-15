@@ -514,12 +514,22 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // content from research mode to DraftPro). When the drafting AI runs,
     // the source list is prepended to the prompt so the AI can cite them
     // inline as [1], [2], etc.
-    const [citationRegistry] = useState<CitationRegistry>(() => {
+    //
+    // IMPORTANT: This is now a SETTABLE state so that citations parsed
+    // from the AI's draft output (## Sources block) can update the
+    // registry AFTER the draft completes. Previously it was a fixed
+    // useState initializer — citations produced during drafting never
+    // appeared in the floater.
+    const [citationRegistry, setCitationRegistry] = useState<CitationRegistry>(() => {
         if (citations && citations.citations && citations.citations.length > 0) {
             return CitationRegistry.fromJSON(citations as any);
         }
         return new CitationRegistry();
     });
+    // Force re-render trigger — the CitationRegistry mutates in place,
+    // so React doesn't see the change. We bump this counter to trigger
+    // a re-render after citations are added.
+    const [citationVersion, setCitationVersion] = useState(0);
     const [showCitationPanel, setShowCitationPanel] = useState(false);
     // Prompt-First Research Pipeline: when the user clicks "Research" on a
     // citation, we generate a search query via AI and show a loading state
@@ -644,6 +654,12 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
     // Modals
     const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | 'redraft' | null>(null);
+    // Track which ribbon dropdown is open (click-to-toggle, not hover).
+    // Fixes the "two tooltips" issue: hover dropdowns appeared as broken
+    // in-app tooltips clipped by the ribbon's overflow-x-auto container.
+    // Now dropdowns only open on click, and the native title attribute
+    // provides the hover tooltip.
+    const [openDropdown, setOpenDropdown] = useState<'watermark' | 'pageNumber' | 'zoom' | null>(null);
     const [modalInput, setModalInput] = useState('');
     const [targetPlaceholderLabel, setTargetPlaceholderLabel] = useState<string | null>(null);
     const [aiHelpLabel, setAiHelpLabel] = useState<string | null>(null);
@@ -957,7 +973,7 @@ ${sourceList}
                     }
                 },
                 abortController.signal
-            ).then(() => {
+            ).then(async () => {
                 clearTimeout(safetyTimeout);
                 clearTimeout(forceClearTimeout);
                 if (inactivityTimer) clearTimeout(inactivityTimer);
@@ -995,6 +1011,24 @@ ${sourceList}
                         addToast('Drafting complete', { type: 'success' });
 
                         persistDraftRef.current?.(processedDraft, title || 'Untitled Draft', activeDraftPrompt);
+
+                        // ─── Parse citations from the draft output ──────
+                        // The AI may include a "## Sources" block at the end
+                        // of the draft with inline [1], [2] citation markers.
+                        // Parse these and populate the citation registry so
+                        // the Sources floater appears with the cited sources.
+                        try {
+                            const { parseAIResponseForCitations } = await import('../../../utils/citationParser');
+                            const parsed = parseAIResponseForCitations(draftBuffer, citationRegistry);
+                            if (parsed.hasSources && parsed.citations.length > 0) {
+                                console.log(`[DraftPro] Parsed ${parsed.citations.length} citations from draft output`);
+                                // Bump the version counter to trigger a re-render
+                                // so the Sources floater appears.
+                                setCitationVersion(v => v + 1);
+                            }
+                        } catch (citeErr) {
+                            console.warn('[DraftPro] Citation parsing failed (non-fatal):', citeErr);
+                        }
 
                         // ─── Pulse the AI feature buttons ──────────────────
                         // After the draft appears, briefly pulse the Redraft
@@ -1808,125 +1842,133 @@ ${allCites.map((c: any) => {
                             size="lg"
                             disabled={!editor}
                         />
-                        {/* Watermark dropdown — jurisdiction-neutral legal feature.
-                            DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE are universal
-                            legal document markers used across all jurisdictions. */}
-                        <div className="relative group">
+                        {/* Watermark dropdown — click-to-toggle (not hover).
+                            Uses fixed positioning via portal to escape the
+                            ribbon's overflow-x-auto clipping. */}
+                        <div className="relative">
                             <ToolbarBtn
                                 icon={Shield}
                                 label="Watermark"
-                                onClick={() => {}}
+                                onClick={() => setOpenDropdown(openDropdown === 'watermark' ? null : 'watermark')}
                                 size="lg"
                                 className={watermark ? 'text-red-500' : ''}
                                 disabled={!editor}
                             />
-                            <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[140px]">
-                                {['DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', 'PRIVATE & CONFIDENTIAL'].map(wm => (
-                                    <button
-                                        key={wm}
-                                        onClick={() => setWatermark(watermark === wm ? null : wm)}
-                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${watermark === wm ? 'font-bold text-red-500' : 'text-slate-600 dark:text-zinc-400'}`}
-                                    >
-                                        {wm}
-                                    </button>
-                                ))}
-                                {watermark && (
-                                    <>
-                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
-                                        <button
-                                            onClick={() => setWatermark(null)}
-                                            className="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"
-                                        >
-                                            Remove Watermark
-                                        </button>
-                                    </>
-                                )}
-                            </div>
+                            {openDropdown === 'watermark' && (
+                                <>
+                                    {/* Click-outside overlay */}
+                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
+                                    <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-[61] min-w-[140px]">
+                                        {['DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', 'PRIVATE & CONFIDENTIAL'].map(wm => (
+                                            <button
+                                                key={wm}
+                                                onClick={() => { setWatermark(watermark === wm ? null : wm); setOpenDropdown(null); }}
+                                                className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${watermark === wm ? 'font-bold text-red-500' : 'text-slate-600 dark:text-zinc-400'}`}
+                                            >
+                                                {wm}
+                                            </button>
+                                        ))}
+                                        {watermark && (
+                                            <>
+                                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                                <button
+                                                    onClick={() => { setWatermark(null); setOpenDropdown(null); }}
+                                                    className="block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"
+                                                >
+                                                    Remove Watermark
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
-                        {/* Page Number dropdown — configurable page numbering.
-                            Toggle on/off, choose position (center/right/left/none),
-                            choose format (Page X of Y, Page X, -X-, X only),
-                            and set starting page number. */}
-                        <div className="relative group">
+                        {/* Page Number dropdown — click-to-toggle (not hover). */}
+                        <div className="relative">
                             <ToolbarBtn
                                 icon={HashIcon}
                                 label="Page #"
-                                onClick={() => {}}
+                                onClick={() => setOpenDropdown(openDropdown === 'pageNumber' ? null : 'pageNumber')}
                                 size="lg"
                                 className={pageNumberConfig.enabled ? 'text-blue-600 dark:text-blue-400' : ''}
                                 disabled={!editor}
                             />
-                            <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 min-w-[200px]">
-                                {/* Toggle on/off */}
-                                <label className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={pageNumberConfig.enabled}
-                                        onChange={(e) => setPageNumberConfig(prev => ({ ...prev, enabled: e.target.checked }))}
-                                        className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="font-semibold text-slate-700 dark:text-zinc-300">Show page numbers</span>
-                                </label>
+                            {openDropdown === 'pageNumber' && (
+                                <>
+                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
+                                    <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 z-[61] min-w-[200px]">
+                                        {/* Toggle on/off */}
+                                        <label className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pageNumberConfig.enabled}
+                                                onChange={(e) => setPageNumberConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                                                className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="font-semibold text-slate-700 dark:text-zinc-300">Show page numbers</span>
+                                        </label>
 
-                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
-                                {/* Position */}
-                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Position</p>
-                                {([
-                                    { val: 'bottom-center', label: 'Bottom Center' },
-                                    { val: 'bottom-right', label: 'Bottom Right' },
-                                    { val: 'bottom-left', label: 'Bottom Left' },
-                                    { val: 'none', label: 'Hidden' },
-                                ] as const).map(pos => (
-                                    <button
-                                        key={pos.val}
-                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, position: pos.val, enabled: pos.val !== 'none' }))}
-                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.position === pos.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
-                                    >
-                                        {pos.label}
-                                    </button>
-                                ))}
+                                        {/* Position */}
+                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Position</p>
+                                        {([
+                                            { val: 'bottom-center', label: 'Bottom Center' },
+                                            { val: 'bottom-right', label: 'Bottom Right' },
+                                            { val: 'bottom-left', label: 'Bottom Left' },
+                                            { val: 'none', label: 'Hidden' },
+                                        ] as const).map(pos => (
+                                            <button
+                                                key={pos.val}
+                                                onClick={() => setPageNumberConfig(prev => ({ ...prev, position: pos.val, enabled: pos.val !== 'none' }))}
+                                                className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.position === pos.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                            >
+                                                {pos.label}
+                                            </button>
+                                        ))}
 
-                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
-                                {/* Format */}
-                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Format</p>
-                                {([
-                                    { val: 'page-of', label: 'Page 1 of 5' },
-                                    { val: 'page-only', label: 'Page 1' },
-                                    { val: 'dash', label: '- 1 -' },
-                                    { val: 'number-only', label: '1' },
-                                ] as const).map(fmt => (
-                                    <button
-                                        key={fmt.val}
-                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, format: fmt.val }))}
-                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.format === fmt.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
-                                    >
-                                        {fmt.label}
-                                    </button>
-                                ))}
+                                        {/* Format */}
+                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Format</p>
+                                        {([
+                                            { val: 'page-of', label: 'Page 1 of 5' },
+                                            { val: 'page-only', label: 'Page 1' },
+                                            { val: 'dash', label: '- 1 -' },
+                                            { val: 'number-only', label: '1' },
+                                        ] as const).map(fmt => (
+                                            <button
+                                                key={fmt.val}
+                                                onClick={() => setPageNumberConfig(prev => ({ ...prev, format: fmt.val }))}
+                                                className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${pageNumberConfig.format === fmt.val ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                            >
+                                                {fmt.label}
+                                            </button>
+                                        ))}
 
-                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
-                                {/* Start from */}
-                                <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Start from</p>
-                                <div className="flex items-center gap-2 px-3 py-1.5">
-                                    <button
-                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: Math.max(1, prev.startFrom - 1) }))}
-                                        className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
-                                    >
-                                        −
-                                    </button>
-                                    <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 w-6 text-center">{pageNumberConfig.startFrom}</span>
-                                    <button
-                                        onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: prev.startFrom + 1 }))}
-                                        className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
-                                    >
-                                        +
-                                    </button>
-                                </div>
-                            </div>
+                                        {/* Start from */}
+                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Start from</p>
+                                        <div className="flex items-center gap-2 px-3 py-1.5">
+                                            <button
+                                                onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: Math.max(1, prev.startFrom - 1) }))}
+                                                className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
+                                            >
+                                                −
+                                            </button>
+                                            <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300 w-6 text-center">{pageNumberConfig.startFrom}</span>
+                                            <button
+                                                onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: prev.startFrom + 1 }))}
+                                                className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 flex items-center justify-center text-xs font-bold"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </ToolbarGroup>
 
@@ -2348,46 +2390,49 @@ ${allCites.map((c: any) => {
                         <button onClick={() => setZoom(Math.max(0.3, zoom - 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom Out (Ctrl+-)">
                             <Minimize2 className="w-3 h-3" />
                         </button>
-                        <div className="relative group">
+                        <div className="relative">
                             <button
-                                onClick={() => {
-                                    const scrollArea = document.getElementById('draftpro-scroll-area');
-                                    if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
-                                }}
+                                onClick={() => setOpenDropdown(openDropdown === 'zoom' ? null : 'zoom')}
                                 className="font-bold w-12 text-center hover:text-blue-600"
-                                title="Fit to Width (click) / Zoom presets (hover)"
+                                title="Zoom presets (click to open)"
                             >
                                 {Math.round(zoom * 100)}%
                             </button>
-                            {/* Zoom presets dropdown */}
-                            <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                                {[
-                                    { label: '50%', value: 0.5 },
-                                    { label: '75%', value: 0.75 },
-                                    { label: '100%', value: 1.0 },
-                                    { label: '125%', value: 1.25 },
-                                    { label: '150%', value: 1.5 },
-                                    { label: '200%', value: 2.0 },
-                                ].map(preset => (
-                                    <button
-                                        key={preset.value}
-                                        onClick={() => setZoom(preset.value)}
-                                        className={`block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${Math.abs(zoom - preset.value) < 0.01 ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
-                                    >
-                                        {preset.label}
-                                    </button>
-                                ))}
-                                <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
-                                <button
-                                    onClick={() => {
-                                        const scrollArea = document.getElementById('draftpro-scroll-area');
-                                        if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
-                                    }}
-                                    className="block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400"
-                                >
+                            {/* Zoom presets dropdown — click-to-toggle */}
+                            {openDropdown === 'zoom' && (
+                                <>
+                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
+                                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-[61] min-w-[100px]">
+                                        {[
+                                            { label: '50%', value: 0.5 },
+                                            { label: '75%', value: 0.75 },
+                                            { label: '100%', value: 1.0 },
+                                            { label: '125%', value: 1.25 },
+                                            { label: '150%', value: 1.5 },
+                                            { label: '200%', value: 2.0 },
+                                        ].map(preset => (
+                                            <button
+                                                key={preset.value}
+                                                onClick={() => { setZoom(preset.value); setOpenDropdown(null); }}
+                                                className={`block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 ${Math.abs(zoom - preset.value) < 0.01 ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-zinc-400'}`}
+                                            >
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                        <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
+                                        <button
+                                            onClick={() => {
+                                                const scrollArea = document.getElementById('draftpro-scroll-area');
+                                                if (scrollArea) setZoom((scrollArea.clientWidth - 40) / PAGE_WIDTH_PX);
+                                                setOpenDropdown(null);
+                                            }}
+                                            className="block w-full text-left px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-400"
+                                        >
                                     Fit Width
                                 </button>
-                            </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                         <button onClick={() => setZoom(Math.min(3.0, zoom + 0.1))} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300" title="Zoom In (Ctrl+=)">
                             <Maximize2 className="w-3 h-3" />
@@ -2434,7 +2479,10 @@ ${allCites.map((c: any) => {
                 - "Send to Research" button — opens the Research Center
                   with this source pre-loaded for deeper analysis
                 */}
-            {citationRegistry.getAll().length > 0 && (
+            {/* citationVersion is referenced here so React re-renders when
+                citations are parsed from the draft output after completion.
+                Without this, the floater wouldn't appear until a full remount. */}
+            {citationVersion >= 0 && citationRegistry.getAll().length > 0 && (
                 <>
                     {/* Floating "Sources" button — always visible when citations exist */}
                     <button

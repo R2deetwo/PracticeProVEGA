@@ -875,59 +875,59 @@ function enrichJurisdictionAnalysis(result: Omit<JurisdictionAnalysis, 'governin
       filingKey = 'File Notice of Appeal within 90 days of the lower court decision.';
     } else if (court.includes('federal high court')) {
       forum = 'Federal High Court';
-      governingLaw = 'Federal High Court (Civil Procedure) Rules 2019; Section 251 1999 Constitution';
+      governingLaw = 'Section 251(1)(a)-(r) 1999 Constitution; Federal High Court (Civil Procedure) Rules 2019';
       filingKey = 'File at the appropriate FHC Division; use FHC originating process forms.';
     } else if (court.includes('national industrial court') || court.includes('nicn')) {
       forum = 'National Industrial Court of Nigeria';
-      governingLaw = 'NICN (Civil Procedure) Rules 2017; Section 254C 1999 Constitution';
+      governingLaw = 'Section 254C(1)-(5) 1999 Constitution (3rd Alteration); NICN (Civil Procedure) Rules 2017; Labour Act; Trade Disputes Act';
       filingKey = 'File NICN originating process; employment matters are exclusive to NICN.';
     } else if (court.includes('chief magistrate')) {
       forum = 'Chief Magistrate Court';
-      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      governingLaw = `Section 272 1999 Constitution; ${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
       filingKey = 'File at the Magistrate Court with jurisdiction over the subject matter.';
     } else if (court.includes('senior magistrate')) {
       forum = 'Senior Magistrate Court';
-      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      governingLaw = `Section 272 1999 Constitution; ${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
       filingKey = 'File at the Magistrate Court within the monetary jurisdiction limit.';
     } else if (court.includes('magistrate')) {
       forum = 'Magistrate Court';
-      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      governingLaw = `Section 272 1999 Constitution; ${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
       filingKey = 'File at the Magistrate Court within the monetary jurisdiction limit.';
     } else if (court.includes('district court')) {
       forum = 'District Court';
-      governingLaw = `${j.name} District Court Law`;
+      governingLaw = `Section 272 1999 Constitution; ${j.name} District Court Law`;
       filingKey = 'File at the District Court for small claims within the monetary limit.';
     } else if (court.includes('small claims')) {
       forum = 'Small Claims Court';
-      governingLaw = `${j.name} Small Claims Court Practice Direction`;
+      governingLaw = `${j.name} Small Claims Court Practice Direction; Section 272 1999 Constitution`;
       filingKey = 'File simplified claim form; hearing within 14 days; judgment same day.';
     } else if (court.includes('customary court of appeal')) {
       forum = 'Customary Court of Appeal';
-      governingLaw = `Section 280 1999 Constitution; ${j.name} Customary Courts of Appeal Law`;
+      governingLaw = `Section 280(1) 1999 Constitution; ${j.name} Customary Courts of Appeal Law`;
       filingKey = 'File appeal from Customary Court on customary law matters only.';
     } else if (court.includes('customary court')) {
       forum = 'Customary Court';
-      governingLaw = `${j.name} Customary Court Law`;
+      governingLaw = `Section 272 1999 Constitution; ${j.name} Customary Court Law`;
       filingKey = 'File customary land/inheritance/marriage disputes at the Customary Court.';
     } else if (court.includes('sharia court of appeal')) {
       forum = 'Sharia Court of Appeal';
-      governingLaw = `Section 275 1999 Constitution; ${j.name} Sharia Courts of Appeal Law`;
+      governingLaw = `Section 275(1) 1999 Constitution; ${j.name} Sharia Courts of Appeal Law`;
       filingKey = 'File appeal from Upper Area Court on Islamic personal law matters.';
     } else if (court.includes('upper area court')) {
       forum = 'Upper Area Court';
-      governingLaw = `${j.name} Area Courts Law`;
+      governingLaw = `${j.name} Area Courts Law; Section 272 1999 Constitution`;
       filingKey = 'File appeal from Area Court; original jurisdiction for serious Islamic matters.';
     } else if (court.includes('area court')) {
       forum = 'Area Court';
-      governingLaw = `${j.name} Area Courts Law`;
+      governingLaw = `${j.name} Area Courts Law; Section 272 1999 Constitution`;
       filingKey = 'File Islamic personal law and minor civil matters at the Area Court.';
     } else if (court.includes('high court')) {
       forum = `High Court of ${j.name}`;
-      governingLaw = j.highCourtRules + '; Section 272 1999 Constitution';
+      governingLaw = `Section 272(1) 1999 Constitution; ${j.highCourtRules}`;
       filingKey = `File at the ${j.defaultDivision} Judicial Division; use High Court originating process.`;
     } else if (court.includes('investment and securities tribunal')) {
       forum = 'Investment and Securities Tribunal (IST)';
-      governingLaw = 'Investments and Securities Act (ISA) 2025';
+      governingLaw = 'Section 274 Investments and Securities Act (ISA) 2025';
       filingKey = 'File capital market/securities disputes at the IST; appeals to Court of Appeal.';
     } else if (court.includes('election petition tribunal')) {
       forum = 'Election Petition Tribunal';
@@ -935,11 +935,11 @@ function enrichJurisdictionAnalysis(result: Omit<JurisdictionAnalysis, 'governin
       filingKey = 'File within 21 days of result declaration; strict unextendable deadlines.';
     } else if (court.includes('code of conduct tribunal')) {
       forum = 'Code of Conduct Tribunal';
-      governingLaw = 'Paragraph 18-20, Fifth Schedule, 1999 Constitution; CCB & Tribunal Act';
+      governingLaw = 'Paragraph 18-20, Fifth Schedule, 1999 Constitution; CCB & Tribunal Act Cap C15 LFN 2004';
       filingKey = 'File asset declaration breach cases; appeals to Court of Appeal.';
     } else if (court.includes('court martial')) {
       forum = 'General Court Martial';
-      governingLaw = 'Armed Forces Act Cap A20 LFN 2004';
+      governingLaw = 'Armed Forces Act Cap A20 LFN 2004; Section 123 Armed Forces Act';
       filingKey = 'Court Martial has jurisdiction over serving military personnel only.';
     } else if (court.includes('jurisdiction')) {
       // Foreign jurisdiction
