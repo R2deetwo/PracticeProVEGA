@@ -32,10 +32,15 @@
     "codebase_audit",
     "examples",
     "scripts",
+    "skills",
     "download",
     "src/app",
+    "src/middleware",
+    "*.bak",
+    "*.ts.bak",
+    "middleware.ts.bak",
     "next.config.ts.bak",
-    "git_check.ts",
-    "middleware.ts"
+    "tailwind.config.ts.bak",
+    "capacitor.config.ts"
   ]
 }

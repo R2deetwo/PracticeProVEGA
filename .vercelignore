@@ -1,0 +1,16 @@
+# Exclude non-deploy directories from Vercel
+codebase_audit
+examples
+skills
+scripts
+download
+android
+ios
+*.bak
+*.ts.bak
+next.config.ts.bak
+tailwind.config.ts.bak
+middleware.ts.bak
+git_check.ts
+vlm_check.ts
+next-env.d.ts
