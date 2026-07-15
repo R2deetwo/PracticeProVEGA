@@ -392,6 +392,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     </div>
                 )}
                 {currentUser ? renderView() : <div>Loading...</div>}
+                {/* Version refresh banner — also shown in editor mode so the
+                    user sees the "Refresh to Update" floater even when they're
+                    in DraftPro. Previously this was missing from the editor
+                    early-return, so users in DraftPro never saw the prompt. */}
+                <VersionRefreshBanner />
             </main>
         );
     }

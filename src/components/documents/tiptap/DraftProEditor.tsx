@@ -845,48 +845,60 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             const abortController = new AbortController();
             (window as any).stopDrafting = () => abortController.abort();
 
-            // SAFETY TIMEOUT: If drafting doesn't complete within 60 seconds,
-            // force-abort it so the user isn't stuck on "Preparing your document..."
-            // forever. This handles network issues, API timeouts, and hung streams.
-            // Was 90s — too long. Most drafts complete in 10-30s. 60s is the
-            // outer bound; the inactivity timeout below catches stalls earlier.
+            // ─── TIMEOUT STRATEGY (generous, not aggressive) ────────────────
+            //
+            // The user reported drafts failing because the timeouts were too
+            // aggressive. Gemini 2.0 Flash with a large system prompt can
+            // take 30-45 seconds before the FIRST chunk arrives (it's
+            // "thinking" — processing the complex legal instructions). That
+            // is NORMAL behavior, NOT a stall.
+            //
+            // New strategy:
+            //   - Safety timeout: 180s (3 minutes) — outer bound for the
+            //     entire draft. Most drafts complete in 20-60s, but complex
+            //     legal documents with citations can take 90-120s.
+            //   - Inactivity timeout: 90s — if NO chunks arrive for 90
+            //     seconds, the stream is genuinely stalled (not just thinking).
+            //     This is long enough to cover Gemini's "thinking" phase.
+            //   - Force-clear: 185s — independent of abort, ensures the
+            //     overlay never stays forever.
+            //   - NO "stalled" warnings in the UI — the user finds them
+            //     anxiety-inducing and premature.
+            //   - Cancel button appears at 30s — quiet, no red warnings.
+            //
+            // Previously: safety=60s, inactivity=25s, force-clear=65s.
+            // The 25s inactivity timer was killing legitimate drafts where
+            // Gemini was still thinking but hadn't sent the first chunk yet.
+
             const safetyTimeout = setTimeout(() => {
                 if (!abortController.signal.aborted) {
-                    console.warn('[DraftPro] Drafting timed out after 60s — aborting');
+                    console.warn('[DraftPro] Drafting timed out after 180s — aborting');
                     abortController.abort();
                 }
-            }, 60000);
+            }, 180000);
 
-            // HARD FORCE-CLEAR: Independent of the abort chain. If the streamDraft
-            // promise never settles (even after abort), this ensures the overlay
-            // is cleared at 65s — no matter what. Previously the overlay could
-            // stay forever if the promise didn't reject after abort.
             const forceClearTimeout = setTimeout(() => {
-                console.warn('[DraftPro] Force-clearing isDrafting after 65s (independent of abort)');
+                console.warn('[DraftPro] Force-clearing isDrafting after 185s (independent of abort)');
                 setIsDrafting(false);
                 if (editor && !editor.isDestroyed) {
                     try { editor.setEditable(true); } catch {}
                 }
-            }, 65000);
+            }, 185000);
 
-            // INACTIVITY TIMEOUT: If no chunks arrive for 25 seconds, the stream
-            // has likely stalled. This is MORE aggressive than the safety timeout
-            // because it catches the common case where the API connection opens
-            // (no error) but then hangs without sending data. The user sees the
-            // "Taking longer than expected…" warning in the overlay at 30s, so
-            // this fires just before that to abort and show a clear error.
+            // INACTIVITY TIMEOUT: 90s with no chunks = genuinely stalled.
+            // Reset on every chunk. This is long enough to cover Gemini's
+            // "thinking" phase (which can be 30-60s for complex prompts)
+            // but short enough to catch a real network stall.
             let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
             const resetInactivityTimer = () => {
                 if (inactivityTimer) clearTimeout(inactivityTimer);
                 inactivityTimer = setTimeout(() => {
                     if (!abortController.signal.aborted) {
-                        console.warn('[DraftPro] No chunks received for 25s — aborting (stream stalled)');
+                        console.warn('[DraftPro] No chunks received for 90s — aborting (stream genuinely stalled)');
                         abortController.abort();
                     }
-                }, 25000);
+                }, 90000);
             };
-            // Start the first inactivity timer — if the first chunk doesn't
-            // arrive within 25s, the API is likely not responding at all.
             resetInactivityTimer();
 
             // Clear editor content — canvas stays white
@@ -2295,18 +2307,9 @@ ${allCites.map((c: any) => {
                                     <GenerationOverlay
                                         label="Preparing your document..."
                                         onCancel={() => {
-                                            // Cancel & Retry — abort current draft and re-trigger
-                                            (window as any).stopDrafting?.();
-                                            // Small delay to let abort propagate, then retry
-                                            setTimeout(() => {
-                                                if (activeDraftPrompt) {
-                                                    draftingPromptRef.current = null; // allow re-trigger
-                                                    setActiveDraftPrompt(activeDraftPrompt);
-                                                }
-                                            }, 300);
-                                        }}
-                                        onJustCancel={() => {
-                                            // Just cancel — no retry
+                                            // Just cancel — stop the draft.
+                                            // The user can click Redraft in the toolbar
+                                            // if they want to try again.
                                             (window as any).stopDrafting?.();
                                         }}
                                     />

@@ -818,6 +818,18 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     if (!clientKey) {
         throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
     }
+
+    // ─── DIAGNOSTIC LOG ──────────────────────────────────────────────
+    // Helps trace why drafts fail. Logs the key source + length (not the
+    // key itself), the models being tried, and the prompt size. If a draft
+    // hangs, check the browser console for these logs to see where it stops.
+    console.log('[streamDraft] Starting draft', {
+        keySource: firmKey ? 'firm' : 'client-localStorage',
+        keyLength: clientKey.length,
+        modelsToTry,
+        promptLength: contents.reduce((sum, c) => sum + ((c.parts?.[0]?.text as string)?.length || 0), 0),
+        systemInstructionLength: systemInstruction.length,
+    });
     
     // ─── STRATEGY: Direct REST Stream (mirrors the working sendMessage pattern) ─
     for (const modelToTest of modelsToTry) {
@@ -850,10 +862,12 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
 
             if (!response.body) throw new Error('No response body from stream.');
 
+            console.log(`[streamDraft] ${modelToTest} — stream connected, waiting for first chunk…`);
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let buffer = '';
             let chunkCount = 0;
+            let firstChunkTime = 0;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -875,7 +889,14 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
                         const candidate = data?.candidates?.[0];
                         if (candidate?.finishReason === 'SAFETY') continue;
                         const text = candidate?.content?.parts?.[0]?.text;
-                        if (text) { onChunk(text); chunkCount++; }
+                        if (text) {
+                            if (chunkCount === 0) {
+                                firstChunkTime = Date.now();
+                                console.log(`[streamDraft] ${modelToTest} — first chunk received`);
+                            }
+                            onChunk(text);
+                            chunkCount++;
+                        }
                     } catch (_) { /* skip malformed chunks */ }
                 }
             }
@@ -895,7 +916,7 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
                 }
             }
 
-            console.log(`[Draft Stream] ${modelToTest} completed. Chunks: ${chunkCount}`);
+            console.log(`[streamDraft] ${modelToTest} completed. Chunks: ${chunkCount}. First chunk at: ${firstChunkTime ? new Date(firstChunkTime).toISOString() : 'N/A'}`);
             return; // ✅ Success
 
         } catch (err: any) {

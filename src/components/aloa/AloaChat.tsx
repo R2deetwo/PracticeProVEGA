@@ -743,17 +743,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     }
                                     feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                                 } else {
-                                    // ─── Popup blocked — surface a prominent button ──
-                                    // We do NOT fall back to in-place navigation.
-                                    // Instead, set pendingDraftOpen so the action
-                                    // button under the AI message becomes a clear
-                                    // "Open DraftPro" CTA. The user clicks it (a
-                                    // real user gesture) and the tab opens.
-                                    feedbackMessage = `**${draftConfig.draftTitle}** is ready to open in DraftPro. Click the button below to launch it in a new tab.`;
-                                    // Mark that we need a user-gesture click to open
-                                    (draftConfig as any).__pendingDraftOpen = true;
-                                    (draftConfig as any).__draftKey = draftKey;
-                                    (draftConfig as any).__draftUrl = url;
+                                    // ─── Popup blocked — open in-place immediately ──
+                                    // The user complained about having to press a
+                                    // button to open the draft. Instead of showing
+                                    // a "Open DraftPro" CTA, we open the draft
+                                    // IN-PLACE right now. The editor will start
+                                    // streaming the draft immediately. The user
+                                    // can click "Open in new tab" from DraftPro's
+                                    // toolbar if they want a separate tab.
+                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
+                                    openEditorRef.current(null, draftConfig);
                                 }
                             } else {
                                 openEditorRef.current(null, draftConfig);
@@ -762,15 +761,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             console.warn('[start_drafting] tab open failed', e);
                             openEditorRef.current(null, draftConfig);
                         }
-                        // Determine the action button label based on whether
-                        // the draft tab opened successfully or is pending
-                        // (popup blocked — needs a user click to open).
-                        const isPendingOpen = !!(draftConfig as any).__pendingDraftOpen;
+                        // Build the action data. The label is always "Resume Drafting"
+                        // now — we no longer show a pending-open button. If the popup
+                        // was blocked, we opened the draft in-place immediately.
                         actionData = {
                             type: 'draft',
                             config: draftConfig,
-                            label: isPendingOpen ? 'Open DraftPro' : 'Resume Drafting',
-                            pendingOpen: isPendingOpen,  // flag for prominent styling
+                            label: 'Resume Drafting',
                             jurisdictionAnalysis,  // attach for the UI
                         };
                         if (!feedbackMessage) feedbackMessage = `Drafting in **${jurisdictionAnalysis.jurisdiction}** — ${jurisdictionAnalysis.court}`;
@@ -2793,7 +2790,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 insights={msg.toolAction.insights}
                                                 isLastMessage={idx === messages.length - 1}
                                                 completedResult={msg.completedResult}
-                                                pendingOpen={msg.toolAction.pendingOpen}
                                                 customLabel={msg.toolAction.label}
                                             />
                                         </div>
