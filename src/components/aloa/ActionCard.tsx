@@ -16,10 +16,22 @@ interface ActionCardProps {
     insights?: AloaHint[];
     isLastMessage?: boolean;
     completedResult?: { id: string; title: string; type: string };
+    /**
+     * When true, the action button is styled as a prominent pulsing CTA.
+     * Used when a draft is ready but the popup was blocked — the user
+     * must click this button (a real user gesture) to open the draft tab.
+     */
+    pendingOpen?: boolean;
+    /**
+     * Override the auto-derived button label. Used for the pending-open
+     * case where we want "Open DraftPro" instead of "Open Editor".
+     */
+    customLabel?: string;
 }
 
-export const ActionCard: React.FC<ActionCardProps> = ({ 
-    actionName, args, onExecute, insights = [], isLastMessage, completedResult 
+export const ActionCard: React.FC<ActionCardProps> = ({
+    actionName, args, onExecute, insights = [], isLastMessage, completedResult,
+    pendingOpen, customLabel,
 }) => {
     const { liveInsights } = useAloa();
     const { navigateTo, openModal } = useUI();
@@ -52,17 +64,25 @@ export const ActionCard: React.FC<ActionCardProps> = ({
     else if (lowerName === 'note') { label = "Open Note"; icon = <BookmarkIcon className="w-4 h-4" />; }
 
     const isCompleted = args?.context?.isCompleted || !!completedResult;
-    
-    const buttonLabel = completedResult 
-        ? `Open ${completedResult.title}` 
-        : isCompleted ? 'Action Completed' : label;
+
+    // Use customLabel if provided (e.g. "Open DraftPro" for pending-open),
+    // otherwise fall back to the derived label / completed state.
+    const buttonLabel = customLabel
+        ? customLabel
+        : completedResult
+            ? `Open ${completedResult.title}`
+            : isCompleted ? 'Action Completed' : label;
 
     return (
-        <div className={`mt-2 p-4 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-3xl border border-white/40 dark:border-zinc-700 shadow-xl ${isCompleted && !completedResult ? 'opacity-60' : ''}`}>
+        <div className={`mt-2 p-4 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-3xl border shadow-xl ${pendingOpen ? 'border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/30 animate-pulse' : 'border-white/40 dark:border-zinc-700'} ${isCompleted && !completedResult ? 'opacity-60' : ''}`}>
             <div className="text-[10px] text-primary-600 dark:text-primary-400 mb-2 font-bold uppercase tracking-widest flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                     <ZapIcon className="w-2.5 h-2.5" />
-                    {completedResult ? 'Entity Created' : 'System Action Available'}
+                    {pendingOpen
+                        ? 'Draft Ready — Click to Open'
+                        : completedResult
+                            ? 'Entity Created'
+                            : 'System Action Available'}
                 </span>
                 {(isCompleted || completedResult) && <span className="text-emerald-500 flex items-center gap-1"><CheckIcon className="w-2.5 h-2.5" /> {completedResult ? 'Live Link' : 'Completed'}</span>}
             </div>
@@ -96,14 +116,22 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                     }}
                     disabled={isCompleted && !completedResult}
                     className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all transform active:scale-95 shadow-lg ${
-                        isCompleted && !completedResult 
-                        ? 'bg-slate-200 dark:bg-zinc-700 text-slate-500 cursor-not-allowed' 
-                        : completedResult 
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/50' 
-                            : 'bg-primary-600 hover:bg-primary-700 text-white'
+                        isCompleted && !completedResult
+                        ? 'bg-slate-200 dark:bg-zinc-700 text-slate-500 cursor-not-allowed'
+                        : pendingOpen
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-300/50 text-base py-4 shadow-emerald-400/40'
+                            : completedResult
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/50'
+                                : 'bg-primary-600 hover:bg-primary-700 text-white'
                     }`}
                 >
-                    {completedResult ? <ScalesIcon className="w-4 h-4" /> : isCompleted ? <ZapIcon className="w-4 h-4 text-emerald-500" /> : icon}
+                    {pendingOpen
+                        ? <EditIcon className="w-5 h-5" />
+                        : completedResult
+                            ? <ScalesIcon className="w-4 h-4" />
+                            : isCompleted
+                                ? <ZapIcon className="w-4 h-4 text-emerald-500" />
+                                : icon}
                     {buttonLabel}
                 </button>
             )}
