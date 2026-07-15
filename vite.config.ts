@@ -34,7 +34,10 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      sourcemap: true,
+      // Disable sourcemaps in production to reduce build memory.
+      // Sourcemaps require Vite to keep the entire AST in memory,
+      // which causes OOM (Out of Memory) crashes on Vercel's 1GB limit.
+      sourcemap: mode !== 'production',
       rollupOptions: {
         output: {
           manualChunks(id) {
