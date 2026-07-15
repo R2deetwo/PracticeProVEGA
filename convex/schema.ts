@@ -160,7 +160,11 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
+    .index("by_status", ["firmId", "status"])
+    .index("by_client", ["firmId", "clientId"])
+    .searchIndex("search_title", { searchField: "title" })
+    .searchIndex("search_suit", { searchField: "suitNumber" }),
 
   contacts: defineTable({
     firmId: nullableString,
@@ -187,7 +191,8 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   tasks: defineTable({
     firmId: nullableString,
@@ -205,7 +210,9 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"])
+    .index("by_status", ["firmId", "status"])
+    .index("by_dueDate", ["firmId", "dueDate"]),
 
   documents: defineTable({
     firmId: nullableString,
@@ -241,7 +248,9 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"]),
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"])
+    .index("by_category", ["firmId", "categoryId"])
+    .searchIndex("search_title", { searchField: "title" }),
 
   workflows: defineTable({
     firmId: nullableString,
@@ -1439,7 +1448,8 @@ export default defineSchema({
     .index("by_firm", ["firmId"])
     .index("by_firm_category", ["firmId", "category"])
     .index("by_firm_dedup", ["firmId", "dedupKey"])
-    .index("by_firm_dismissed", ["firmId", "dismissed"]),
+    .index("by_firm_dismissed", ["firmId", "dismissed"])
+    .index("by_firm_entity", ["firmId", "entityType", "entityId"]),
 
   // ─── Conversation Summaries (Cross-Session Memory) ──────────────────
   // AI-generated summaries of past ARIA conversations. Created nightly by

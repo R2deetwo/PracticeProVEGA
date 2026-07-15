@@ -282,20 +282,8 @@ interface DiaryModeViewProps {
 
 const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tasks, openModal, eventTypes, users }) => {
     // ─── CRITICAL: Use LOCAL date string, NOT UTC ────────────────────
-    // toISOString().split('T')[0] converts to UTC first, which shifts
-    // the date forward/backward depending on timezone offset. For example,
-    // a 9:00 AM event on Wednesday July 1 in Lagos (UTC+1) becomes
-    // 8:00 AM UTC — still July 1. But an event at 11:30 PM July 1 local
-    // becomes 10:30 PM UTC July 1 — fine. The REAL problem is when the
-    // SELECTED DATE is converted to UTC: July 1 00:00 local becomes
-    // June 30 23:00 UTC, so dateStr = "2026-06-30" instead of "2026-07-01".
-    // This causes the diary to show the WRONG day's events.
-    //
-    // FIX: Use toLocaleDateString('en-CA') which produces 'YYYY-MM-DD'
-    // in LOCAL time — same approach as getEventsForDay() below.
     const dateStr = selectedDate.toLocaleDateString('en-CA');
 
-    // Filter events and tasks for the selected date using LOCAL date comparison
     const dayEvents = events.filter(e => {
         if (!e.date) return false;
         const eventDate = new Date(e.date);
@@ -313,152 +301,150 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
         const type = (e.type || '').toLowerCase();
         return type.includes('court') || type.includes('hearing') || type.includes('trial') || type.includes('fixture');
     });
-
     const deadlines = dayTasks.filter(t => {
         const title = (t.title || '').toLowerCase();
         return title.includes('appeal') || title.includes('deadline') || title.includes('statutory') || title.includes('file') || title.includes('submit');
     });
-
     const officeTasks = dayTasks.filter(t => !deadlines.includes(t));
     const consultations = dayEvents.filter(e => {
         const type = (e.type || '').toLowerCase();
         return type.includes('meeting') || type.includes('consultation') || type.includes('client');
     });
 
-    const formatDateLong = (date: Date) => {
-        return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    };
+    // ─── Diary layout toggle: Structured vs Dynamic ──────────────────
+    const [diaryLayout, setDiaryLayout] = useState<'structured' | 'dynamic'>('structured');
 
+    const formatDateLong = (date: Date) => date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const formatTime = (dateStr: string) => {
-        try {
-            const d = new Date(dateStr);
-            return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-        } catch { return ''; }
+        try { return new Date(dateStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }); }
+        catch { return ''; }
     };
 
-    const SectionHeader: React.FC<{ title: string; count: number; color: string }> = ({ title, count, color }) => (
-        <div className="flex items-center gap-2 mb-3 mt-6 first:mt-0">
-            <div className={`w-1.5 h-6 rounded-full ${color}`} />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{title}</h3>
-            <span className="text-xs font-medium text-slate-400">({count})</span>
-        </div>
-    );
+    // Category definitions with colors
+    const categories = [
+        { id: 'court', title: 'Court Appearances & Fixtures', count: courtAppearances.length, color: 'bg-red-500', items: courtAppearances, type: 'event' },
+        { id: 'deadlines', title: 'Statutory Deadlines', count: deadlines.length, color: 'bg-amber-500', items: deadlines, type: 'task' },
+        { id: 'office', title: 'Office Tasks & Client Consultations', count: officeTasks.length + consultations.length, color: 'bg-blue-500', items: [...consultations, ...officeTasks], type: 'mixed' },
+    ];
 
-    const EmptySection: React.FC<{ message: string; onAdd?: () => void; addLabel?: string }> = ({ message, onAdd, addLabel }) => (
-        <div className="ml-1 p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/30 border border-dashed border-slate-200 dark:border-zinc-700">
-            <p className="text-xs text-slate-400 dark:text-zinc-500 italic mb-2">{message}</p>
-            {onAdd && addLabel && (
-                <button
-                    onClick={onAdd}
-                    className="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
-                >
-                    + {addLabel}
-                </button>
-            )}
-        </div>
-    );
+    // In dynamic mode, only show categories with items
+    const visibleCategories = diaryLayout === 'dynamic'
+        ? categories.filter(c => c.count > 0)
+        : categories;
 
     return (
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-900">
             <div className="max-w-2xl mx-auto px-6 py-8">
-                {/* Date header */}
-                <div className="mb-6 pb-4 border-b border-slate-100 dark:border-zinc-800">
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">{formatDateLong(selectedDate)}</h2>
-                    <p className="text-xs text-slate-400 mt-1">
-                        {dayEvents.length + dayTasks.length} item{dayEvents.length + dayTasks.length !== 1 ? 's' : ''} scheduled
-                    </p>
+                {/* Date header + layout toggle */}
+                <div className="mb-6 pb-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{formatDateLong(selectedDate)}</h2>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {dayEvents.length + dayTasks.length} item{(dayEvents.length + dayTasks.length) !== 1 ? 's' : ''} scheduled
+                        </p>
+                    </div>
+                    {/* Structured / Dynamic toggle */}
+                    <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
+                        <button
+                            onClick={() => setDiaryLayout('structured')}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${diaryLayout === 'structured' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
+                        >
+                            Overview
+                        </button>
+                        <button
+                            onClick={() => setDiaryLayout('dynamic')}
+                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${diaryLayout === 'dynamic' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
+                        >
+                            Focus
+                        </button>
+                    </div>
                 </div>
 
-                {/* 1. Court Appearances & Fixtures */}
-                <SectionHeader title="Court Appearances & Fixtures" count={courtAppearances.length} color="bg-red-500" />
-                {courtAppearances.length === 0 ? (
-                    <EmptySection message="No court appearances scheduled for today." onAdd={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })} addLabel="Add Court Appearance" />
-                ) : (
-                    <div className="space-y-2">
-                        {courtAppearances.map(event => (
-                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#FCE8E6] dark:bg-[#FCE8E6]/10 border border-[#C5221F]/30 cursor-pointer hover:shadow-sm transition-all"
-                                onClick={() => openModal('editEvent', event.id)}>
-                                <div className="flex-shrink-0 text-xs font-mono font-bold text-[#C5221F] w-12">
-                                    {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-[#C5221F] truncate">{event.title}</p>
-                                    {event.location && <p className="text-xs text-slate-500 mt-0.5">{event.location}</p>}
-                                    {event.matterId && <p className="text-[10px] text-slate-400 mt-0.5">Linked to matter</p>}
-                                </div>
-                            </div>
-                        ))}
+                {/* Render visible categories */}
+                {visibleCategories.length === 0 && diaryLayout === 'dynamic' && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                            <svg className="w-8 h-8 text-slate-300 dark:text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                            </svg>
+                        </div>
+                        <p className="text-sm font-medium text-slate-400 dark:text-zinc-500">Nothing scheduled for this day.</p>
+                        <button
+                            onClick={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
+                            className="mt-3 text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                        >
+                            + Add Event
+                        </button>
                     </div>
                 )}
 
-                {/* 2. Statutory Deadlines */}
-                <SectionHeader title="Statutory Deadlines" count={deadlines.length} color="bg-amber-500" />
-                {deadlines.length === 0 ? (
-                    <EmptySection message="No statutory deadlines due today." onAdd={() => openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })} addLabel="Add Deadline" />
-                ) : (
-                    <div className="space-y-2">
-                        {deadlines.map(task => (
-                            <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 cursor-pointer hover:shadow-sm transition-all"
-                                onClick={() => openModal('editTask', task.id)}>
-                                <div className="flex-shrink-0 text-xs font-mono font-bold text-amber-700 dark:text-amber-400 w-12">
-                                    {task.dueDate ? formatTime(task.dueDate) : '⚠'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-amber-800 dark:text-amber-300 truncate">{task.title}</p>
-                                    {task.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.description}</p>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {visibleCategories.map((cat) => (
+                    <div key={cat.id} className="mb-6">
+                        {/* Section header */}
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className={`w-1.5 h-5 rounded-full ${cat.color}`} />
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">{cat.title}</h3>
+                            <span className="text-xs font-medium text-slate-400">({cat.count})</span>
+                        </div>
 
-                {/* 3. Office Tasks & Client Consultations */}
-                <SectionHeader title="Office Tasks & Client Consultations" count={officeTasks.length + consultations.length} color="bg-blue-500" />
-                {officeTasks.length === 0 && consultations.length === 0 ? (
-                    <EmptySection message="No tasks or consultations scheduled for today." onAdd={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })} addLabel="Add Consultation" />
-                ) : (
-                    <div className="space-y-2">
-                        {consultations.map(event => (
-                            <div key={event.id} className="flex items-start gap-3 p-3 rounded-lg bg-[#E8F0FE] dark:bg-[#E8F0FE]/10 border border-[#1A73E8]/30 cursor-pointer hover:shadow-sm transition-all"
-                                onClick={() => openModal('editEvent', event.id)}>
-                                <div className="flex-shrink-0 text-xs font-mono font-bold text-[#1A73E8] w-12">
-                                    {event.time ? formatTime(event.time) : event.date ? formatTime(event.date) : '—'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-[#1A73E8] truncate">{event.title}</p>
-                                    {event.location && <p className="text-xs text-slate-500 mt-0.5">{event.location}</p>}
-                                </div>
+                        {/* Items or slim empty state */}
+                        {cat.count === 0 ? (
+                            // ─── Slim empty state (hover to reveal add) ──────
+                            <div className="group flex items-center justify-between py-1.5 px-3 rounded-md border-l-2 border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/30 transition-colors">
+                                <span className="text-xs text-slate-300 dark:text-zinc-600">None scheduled</span>
+                                <button
+                                    onClick={() => cat.id === 'deadlines'
+                                        ? openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })
+                                        : openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                >
+                                    + Add
+                                </button>
                             </div>
-                        ))}
-                        {officeTasks.map(task => (
-                            <div key={task.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-100 dark:border-zinc-700 cursor-pointer hover:shadow-sm transition-all"
-                                onClick={() => openModal('editTask', task.id)}>
-                                <div className="flex-shrink-0 text-xs font-mono font-bold text-slate-500 w-12">
-                                    {task.dueDate ? formatTime(task.dueDate) : '☐'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-slate-700 dark:text-zinc-200 truncate">{task.title}</p>
-                                    {task.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{task.description}</p>}
-                                    {task.assignedUsers && task.assignedUsers.length > 0 && (
-                                        <p className="text-[10px] text-slate-400 mt-0.5">Assigned to {task.assignedUsers.length} person{task.assignedUsers.length > 1 ? 's' : ''}</p>
-                                    )}
-                                </div>
+                        ) : (
+                            // ─── Items ──────────────────────────────────────
+                            <div className="space-y-2">
+                                {cat.items.map((item: any) => {
+                                    const isCourt = cat.id === 'court';
+                                    const isDeadline = cat.id === 'deadlines';
+                                    const bgClass = isCourt ? 'bg-[#FCE8E6] dark:bg-[#FCE8E6]/10 border-[#C5221F]/30'
+                                        : isDeadline ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'
+                                        : 'bg-[#E8F0FE] dark:bg-[#E8F0FE]/10 border-[#1A73E8]/30';
+                                    const textClass = isCourt ? 'text-[#C5221F]'
+                                        : isDeadline ? 'text-amber-700 dark:text-amber-400'
+                                        : 'text-[#1A73E8]';
+
+                                    return (
+                                        <div key={item.id} className={`flex items-start gap-3 p-3 rounded-lg ${bgClass} border cursor-pointer hover:shadow-sm transition-all`}
+                                            onClick={() => cat.type === 'task' && !item.type ? openModal('editTask', item.id) : openModal('editEvent', item.id)}>
+                                            <div className={`flex-shrink-0 text-xs font-mono font-bold ${textClass} w-12`}>
+                                                {item.time ? formatTime(item.time) : item.date ? formatTime(item.date) : item.dueDate ? formatTime(item.dueDate) : '—'}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-bold ${textClass} truncate`}>{item.title}</p>
+                                                {item.location && <p className="text-xs text-slate-500 mt-0.5">{item.location}</p>}
+                                                {item.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.description}</p>}
+                                                {item.assignedUsers && item.assignedUsers.length > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Assigned to {item.assignedUsers.length} person{item.assignedUsers.length > 1 ? 's' : ''}</p>}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        ))}
+                        )}
                     </div>
-                )}
+                ))}
 
                 {/* Quick add */}
                 <div className="mt-8 pt-4 border-t border-slate-100 dark:border-zinc-800 flex gap-2">
                     <button
                         onClick={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
-                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-md text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                     >
                         + Add Event
                     </button>
                     <button
                         onClick={() => openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })}
-                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                        className="flex-1 py-2.5 px-4 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-md text-xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                     >
                         + Add Task
                     </button>

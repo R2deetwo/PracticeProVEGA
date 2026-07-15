@@ -337,6 +337,17 @@ export const detectAnomalies = internalMutation({
     for (const firm of firms) {
       const firmId = firm._id as string;
 
+      // ─── BATCH: Fetch all non-dismissed insights for this firm ONCE ──
+      // Previously: 2 DB queries per matter (dedup check + entity check)
+      // = 1000 queries for a firm with 500 matters. Now: 1 query.
+      const allFirmInsights = await ctx.db
+        .query("proactive_insights")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .filter((q) => q.eq(q.field("dismissed"), false))
+        .collect();
+      const existingDedupKeys = new Set(allFirmInsights.map((i) => i.dedupKey));
+      const existingEntities = new Set(allFirmInsights.map((i) => `${i.entityType}:${i.entityId}`));
+
       // ── STALLED MATTERS ────────────────────────────────────────────
       const matters = await ctx.db
         .query("matters")
@@ -354,45 +365,26 @@ export const detectAnomalies = internalMutation({
 
         if (now - lastUpdate > STALE_THRESHOLD) {
           const daysStalled = Math.floor((now - lastUpdate) / 86400000);
-          // ─── DedupKey WITHOUT todayStr ──────────────────────────────
-          // Previously this included todayStr, so a NEW insight was created
-          // every day for the same stalled matter. Now we use a stable key
-          // that doesn't change daily — the insight is created ONCE and
-          // stays until the user dismisses it or the matter gets updated.
-          // We DO include a rough staleness bucket (e.g., "14-30 days",
-          // "30-60 days", "60+ days") so the insight refreshes when the
-          // staleness level changes significantly.
           const stallBucket = daysStalled < 60 ? '30-60' : daysStalled < 90 ? '60-90' : '90+';
           const dedupKey = `anomaly|stalled|${matter._id}|${stallBucket}`;
-          const existing = await ctx.db
-            .query("proactive_insights")
-            .withIndex("by_firm_dedup", (q) => q.eq("firmId", firmId).eq("dedupKey", dedupKey))
-            .first();
 
-          if (!existing) {
-            // Also check if there's an existing insight for this matter
-            // that hasn't been dismissed — if so, don't create a duplicate
-            const existingForMatter = await ctx.db
-              .query("proactive_insights")
-              .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-              .filter((q) => q.eq(q.field("entityType"), "matter") && q.eq(q.field("entityId"), matter._id as string) && q.eq(q.field("dismissed"), false))
-              .collect();
-
-            if (existingForMatter.length === 0) {
-              await ctx.db.insert("proactive_insights", {
-                firmId,
-                category: "anomaly",
-                severity: "warning",
-                title: `Stalled Matter: ${matter.title}`,
-                body: `"${matter.title}" has had no activity in ${daysStalled} days. Consider a status review or task assignment.`,
-                entityType: "matter",
-                entityId: matter._id as string,
-                dedupKey,
-                dismissed: false,
-                createdAt: now,
-              });
-              created++;
-            }
+          // In-memory check — NO DB query needed
+          if (!existingDedupKeys.has(dedupKey) && !existingEntities.has(`matter:${matter._id}`)) {
+            await ctx.db.insert("proactive_insights", {
+              firmId,
+              category: "anomaly",
+              severity: "warning",
+              title: `Stalled Matter: ${matter.title}`,
+              body: `"${matter.title}" has had no activity in ${daysStalled} days. Consider a status review or task assignment.`,
+              entityType: "matter",
+              entityId: matter._id as string,
+              dedupKey,
+              dismissed: false,
+              createdAt: now,
+            });
+            existingDedupKeys.add(dedupKey);
+            existingEntities.add(`matter:${matter._id}`);
+            created++;
           }
         }
 
@@ -401,14 +393,10 @@ export const detectAnomalies = internalMutation({
           !matter.assignedUsers ||
           (Array.isArray(matter.assignedUsers) && matter.assignedUsers.length === 0)
         ) {
-          // Stable dedupKey without todayStr — create ONCE, not daily
           const dedupKey = `anomaly|unassigned|${matter._id}`;
-          const existing = await ctx.db
-            .query("proactive_insights")
-            .withIndex("by_firm_dedup", (q) => q.eq("firmId", firmId).eq("dedupKey", dedupKey))
-            .first();
 
-          if (!existing) {
+          // In-memory check — NO DB query needed
+          if (!existingDedupKeys.has(dedupKey)) {
             await ctx.db.insert("proactive_insights", {
               firmId,
               category: "anomaly",
@@ -421,6 +409,7 @@ export const detectAnomalies = internalMutation({
               dismissed: false,
               createdAt: now,
             });
+            existingDedupKeys.add(dedupKey);
             created++;
           }
         }
