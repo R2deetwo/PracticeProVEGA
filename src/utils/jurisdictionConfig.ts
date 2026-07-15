@@ -240,10 +240,58 @@ JURISDICTIONAL INTELLIGENCE RULES:
  * This is shown to the user so they understand which jurisdiction the AI
  * selected and why.
  */
+/**
+ * Jurisdictional analysis result — now structured around the 3 pillars:
+ *   1. Applicable Law (governing statutes, rules, practice directions)
+ *   2. Competent Forum (the court or regulatory body with constitutional/statutory authority)
+ *   3. Filing/Practice Key (the immediate procedural rule or form required)
+ *
+ * The old `court` and `reasoning` fields are kept for backward compatibility
+ * but the new `governingLaw`, `forum`, `filingKey`, and `warning` fields
+ * are what the concise JurisdictionCard UI renders.
+ */
+export interface JurisdictionAnalysis {
+  /** Full court caption for the document header (backward compat) */
+  court: string;
+  /** Display name of the jurisdiction (e.g., "Lagos State", "Federal") */
+  jurisdiction: string;
+  /** Full reasoning text (backward compat — used by old UI) */
+  reasoning: string;
+  /** NEW: The primary governing statutes, rules, and practice directions */
+  governingLaw: string;
+  /** NEW: The competent forum (court or regulatory body) with legal nuance */
+  forum: string;
+  /** NEW: A single sentence on the immediate procedural rule or form required */
+  filingKey: string;
+  /** NEW: Optional jurisdictional warning (only if there's a genuine risk) */
+  warning?: string;
+}
+
 export function buildJurisdictionalReasoning(
   prompt: string,
   stateKey?: string | null
-): { court: string; reasoning: string; jurisdiction: string } {
+): JurisdictionAnalysis {
+  const result = computeJurisdictionalReasoning(prompt, stateKey);
+  // Enrich with 3-pillar fields if not explicitly set
+  return enrichJurisdictionAnalysis(result);
+}
+
+/**
+ * Internal: the original jurisdictional reasoning logic.
+ * Returns the old-style { court, jurisdiction, reasoning } plus any
+ * explicitly-set 3-pillar fields (governingLaw, forum, filingKey, warning).
+ * The 3-pillar fields are optional here — enrichJurisdictionAnalysis fills
+ * them in via pattern matching if they're not explicitly set.
+ */
+function computeJurisdictionalReasoning(
+  prompt: string,
+  stateKey?: string | null
+): Omit<JurisdictionAnalysis, 'governingLaw' | 'forum' | 'filingKey'> & {
+  governingLaw?: string;
+  forum?: string;
+  filingKey?: string;
+  warning?: string;
+} {
   const j = getJurisdiction(stateKey);
   const p = prompt.toLowerCase();
 
@@ -572,12 +620,36 @@ export function buildJurisdictionalReasoning(
 
   // ── 9. SPECIALIZED TRIBUNALS ─────────────────────────────────────────
   if (p.includes('tribunal') || p.includes('tat') || p.includes('ist') || p.includes('ept') || p.includes('cct') || p.includes('acdamt')) {
-    // Tax Appeal Tribunal (TAT)
-    if (p.includes('tax') || p.includes('tat') || p.includes('firs') || p.includes('vat') || p.includes('company income tax') || p.includes('withholding tax')) {
+    // Tax Appeal Tribunal (TAT) — CORRECTED: FHC has constitutional jurisdiction
+    //
+    // LEGAL CORRECTION (per user feedback):
+    // The previous version incorrectly claimed TAT has "exclusive jurisdiction"
+    // and that "exhaustion of TAT remedies is jurisdictional." This is legally
+    // inaccurate. Under Section 251(1)(a) & (b) of the 1999 Constitution (as
+    // amended), the FEDERAL HIGH COURT has EXCLUSIVE original jurisdiction over
+    // federal revenue, taxation, customs, and excise matters.
+    //
+    // The TAT is an ADMINISTRATIVE TRIBUNAL of first instance established by
+    // Section 59 of the FIRS (Establishment) Act 2007. It hears FIRS assessment
+    // disputes at the administrative level, but it does NOT strip the FHC of
+    // its constitutional jurisdiction. The proper characterization:
+    //   - TAT = administrative exhaustion step (statutory requirement for FIRS
+    //     assessment disputes before approaching the FHC)
+    //   - FHC = the competent court of record with constitutional jurisdiction
+    //   - Appeals from TAT administrative decisions go to the FHC for judicial
+    //     review, NOT to the Court of Appeal
+    //
+    // So for tax matters, the court caption should be the FHC (the competent
+    // forum), with a note that TAT administrative exhaustion may apply.
+    if (p.includes('tax appeal tribunal') || p.includes(' tat ') || p.startsWith('tat ') || p.endsWith(' tat')) {
       return {
-        court: 'IN THE TAX APPEAL TRIBUNAL OF NIGERIA',
-        jurisdiction: 'Federal',
-        reasoning: `The prompt references the Tax Appeal Tribunal. The TAT was established under Section 59 of the Federal Inland Revenue Service (Establishment) Act 2007 to adjudicate disputes between taxpayers and the Federal Inland Revenue Service (FIRS) on: Companies Income Tax, Petroleum Profits Tax, Value Added Tax (VAT), Personal Income Tax (of federal employees & Armed Forces), Capital Gains Tax, Stamp Duties, Withholding Tax, NASENI levy, NITDA levy. The TAT has 10 zones (Abuja HQ + Lagos, Ibadan, Benin, Enugu, Port Harcourt, Kaduna, Kano, Bauchi, Maiduguri). Statutory basis: FIRS (Establishment) Act 2007. IMPORTANT: The TAT is NOT a court but a tribunal — its decisions are appealed DIRECTLY to the Federal High Court (NOT to the Court of Appeal). The 30-day window to appeal FIRS assessments MUST be exhausted at TAT before approaching the FHC. Failure to exhaust TAT remedies is fatal to FHC jurisdiction. Sits with a Chairman (legal practitioner of 10+ years) and 4 other members with tax/accounting expertise.\n\n⚠️ JURISDICTIONAL WARNING: Tax disputes against FIRS assessments MUST be filed at the Tax Appeal Tribunal FIRST — exhaustion of remedies is jurisdictional. Going directly to the Federal High Court without exhausting TAT will result in dismissal for want of jurisdiction. The FHC only hears APPEALS from TAT decisions.`,
+        court: j.federalHighCourtCaption,
+        jurisdiction: j.name,
+        reasoning: `The prompt references the Tax Appeal Tribunal (TAT). The TAT is an administrative tribunal established under Section 59 of the FIRS (Establishment) Act 2007 to hear disputes between taxpayers and FIRS at the administrative level. However, under Section 251(1)(a) & (b) of the 1999 Constitution, the FEDERAL HIGH COURT has EXCLUSIVE jurisdiction over federal revenue and taxation matters — the TAT does not displace this constitutional jurisdiction. The TAT serves as an administrative exhaustion step: FIRS assessment disputes are filed at the TAT first (statutory requirement), and its decisions are subject to judicial review by the FHC. The TAT is NOT a court of record.`,
+        governingLaw: 'FIRS (Establishment) Act 2007; Companies Income Tax Act; VAT Act; Section 251(1)(a) &(b) 1999 Constitution',
+        forum: 'Federal High Court (constitutional jurisdiction); TAT as administrative first-instance body for FIRS assessments',
+        filingKey: 'File FIRS assessment disputes at the TAT within 30 days of notice; FHC judicial review available thereafter.',
+        warning: 'The TAT is an administrative tribunal, NOT a court of record. The Federal High Court retains exclusive constitutional jurisdiction over federal taxation per Section 251(1)(a). Do not characterize the TAT as having "exclusive jurisdiction" — that is legally inaccurate.',
       };
     }
     // Investment and Securities Tribunal (IST)
@@ -634,12 +706,16 @@ export function buildJurisdictionalReasoning(
   // jurisdiction (e.g., company formation → FHC under CAMA).
 
   // Subject Matter → Court mapping
-  const subjectMatterRules: { keywords: string[]; court: string; jurisdiction: string; reasoning: string; conflict?: string }[] = [
+  const subjectMatterRules: { keywords: string[]; court: string; jurisdiction: string; reasoning: string; conflict?: string; governingLaw?: string; forum?: string; filingKey?: string; warning?: string }[] = [
     {
       keywords: ['company', 'cama', 'corporate', 'incorporation', 'shareholder', 'board resolution', 'annual return', 'merger', 'acquisition', 'takeover'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
       reasoning: `Subject matter: Corporate/company law under CAMA 2020. The Federal High Court has exclusive jurisdiction over corporate matters per Section 251(1)(e) of the 1999 Constitution. ${j.name} Division applies based on the firm's default state of practice.`,
+      governingLaw: 'Companies and Allied Matters Act (CAMA) 2020; Companies Regulations 2021; Federal High Court (Civil Procedure) Rules 2019',
+      forum: 'Federal High Court (exclusive jurisdiction per s.251(1)(e))',
+      filingKey: 'File at the FHC Division where the company is registered; use FHC originating process.',
+      warning: 'Corporate matters are EXCLUSIVELY within FHC jurisdiction — NOT the State High Court.',
       conflict: `Company formation and corporate disputes fall under the EXCLUSIVE jurisdiction of the Federal High Court under CAMA 2020 — NOT the State High Court. Ensure filing is made at the appropriate FHC Division.`,
     },
     {
@@ -647,13 +723,21 @@ export function buildJurisdictionalReasoning(
       court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
       jurisdiction: 'Federal',
       reasoning: `Subject matter: Employment/labour law. The National Industrial Court (NICN) has EXCLUSIVE jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution (as amended). This overrides any state-level court jurisdiction.`,
+      governingLaw: 'Section 254C 1999 Constitution (3rd Alteration); Labour Act; Trade Disputes Act; NICN (Civil Procedure) Rules 2017',
+      forum: 'National Industrial Court of Nigeria (exclusive jurisdiction)',
+      filingKey: 'File NICN originating process; appeals go directly to the Court of Appeal.',
+      warning: 'Employment matters MUST be filed at NICN — NOT the FHC or State High Court. Even if the employer is a company, employment disputes are severed from CAMA matters.',
       conflict: `Employment and labour matters MUST be filed at the National Industrial Court — NOT the Federal High Court or State High Court. Even if the employer is a company (CAMA matter), employment disputes are severed and filed separately at NICN.`,
     },
     {
-      keywords: ['revenue', 'taxation', 'customs', 'excise', 'federal revenue', 'vat', 'company income tax', 'personal income tax', 'withholding tax', 'firs'],
+      keywords: ['revenue', 'taxation', 'customs', 'excise', 'federal revenue', 'vat', 'company income tax', 'personal income tax', 'withholding tax', 'firs', 'tax dispute', 'tax assessment'],
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `Subject matter: Federal revenue/taxation. The Federal High Court has exclusive jurisdiction over revenue matters per Section 251(1)(a) of the 1999 Constitution. Note: Tax Appeal Tribunal (TAT) may have first-instance jurisdiction for FIRS assessments — check if the matter requires TAT exhaustion before FHC filing.`,
+      reasoning: `Subject matter: Federal revenue/taxation. The Federal High Court has EXCLUSIVE jurisdiction over revenue and taxation matters per Section 251(1)(a) & (b) of the 1999 Constitution (as amended). The Tax Appeal Tribunal (TAT) is an administrative tribunal of first instance for FIRS assessment disputes — it does NOT displace the FHC's constitutional jurisdiction. FIRS assessment disputes should be filed at the TAT first (statutory exhaustion), with FHC judicial review available thereafter.`,
+      governingLaw: 'Section 251(1)(a) &(b) 1999 Constitution; FIRS (Establishment) Act 2007; Companies Income Tax Act; VAT Act; Federal High Court (Civil Procedure) Rules 2019',
+      forum: 'Federal High Court (exclusive constitutional jurisdiction)',
+      filingKey: 'FIRS assessment disputes: file at TAT within 30 days, then FHC judicial review. Pure revenue claims: file directly at FHC.',
+      warning: 'The TAT is an administrative exhaustion step, NOT a court of record. The FHC retains exclusive constitutional jurisdiction over federal taxation.',
     },
     {
       keywords: ['immigration', 'deportation', 'visa', 'passport', 'citizenship', 'naturalization', 'expulsion'],
@@ -734,6 +818,11 @@ export function buildJurisdictionalReasoning(
         reasoning: rule.conflict
           ? `${rule.reasoning}\n\n⚠️ JURISDICTIONAL WARNING: ${rule.conflict}`
           : rule.reasoning,
+        // Pass through explicitly-set 3-pillar fields (if the rule defines them)
+        governingLaw: (rule as any).governingLaw,
+        forum: (rule as any).forum,
+        filingKey: (rule as any).filingKey,
+        warning: (rule as any).warning || (rule.conflict ? rule.conflict : undefined),
       };
     }
   }
@@ -743,5 +832,145 @@ export function buildJurisdictionalReasoning(
     court: `${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION`,
     jurisdiction: j.name,
     reasoning: `No explicit court or subject matter specified. Defaulting to the High Court of ${j.name} (${j.defaultDivision} Judicial Division) per the firm's Default State of Practice setting. Citing ${j.highCourtRules}. If this matter involves corporate (CAMA), employment, tax, banking, IP, immigration, or maritime issues, the Federal High Court or NICN may have exclusive jurisdiction — verify before filing. For minor civil claims, consider the Magistrate Court. For customary matters, consider the Customary or Area Court.`,
+  };
+}
+
+/**
+ * Enrich a jurisdictional analysis result with the 3-pillar fields
+ * (governingLaw, forum, filingKey, warning) if they're not explicitly set.
+ *
+ * This derives the fields from the court caption and reasoning text using
+ * pattern matching. When a specific return path sets the fields explicitly
+ * (e.g., the TAT, revenue, or employment rules), those take precedence.
+ */
+function enrichJurisdictionAnalysis(result: Omit<JurisdictionAnalysis, 'governingLaw' | 'forum' | 'filingKey'> & {
+  governingLaw?: string;
+  forum?: string;
+  filingKey?: string;
+  warning?: string;
+}): JurisdictionAnalysis {
+  // If all 3-pillar fields are already set, return as-is (cast to full type)
+  if (result.governingLaw && result.forum && result.filingKey) {
+    return result as JurisdictionAnalysis;
+  }
+
+  const court = (result.court || '').toLowerCase();
+  const reasoning = (result.reasoning || '').toLowerCase();
+  const stateKey = result.jurisdiction || '';
+  const j = getJurisdiction(stateKey);
+
+  // ─── Derive forum and governingLaw from the court caption ────────
+  let forum = result.forum || '';
+  let governingLaw = result.governingLaw || '';
+  let filingKey = result.filingKey || '';
+
+  if (!forum) {
+    if (court.includes('supreme court')) {
+      forum = 'Supreme Court of Nigeria';
+      governingLaw = 'Supreme Court Rules 2024; Section 235 1999 Constitution';
+      filingKey = 'File Notice of Appeal within 90 days of Court of Appeal decision.';
+    } else if (court.includes('court of appeal')) {
+      forum = 'Court of Appeal';
+      governingLaw = 'Court of Appeal Rules 2021; Section 237 1999 Constitution';
+      filingKey = 'File Notice of Appeal within 90 days of the lower court decision.';
+    } else if (court.includes('federal high court')) {
+      forum = 'Federal High Court';
+      governingLaw = 'Federal High Court (Civil Procedure) Rules 2019; Section 251 1999 Constitution';
+      filingKey = 'File at the appropriate FHC Division; use FHC originating process forms.';
+    } else if (court.includes('national industrial court') || court.includes('nicn')) {
+      forum = 'National Industrial Court of Nigeria';
+      governingLaw = 'NICN (Civil Procedure) Rules 2017; Section 254C 1999 Constitution';
+      filingKey = 'File NICN originating process; employment matters are exclusive to NICN.';
+    } else if (court.includes('chief magistrate')) {
+      forum = 'Chief Magistrate Court';
+      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      filingKey = 'File at the Magistrate Court with jurisdiction over the subject matter.';
+    } else if (court.includes('senior magistrate')) {
+      forum = 'Senior Magistrate Court';
+      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      filingKey = 'File at the Magistrate Court within the monetary jurisdiction limit.';
+    } else if (court.includes('magistrate')) {
+      forum = 'Magistrate Court';
+      governingLaw = `${j.name} Magistrates' Court Law; ${j.magistrateRules}`;
+      filingKey = 'File at the Magistrate Court within the monetary jurisdiction limit.';
+    } else if (court.includes('district court')) {
+      forum = 'District Court';
+      governingLaw = `${j.name} District Court Law`;
+      filingKey = 'File at the District Court for small claims within the monetary limit.';
+    } else if (court.includes('small claims')) {
+      forum = 'Small Claims Court';
+      governingLaw = `${j.name} Small Claims Court Practice Direction`;
+      filingKey = 'File simplified claim form; hearing within 14 days; judgment same day.';
+    } else if (court.includes('customary court of appeal')) {
+      forum = 'Customary Court of Appeal';
+      governingLaw = `Section 280 1999 Constitution; ${j.name} Customary Courts of Appeal Law`;
+      filingKey = 'File appeal from Customary Court on customary law matters only.';
+    } else if (court.includes('customary court')) {
+      forum = 'Customary Court';
+      governingLaw = `${j.name} Customary Court Law`;
+      filingKey = 'File customary land/inheritance/marriage disputes at the Customary Court.';
+    } else if (court.includes('sharia court of appeal')) {
+      forum = 'Sharia Court of Appeal';
+      governingLaw = `Section 275 1999 Constitution; ${j.name} Sharia Courts of Appeal Law`;
+      filingKey = 'File appeal from Upper Area Court on Islamic personal law matters.';
+    } else if (court.includes('upper area court')) {
+      forum = 'Upper Area Court';
+      governingLaw = `${j.name} Area Courts Law`;
+      filingKey = 'File appeal from Area Court; original jurisdiction for serious Islamic matters.';
+    } else if (court.includes('area court')) {
+      forum = 'Area Court';
+      governingLaw = `${j.name} Area Courts Law`;
+      filingKey = 'File Islamic personal law and minor civil matters at the Area Court.';
+    } else if (court.includes('high court')) {
+      forum = `High Court of ${j.name}`;
+      governingLaw = j.highCourtRules + '; Section 272 1999 Constitution';
+      filingKey = `File at the ${j.defaultDivision} Judicial Division; use High Court originating process.`;
+    } else if (court.includes('investment and securities tribunal')) {
+      forum = 'Investment and Securities Tribunal (IST)';
+      governingLaw = 'Investments and Securities Act (ISA) 2025';
+      filingKey = 'File capital market/securities disputes at the IST; appeals to Court of Appeal.';
+    } else if (court.includes('election petition tribunal')) {
+      forum = 'Election Petition Tribunal';
+      governingLaw = 'Section 285 1999 Constitution; Electoral Act 2022';
+      filingKey = 'File within 21 days of result declaration; strict unextendable deadlines.';
+    } else if (court.includes('code of conduct tribunal')) {
+      forum = 'Code of Conduct Tribunal';
+      governingLaw = 'Paragraph 18-20, Fifth Schedule, 1999 Constitution; CCB & Tribunal Act';
+      filingKey = 'File asset declaration breach cases; appeals to Court of Appeal.';
+    } else if (court.includes('court martial')) {
+      forum = 'General Court Martial';
+      governingLaw = 'Armed Forces Act Cap A20 LFN 2004';
+      filingKey = 'Court Martial has jurisdiction over serving military personnel only.';
+    } else if (court.includes('jurisdiction')) {
+      // Foreign jurisdiction
+      forum = result.jurisdiction || 'Foreign Jurisdiction';
+      governingLaw = 'Verify applicable law with local counsel in ' + (result.jurisdiction || 'the relevant jurisdiction');
+      filingKey = 'Consult local counsel for jurisdiction-specific filing requirements.';
+    } else {
+      forum = `High Court of ${j.name}`;
+      governingLaw = j.highCourtRules;
+      filingKey = `File at the ${j.defaultDivision} Judicial Division.`;
+    }
+  }
+
+  // ─── Derive warning from reasoning text (if not explicitly set) ──
+  let warning = result.warning;
+  if (!warning) {
+    // Check for common jurisdictional risks in the reasoning text
+    if (reasoning.includes('jurisdictional warning') || reasoning.includes('⚠️')) {
+      // Extract the warning text after the marker
+      const match = result.reasoning.match(/⚠️\s*JURISDICTIONAL WARNING:\s*([\s\S]+?)(?:\n\n|$)/);
+      if (match) {
+        warning = match[1].trim();
+      }
+    }
+  }
+
+  return {
+    ...result,
+    forum: forum || result.forum || result.court,
+    governingLaw: governingLaw || result.governingLaw || 'Verify applicable statutes with counsel.',
+    filingKey: filingKey || result.filingKey || 'Consult procedural rules for filing requirements.',
+    warning,
   };
 }

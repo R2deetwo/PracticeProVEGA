@@ -26,6 +26,7 @@ import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
 import JurisdictionReasoning from './JurisdictionReasoning';
+import { JurisdictionCard } from './JurisdictionCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -2772,12 +2773,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         />
                                     )}
 
-                                    {/* ─── Jurisdictional Reasoning (for draft actions) ─── */}
+                                    {/* ─── Jurisdictional Analysis (for draft actions) ───
+                                        Now uses the concise JurisdictionCard with 3-pillar layout:
+                                        Applicable Law, Competent Forum, Filing/Practice Key.
+                                        Replaces the old verbose JurisdictionReasoning component. */}
                                     {msg.toolAction?.jurisdictionAnalysis && (
-                                        <JurisdictionReasoning
+                                        <JurisdictionCard
+                                            governingLaw={msg.toolAction.jurisdictionAnalysis.governingLaw || 'Verify applicable statutes with counsel.'}
+                                            forum={msg.toolAction.jurisdictionAnalysis.forum || msg.toolAction.jurisdictionAnalysis.court}
+                                            filingKey={msg.toolAction.jurisdictionAnalysis.filingKey || 'Consult procedural rules for filing requirements.'}
                                             court={msg.toolAction.jurisdictionAnalysis.court}
                                             jurisdiction={msg.toolAction.jurisdictionAnalysis.jurisdiction}
                                             reasoning={msg.toolAction.jurisdictionAnalysis.reasoning}
+                                            warning={msg.toolAction.jurisdictionAnalysis.warning}
                                         />
                                     )}
 
