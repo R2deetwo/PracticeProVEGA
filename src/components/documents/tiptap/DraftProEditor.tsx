@@ -920,8 +920,17 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             resetInactivityTimer();
 
             // Clear editor content — canvas stays white
+            // PART 1 FIX: Explicit DOM-clearing phase. Before streaming new
+            // content, completely purge the stale DOM nodes. This prevents
+            // text-over-text overlap during Redraft where the old content
+            // wasn't fully removed before new content started rendering.
             try {
                 editor.commands.setContent('<p></p>');
+                // Force a sync re-render of the ProseMirror view so the DOM
+                // is fully cleared before the first chunk arrives.
+                if (!editor.isDestroyed) {
+                    editor.view.updateState(editor.view.state);
+                }
             } catch (e) {
                 console.error('[DraftPro] setContent failed on clear:', e);
             }
@@ -2383,7 +2392,7 @@ ${allCites.map((c: any) => {
                                         start from a custom number. */}
                                     {pageNumberConfig.enabled && pageNumberConfig.position !== 'none' && (
                                         <div
-                                            className={`absolute z-10 print:hidden ${
+                                            className={`absolute z-30 print:hidden ${
                                                 pageNumberConfig.position === 'bottom-center' ? 'left-0 right-0 text-center' :
                                                 pageNumberConfig.position === 'bottom-right' ? 'right-0 text-right pr-8' :
                                                 pageNumberConfig.position === 'bottom-left' ? 'left-0 text-left pl-8' : ''
@@ -2395,6 +2404,10 @@ ${allCites.map((c: any) => {
                                                 fontWeight: '700',
                                                 letterSpacing: '0.15em',
                                                 textTransform: 'uppercase',
+                                                // Solid background to prevent text bleed-through
+                                                backgroundColor: '#ffffff',
+                                                padding: '2px 8px',
+                                                borderRadius: '3px',
                                             }}
                                         >
                                             {(() => {
@@ -3274,7 +3287,7 @@ ${allCites.map((c: any) => {
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* ── Print Styles ── */
+        /* ── Print Styles (PART 4: High-fidelity PDF matching) ── */
         @page { size: A4; margin: 25mm 25mm 20mm 25mm; }
         @media print {
           body * { visibility: hidden; }
@@ -3284,6 +3297,13 @@ ${allCites.map((c: any) => {
             padding: 0 !important; margin: 0 !important;
             background: white !important; overflow: visible !important;
             transform: none !important;
+          }
+          /* Enforce editor font and line-height in print output */
+          .draftpro-editor-content, .ProseMirror {
+            font-family: 'Times New Roman', serif !important;
+            font-size: 12pt !important;
+            line-height: 1.5 !important;
+            color: #111827 !important;
           }
           /* Show only the editor overlay, hide page sheet decorations */
           .draftpro-page-sheet { box-shadow: none !important; border: none !important; }

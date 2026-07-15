@@ -115,11 +115,11 @@ const LegalPlaceholderComponent = (props: any) => {
   };
 
   return (
-    <NodeViewWrapper as="span" className="inline text-inherit cursor-pointer">
+    <NodeViewWrapper as="span" className="inline text-inherit cursor-pointer" style={{ display: 'inline' }}>
       <span
         onClick={handleClick}
-        className={`inline-flex items-center gap-0.5 border-b border-dashed ${style.border} ${style.bg} ${style.text} rounded-sm hover:opacity-80 transition-opacity`}
-        style={{ padding: '0 2px' }}
+        className={`inline border-b border-dashed ${style.border} ${style.bg} ${style.text} rounded-sm hover:opacity-80 transition-opacity`}
+        style={{ padding: '0 2px', display: 'inline' }}
         contentEditable={false}
         title={`Click to Fill — ${category}`}
       >

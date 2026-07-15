@@ -6,7 +6,7 @@
  * These tests confirm that each citation class gets its correct rule set
  * and that no class defaults to Case Law rules.
  */
-import { classifyAndCheckCitation, classifyCitation } from './citationClassifier';
+import { classifyAndCheckCitation, classifyCitation } from '../src/utils/citationClassifier';
 
 let passed = 0;
 let failed = 0;
