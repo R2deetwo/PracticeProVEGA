@@ -2089,9 +2089,24 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 }
             }
 
-            // 3. Navigate to the Research Studio with the new notebook selected
+            // 3. Open the Research Studio in a NEW browser tab with the
+            //    new notebook pre-selected. This preserves the ALOA chat
+            //    session — the user can keep chatting while Research runs
+            //    in the parallel tab. Falls back to in-place nav on mobile
+            //    or when pop-ups are blocked.
             addToast(`Sent ${msg.attachments!.length} document(s) to Research Studio.`, { type: 'success' });
-            navigateTo('research', null, { selectedNotebookId: notebook.id });
+            const ctx = { selectedNotebookId: notebook.id };
+            try {
+                const { openInNewTab, buildRouteUrlWithHashContext } = await import('../../utils/tabNavigation');
+                const url = buildRouteUrlWithHashContext('research', ctx);
+                const opened = openInNewTab(url);
+                if (!opened) {
+                    // Fall back to in-app navigation
+                    navigateTo('research', null, ctx);
+                }
+            } catch {
+                navigateTo('research', null, ctx);
+            }
         } catch (e: any) {
             console.error('[Send to Research] Failed:', e);
             addToast('Could not send to Research Studio: ' + (e.message || 'Unknown error'), { type: 'error' });

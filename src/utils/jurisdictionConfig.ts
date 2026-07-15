@@ -360,107 +360,227 @@ export function buildJurisdictionalReasoning(
     }
   }
 
-  // ── NIGERIAN COURT DETECTION (only for Nigerian matters) ──
-  // Detect explicit court overrides FIRST (user names the court)
-  if (p.includes('federal high court') || p.includes('fhc')) {
+  // ─────────────────────────────────────────────────────────────────────
+  // NIGERIAN COURT DETECTION (only for Nigerian matters)
+  // Comprehensive hierarchy covering ALL courts of record:
+  //
+  //   SUPREME COURT (apex)
+  //     ↑
+  //   COURT OF APPEAL
+  //     ↑
+  //   ┌───────────────────────────────┬────────────────────────────┐
+  //   │ FEDERAL HIGH COURT            │ STATE HIGH COURT (FCT HC)  │
+  //   │ NATIONAL INDUSTRIAL COURT     │   ↑                        │
+  //   │ (appellate div. for NIC)      │ MAGISTRATE COURT (tiers)   │
+  //   │ SHARIA COURT OF APPEAL        │   ↑                        │
+  //   │ CUSTOMARY COURT OF APPEAL     │ CUSTOMARY COURT / AREA CT  │
+  //   └───────────────────────────────┴────────────────────────────┘
+  //   SPECIALIZED TRIBUNALS: TAT, IST, EPT, CCT, ACDAMT
+  //
+  // Detection order:
+  //   1. Apex & appellate courts (named explicitly first to avoid shadowing)
+  //   2. Specialized federal courts (FHC, NICN)
+  //   3. Lower courts of record (Magistrate tiers, Customary, Area, Sharia)
+  //   4. Appellate divisions of lower courts (Upper Area, CCA, SCA)
+  //   5. Specialized tribunals (TAT, IST, EPT, CCT, ACDAMT)
+  //   6. Subject-matter-based inference (falls back to FHC/NICN/HC/Magistrate)
+  //   7. Default to State High Court
+  // ─────────────────────────────────────────────────────────────────────
+
+  // ── 1. APEX & SUPERIOR APPELLATE COURTS ──────────────────────────────
+  if (p.includes('supreme court')) {
+    return {
+      court: 'SUPREME COURT OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the Supreme Court of Nigeria. The Supreme Court is the apex court — its decisions are binding on ALL lower courts per Section 235 of the 1999 Constitution. It hears appeals ONLY from the Court of Appeal (no direct appeals from lower courts except in narrowly defined original-jurisdiction matters). Original jurisdiction is limited to disputes between the Federation and a State, or between States (Section 232). A panel of at least 7 Justices is required for appeals; the full panel of 21 is reserved for constitutional interpretation. Citation form: SC.NNN/YYYY (e.g., SC.123/2024). Counsel must file a Brief of Argument within 14 days of filing the Notice of Appeal (Supreme Court Rules 2024).`,
+    };
+  }
+  if (p.includes('court of appeal') || p.includes('appellate court') || p.includes('appeal court')) {
+    return {
+      court: 'COURT OF APPEAL OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the Court of Appeal. The Court of Appeal is the second-highest court — hears appeals from: Federal High Court, State High Courts, FCT High Court, National Industrial Court (including its Appellate Division for certain interlocutory appeals), Sharia Courts of Appeal, Customary Courts of Appeal, Election Petition Tribunals, Code of Conduct Tribunal, and Investment and Securities Tribunal. Established per Section 237 of the 1999 Constitution. Sits in divisions (Lagos, Abuja, Ibadan, Kaduna, Enugu, Port Harcourt, Calabar, Benin, Ilorin, Jos, Sokoto, Owerri). A panel of at least 3 Justices is required. Citation form: CA/L/CIV.NNN/YYYY (division/circuit/track/number/year). Appeals lie to the Supreme Court. Time limit: 90 days from decision to file Notice of Appeal (CA Rules 2021).`,
+    };
+  }
+
+  // ── 2. SPECIALIZED FEDERAL HIGH-TIER COURTS ──────────────────────────
+  if (p.includes('federal high court') || p.includes(' fhc ') || p.endsWith(' fhc') || p.startsWith('fhc ')) {
     return {
       court: j.federalHighCourtCaption,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Federal High Court. Using ${j.federalHighCourtCaption} — federal matters (revenue, immigration, maritime, IP, corporate) fall under federal jurisdiction per Section 251 of the 1999 Constitution.`,
+      reasoning: `The prompt references the Federal High Court. Using ${j.federalHighCourtCaption}. The FHC has EXCLUSIVE jurisdiction over: (a) revenue/companies income tax/VAT/customs & excise (s.251(1)(a)); (b) immigration/citizenship (s.251(1)(b)); (c) aviation (s.251(1)(c)); (d) banking & banks/financial institutions incl. CBN/NDIC/AMCON (s.251(1)(d)); (e) corporate/CAMA matters (s.251(1)(e)); (f) intellectual property — copyright/trademark/patent (s.251(1)(f)); (g) maritime/admiralty (s.251(1)(g)); (h) fiscal/legislative prerogative; (i) federal pardons & forfeitures; (j) nuclear safety; (k) presidential elections (s.251(1)(k) — EXCLUSIVE except Governorship which goes to Election Petition Tribunal). Has supervisory jurisdiction over federal tribunals (TAT, IST, CCT). Sits in 37 divisions across Nigeria. Citation form: FHC/L/CS/NNN/YYYY (Lagos) — division/track/number/year. Procedural rules: Federal High Court (Civil Procedure) Rules 2019. Appeals lie to the Court of Appeal.`,
     };
   }
-  if (p.includes('magistrate') || p.includes('district court')) {
+  if (p.includes('national industrial court') || p.includes(' nic ') || p.includes(' nicn') || p.startsWith('nic ') || p.includes('industrial court')) {
+    // Distinguish NICN Appellate Division
+    if (p.includes('appellate') || p.includes('appeal')) {
+      return {
+        court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA (APPELLATE DIVISION)',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references the NICN Appellate Division. Established per Section 254C(5) of the 1999 Constitution (as amended by the 3rd Alteration). Hears appeals from the NICN single-judge interlocutory rulings and from the National Industrial Court Registry decisions. A panel of 3 Judges sits. Decisions of the Appellate Division are final on interlocutory matters but appeals on substantive issues lie to the Court of Appeal.`,
+      };
+    }
+    return {
+      court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
+      jurisdiction: 'Federal',
+      reasoning: `The prompt references the National Industrial Court. NICN has EXCLUSIVE civil jurisdiction over: trade unions; conditions of employment; terms of workers' contracts; trade disputes; industrial actions; child labour; forced labour; discrimination in employment; minimum wage; industrial relations; occupational safety & health (s.254C(1)-(4) of the 1999 Constitution, 3rd Alteration). NICN can grant injunctions and equitable relief. Has exclusive jurisdiction over claims arising from the Employees' Compensation Act, Trade Disputes Act, Labour Act, Factories Act, Pensions Reform Act. Sits in 36 states + FCT. The President of the NICN sits with at least 2 Judges for substantive matters, single Judge for interlocutory. Citation form: NICN/LA/NNN/YYYY. Procedural rules: National Industrial Court of Nigeria (Civil Procedure) Rules 2017. Appeals lie directly to the Court of Appeal (NOT through any intermediate court).`,
+    };
+  }
+
+  // ── 3. STATE HIGH COURT (explicit) ───────────────────────────────────
+  if (p.includes('high court') && !p.includes('federal high court')) {
+    return {
+      court: `${j.highCourtCaption} IN THE ${j.defaultDivision.toUpperCase()} JUDICIAL DIVISION`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the State High Court. Using ${j.highCourtCaption} (${j.defaultDivision} Judicial Division). The State High Court has UNLIMITED original jurisdiction over civil and criminal matters NOT falling under federal exclusive jurisdiction (s.272 of the 1999 Constitution). Subject-matter coverage: land/property; torts; contracts; matrimonial causes (statutory marriage); probate & succession; fundamental rights enforcement (concurrent with FHC); equity & trusts; personal injuries; criminal trials (felonies); injunctions. Appellate jurisdiction: hears appeals from Magistrate Courts, Customary Courts, Area Courts, and Small Claims Courts. Has supervisory jurisdiction over lower courts in its state. Sits in multiple judicial divisions per state. Citation form:Suit No: HCL/NNN/YYYY (${j.name} format varies). Procedural rules: ${j.highCourtRules}. Appeals lie to the Court of Appeal.`,
+    };
+  }
+
+  // ── 4. MAGISTRATE COURT — ALL TIERS (Nigeria's busiest lower court) ──
+  // Tiers (varies slightly by state but the canonical hierarchy is):
+  //   Chief Magistrate Court (Grade I) — highest tier
+  //   Senior Magistrate Court (Grade II)
+  //   Magistrate Court (Grade III)
+  //   District Court / Inferior Magistrate (Grade IV) — lowest tier
+  //
+  // Lagos uses a different nomenclature: Chief Magistrate / Senior Magistrate /
+  // Magistrate (Civil: up to ₦10,000,000 for Chief Magistrate; criminal: 7-14 yrs).
+  // FCT: Senior Magistrate / Magistrate (Civil: up to ₦1,000,000; Criminal: 3-7 yrs).
+  // Most other states: Chief Magistrate Civil up to ₦500,000 - ₦5,000,000,
+  // Senior Magistrate up to ₦250,000 - ₦1,000,000, Magistrate up to ₦100,000.
+  //
+  // Detection — explicit tier names first, then generic "magistrate".
+  if (p.includes('chief magistrate')) {
+    return {
+      court: `IN THE CHIEF MAGISTRATE COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Chief Magistrate Court (Grade I — the highest magistrate tier). Using the Chief Magistrate Court of ${j.name}, holden at ${j.defaultDivision}. The Chief Magistrate has the widest jurisdiction of all magistrate tiers: Civil — claims up to the statutory ceiling (Lagos: ₦10,000,000 under the Magistrates' Court Law; FCT: ₦1,000,000; most other states: ₦500,000–₦5,000,000 — verify ${j.name}'s current limit). Criminal — offences with maximum sentence of 7-14 years imprisonment (state-dependent). Subject-matter coverage: landlord-tenant recovery of premises (where the annual rent is within the monetary cap), simple contract debts, minor assaults, summary trials, misdemeanors, preliminary inquiries into felonies (committal proceedings). Has powers to issue search warrants, bail in bailable offences, and grant some equitable relief. Statutory basis: ${j.name} Magistrates' Court Law + ${j.magistrateRules}. Appeals lie to the State High Court (de novo or on the record depending on the issue). NOT a court of unlimited jurisdiction — matters exceeding the monetary cap must go to the High Court.`,
+    };
+  }
+  if (p.includes('senior magistrate')) {
+    return {
+      court: `IN THE SENIOR MAGISTRATE COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Senior Magistrate Court (Grade II). Using the Senior Magistrate Court of ${j.name}, holden at ${j.defaultDivision}. Civil jurisdiction: claims up to mid-range limit (Lagos: ₦5,000,000; FCT: ₦500,000; most other states: ₦250,000–₦1,000,000 — verify ${j.name}'s current limit). Criminal jurisdiction: offences with maximum sentence of 5-7 years imprisonment. Subject-matter coverage overlaps with Chief Magistrate but at lower monetary stakes: landlord-tenant recovery, contract debts, minor assaults, summary trials, preliminary inquiries. Statutory basis: ${j.name} Magistrates' Court Law + ${j.magistrateRules}. Appeals lie to the State High Court.`,
+    };
+  }
+  if (p.includes('magistrate')) {
+    // Generic magistrate (unspecified tier) — use the standard caption
     return {
       court: j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision),
       jurisdiction: j.name,
-      reasoning: `The prompt references the Magistrate Court. Using ${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)} — a lower court of record with limited civil and criminal jurisdiction. Typically handles landlord-tenant recovery (where rent ≤ ₦50,000/year in most states), minor assaults, simple contract debts, and summary trials. Appeals lie to the State High Court.`,
+      reasoning: `The prompt references the Magistrate Court (lower court of record). Using ${j.magistrateCourtCaption.replace('{DIVISION}', j.defaultDivision)}. The Magistrate Court is the busiest trial court in Nigeria — handles the bulk of landlord-tenant recovery, simple contract debts, minor assaults, and summary trials. The court operates in TIERS (Chief Magistrate → Senior Magistrate → Magistrate → District Court) with progressively smaller monetary caps. As a guide: Chief Magistrate ≈ ₦5M–₦10M; Senior Magistrate ≈ ₦1M–₦5M; Magistrate ≈ ₦250K–₦1M; District Court ≈ <₦250K (varies by state — verify ${j.name}'s current Magistrates' Court Law). Criminal jurisdiction: offences with maximum sentence of 3-14 years (state and tier dependent). Statutory basis: ${j.name} Magistrates' Court Law + ${j.magistrateRules}. The court is a court of record and its proceedings are preserved for appeal. Appeals lie to the State High Court (typically by way of re-trial for civil matters, on the record for criminal matters). For landlord-tenant matters exceeding the monetary cap, the State High Court has exclusive jurisdiction. For customary land disputes, the Customary Court is the proper forum.`,
     };
   }
-  if (p.includes('customary court')) {
+  if (p.includes('district court')) {
+    // District Court — lowest magistrate-equivalent tier in some states (esp. Lagos/Anambra)
     return {
-      court: `IN THE CUSTOMARY COURT OF ${j.name.toUpperCase()}`,
+      court: `IN THE DISTRICT COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Customary Court. Using the Customary Court of ${j.name} — a lower court of record handling customary land disputes, inheritance under native law and custom, customary marriage/divorce, and minor civil claims governed by customary law. Appeals lie to the Customary Court of Appeal (where established) or the State High Court.`,
+      reasoning: `The prompt references the District Court (lowest magistrate-tier court). Using the District Court of ${j.name}, holden at ${j.defaultDivision}. District Courts are the lowest tier of magistrate-equivalent courts in some states (notably Lagos, Anambra, Imo). Civil jurisdiction: typically limited to claims under ₦250,000 (state-dependent — verify ${j.name}'s District Court Law). Criminal jurisdiction: offences with maximum sentence of 6 months to 3 years. Subject-matter coverage: small-debt recovery, minor landlord-tenant (low-rent tenancies), small claims, summary offences, traffic offences. Statutory basis: ${j.name} District Court Law (or equivalent). Appeals lie to the Magistrate Court or directly to the State High Court, depending on the state's court hierarchy structure. NOTE: Lagos has a parallel Small Claims Court (₦5,000,000 cap) that operates with simplified procedures — consider whether the matter fits the Small Claims regime instead.`,
     };
   }
-  if (p.includes('area court') || p.includes('sharia court')) {
+
+  // ── 5. SMALL CLAIMS COURT (Lagos-pioneered, now adopted elsewhere) ──
+  if (p.includes('small claims')) {
     return {
-      court: `IN THE AREA COURT OF ${j.name.toUpperCase()}`,
+      court: `IN THE SMALL CLAIMS COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Area/Sharia Court. Using the Area Court of ${j.name} — a lower court of record in Northern Nigeria with jurisdiction over Islamic personal law matters (marriage, inheritance, waqf), minor civil claims under native law, and summary offences. Appeals lie to the Upper Area Court, then to the Sharia Court of Appeal (where established).`,
+      reasoning: `The prompt references the Small Claims Court. Using the Small Claims Court of ${j.name}, holden at ${j.defaultDivision}. Small Claims Courts were first established in Lagos (2018) and have been adopted by several other states. They have SIMPLIFIED procedures — no counsel required, no formal pleadings, single hearing, decision within 14 days. Monetary cap: Lagos ₦5,000,000; other states vary (₦1,000,000–₦5,000,000). Subject-matter: debt recovery, minor contract disputes, simple landlord-tenant (rent arrears, not recovery of premises). Statutory basis: ${j.name} Small Claims Court Practice Direction (or equivalent). Hearings are scheduled within 14 days of filing; judgment is given the same day or within 3 days. Appeals are limited — only on questions of law, and require leave of court. NOT for: land disputes, complex commercial matters, matrimonial causes, or personal injury claims.`,
+    };
+  }
+
+  // ── 6. CUSTOMARY COURT (Southern & Middle-Belt states) ──────────────
+  if (p.includes('customary court') && !p.includes('customary court of appeal')) {
+    return {
+      court: `IN THE CUSTOMARY COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Customary Court. Using the Customary Court of ${j.name}, holden at ${j.defaultDivision}. Customary Courts are lower courts of record in Southern and Middle-Belt states (Lagos, Oyo, Ogun, Ondo, Ekiti, Edo, Delta, Anambra, Enugu, Imo, Abia, Ebonyi, Cross River, Akwa Ibom, Benue, Plateau, Kogi, Nasarawa, FCT). Subject-matter jurisdiction: (1) customary land disputes (land held under customary tenure — NOT land under statutory Right of Occupancy which goes to the High Court); (2) inheritance & succession under native law and custom (NOT statutory wills which go to High Court probate); (3) customary marriage dissolution & consequences; (4) custody of children of customary marriage; (5) minor civil claims governed by customary law; (6) defamation under customary law. Monetary cap varies (often ₦50,000–₦500,000 — verify ${j.name}'s Customary Court Law). Statutory basis: ${j.name} Customary Court Law (or equivalent). The court's decisions are binding only on parties before it; precedents are not strictly applied. Appeals lie to the Customary Court of Appeal (where established) or directly to the State High Court. The Customary Court is presided over by a legally-qualified Chairman (in some states) or by lay assessors knowledgeable in customary law (in others).`,
+    };
+  }
+
+  // ── 7. AREA COURT (Northern states — civil & criminal) ───────────────
+  if ((p.includes('area court') && !p.includes('upper area court')) || (p.includes('sharia court') && !p.includes('sharia court of appeal') && !p.includes('upper area'))) {
+    return {
+      court: `IN THE AREA COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
+      jurisdiction: j.name,
+      reasoning: `The prompt references the Area Court (sometimes called Sharia Court at first instance in some Northern states). Using the Area Court of ${j.name}, holden at ${j.defaultDivision}. Area Courts are lower courts of record in Northern Nigeria (the equivalent of Customary Courts in the South). They have BOTH civil and criminal jurisdiction. Civil jurisdiction: (1) Islamic personal law matters (marriage, divorce, maintenance, custody, guardianship, waqf, inheritance) between Muslims; (2) customary land disputes under native law; (3) minor civil claims under native law & custom; (4) debts and small contract claims under native law. Criminal jurisdiction: minor offences against native law & custom, and Islamic penal matters (in states that have adopted Sharia penal codes: Zamfara, Kano, Sokoto, Katsina, Jigawa, Bauchi, Borno, Yobe, Kaduna, Niger, Gombe, Kebbi). Monetary cap: typically ₦50,000–₦250,000 (state-dependent — verify ${j.name}'s Area Court Law). Statutory basis: ${j.name} Area Courts Law (or Sharia Courts Law in Sharia states). Presided over by an Alkali (Islamic judge) trained in Islamic jurisprudence. Appeals lie to the Upper Area Court, then to the Sharia Court of Appeal (for Islamic law matters) or the State High Court (for customary/civil matters).`,
     };
   }
   if (p.includes('upper area court')) {
     return {
-      court: `IN THE UPPER AREA COURT OF ${j.name.toUpperCase()}`,
+      court: `IN THE UPPER AREA COURT OF ${j.name.toUpperCase()}, HOLDEN AT ${j.defaultDivision.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Upper Area Court. Using the Upper Area Court of ${j.name} — an appellate court over Area Courts in Northern Nigeria. Hears appeals from Area Courts and has original jurisdiction in more serious Islamic law matters. Appeals lie to the Sharia Court of Appeal.`,
+      reasoning: `The prompt references the Upper Area Court (intermediate appellate court over Area Courts in Northern Nigeria). Using the Upper Area Court of ${j.name}, holden at ${j.defaultDivision}. The Upper Area Court hears appeals from Area Courts on Islamic personal law, customary land, and minor civil matters. It also has ORIGINAL jurisdiction in more serious Islamic law matters (e.g., higher-value estates, complex inheritance, contested guardianship). Presided over by a Senior Alkali or a panel of 2-3 Alkalis. Statutory basis: ${j.name} Area Courts Law. Appeals lie to the Sharia Court of Appeal (for Islamic personal law matters) or the State High Court (for customary law / civil matters). The Upper Area Court is the last court of first-instance appeal in the Northern lower-court hierarchy before matters reach the intermediate appellate courts (SCA / HC).`,
     };
   }
+
+  // ── 8. INTERMEDIATE APPELLATE COURTS (CCA & SCA) ─────────────────────
   if (p.includes('customary court of appeal')) {
     return {
       court: `IN THE CUSTOMARY COURT OF APPEAL, ${j.name.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Customary Court of Appeal. Using the Customary Court of Appeal of ${j.name} — an intermediate appellate court hearing appeals from Customary Courts on customary law matters (land, inheritance, marriage). Established per Section 280 of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
+      reasoning: `The prompt references the Customary Court of Appeal. Using the Customary Court of Appeal of ${j.name}. The CCA is an intermediate appellate court established per Section 280 of the 1999 Constitution — but only in states that have opted to establish one (currently: Enugu, Imo, Abia, Anambra, Ebonyi, Lagos, Oyo, Ogun, Ondo, Ekiti, Edo, Delta, Cross River, Akwa Ibom, Rivers, Bayelsa, Benue, Plateau, Nasarawa, Kogi, FCT). The CCA hears appeals from Customary Courts on CUSTOMARY LAW matters ONLY (land, inheritance, marriage under native law) — NOT on points of general law. Presided over by a President (a judge of High Court rank) and at least 4 Khadis/Judges. A panel of at least 3 Judges is required for a decision. Statutory basis: Section 280-283 of the 1999 Constitution + ${j.name} Customary Courts of Appeal Law. Appeals lie to the Court of Appeal. If ${j.name} has not established a CCA, Customary Court appeals go directly to the State High Court.`,
     };
   }
   if (p.includes('sharia court of appeal')) {
     return {
       court: `IN THE SHARIA COURT OF APPEAL, ${j.name.toUpperCase()}`,
       jurisdiction: j.name,
-      reasoning: `The prompt references the Sharia Court of Appeal. Using the Sharia Court of Appeal of ${j.name} — an intermediate appellate court hearing appeals from Upper Area Courts on Islamic personal law matters (marriage, inheritance, waqf, guardianship). Established per Section 275 of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
+      reasoning: `The prompt references the Sharia Court of Appeal. Using the Sharia Court of Appeal of ${j.name}. The SCA is an intermediate appellate court established per Section 275 of the 1999 Constitution — but only in states that have opted to establish one (currently: Sokoto, Kano, Katsina, Zamfara, Jigawa, Kaduna, Kebbi, Bauchi, Borno, Yobe, Gombe, Adamawa, Taraba, Niger, Kwara, Oyo, Lagos, FCT). The SCA hears appeals from Upper Area Courts / Sharia Courts on ISLAMIC PERSONAL LAW matters ONLY (marriage, divorce, maintenance, custody, guardianship, waqf, wasiyya, inheritance, Islamic gifts) — NOT on points of general law or criminal matters outside Islamic penal jurisdiction. Presided over by a Grand Kadi and at least 4 Khadis. A panel of at least 3 Khadis is required for a decision. Statutory basis: Sections 275-279 of the 1999 Constitution + ${j.name} Sharia Courts of Appeal Law. Appeals lie to the Court of Appeal. If ${j.name} has not established an SCA, Area/Upper Area Court appeals on customary matters go to the State High Court.`,
     };
   }
-  if (p.includes('national industrial court') || p.includes('nic') || p.includes('nicn')) {
-    return {
-      court: 'IN THE NATIONAL INDUSTRIAL COURT OF NIGERIA',
-      jurisdiction: 'Federal',
-      reasoning: `The prompt references the National Industrial Court. Using NICN — has EXCLUSIVE jurisdiction over employment, labour, and industrial matters per Section 254C of the 1999 Constitution. NICN also has powers to grant injunctions and equitable relief in trade disputes. Appeals lie directly to the Court of Appeal.`,
-    };
-  }
-  if (p.includes('court of appeal') || p.includes('appellate court')) {
-    return {
-      court: 'COURT OF APPEAL OF NIGERIA',
-      jurisdiction: 'Federal',
-      reasoning: `The prompt references the Court of Appeal. The Court of Appeal is the intermediate appellate court — hears appeals from the Federal High Court, State High Courts, National Industrial Court, Customary Courts of Appeal, and Sharia Courts of Appeal. Established per Section 237 of the 1999 Constitution. Appeals lie to the Supreme Court.`,
-    };
-  }
-  if (p.includes('supreme court')) {
-    return {
-      court: 'SUPREME COURT OF NIGERIA',
-      jurisdiction: 'Federal',
-      reasoning: `The prompt references the Supreme Court. The Supreme Court is the highest court in Nigeria — hears appeals from the Court of Appeal. Has original jurisdiction in disputes between the Federation and States, and between States (Section 232 of the 1999 Constitution). Its decisions are binding on all lower courts.`,
-    };
-  }
-  if (p.includes('tribunal')) {
-    // Generic tribunal detection — tax, investment, election, etc.
-    if (p.includes('tax') || p.includes('firsc') || p.includes('tid')) {
+
+  // ── 9. SPECIALIZED TRIBUNALS ─────────────────────────────────────────
+  if (p.includes('tribunal') || p.includes('tat') || p.includes('ist') || p.includes('ept') || p.includes('cct') || p.includes('acdamt')) {
+    // Tax Appeal Tribunal (TAT)
+    if (p.includes('tax') || p.includes('tat') || p.includes('firs') || p.includes('vat') || p.includes('company income tax') || p.includes('withholding tax')) {
       return {
-        court: 'FEDERAL INLAND REVENUE SERVICE TRIBUNAL / TAX APPEAL COMMISSION',
+        court: 'IN THE TAX APPEAL TRIBUNAL OF NIGERIA',
         jurisdiction: 'Federal',
-        reasoning: `The prompt references a tax tribunal. Tax disputes in Nigeria may go to the Tax Appeal Tribunal (TAT) established by FIRS, or to the Federal High Court. The TAT hears disputes on assessments, penalties, and FIRS enforcement. Appeals from the TAT lie to the Federal High Court.`,
+        reasoning: `The prompt references the Tax Appeal Tribunal. The TAT was established under Section 59 of the Federal Inland Revenue Service (Establishment) Act 2007 to adjudicate disputes between taxpayers and the Federal Inland Revenue Service (FIRS) on: Companies Income Tax, Petroleum Profits Tax, Value Added Tax (VAT), Personal Income Tax (of federal employees & Armed Forces), Capital Gains Tax, Stamp Duties, Withholding Tax, NASENI levy, NITDA levy. The TAT has 10 zones (Abuja HQ + Lagos, Ibadan, Benin, Enugu, Port Harcourt, Kaduna, Kano, Bauchi, Maiduguri). Statutory basis: FIRS (Establishment) Act 2007. IMPORTANT: The TAT is NOT a court but a tribunal — its decisions are appealed DIRECTLY to the Federal High Court (NOT to the Court of Appeal). The 30-day window to appeal FIRS assessments MUST be exhausted at TAT before approaching the FHC. Failure to exhaust TAT remedies is fatal to FHC jurisdiction. Sits with a Chairman (legal practitioner of 10+ years) and 4 other members with tax/accounting expertise.\n\n⚠️ JURISDICTIONAL WARNING: Tax disputes against FIRS assessments MUST be filed at the Tax Appeal Tribunal FIRST — exhaustion of remedies is jurisdictional. Going directly to the Federal High Court without exhausting TAT will result in dismissal for want of jurisdiction. The FHC only hears APPEALS from TAT decisions.`,
       };
     }
-    if (p.includes('election') || p.includes('ept')) {
+    // Investment and Securities Tribunal (IST)
+    if (p.includes('investment') || p.includes('securities') || p.includes('ist') || p.includes('capital market') || p.includes('sec nigeria') || p.includes('stock exchange') || p.includes('nse')) {
       return {
-        court: 'ELECTION PETITION TRIBUNAL',
+        court: 'IN THE INVESTMENT AND SECURITIES TRIBUNAL (IST)',
         jurisdiction: 'Federal',
-        reasoning: `The prompt references an Election Petition Tribunal. EPTs are established under the Electoral Act to hear petitions challenging elections to the Presidency, National Assembly, Governorship, and State Houses of Assembly. Appeals lie to the Court of Appeal.`,
+        reasoning: `The prompt references the Investment and Securities Tribunal. The IST was established under Section 274 of the Investments and Securities Act (ISA) 2025 (replacing the ISA 2007 version). The IST has EXCLUSIVE jurisdiction over: (1) capital market disputes (SEC enforcement actions, capital market operator licensing, insider dealing, market manipulation); (2) securities fraud and misrepresentation; (3) disputes between the Securities and Exchange Commission (SEC) and capital market operators; (4) disputes arising from mergers, takeovers, and acquisitions requiring SEC approval; (5) commodity exchange disputes; (6) disputes between the Nigerian Stock Exchange (NGX) and its dealing members; (7) disputes arising from collective investment schemes (mutual funds, ETFs); (8) FinTech and digital asset disputes (per the 2025 amendments). Statutory basis: ISA 2025. Sits in Abuja with a Chairman (legal practitioner of 15+ years) and at least 8 other members. Appeals lie DIRECTLY to the Court of Appeal (NOT to the Federal High Court). The IST can grant injunctions, order specific performance, impose administrative penalties, and award damages. Citation form: IST/NNN/YYYY.`,
       };
     }
-    if (p.includes('investment') || p.includes('sec') || p.includes('securities')) {
+    // Election Petition Tribunal (EPT)
+    if (p.includes('election') || p.includes('ept') || p.includes('electoral') || p.includes('governorship') || p.includes('presidential election') || p.includes('legislative election')) {
       return {
-        court: 'INVESTMENT AND SECURITIES TRIBUNAL (IST)',
+        court: 'IN THE ELECTION PETITION TRIBUNAL',
         jurisdiction: 'Federal',
-        reasoning: `The prompt references the Investment and Securities Tribunal. The IST has exclusive jurisdiction over capital market, securities, and investment disputes per the Investments and Securities Act (ISA) 2025. Appeals lie to the Court of Appeal.`,
+        reasoning: `The prompt references an Election Petition Tribunal. EPTs are established under Section 285 of the 1999 Constitution and the Electoral Act 2022 to hear petitions challenging: (1) Presidential election → Presidential Election Petition Tribunal (PEPT) sits in Abuja, 5-member panel of Court of Appeal Justices; (2) Governorship election → Governorship Election Petition Tribunal, 3-member panel of High Court judges; (3) National Assembly (Senate/House of Reps) elections → National Assembly Election Tribunal, 3-member panel of High Court/FHC judges; (4) State Houses of Assembly elections → State Houses of Assembly Election Tribunal, 3-member panel of High Court judges. Statutory basis: Section 285 of the 1999 Constitution + Electoral Act 2022. TIME LIMITS ARE STRICT: petitions must be filed within 21 days of result declaration; tribunals must deliver judgment within 180 days. Appeals lie to the Court of Appeal (which must decide within 60 days), and from the Court of Appeal on PEPT matters, a further appeal lies to the Supreme Court. NO extension of time is permitted under any circumstances. The EPT is NOT a permanent court — it is constituted for each election cycle and dissolved after.\n\n⚠️ JURISDICTIONAL WARNING: Election petitions have STRICT AND UNEXTENDABLE time limits — 21 days to file, 180 days for tribunal judgment, 60 days for Court of Appeal. These limits are constitutional and CANNOT be extended. Missing any deadline is FATAL — the petition will be dismissed. Engage election-petition counsel IMMEDIATELY upon result declaration.`,
+      };
+    }
+    // Code of Conduct Tribunal (CCT)
+    if (p.includes('code of conduct') || p.includes('cct') || p.includes('asset declaration')) {
+      return {
+        court: 'IN THE CODE OF CONDUCT TRIBUNAL',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references the Code of Conduct Tribunal. The CCT was established under Section 20 of the Fifth Schedule to the 1999 Constitution to adjudicate allegations of breach of the Code of Conduct for Public Officers (Part I of the Fifth Schedule). Subject-matter jurisdiction: (1) false asset declaration; (2) foreign accounts operated by public officers; (3) operation of foreign accounts; (4) receipt of gifts/benefits in official capacity; (5) conflict of interest; (6) engagement in paid employment outside official duty; (7) membership of secret societies; (8) acceptance of loans from banks/subordinates/contractors above threshold; (9) receipt of bribes. Statutory basis: Paragraph 18-20 of the Fifth Schedule to the 1999 Constitution + Code of Conduct Bureau and Tribunal Act Cap C15 LFN 2004. Sits with a Chairman (legal practitioner of 15+ years, High Court rank) and 2 other members. The CCT can impose: removal from office, vacation of seat, disqualification from public office for up to 10 years, forfeiture of corrupt assets, and (per the 2022 amendment) imprisonment terms for false declaration. Appeals lie DIRECTLY to the Court of Appeal (per Saraki v. FRN (2018) — confirmed by the Supreme Court that there is NO appeal to the FHC).`,
+      };
+    }
+    // Anti-Corruption and Other Related Offences Tribunal (ICPC tribunal — ACDAMT)
+    if (p.includes('acdamt') || p.includes('anti-corruption') || p.includes('icpc tribunal')) {
+      return {
+        court: 'IN THE ANTI-CORRUPTION AND OTHER RELATED OFFENCES TRIBUNAL (ACDAMT)',
+        jurisdiction: 'Federal',
+        reasoning: `The prompt references the Anti-Corruption and Other Related Offences Tribunal. The ACDAMT is a specialized tribunal proposed under the Corrupt Practices and Other Related Offences Act to handle complex corruption cases referred by the ICPC. Statutory basis: Corrupt Practices and Other Related Offences Act 2000 (as amended). Sits with a Chairman (High Court judge rank) and 2 members. Hears cases of: bribery, graft, embezzlement of public funds, abuse of office, gratification. NOTE: This tribunal is rarely constituted — most ICPC cases are filed directly at the Federal High Court or State High Court under the ICPC Act. Verify whether the specific matter requires ACDAMT or can go directly to FHC. Appeals lie to the Court of Appeal.`,
       };
     }
   }
-  if (p.includes('code of conduct') || p.includes('cct')) {
+
+  // ── 10. MILITARY & SPECIAL COURTS (rare but included for completeness) ──
+  if (p.includes('court martial') || p.includes('military court')) {
     return {
-      court: 'CODE OF CONDUCT TRIBUNAL',
+      court: 'IN THE GENERAL COURT MARTIAL',
       jurisdiction: 'Federal',
-      reasoning: `The prompt references the Code of Conduct Tribunal. The CCT hears cases of breach of the Code of Conduct for Public Officers (asset declaration, conflict of interest, foreign accounts, etc.) per the Fifth Schedule of the 1999 Constitution. Appeals lie to the Court of Appeal.`,
+      reasoning: `The prompt references a Court Martial. Court Martial is established under the Armed Forces Act Cap A20 LFN 2004 to try members of the Nigerian Armed Forces for service offences (mutiny, desertion, insubordination, conduct prejudicial to good order, civil offences committed in service context). Types: General Court Martial (most serious offences, presided by a judge advocate + 5+ officers), Summary Court Martial (less serious, 2+ officers), Special Court Martial (intermediate). Statutory basis: Armed Forces Act + Armed Forces Rules of Procedure. The Judge Advocate is a legally-qualified officer; other members are serving officers. NOT a court of record in the civilian sense. Appeals lie to the Court of Appeal (Army Council reviews the sentence first). NOTE: Court Martial jurisdiction is limited to serving military personnel — civilians cannot be tried by Court Martial (per Dorma v. Chief of Army Staff).`,
     };
   }
 

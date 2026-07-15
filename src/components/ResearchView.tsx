@@ -17,6 +17,7 @@ import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
 import { ChevronRightIcon, LockClosedIcon, ResearchIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
+import { readHashContext } from '../utils/tabNavigation';
 
 const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 dark:text-zinc-500 p-8">
@@ -52,44 +53,110 @@ const ResearchView: React.FC = () => {
     const [mobileWorkspaceView, setMobileWorkspaceView] = useState<'chat' | 'sources' | 'studio'>('chat');
     const [isSaving, setIsSaving] = useState(false);
 
+    // ─── Prompt-First Research Pipeline state ──────────────────────────
+    // When the user arrives from DraftPro's citation panel, the context
+    // may include a `prefillQuery` (AI-generated search query) that should
+    // be pre-filled into the chat input but NOT auto-sent. We store these
+    // here so ResearchChat can read them.
+    const [prefillState, setPrefillState] = useState<{
+        query: string;
+        context?: string;
+        documentTitle?: string;
+    } | null>(null);
+
     const selectedNotebookId = currentHistoryEntry.selectedResearchNotebookId || null;
+
+    // ─── Bridge: ALOA / DraftPro may send `selectedNotebookId` (camelCase)
+    //     in either the in-app context OR the URL hash. Map it to the
+    //     internal `selectedResearchNotebookId` field. Also reads the hash
+    //     for the new-tab case.
+    useEffect(() => {
+        const ctx =
+            currentHistoryEntry?.context ||
+            (window.history.state?.state as any) ||
+            readHashContext() ||
+            {};
+        if (ctx.selectedNotebookId && !currentHistoryEntry.selectedResearchNotebookId) {
+            updateCurrentHistoryEntry({ selectedResearchNotebookId: ctx.selectedNotebookId });
+            // Clean up the hash so a refresh doesn't re-trigger
+            if (window.location.hash && window.location.hash.includes('__ctx=')) {
+                try {
+                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                } catch { /* ignore */ }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentHistoryEntry?.context]);
 
     // ─── Auto-create notebook from DraftPro "Send to Research" ────────
     // When the user clicks "Send to Research" in DraftPro, we navigate
-    // here with context containing: autoStartResearch, researchQuery, sources
-    // This effect creates a notebook, adds the citations as sources, and
-    // auto-starts the research chat with the query.
+    // here with context containing: autoStartResearch, researchQuery, sources.
+    //
+    // Context can arrive via TWO channels:
+    //   1. In-app navigation: `currentHistoryEntry.context` (SPA router state)
+    //   2. New-tab navigation: `#__ctx=<base64>` URL hash fragment
+    //      (decoded by `readHashContext()`). This is the path used when
+    //      DraftPro opens Research in a new browser tab via openInNewTab().
+    //
+    // This effect handles BOTH. Two modes:
+    //   (a) Auto-start mode (autoStartResearch=true): creates notebook,
+    //       adds sources, auto-sends the research query as first message.
+    //   (b) Prompt-First mode (prefillQuery set): creates notebook, adds
+    //       sources, but does NOT auto-send. Instead, stores the prefill
+    //       query in state so ResearchChat can pre-fill the input and
+    //       wait for the user to press Enter.
     const [hasProcessedResearchContext, setHasProcessedResearchContext] = useState(false);
     useEffect(() => {
         if (hasProcessedResearchContext) return;
-        const ctx = currentHistoryEntry?.context || (window.history.state?.state as any) || {};
-        if (ctx.autoStartResearch && ctx.sources && Array.isArray(ctx.sources) && ctx.sources.length > 0) {
-            setHasProcessedResearchContext(true);
-            const sources: any[] = ctx.sources;
-            const query: string = ctx.researchQuery || 'Analyze these legal sources:';
-            const docTitle: string = ctx.documentTitle || 'Draft Research';
+        const ctx =
+            currentHistoryEntry?.context ||
+            (window.history.state?.state as any) ||
+            readHashContext() ||
+            {};
+        const hasSources = ctx.sources && Array.isArray(ctx.sources) && ctx.sources.length > 0;
+        const shouldStart = (ctx.autoStartResearch || ctx.promptFirstMode) && hasSources;
+        if (!shouldStart) return;
+        setHasProcessedResearchContext(true);
+        const sources: any[] = ctx.sources;
+        const query: string = ctx.researchQuery || ctx.prefillQuery || 'Analyze these legal sources:';
+        const docTitle: string = ctx.documentTitle || 'Draft Research';
 
-            // Create a new research notebook
-            const notebook = dataHandlers.handleAddResearchNotebook({
-                name: `Citation Research — ${docTitle.substring(0, 40)}`,
-                firmId: currentUser?.firmId || coreState?.firmDetails?.id || '',
-                userId: currentUser?.id || '',
-            });
+        // Create a new research notebook
+        const notebook = dataHandlers.handleAddResearchNotebook({
+            name: `Citation Research — ${docTitle.substring(0, 40)}`,
+            firmId: currentUser?.firmId || coreState?.firmDetails?.id || '',
+            userId: currentUser?.id || '',
+        });
 
-            if (notebook?.id) {
-                // Select the notebook
-                updateCurrentHistoryEntry({ selectedResearchNotebookId: notebook.id });
+        if (notebook?.id) {
+            // Select the notebook
+            updateCurrentHistoryEntry({ selectedResearchNotebookId: notebook.id });
 
-                // Add each citation as a source
-                for (const cite of sources) {
-                    dataHandlers.handleAddResearchSource(notebook.id, {
-                        name: `[${cite.number}] ${cite.text.substring(0, 60)}`,
-                        type: 'text',
-                        content: `Citation [${cite.number}]: ${cite.text}\nType: ${cite.type}\nJurisdiction: ${cite.jurisdiction || 'N/A'}\nURL: ${cite.url || 'N/A'}`,
-                    });
-                }
+            // Add each citation as a source
+            for (const cite of sources) {
+                dataHandlers.handleAddResearchSource(notebook.id, {
+                    name: `[${cite.number}] ${cite.text.substring(0, 60)}`,
+                    type: 'text',
+                    content: `Citation [${cite.number}]: ${cite.text}\nType: ${cite.type}\nJurisdiction: ${cite.jurisdiction || 'N/A'}\nURL: ${cite.url || 'N/A'}`,
+                });
+            }
 
-                // Auto-send the research query as the first message
+            if (ctx.promptFirstMode && ctx.prefillQuery) {
+                // ─── Prompt-First mode: pre-fill, don't auto-send ───
+                setPrefillState({
+                    query: ctx.prefillQuery,
+                    context: ctx.prefillContext,
+                    documentTitle: docTitle,
+                });
+                // After the user sends the pre-filled query, the AI should
+                // fire an automatic "invitation" message offering to
+                // validate the loaded sources. We set a flag that the
+                // first message from the user triggers this.
+                // (The ResearchChat component handles the actual prefill UX;
+                //  the invitation message is sent by the AI backend when it
+                //  receives the user's first query with the loaded sources.)
+            } else {
+                // ─── Auto-start mode: send the query immediately ───
                 setTimeout(() => {
                     dataHandlers.handleSendResearchMessage(
                         notebook.id,
@@ -98,6 +165,13 @@ const ResearchView: React.FC = () => {
                     );
                 }, 500);
             }
+        }
+
+        // Clean up the hash so a refresh doesn't re-trigger auto-research
+        if (window.location.hash && window.location.hash.includes('__ctx=')) {
+            try {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch { /* ignore */ }
         }
     }, [currentHistoryEntry?.context, hasProcessedResearchContext]);
 
@@ -276,6 +350,9 @@ const ResearchView: React.FC = () => {
                                 sources={sourcesForNotebook}
                                 selectedSourceIds={selectedSourceIds}
                                 onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
+                                prefillQuery={prefillState?.query}
+                                prefillContext={prefillState?.context}
+                                prefillDocumentTitle={prefillState?.documentTitle}
                             />
                         </div>
 

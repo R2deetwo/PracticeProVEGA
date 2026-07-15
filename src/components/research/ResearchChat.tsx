@@ -15,6 +15,19 @@ interface ResearchChatProps {
     selectedSourceIds: string[];
     notebookId: string;
     onSendMessage: (notebookId: string, content: string, sourceIds?: string[]) => void;
+    /**
+     * Prompt-First Research Pipeline: when set, the chat input is pre-filled
+     * with this AI-generated search query but NOT auto-sent. The user reviews,
+     * edits if needed, and presses Enter to run the live web search.
+     *
+     * After the user sends the first message, the AI fires an automatic
+     * "invitation" prompt offering to validate the loaded sources.
+     */
+    prefillQuery?: string;
+    /** Context that produced the prefillQuery — shown in a banner above the input */
+    prefillContext?: string;
+    /** Document title that the citations came from — shown in the banner */
+    prefillDocumentTitle?: string;
 }
 
 // Safe timestamp formatter — won't crash on invalid dates
@@ -145,13 +158,49 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
     sources,
     selectedSourceIds,
     notebookId,
-    onSendMessage
+    onSendMessage,
+    prefillQuery,
+    prefillContext,
+    prefillDocumentTitle,
 }) => {
     const { addToast } = useUI();
     const { isProperty } = useProduct();
     const [input, setInput] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    // ─── Prompt-First Research Pipeline ──────────────────────────────
+    // When the component mounts (or when prefillQuery changes), populate
+    // the input box with the AI-generated query but DO NOT auto-send.
+    // The user reviews the query and presses Enter to run it.
+    //
+    // Track whether we've already applied a prefill so that re-renders
+    // don't overwrite the user's edits.
+    const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
+    useEffect(() => {
+        if (prefillQuery && !hasAppliedPrefill && !input) {
+            setInput(prefillQuery);
+            setHasAppliedPrefill(true);
+            // Auto-resize the textarea to fit the pre-filled query
+            setTimeout(() => {
+                if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto';
+                    textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+                    // Focus the textarea so the user can immediately edit
+                    textareaRef.current.focus();
+                    // Place cursor at end
+                    const len = textareaRef.current.value.length;
+                    textareaRef.current.setSelectionRange(len, len);
+                }
+            }, 100);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prefillQuery]);
+
+    // Reset the prefill tracking when the notebook changes
+    useEffect(() => {
+        setHasAppliedPrefill(false);
+    }, [notebookId]);
 
     useEffect(() => {
         if (containerRef.current) {
@@ -205,6 +254,44 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                 </div>
             </div>
 
+            {/* ─── Prompt-First Research Pipeline Banner ──────────────────
+                Shown when the user arrived from DraftPro via the "Research"
+                button on a citation. Explains that the AI generated a
+                search query, which is pre-filled in the input below.
+                The user reviews and presses Enter to run it. */}
+            {prefillQuery && hasAppliedPrefill && messages.length === 0 && (
+                <div className="flex-shrink-0 mx-4 mb-2 p-3 bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg">
+                    <div className="flex items-start gap-2.5">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-emerald-600 dark:text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
+                                AI-Generated Search Query Ready
+                            </p>
+                            <p className="text-[11px] text-slate-600 dark:text-zinc-300 mt-0.5 leading-relaxed">
+                                {prefillDocumentTitle
+                                    ? `From your draft "${prefillDocumentTitle}". `
+                                    : ''}
+                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-[9px] font-mono font-bold">Enter</kbd> to run a live web search.
+                            </p>
+                            {prefillContext && (
+                                <details className="mt-1.5">
+                                    <summary className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer hover:underline">
+                                        View source context ({prefillContext.split('\n').length} citation{prefillContext.split('\n').length > 1 ? 's' : ''})
+                                    </summary>
+                                    <pre className="mt-1 p-2 bg-white dark:bg-zinc-800/80 rounded text-[9px] text-slate-600 dark:text-zinc-300 whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-zinc-700">
+                                        {prefillContext}
+                                    </pre>
+                                </details>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Messages Area */}
             <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-3xl mx-auto w-full">
@@ -248,16 +335,24 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                 </div>
             </div>
 
-            {/* Input Area */}
+            {/* Input Area — highlighted when in Prompt-First prefill mode */}
             <div className="px-4 py-3 sm:px-6 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
                 <div className="max-w-3xl mx-auto">
-                    <div className="flex items-end gap-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-2 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                    <div className={`flex items-end gap-2 rounded-xl p-2 transition-all focus-within:ring-2
+                        ${prefillQuery && hasAppliedPrefill && !input.trim()
+                            ? 'bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-300 dark:border-emerald-700 focus-within:border-emerald-400 dark:focus-within:border-emerald-600 focus-within:ring-emerald-500/10'
+                            : 'bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-blue-500/10'
+                        }`}>
                         <textarea
                             ref={textareaRef}
                             value={input}
                             onChange={handleInput}
                             onKeyDown={handleKeyDown}
-                            placeholder={isAiThinking ? "AI is analyzing..." : "Ask about your sources... (Enter to send)"}
+                            placeholder={isAiThinking
+                                ? "AI is analyzing..."
+                                : prefillQuery && hasAppliedPrefill
+                                    ? "Review the AI-generated query above and press Enter to search…"
+                                    : "Ask about your sources... (Enter to send)"}
                             disabled={isAiThinking}
                             className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 placeholder-slate-400 focus:ring-0 min-w-0 resize-none max-h-36 min-h-[36px] custom-scrollbar disabled:opacity-50"
                             style={{ overflowY: input.split('\n').length > 1 ? 'auto' : 'hidden' }}
@@ -266,11 +361,22 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             onClick={handleSend}
                             disabled={!input.trim() || isAiThinking}
                             className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0 shadow-sm"
+                            title={prefillQuery && hasAppliedPrefill ? "Run the search query" : "Send message"}
                         >
-                            <SendIcon className="w-4 h-4" />
+                            {prefillQuery && hasAppliedPrefill && !isAiThinking ? (
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                </svg>
+                            ) : (
+                                <SendIcon className="w-4 h-4" />
+                            )}
                         </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 text-center mt-1.5">Shift+Enter for new line</p>
+                    <p className="text-[10px] text-slate-400 text-center mt-1.5">
+                        {prefillQuery && hasAppliedPrefill
+                            ? 'Press Enter to run the live web search · Shift+Enter for new line'
+                            : 'Shift+Enter for new line'}
+                    </p>
                 </div>
             </div>
         </div>

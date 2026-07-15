@@ -1100,3 +1100,110 @@ If the audio is inaudible or contains no speech, return an empty string.`
     // All models returned empty text — likely an audio format issue
     throw new Error('Transcription returned no text. Ensure you are speaking clearly and that your AI API key is configured in Settings → AI Settings.');
 };
+
+/**
+ * Generate an optimal web search query from a draft fragment, citation,
+ * or legal context. Used by the Prompt-First Research Pipeline:
+ *
+ *   [Citation/Context Selected]
+ *      ↓
+ *   [AI Generates Perfect Search Query]   ← this function
+ *      ↓
+ *   [Pre-fills Research Input Box]
+ *      ↓
+ *   [User Presses Enter to Search]        ← user action
+ *
+ * The generated query is:
+ *   - Specific (uses legal terminology, case names, statute sections)
+ *   - Targeted (optimised for legal databases like Google Scholar,
+ *     LegalBoard, LawPavilion, NWLR, LexisNexis)
+ *   - Jurisdiction-aware (includes "Nigeria" / state / year where relevant)
+ *   - Quote-free (search engines treat quotes specially; let the user add)
+ *
+ * @param context  The selected text, citation, or legal fragment.
+ * @param opts.hint Optional hint about what the user wants (e.g. "verify",
+ *                   "find authority", "check current status").
+ * @param opts.jurisdiction  e.g. "Nigeria" or "Lagos State".
+ * @param firmDetails  Firm config (for API key).
+ *
+ * @returns A single-line search query string. Empty string on failure.
+ */
+export const generateResearchQuery = async (
+    context: string,
+    opts?: { hint?: string; jurisdiction?: string; documentTitle?: string },
+    firmDetails?: any
+): Promise<string> => {
+    const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
+    const hint = opts?.hint || 'verify and find authoritative legal sources';
+    const jurisdiction = opts?.jurisdiction || 'Nigeria';
+    const docTitle = opts?.documentTitle || '';
+
+    // Truncate very long contexts — Gemini has a context window but we
+    // don't need to send the entire draft. 3000 chars is enough for the
+    // AI to identify the key legal issue and generate a precise query.
+    const trimmedContext = context.length > 3000
+        ? context.substring(0, 3000) + '…[truncated]'
+        : context;
+
+    const prompt = `You are a legal research expert. Generate ONE precise web search query that a lawyer would type into Google Scholar, LegalBoard, LawPavilion, or a similar legal database to ${hint}.
+
+CONTEXT (from the user's draft${docTitle ? `: "${docTitle}"` : ''}):
+"""
+${trimmedContext}
+"""
+
+JURISDICTION: ${jurisdiction}
+
+RULES:
+1. Output ONLY the search query — no preamble, no quotes, no explanation.
+2. Include the key legal terms, case names, statute sections, or principles.
+3. Add "${jurisdiction}" or a state name if jurisdiction matters.
+4. Add a year range if the context references a recent case (e.g. "2020..2024").
+5. Prefer specific legal phrases over generic terms.
+6. Maximum 120 characters.
+7. If the context is a case citation, format the query as: "<case name> <year> <court> <jurisdiction>"
+8. If the context is a statute section, format as: "<Act name> section <N> <jurisdiction>"
+
+EXAMPLES:
+- Context: "The defendant argued that the tenancy was statutorily protected under the Recovery of Premises Act"
+  Output: Recovery of Premises Act tenancy protection Nigeria 2020..2024
+
+- Context: "Adeyemi v. State (2021) LPELR-56034(SC)"
+  Output: Adeyemi v State 2021 Supreme Court Nigeria LPELR-56034
+
+- Context: "Section 254C of the 1999 Constitution gives NICN exclusive jurisdiction over employment matters"
+  Output: Section 254C 1999 Constitution NICN exclusive jurisdiction employment Nigeria
+
+Now generate the search query for the context above:`;
+
+    try {
+        const response = await convex.action(api.ai.generateContent, {
+            modelName: AI_CONFIG.gemini.defaultModel,
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.3,  // Low temperature for deterministic output
+                maxOutputTokens: 200,
+            },
+            firmGeminiApiKey: firmKey,
+        });
+
+        const candidate = response?.candidates?.[0];
+        const text = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
+
+        // Clean up — strip quotes, newlines, leading "Query:" labels
+        let query = text.trim()
+            .replace(/^["'`]+|["'`]+$/g, '')   // surrounding quotes
+            .replace(/^(query|search query|output)\s*[:\-]\s*/i, '')  // labels
+            .replace(/\s+/g, ' ')                // collapse whitespace
+            .trim();
+
+        // Cap at 200 chars (defensive — Gemini sometimes ignores maxOutputTokens)
+        if (query.length > 200) query = query.substring(0, 200);
+
+        return query;
+    } catch (e: any) {
+        console.warn('[generateResearchQuery] failed:', e.message);
+        // Fallback: use the raw context truncated
+        return context.substring(0, 120).replace(/\s+/g, ' ').trim();
+    }
+};

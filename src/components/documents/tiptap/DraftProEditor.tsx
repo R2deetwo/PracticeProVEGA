@@ -67,6 +67,7 @@ import { HeaderRenderer } from '../HeaderRenderer';
 import { HeaderDesigner } from '../HeaderDesigner';
 import PrintPreviewDrawer from './PrintPreviewDrawer';
 import { HeaderConfiguration } from '../../../types';
+import Tooltip from '../../Tooltip';
 
 // ─── Inline SVG Toolbar Icons (Heroicons 1.5px stroke — unified with constants.tsx) ───
 const Sparkles: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>;
@@ -400,6 +401,7 @@ const AutoPagination = Extension.create({
 // ─── Main Editor Component ───────────────────────────────────────────────────
 
 import * as aiService from '../../../services/aiService';
+import { installBeforeUnloadGuard, shouldBlockNavigation, openInNewTab, buildRouteUrlWithHashContext } from '../../../utils/tabNavigation';
 
 export interface DraftProEditorProps {
     initialContent?: string;
@@ -519,6 +521,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         return new CitationRegistry();
     });
     const [showCitationPanel, setShowCitationPanel] = useState(false);
+    // Prompt-First Research Pipeline: when the user clicks "Research" on a
+    // citation, we generate a search query via AI and show a loading state
+    // on the button. Once generated, we open Research in a new tab with the
+    // query PRE-FILLED (not auto-sent) — the user reviews and presses Enter.
+    const [generatingQueryForCite, setGeneratingQueryForCite] = useState<string | null>(null);
 
     // ─── AI Feature Pulse ────────────────────────────────────────────────
     // After a draft completes, briefly pulse the Redraft and Auto-Format
@@ -613,6 +620,27 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isHeaderDesignerOpen, setIsHeaderDesignerOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(true);
     const [placeholderCount, setPlaceholderCount] = useState(0);
+
+    // ─── Unsaved-changes Navigation Guardrail ──────────────────────────
+    // When the user has unsaved edits (`!isSaved`) and tries to:
+    //   (a) close the tab / refresh — `beforeunload` intercepts (browser native dialog)
+    //   (b) click the Back button / navigate in-app — custom modal intercepts
+    //       with [Save & Leave] [Leave Without Saving] [Stay on Page]
+    //
+    // `pendingNavTarget` is non-null while the modal is open. It holds the
+    // original navigation callback so we can fire it after the user chooses.
+    const [pendingNav, setPendingNav] = useState<{
+        kind: 'back' | 'research' | 'custom';
+        onConfirm: () => void;
+    } | null>(null);
+
+    // Install / uninstall the beforeunload listener based on dirty state.
+    // Modern browsers ignore the custom message — they show a generic
+    // "Changes you made may not be saved" dialog. We can't customise it.
+    useEffect(() => {
+        const cleanup = installBeforeUnloadGuard(!isSaved);
+        return cleanup;
+    }, [isSaved]);
 
     // Modals
     const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | 'redraft' | null>(null);
@@ -1071,6 +1099,168 @@ ${sourceList}
         }
     }, [editor, onSave, addToast]);
 
+    // ─── Navigation guard helpers ──────────────────────────────────────
+    // `attemptNavigation` checks the dirty state. If dirty, it opens the
+    // custom guard modal and stashes the navigation callback. If clean,
+    // it just fires the callback immediately.
+    const attemptNavigation = useCallback((kind: 'back' | 'research' | 'custom', onConfirm: () => void) => {
+        if (shouldBlockNavigation(!isSaved)) {
+            setPendingNav({ kind, onConfirm });
+        } else {
+            onConfirm();
+        }
+    }, [isSaved]);
+
+    // User clicked "Save & Leave" in the guard modal — save then navigate.
+    const confirmNavWithSave = useCallback(() => {
+        if (!editor) {
+            // No editor — just navigate
+            const cb = pendingNav?.onConfirm;
+            setPendingNav(null);
+            cb?.();
+            return;
+        }
+        try {
+            onSave?.(editor.getHTML());
+            setIsSaved(true);
+        } catch (e) {
+            console.error('[DraftPro] save before leave failed:', e);
+        }
+        const cb = pendingNav?.onConfirm;
+        setPendingNav(null);
+        cb?.();
+    }, [editor, onSave, pendingNav]);
+
+    // User clicked "Leave Without Saving" — just navigate.
+    const confirmNavWithoutSave = useCallback(() => {
+        const cb = pendingNav?.onConfirm;
+        setPendingNav(null);
+        cb?.();
+    }, [pendingNav]);
+
+    // User clicked "Stay on Page" — close modal, do nothing.
+    const cancelPendingNav = useCallback(() => {
+        setPendingNav(null);
+    }, []);
+
+    // ─── Prompt-First Research Pipeline ────────────────────────────────
+    // When the user clicks "Research" on a citation (or "Verify All"),
+    // we DON'T auto-start a research chat. Instead:
+    //   1. Generate an optimal web search query via Gemini
+    //   2. Open Research in a NEW tab with the query PRE-FILLED in the
+    //      chat input box (NOT auto-sent)
+    //   3. The user reviews, edits if needed, and presses Enter to run
+    //
+    // This keeps the lawyer in control — they curate the query before
+    // burning tokens on a wrong search.
+    const handleResearchCitation = useCallback(async (cite: any, allCitations?: any[]) => {
+        // Show loading state on this specific citation
+        setGeneratingQueryForCite(cite.id);
+        try {
+            // Persist draft before leaving (so user can come back)
+            try {
+                let html = '';
+                if (editor) html = editor.getHTML();
+                if (html && html !== '<p></p>' && persistDraftRef.current) {
+                    persistDraftRef.current(html, title || 'Untitled Draft', draftPrompt);
+                }
+            } catch { /* ignore getHTML errors */ }
+
+            // Build the context for the AI: the citation text + surrounding citations
+            const contextCitations = allCitations && allCitations.length > 0 ? allCitations : [cite];
+            const contextStr = contextCitations.map((c: any) =>
+                `[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`
+            ).join('\n');
+
+            // Generate the search query via Gemini (firm API key)
+            const { generateResearchQuery } = await import('../../../services/geminiService');
+            const query = await generateResearchQuery(
+                contextStr,
+                {
+                    hint: 'verify and find authoritative legal sources for this citation',
+                    jurisdiction: cite.jurisdiction || 'Nigeria',
+                    documentTitle: title || 'Untitled Document',
+                },
+                // firmDetails is in appState — pass it for the API key
+                (appState as any)?.firmDetails,
+            );
+
+            // Open Research in a new tab with the query PRE-FILLED
+            // (prefilledQuery flag tells ResearchChat to populate input
+            //  but NOT auto-send — user must press Enter)
+            const ctx = {
+                autoStartResearch: false,             // ← key change: do NOT auto-send
+                prefillQuery: query,                   // ← pre-fill the input
+                prefillContext: contextStr,            // ← context shown to user
+                documentTitle: title || 'Untitled Document',
+                sources: contextCitations,             // ← still create the notebook + sources
+                promptFirstMode: true,                 // ← enable the curated UI
+            };
+
+            const url = buildRouteUrlWithHashContext('research', ctx);
+            const opened = openInNewTab(url);
+            if (opened) {
+                addToast(`Generated search query — review & press Enter in the new tab.`, { type: 'success' });
+            } else {
+                // Fall back to in-place nav (mobile / popup blocked)
+                navigateTo('research', null, ctx);
+                addToast(`Generated search query — review & press Enter.`, { type: 'success' });
+            }
+        } catch (e: any) {
+            console.error('[Prompt-First Research] failed:', e);
+            addToast('Could not generate search query. Please try again.', { type: 'error' });
+        } finally {
+            setGeneratingQueryForCite(null);
+        }
+    }, [editor, title, draftPrompt, appState, addToast, navigateTo]);
+
+    // ─── Insert Citations into Document Footer ─────────────────────────
+    // Appends a "TABLE OF AUTHORITIES / AUTHORITIES CITED" section at the
+    // end of the document, listing all citations from the sidebar in a
+    // professional legal format. The section uses a page break + bold
+    // heading, matching the canvas's existing formatting.
+    //
+    // This is the "Insert into Canvas Footer" action from Part 3 spec.
+    const handleInsertCitationsToFooter = useCallback(() => {
+        if (!editor) {
+            addToast('Editor not ready.', { type: 'error' });
+            return;
+        }
+        const allCites = citationRegistry.getAll();
+        if (allCites.length === 0) {
+            addToast('No citations to insert.', { type: 'info' });
+            return;
+        }
+
+        try {
+            // Build the authorities section as HTML — matches the canvas
+            // formatting (bold heading, numbered list, consistent font).
+            // We use a page break first so the authorities start on a new page.
+            const authoritiesHtml = `
+<div style="page-break-before: always;"></div>
+<h2 style="text-align: center; font-weight: bold; text-decoration: underline; margin-top: 2rem; margin-bottom: 1.5rem;">TABLE OF AUTHORITIES</h2>
+<ol style="line-height: 1.8; padding-left: 1.5rem;">
+${allCites.map((c: any) => {
+    const citationLine = `[${c.number}] ${c.text}${c.url ? ` <em>(${c.url})</em>` : ''}${c.jurisdiction ? ` <strong>[${c.jurisdiction}]</strong>` : ''}`;
+    return `  <li style="margin-bottom: 0.5rem;">${citationLine}</li>`;
+}).join('\n')}
+</ol>
+<p style="margin-top: 2rem; font-style: italic; text-align: center; color: #6b7280; font-size: 0.85em;">Authorities cited in support of this document.</p>
+`;
+
+            // Move cursor to end of document, then insert the authorities
+            editor.chain().focus().setPageBreak().run();
+            // Insert the HTML content at the end
+            editor.chain().focus().insertContent(authoritiesHtml).run();
+            // Mark as unsaved (the user just added content)
+            setIsSaved(false);
+            addToast(`Inserted ${allCites.length} citation${allCites.length > 1 ? 's' : ''} into the document footer.`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[Insert Citations to Footer] failed:', e);
+            addToast('Could not insert citations — please try again.', { type: 'error' });
+        }
+    }, [editor, citationRegistry, addToast]);
+
     // ─── Save as DOCX/PDF and add to Documents section ──────────────────
     // Generates a DOCX or PDF file, uploads it to Convex storage, and
     // creates a Document record so it appears in the Documents section.
@@ -1401,16 +1591,17 @@ ${sourceList}
                         <>
                             <button
                                 onClick={() => {
-                                    // If we have a custom onBack handler (in-app nav), use it.
-                                    if (onBack) { onBack(); return; }
-                                    // Otherwise: if there's history in this tab, go back.
-                                    // If not (e.g. opened in a new tab via draftTabs), go to
-                                    // the dashboard so the user isn't stuck on the editor.
-                                    if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.origin)) {
-                                        window.history.back();
-                                    } else {
-                                        window.location.href = '/';
-                                    }
+                                    // Wrap the back navigation in the dirty-state guard.
+                                    // If unsaved changes exist, the guard modal opens with
+                                    // [Save & Leave] [Leave Without Saving] [Stay on Page].
+                                    attemptNavigation('back', () => {
+                                        if (onBack) { onBack(); return; }
+                                        if (window.history.length > 1 && document.referrer && document.referrer.includes(window.location.origin)) {
+                                            window.history.back();
+                                        } else {
+                                            window.location.href = '/';
+                                        }
+                                    });
                                 }}
                                 className="flex items-center gap-1 text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-white text-xs font-bold transition-colors"
                             >
@@ -2204,31 +2395,40 @@ ${sourceList}
                                 </button>
                             </div>
 
-                            {/* ─── Send to Research Center button ────────────── */}
+                            {/* ─── Prompt-First Research Pipeline button ──────
+                                Generates an AI search query from ALL citations,
+                                opens Research in a new tab with the query
+                                PRE-FILLED (not auto-sent). User reviews & Enter. */}
                             <div className="p-3 border-b border-slate-200 dark:border-zinc-800 bg-emerald-50/50 dark:bg-emerald-900/10">
                                 <button
                                     onClick={() => {
-                                        // Send all citations to the Research Center
-                                        // as sources for deeper analysis
-                                        const citations = citationRegistry.getAll();
-                                        const sourcesText = citations.map(c =>
-                                            `[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`
-                                        ).join('\n');
-                                        // Navigate to research with the sources + full context
-                                        navigateTo('research', null, {
-                                            autoStartResearch: true,
-                                            documentTitle: title || 'Untitled Document',
-                                            researchQuery: `Verify and validate the following ${citations.length} legal citation(s) from my draft "${title || 'Untitled Document'}":\n\n${sourcesText}`,
-                                            sources: citations,
+                                        const allCites = citationRegistry.getAll();
+                                        if (allCites.length === 0) return;
+                                        attemptNavigation('research', () => {
+                                            // Use the first citation as the primary anchor,
+                                            // but pass all citations as context.
+                                            handleResearchCitation(allCites[0], allCites);
                                         });
-                                        addToast(`Sent ${citations.length} source${citations.length > 1 ? 's' : ''} to Research Center for verification.`, { type: 'success' });
                                     }}
-                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm"
+                                    disabled={generatingQueryForCite !== null}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm disabled:opacity-60 disabled:cursor-wait"
                                 >
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                                    </svg>
-                                    Verify All Citations in Research
+                                    {generatingQueryForCite !== null ? (
+                                        <>
+                                            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            Generating search query…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                            </svg>
+                                            Research All Citations
+                                        </>
+                                    )}
                                 </button>
                             </div>
 
@@ -2237,26 +2437,92 @@ ${sourceList}
                                     <CitationCard
                                         key={cite.id}
                                         cite={cite}
+                                        isGeneratingQuery={generatingQueryForCite === cite.id}
                                         onSendToResearch={(c) => {
-                                            navigateTo('research', null, {
-                                                autoStartResearch: true,
-                                                documentTitle: title || 'Untitled Document',
-                                                researchQuery: `Verify this legal citation:\n\n[${c.number}] ${c.text}${c.url ? ` (${c.url})` : ''}${c.jurisdiction ? ` [${c.jurisdiction}]` : ''}`,
-                                                sources: [c],
+                                            attemptNavigation('research', () => {
+                                                handleResearchCitation(c);
                                             });
-                                            addToast(`Sent source [${c.number}] to Research Center for verification.`, { type: 'success' });
                                         }}
                                     />
                                 ))}
                             </div>
-                            <div className="p-3 border-t border-slate-200 dark:border-zinc-800">
+                            <div className="p-3 border-t border-slate-200 dark:border-zinc-800 space-y-2">
+                                {/* "Insert Citations into Document Footer" — polished footer button.
+                                    Per Part 3 spec: highly polished, prominent placement. */}
+                                <button
+                                    onClick={handleInsertCitationsToFooter}
+                                    disabled={!editor}
+                                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title="Insert all citations as a Table of Authorities at the end of your document"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                                    </svg>
+                                    Insert Citations into Document Footer
+                                </button>
                                 <p className="text-[10px] text-slate-500 dark:text-zinc-400 text-center">
-                                    Click a source for deeper insight · Citations referenced as [{citationRegistry.getAll().map((c: any) => c.number).join('], [')}]
+                                    Hover a source for actions · Citations referenced as [{citationRegistry.getAll().map((c: any) => c.number).join('], [')}]
                                 </p>
                             </div>
                         </div>
                     )}
                 </>
+            )}
+
+            {/* ── Unsaved-changes Navigation Guardrail Modal ──
+                Opens when the user tries to leave DraftPro (Back button,
+                navigation to Research, etc.) with unsaved edits.
+                Three options: Save & Leave, Leave Without Saving, Stay on Page. */}
+            {pendingNav && (
+                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+                    <div
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                        onClick={cancelPendingNav}
+                    />
+                    <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+                        {/* Warning icon */}
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
+                                    Unsaved Changes
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed">
+                                    You have unsaved edits on this draft. Save your document before leaving to prevent data loss.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Action buttons — Save & Leave is the primary CTA */}
+                        <div className="flex flex-col gap-2 mt-5">
+                            <button
+                                onClick={confirmNavWithSave}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98]"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21a3 3 0 003-3v-4.5a3 3 0 00-3-3h-15a3 3 0 00-3 3V18a3 3 0 003 3h15zM1.5 10.5a3 3 0 013-3h15a3 3 0 013 3M1.5 10.5V18a3 3 0 003 3h15a3 3 0 003-3v-7.5M1.5 10.5V6a3 3 0 013-3h15a3 3 0 013 3v4.5" />
+                                </svg>
+                                Save &amp; Leave
+                            </button>
+                            <button
+                                onClick={confirmNavWithoutSave}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-lg text-sm font-bold border border-slate-200 dark:border-zinc-700 transition-all active:scale-[0.98]"
+                            >
+                                Leave Without Saving
+                            </button>
+                            <button
+                                onClick={cancelPendingNav}
+                                className="w-full px-4 py-2 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded-lg text-xs font-semibold transition-colors"
+                            >
+                                Stay on Page
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ── In-App Modals ── */}
@@ -2764,11 +3030,103 @@ ${sourceList}
     );
 };
 
+// ─── Citation Completeness Checker ─────────────────────────────────────
+// Parses a citation string and checks for missing metadata that a
+// professional legal citation should contain. Returns a list of
+// missing fields with descriptions.
+//
+// Supports three citation styles:
+//   1. Bluebook (US): <Party v. Party>, <Volume> <Reporter> <Page> (<Court> <Year>)
+//   2. OSCOLA (UK): <Party v Party> [<Year>] <Volume> <Reporter> <Page>
+//   3. Nigerian NWLR: <Party v. Party> (<Year>) <Volume> NWLR (Pt. <N>) <Page>
+//   4. LPELR format: <Party v. Party> (<Year>) LPELR-<N> (<Court>)
+//
+// Returns [] if no issues, or an array of {field, message} objects.
+
+interface CitationIssue {
+    field: string;
+    message: string;
+}
+
+function checkCitationCompleteness(text: string): CitationIssue[] {
+    const issues: CitationIssue[] = [];
+    const t = (text || '').trim();
+    if (!t) {
+        issues.push({ field: 'empty', message: 'Citation text is empty.' });
+        return issues;
+    }
+
+    // Year detection — most legal citations must include a year.
+    // Matches 4-digit years 19xx or 20xx, optionally in brackets/parens.
+    const yearMatch = t.match(/(?:\[|\(|\b)(19|20)\d{2}(?:\]|\)|\b)/);
+    if (!yearMatch) {
+        issues.push({ field: 'year', message: 'Citation lacks a year — legal citations should include the year of decision.' });
+    }
+
+    // Volume / part number detection
+    // Nigerian NWLR: "Volume NWLR (Pt. N)"  →  e.g. "15 NWLR (Pt. 789)"
+    // OSCOLA: "[Year] Volume Reporter Page"
+    // Bluebook: "Volume Reporter Page"
+    // LPELR: "LPELR-NNNNN"
+    const hasVolume = /\b\d{1,4}\s+(?:NWLR|SC|LR|All\s*ER|AC|QB|WLR|F\s*Supp|NMLR|QdLRN|JLRN|PLC|AELR)\b/i.test(t);
+    const hasLPELR = /LPELR[-\s]?\d{3,}/i.test(t);
+    const hasPartNumber = /\bPt\.?\s*\d+/i.test(t);
+    if (!hasVolume && !hasLPELR && !hasPartNumber) {
+        // Try a generic "Volume Reporter" pattern (digits + uppercase word)
+        const hasGenericVol = /\b\d{1,4}\s+[A-Z]{2,}/.test(t);
+        if (!hasGenericVol) {
+            issues.push({ field: 'volume', message: 'Citation lacks volume/reporter number — verify the reporter citation (e.g., "15 NWLR (Pt. 789) 123" or "LPELR-12345").' });
+        }
+    }
+
+    // Page number detection — the trailing number after the volume
+    // e.g. "15 NWLR (Pt. 789) 123" — the "123" is the page
+    // e.g. "[2024] 1 All ER 567" — the "567" is the page
+    const hasPageNumber = /\)\s*\d{1,4}\b/.test(t) || /\b\d{1,4}\s+[A-Z]{2,}.*?\s\d{1,4}\b/.test(t);
+    if (!hasPageNumber && !hasLPELR) {
+        // For case citations, page is essential. For statute citations, it may not be.
+        const isStatute = /Act|Law|Code|Constitution|Section|Regulation/i.test(t);
+        if (!isStatute) {
+            issues.push({ field: 'page', message: 'Citation lacks a page number — case citations should include the starting page (e.g., "... 123").' });
+        }
+    }
+
+    // Court detection — Nigerian citations often include (SC), (CA), (FHC), (HC)
+    // Bluebook/OSCOLA include court names like "Supreme Court", "Court of Appeal"
+    const courtPatterns = /\b(?:SC|CA|FHC|HC|NICN|SCN|CCA|SCA)\b|\b(?:Supreme Court|Court of Appeal|Federal High Court|High Court|Industrial Court|Magistrate Court)\b/i;
+    if (!courtPatterns.test(t)) {
+        // Only flag if there's no obvious court indicator
+        const hasCourtName = /court|tribunal/i.test(t);
+        if (!hasCourtName) {
+            issues.push({ field: 'court', message: 'Citation lacks the court identifier — add (SC), (CA), (FHC) or the full court name.' });
+        }
+    }
+
+    // "v." / "vs." for case citations — if it looks like a case but lacks "v."
+    const looksLikeCase = /\b[A-Z][a-z]+\s+(?:v\.?|vs\.?)\s+[A-Z]/.test(t);
+    const looksLikeCaseWithoutV = /\b[A-Z][a-z]+\s+(?:and|&)\s+[A-Z]/.test(t);
+    if (looksLikeCaseWithoutV && !looksLikeCase) {
+        issues.push({ field: 'parties', message: 'Citation uses "and" or "&" between parties — case citations should use "v." (e.g., "Adeyemi v. State").' });
+    }
+
+    // URL check — if the citation is just a URL, flag missing case name
+    if (/^https?:\/\//i.test(t) && !looksLikeCase) {
+        issues.push({ field: 'parties', message: 'Citation is a URL only — add the case name and full citation.' });
+    }
+
+    return issues;
+}
+
 // ─── CitationCard ──────────────────────────────────────────────────────────
 // A clickable citation card that expands to show deeper insight.
 // When clicked, it fetches the source URL (if available) and shows
 // the actual web content — giving the user real insight into the source.
-// Also includes "Send to Research" for further analysis.
+//
+// Slimline design per Part 3 spec:
+//   - Subtle borders, muted colours
+//   - Hover-reveal action buttons (no persistent "Research" button)
+//   - Citation completeness checker with muted orange dot warning
+//   - Expanded view shows the insight + actions
 
 interface CitationCardProps {
     cite: {
@@ -2780,13 +3138,19 @@ interface CitationCardProps {
         jurisdiction?: string;
     };
     onSendToResearch: (cite: any) => void;
+    /** When true, shows a "Generating query…" spinner on the Research button. */
+    isGeneratingQuery?: boolean;
 }
 
-const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch }) => {
+const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isGeneratingQuery }) => {
     const [expanded, setExpanded] = useState(false);
     const [loading, setLoading] = useState(false);
     const [insight, setInsight] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Run the completeness check ONCE on mount (memoised) — it doesn't
+    // change unless the citation text changes.
+    const issues = useMemo(() => checkCitationCompleteness(cite.text), [cite.text]);
 
     const handleClick = async () => {
         if (!expanded && !insight && cite.url) {
@@ -2814,43 +3178,123 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch }) =
     };
 
     return (
-        <div className={`rounded-lg border transition-all cursor-pointer ${expanded ? 'bg-white dark:bg-zinc-800 border-emerald-300 dark:border-emerald-700 shadow-md' : 'bg-slate-50 dark:bg-zinc-800/50 border-slate-200 dark:border-zinc-700 hover:border-emerald-300 dark:hover:border-emerald-700'}`}
+        <div
+            className={`group relative rounded-md border transition-all cursor-pointer
+                ${expanded
+                    ? 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 shadow-sm'
+                    : 'bg-white dark:bg-zinc-800/60 border-slate-200 dark:border-zinc-700/60 hover:border-slate-300 dark:hover:border-zinc-600 hover:shadow-sm'
+                }`}
             onClick={handleClick}
         >
-            <div className="p-3">
+            <div className="p-2.5">
                 <div className="flex items-start gap-2">
-                    <span className="flex-shrink-0 w-6 h-6 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 rounded-full flex items-center justify-center text-xs font-bold">
+                    {/* Citation number badge — slimmer, more muted */}
+                    <span className="flex-shrink-0 w-5 h-5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded text-[10px] font-bold flex items-center justify-center mt-0.5">
                         {cite.number}
                     </span>
+
                     <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-slate-900 dark:text-white leading-relaxed">{cite.text}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-200 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">
+                        {/* Citation text — slightly smaller, more readable */}
+                        <p className="text-[11px] font-medium text-slate-800 dark:text-zinc-100 leading-relaxed pr-1">{cite.text}</p>
+
+                        {/* Metadata row — compact */}
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                            <span className="text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-700/80 text-slate-500 dark:text-zinc-400">
                                 {cite.type}
                             </span>
                             {cite.jurisdiction && (
-                                <span className="text-[9px] font-medium text-slate-500 dark:text-zinc-400">
+                                <span className="text-[8px] font-medium text-slate-400 dark:text-zinc-500">
                                     {cite.jurisdiction}
                                 </span>
                             )}
-                            {cite.url && (
-                                <span className="text-[9px] text-blue-600 dark:text-blue-400 truncate max-w-[120px]">
-                                    {cite.url}
-                                </span>
+
+                            {/* Citation Completeness Indicator — muted orange dot */}
+                            {issues.length > 0 && (
+                                <Tooltip text={issues.map(i => `⚠️ ${i.message}`).join('\n')}>
+                                    <span
+                                        className="inline-flex items-center justify-center w-3 h-3 cursor-help"
+                                        title={issues.map(i => i.message).join('\n')}
+                                        aria-label={`Citation has ${issues.length} completeness issue${issues.length > 1 ? 's' : ''}`}
+                                    >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500 animate-pulse" />
+                                    </span>
+                                </Tooltip>
                             )}
-                            <svg className={`w-3 h-3 text-slate-400 transition-transform ml-auto ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+
+                            {/* Expand chevron — auto-pushed to right */}
+                            <svg className={`w-3 h-3 text-slate-300 dark:text-zinc-600 transition-transform ml-auto ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                             </svg>
                         </div>
+
+                        {/* Hover-reveal action buttons — appear on hover OR when expanded.
+                            Per Part 3 spec: no persistent buttons. */}
+                        {(expanded) && (
+                            <div className="flex gap-1.5 mt-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                                {cite.url && (
+                                    <a
+                                        href={cite.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-slate-50 dark:bg-zinc-700/50 text-slate-600 dark:text-zinc-300 rounded text-[9px] font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors border border-slate-200 dark:border-zinc-700"
+                                        title="Open source URL in a new tab"
+                                    >
+                                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                        </svg>
+                                        Open
+                                    </a>
+                                )}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onSendToResearch(cite); }}
+                                    disabled={isGeneratingQuery}
+                                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded text-[9px] font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800/50 disabled:opacity-60 disabled:cursor-wait"
+                                    title="Generate a research query and open Research in a new tab"
+                                >
+                                    {isGeneratingQuery ? (
+                                        <>
+                                            <svg className="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            Generating…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                            </svg>
+                                            Research
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Expanded insight panel */}
+            {/* Expanded insight panel — slimmer, more refined */}
             {expanded && (
-                <div className="px-3 pb-3 pt-1 border-t border-slate-100 dark:border-zinc-700 space-y-3">
+                <div className="px-2.5 pb-2.5 pt-1 border-t border-slate-100 dark:border-zinc-700/60 space-y-2">
+                    {/* Completeness warnings — show in expanded view */}
+                    {issues.length > 0 && (
+                        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded p-1.5">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Citation Completeness</p>
+                            <ul className="space-y-0.5">
+                                {issues.map((issue, i) => (
+                                    <li key={i} className="text-[9px] text-amber-700 dark:text-amber-300 flex items-start gap-1">
+                                        <span className="text-amber-500 mt-0.5">⚠</span>
+                                        <span className="flex-1">{issue.message}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     {loading && (
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400 py-2">
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400 py-1">
                             <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -2864,38 +3308,11 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch }) =
                     )}
 
                     {insight && (
-                        <div className="bg-slate-50 dark:bg-zinc-900/50 rounded-md p-2.5 max-h-48 overflow-y-auto custom-scrollbar">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1.5">Source Content</p>
+                        <div className="bg-slate-50 dark:bg-zinc-900/50 rounded p-2 max-h-40 overflow-y-auto custom-scrollbar">
+                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Source Content</p>
                             <p className="text-[10px] text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{insight}</p>
                         </div>
                     )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2">
-                        {cite.url && (
-                            <a
-                                href={cite.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-md text-[10px] font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
-                            >
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                                </svg>
-                                Open URL
-                            </a>
-                        )}
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onSendToResearch(cite); }}
-                            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded-md text-[10px] font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
-                        >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                            </svg>
-                            Research
-                        </button>
-                    </div>
                 </div>
             )}
         </div>
