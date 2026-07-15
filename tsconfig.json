@@ -28,6 +28,14 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "codebase_audit",
+    "examples",
+    "scripts",
+    "download",
+    "src/app",
+    "next.config.ts.bak",
+    "git_check.ts",
+    "middleware.ts"
   ]
 }
