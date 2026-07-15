@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && node scripts/mark-healthy.cjs",
+  "buildCommand": "node scripts/generate-version-manifest.cjs && npx vite build && node scripts/mark-healthy.cjs",
   "installCommand": "npm install",
   "outputDirectory": "dist",
   "framework": "vite",
