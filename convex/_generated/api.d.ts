@@ -13,6 +13,7 @@ import type * as analytics from "../analytics.js";
 import type * as auditLog from "../auditLog.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
+import type * as backups from "../backups.js";
 import type * as brainIngestion from "../brainIngestion.js";
 import type * as communications from "../communications.js";
 import type * as conversationMemory from "../conversationMemory.js";
@@ -41,7 +42,10 @@ import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as test from "../test.js";
 import type * as tierLimits from "../tierLimits.js";
+import type * as trustAccount from "../trustAccount.js";
 import type * as validation from "../validation.js";
+import type * as visitorManagement from "../visitorManagement.js";
+import type * as webFetch from "../webFetch.js";
 
 import type {
   ApiFromModules,
@@ -55,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   auditLog: typeof auditLog;
   authHelpers: typeof authHelpers;
   authUtils: typeof authUtils;
+  backups: typeof backups;
   brainIngestion: typeof brainIngestion;
   communications: typeof communications;
   conversationMemory: typeof conversationMemory;
@@ -83,7 +88,10 @@ declare const fullApi: ApiFromModules<{
   sentryWebhook: typeof sentryWebhook;
   test: typeof test;
   tierLimits: typeof tierLimits;
+  trustAccount: typeof trustAccount;
   validation: typeof validation;
+  visitorManagement: typeof visitorManagement;
+  webFetch: typeof webFetch;
 }>;
 
 /**

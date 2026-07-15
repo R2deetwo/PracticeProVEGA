@@ -1897,10 +1897,8 @@ export const fixProductMode = mutation({
     if (!identity) {
       throw new Error("Not authenticated");
     }
-    const user = await ctx.db
-      .query("users")
-      .withIndex("email", (q) => q.eq("email", identity.email!))
-      .first();
+    const allUsers = await ctx.db.query("users").take(500);
+    const user = allUsers.find((u: any) => u.tokenIdentifier?.toLowerCase() === identity.email!.toLowerCase());
     if (!user || user.firmId !== args.firmId) {
       throw new Error("Not authorized to modify this firm");
     }
@@ -1917,7 +1915,7 @@ export const fixProductMode = mutation({
     // Also update all users in this firm to match
     const firmUsers = await ctx.db
       .query("users")
-      .withIndex("firmId", (q) => q.eq("firmId", args.firmId))
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .collect();
     for (const u of firmUsers) {
       await ctx.db.patch(u._id, { product: args.product });
