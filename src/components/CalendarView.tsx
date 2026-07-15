@@ -281,18 +281,31 @@ interface DiaryModeViewProps {
 }
 
 const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tasks, openModal, eventTypes, users }) => {
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    // ─── CRITICAL: Use LOCAL date string, NOT UTC ────────────────────
+    // toISOString().split('T')[0] converts to UTC first, which shifts
+    // the date forward/backward depending on timezone offset. For example,
+    // a 9:00 AM event on Wednesday July 1 in Lagos (UTC+1) becomes
+    // 8:00 AM UTC — still July 1. But an event at 11:30 PM July 1 local
+    // becomes 10:30 PM UTC July 1 — fine. The REAL problem is when the
+    // SELECTED DATE is converted to UTC: July 1 00:00 local becomes
+    // June 30 23:00 UTC, so dateStr = "2026-06-30" instead of "2026-07-01".
+    // This causes the diary to show the WRONG day's events.
+    //
+    // FIX: Use toLocaleDateString('en-CA') which produces 'YYYY-MM-DD'
+    // in LOCAL time — same approach as getEventsForDay() below.
+    const dateStr = selectedDate.toLocaleDateString('en-CA');
 
-    // Filter events and tasks for the selected date
+    // Filter events and tasks for the selected date using LOCAL date comparison
     const dayEvents = events.filter(e => {
-        const eventDate = typeof e.date === 'string' ? e.date.split('T')[0] : new Date(e.date).toISOString().split('T')[0];
-        return eventDate === dateStr;
+        if (!e.date) return false;
+        const eventDate = new Date(e.date);
+        return eventDate.toLocaleDateString('en-CA') === dateStr;
     });
 
     const dayTasks = tasks.filter(t => {
         if (!t.dueDate) return false;
-        const taskDate = typeof t.dueDate === 'string' ? t.dueDate.split('T')[0] : new Date(t.dueDate).toISOString().split('T')[0];
-        return taskDate === dateStr;
+        const taskDate = new Date(t.dueDate);
+        return taskDate.toLocaleDateString('en-CA') === dateStr;
     });
 
     // Categorize events
@@ -331,9 +344,17 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
         </div>
     );
 
-    const EmptySection: React.FC<{ message: string }> = ({ message }) => (
-        <div className="pl-3.5 py-2 text-xs text-slate-400 dark:text-zinc-500 italic border-l border-slate-100 dark:border-zinc-800 ml-1">
-            {message}
+    const EmptySection: React.FC<{ message: string; onAdd?: () => void; addLabel?: string }> = ({ message, onAdd, addLabel }) => (
+        <div className="ml-1 p-4 rounded-lg bg-slate-50 dark:bg-zinc-800/30 border border-dashed border-slate-200 dark:border-zinc-700">
+            <p className="text-xs text-slate-400 dark:text-zinc-500 italic mb-2">{message}</p>
+            {onAdd && addLabel && (
+                <button
+                    onClick={onAdd}
+                    className="text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                    + {addLabel}
+                </button>
+            )}
         </div>
     );
 
@@ -351,7 +372,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                 {/* 1. Court Appearances & Fixtures */}
                 <SectionHeader title="Court Appearances & Fixtures" count={courtAppearances.length} color="bg-red-500" />
                 {courtAppearances.length === 0 ? (
-                    <EmptySection message="No court appearances scheduled for today." />
+                    <EmptySection message="No court appearances scheduled for today." onAdd={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })} addLabel="Add Court Appearance" />
                 ) : (
                     <div className="space-y-2">
                         {courtAppearances.map(event => (
@@ -373,7 +394,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                 {/* 2. Statutory Deadlines */}
                 <SectionHeader title="Statutory Deadlines" count={deadlines.length} color="bg-amber-500" />
                 {deadlines.length === 0 ? (
-                    <EmptySection message="No statutory deadlines due today." />
+                    <EmptySection message="No statutory deadlines due today." onAdd={() => openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })} addLabel="Add Deadline" />
                 ) : (
                     <div className="space-y-2">
                         {deadlines.map(task => (
@@ -394,7 +415,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                 {/* 3. Office Tasks & Client Consultations */}
                 <SectionHeader title="Office Tasks & Client Consultations" count={officeTasks.length + consultations.length} color="bg-blue-500" />
                 {officeTasks.length === 0 && consultations.length === 0 ? (
-                    <EmptySection message="No tasks or consultations scheduled for today." />
+                    <EmptySection message="No tasks or consultations scheduled for today." onAdd={() => openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })} addLabel="Add Consultation" />
                 ) : (
                     <div className="space-y-2">
                         {consultations.map(event => (
