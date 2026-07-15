@@ -68,6 +68,10 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     const isImage = file.type?.startsWith('image/');
     const isPdf = file.type === 'application/pdf';
+    const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                   file.type === 'application/msword' ||
+                   file.name?.toLowerCase().endsWith('.docx') ||
+                   file.name?.toLowerCase().endsWith('.doc');
 
     // Loading state for PDFs while preparation is happening
     if (isPdf && !blobUrl) {
@@ -122,6 +126,11 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
         );
     }
 
+    // ─── DOCX Preview (Part 2: High-fidelity DOCX rendering via mammoth.js) ──
+    if (isDocx) {
+        return <DocxPreview file={file} activeUrl={activeUrl} />;
+    }
+
     return (
         <div className="text-center p-12 bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-slate-200 shadow-sm w-full flex flex-col items-center justify-center min-h-[400px]">
             <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-full mb-4"><DocumentIcon className="w-10 h-10 text-slate-400" /></div>
@@ -130,6 +139,88 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
             <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
                 <DownloadIcon className="w-5 h-5" /> Download for Full Access
             </a>
+        </div>
+    );
+};
+
+// ─── DOCX Preview Component (Part 2) ─────────────────────────────────
+// Uses mammoth.js to convert .docx → HTML for in-app preview.
+// Renders with professional document CSS: Times New Roman, proper
+// margins, page-like white sheet, and responsive width.
+const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeUrl }) => {
+    const [html, setHtml] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadDocx = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                // Fetch the file as ArrayBuffer
+                const response = await fetch(activeUrl);
+                const arrayBuffer = await response.arrayBuffer();
+                // Use mammoth to convert to HTML
+                const mammoth = await import('mammoth');
+                const result = await mammoth.convertToHtml({ arrayBuffer });
+                if (!cancelled && result.value) {
+                    setHtml(result.value);
+                }
+            } catch (e: any) {
+                if (!cancelled) {
+                    console.error('[DocxPreview] mammoth conversion failed:', e);
+                    setError(e.message || 'Could not preview this document.');
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        if (activeUrl) loadDocx();
+        return () => { cancelled = true; };
+    }, [activeUrl]);
+
+    if (loading) {
+        return (
+            <div className="w-full min-h-[400px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg flex flex-col items-center justify-center border border-slate-200">
+                <div className="relative w-12 h-12 mb-4">
+                    <div className="absolute inset-0 border-4 border-slate-100 dark:border-zinc-700 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-primary-600 rounded-full border-t-transparent animate-spin" />
+                </div>
+                <p className="text-slate-500 font-medium text-sm">Converting document for preview…</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center p-12 bg-white dark:bg-zinc-800 rounded-2xl border-2 border-dashed border-slate-200 shadow-sm w-full flex flex-col items-center justify-center min-h-[400px]">
+                <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-full mb-4"><DocumentIcon className="w-10 h-10 text-slate-400" /></div>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">{file.name}</h3>
+                <p className="text-sm text-slate-500 mb-6">Preview unavailable: {error}</p>
+                <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
+                    <DownloadIcon className="w-5 h-5" /> Download for Full Access
+                </a>
+            </div>
+        );
+    }
+
+    return (
+        <div className="w-full">
+            <div
+                className="bg-white dark:bg-white rounded-xl shadow-lg border border-slate-200 overflow-x-auto mx-auto"
+                style={{ maxWidth: '210mm', minHeight: '297mm', padding: '25mm 25mm 20mm 25mm' }}
+            >
+                <div
+                    className="prose prose-sm max-w-none text-slate-900"
+                    style={{
+                        fontFamily: "'Times New Roman', serif",
+                        fontSize: '12pt',
+                        lineHeight: '1.5',
+                    }}
+                    dangerouslySetInnerHTML={{ __html: html || '<p>No content.</p>' }}
+                />
+            </div>
         </div>
     );
 };

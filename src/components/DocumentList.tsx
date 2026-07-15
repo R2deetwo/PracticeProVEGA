@@ -59,80 +59,183 @@ const DocumentRow: React.FC<{
     const uploadedByClient = uploader?.role === UserRole.Client;
     const fileName = doc.file?.name || doc.title;
     const fileType = doc.file?.type;
+    const [showBottomSheet, setShowBottomSheet] = useState(false);
 
     return (
-        <div
-            onClick={() => onViewDetails(doc.id)}
-            className="flex items-start gap-2 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
-        >
-            <div className="flex items-start gap-3 min-w-0 flex-1">
-                <div className="relative flex-shrink-0 mt-0.5">
-                    {getFileIcon(fileName, fileType)}
-                    {uploadedByClient && (
-                        <div className="absolute -top-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-0.5 shadow-sm">
-                            <UserUploadIcon className="w-3 h-3 text-primary-500" />
-                        </div>
-                    )}
-                    {doc.analysisState === 'complete' && (
-                        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 shadow-sm animate-pulse border-2 border-white dark:border-zinc-900" title="Analysis Complete">
-                            <SparklesIcon className="w-2.5 h-2.5 text-white" />
-                        </div>
-                    )}
-                </div>
-                <div className="min-w-0 flex-1 overflow-hidden">
-                    <Tooltip text={doc.title}>
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
-                    </Tooltip>
-                    <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
-                        <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
-                        {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
-                        {doc.isCourtProcess && (
-                            <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
-                                doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
-                                    doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
-                                        'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
-                                }`}>
-                                {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
-                                    doc.litigationStatus === 'served' ? 'Served' :
-                                        doc.litigationStatus === 'filed' ? 'Filed' : 'Drafting'}
-                            </span>
+        <>
+            <div
+                onClick={() => onViewDetails(doc.id)}
+                className="flex items-start gap-2 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border border-transparent hover:border-slate-200 dark:hover:border-zinc-700"
+            >
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="relative flex-shrink-0 mt-0.5">
+                        {getFileIcon(fileName, fileType)}
+                        {uploadedByClient && (
+                            <div className="absolute -top-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-0.5 shadow-sm">
+                                <UserUploadIcon className="w-3 h-3 text-primary-500" />
+                            </div>
                         )}
-                    </p>
+                        {doc.analysisState === 'complete' && (
+                            <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 shadow-sm animate-pulse border-2 border-white dark:border-zinc-900" title="Analysis Complete">
+                                <SparklesIcon className="w-2.5 h-2.5 text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                        <Tooltip text={doc.title}>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
+                        </Tooltip>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
+                            <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
+                            {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
+                            {doc.isCourtProcess && (
+                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
+                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
+                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
+                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
+                                    }`}>
+                                    {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
+                                        doc.litigationStatus === 'served' ? 'Served' :
+                                            doc.litigationStatus === 'filed' ? 'Filed' : 'Drafting'}
+                                </span>
+                            )}
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            {/* Action buttons — flex-shrink-0 ensures they never get squeezed.
-                On very narrow screens they wrap below the title instead of overlapping. */}
-            <div className="flex items-center gap-0.5 flex-shrink-0 flex-wrap justify-end">
-                <Tooltip text="View">
-                    <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
-                        <EyeIcon className="w-4 h-4" />
-                    </button>
-                </Tooltip>
-                {doc.file && (
-                    <Tooltip text="Download">
-                        <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
-                            <DownloadIcon className="w-4 h-4" />
+                {/* Desktop: inline action buttons (hidden on mobile) */}
+                <div className="hidden md:flex items-center gap-0.5 flex-shrink-0 flex-wrap justify-end">
+                    <Tooltip text="View">
+                        <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
+                            <EyeIcon className="w-4 h-4" />
                         </button>
                     </Tooltip>
-                )}
-                <Tooltip text="Share">
-                    <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
-                        <ShareIcon className="w-4 h-4" />
-                    </button>
-                </Tooltip>
-                <Tooltip text="Edit">
-                    <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
-                        <EditIcon className="w-4 h-4" />
-                    </button>
-                </Tooltip>
-                <Tooltip text="Delete">
-                    <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                        <TrashIcon className="w-4 h-4" />
-                    </button>
-                </Tooltip>
+                    {doc.file && (
+                        <Tooltip text="Download">
+                            <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
+                                <DownloadIcon className="w-4 h-4" />
+                            </button>
+                        </Tooltip>
+                    )}
+                    <Tooltip text="Share">
+                        <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                            <ShareIcon className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Edit">
+                        <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                            <EditIcon className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
+                    <Tooltip text="Delete">
+                        <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                            <TrashIcon className="w-4 h-4" />
+                        </button>
+                    </Tooltip>
+                </div>
+
+                {/* Mobile: kebab menu (hidden on desktop) */}
+                <button
+                    onClick={(e) => { e.stopPropagation(); setShowBottomSheet(true); }}
+                    className="md:hidden flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                    aria-label="More options"
+                >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
+                    </svg>
+                </button>
             </div>
-        </div>
+
+            {/* Mobile Bottom Sheet */}
+            {showBottomSheet && (
+                <div className="md:hidden fixed inset-0 z-[2000] flex items-end justify-center animate-in fade-in duration-200">
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => setShowBottomSheet(false)}
+                    />
+                    <div className="relative z-10 w-full bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-slate-200 dark:border-zinc-700 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+                        {/* Drag handle */}
+                        <div className="flex justify-center pt-3 pb-1">
+                            <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-600" />
+                        </div>
+
+                        {/* File info header */}
+                        <div className="px-5 py-3 border-b border-slate-100 dark:border-zinc-800">
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{doc.title}</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                {new Date(doc.dateFiled).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                {doc.file && <span> • {formatBytes(doc.file.size)}</span>}
+                            </p>
+                        </div>
+
+                        {/* Action items */}
+                        <div className="py-2">
+                            <button
+                                onClick={() => { setShowBottomSheet(false); onViewDetails(doc.id); }}
+                                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-zinc-800 flex items-center justify-center flex-shrink-0">
+                                    <EyeIcon className="w-5 h-5 text-slate-600 dark:text-zinc-300" />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Preview Document</span>
+                            </button>
+
+                            <button
+                                onClick={() => { setShowBottomSheet(false); onEdit(doc); }}
+                                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                                    <EditIcon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Edit in DraftPro</span>
+                            </button>
+
+                            {doc.file && (
+                                <button
+                                    onClick={() => { setShowBottomSheet(false); onDownload(doc); }}
+                                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                        <DownloadIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Download File</span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => { setShowBottomSheet(false); onShare(doc); }}
+                                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                                    <ShareIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <span className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Share Link</span>
+                            </button>
+
+                            <button
+                                onClick={() => { setShowBottomSheet(false); onDelete(doc); }}
+                                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                                    <TrashIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+                                </div>
+                                <span className="text-sm font-semibold text-red-600 dark:text-red-400">Delete Document</span>
+                            </button>
+                        </div>
+
+                        {/* Cancel button */}
+                        <div className="p-3 border-t border-slate-100 dark:border-zinc-800">
+                            <button
+                                onClick={() => setShowBottomSheet(false)}
+                                className="w-full py-3 text-sm font-bold text-slate-500 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-800 rounded-xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -283,6 +386,31 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+    };
+
+    // Part 3: Edit in DraftPro — DOCX files open in DraftPro editor,
+    // other files open the edit metadata modal
+    const handleEditDoc = (doc: Document) => {
+        const isDocx = doc.file?.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                       doc.file?.name?.toLowerCase().endsWith('.docx');
+        if (isDocx && doc.file?.storageId) {
+            // Open DraftPro in a new tab with the DOCX file ID
+            const draftKey = `draft:docx:${doc.id}`;
+            const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(doc.title)}&fileId=${encodeURIComponent(doc.file.storageId)}&type=docx`;
+            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                window.open(url, '_blank', 'noopener');
+            } else {
+                navigateTo('editor', null, {
+                    draftTitle: doc.title,
+                    draftContent: doc.content || '',
+                    disableAutoDraft: true,
+                    openedByAloa: false,
+                });
+            }
+        } else {
+            // Non-DOCX files: open the edit metadata modal (existing behavior)
+            openModal('editDocument', doc.id);
         }
     };
 
@@ -506,7 +634,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                     documents={groupedDocuments.groups[matterName].docs}
                                                     onViewDetails={onViewDetails}
                                                     onDownload={handleDownload}
-                                                    onEdit={(d: any) => openModal('editDocument', d.id)}
+                                                    onEdit={handleEditDoc}
                                                     onShare={(d: any) => openModal('shareDocument', d.id)}
                                                     onDelete={handleDelete}
                                                     onUpload={triggerUpload}
@@ -524,7 +652,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                                 users={[]}
                                                                 onViewDetails={onViewDetails}
                                                                 onDownload={handleDownload}
-                                                                onEdit={(d) => openModal('editDocument', d.id)}
+                                                                onEdit={handleEditDoc}
                                                                 onShare={(d) => openModal('shareDocument', d.id)}
                                                                 onDelete={handleDelete}
                                                             />
@@ -542,7 +670,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                     users={[]}
                                                     onViewDetails={onViewDetails}
                                                     onDownload={handleDownload}
-                                                    onEdit={(d) => openModal('editDocument', d.id)}
+                                                    onEdit={handleEditDoc}
                                                     onShare={(d) => openModal('shareDocument', d.id)}
                                                     onDelete={handleDelete}
                                                 />
