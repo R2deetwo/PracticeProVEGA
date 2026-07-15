@@ -126,9 +126,10 @@ export function classifyCitation(text: string): CitationClass {
     }
 
     // ─── 6. Secondary Source ─────────────────────────────────────────
-    // Trigger: textbook, journal, article, commentary
+    // Trigger: textbook, journal, article, commentary, or academic markers
     if (/\b(?:textbook|journal|article|commentary|treatise|monograph)\b/i.test(t) ||
-        /\b(?:ed\.|eds\.|vol\.|pp\.)\b/i.test(t)) {
+        /(?:\bed\.|eds\.|vol\.|pp\.|p\.)/i.test(t) ||
+        /\b\d+(?:st|nd|rd|th)\s+ed\b/i.test(t)) {
         return 'secondary';
     }
 

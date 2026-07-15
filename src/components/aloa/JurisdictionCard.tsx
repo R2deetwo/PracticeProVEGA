@@ -41,6 +41,14 @@ export interface JurisdictionCardProps {
   onJurisdictionChange?: (newCourt: string, newJurisdiction: string, newReasoning: string) => void;
   /** Whether the jurisdiction is locked (user already set it this session) */
   locked?: boolean;
+  /**
+   * PART 7: Matter type — determines whether to show court venue selector
+   * (litigation-track) or regulatory framework panel (advisory/transactional).
+   * If 'litigation', shows the State + Court Tier selector.
+   * If 'regulatory', shows the regulatory framework panel (no court selector).
+   * If undefined, defaults to court venue (backward compatible).
+   */
+  track?: 'litigation' | 'regulatory';
 }
 
 export function JurisdictionCard({
@@ -53,6 +61,7 @@ export function JurisdictionCard({
   warning,
   onJurisdictionChange,
   locked,
+  track = 'litigation',
 }: JurisdictionCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showOverride, setShowOverride] = useState(false);
@@ -152,7 +161,7 @@ export function JurisdictionCard({
             </div>
           )}
 
-          {/* Change Jurisdiction button */}
+          {/* Change Jurisdiction button — text varies by track */}
           {!locked && !showOverride && onJurisdictionChange && (
             <button
               onClick={() => setShowOverride(true)}
@@ -161,7 +170,7 @@ export function JurisdictionCard({
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
               </svg>
-              Change jurisdiction
+              {track === 'regulatory' ? 'Change regulatory framework' : 'Change court venue'}
             </button>
           )}
 
@@ -175,8 +184,54 @@ export function JurisdictionCard({
             </p>
           )}
 
-          {/* Override UI */}
-          {showOverride && (
+          {/* Override UI — varies by track */}
+          {showOverride && track === 'regulatory' && (
+            <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
+              <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Select regulatory framework:</p>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Framework</label>
+                <select
+                  className="w-full text-xs bg-slate-50 dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-md px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const frameworks: Record<string, {law: string, forum: string, key: string}> = {
+                      'corporate': { law: 'CAMA 2020; Companies Regulations 2021', forum: 'Corporate Affairs Commission (CAC)', key: 'File with CAC; use FIRS for tax registration.' },
+                      'tax': { law: 'FIRS (Establishment) Act 2007; CIT Act; VAT Act', forum: 'FIRS / State IRS / TAT', key: 'File tax returns with FIRS or State IRS; TAT for assessment disputes.' },
+                      'data_protection': { law: 'Nigeria Data Protection Act (NDPA) 2023', forum: 'Nigeria Data Protection Commission (NDPC)', key: 'File data protection compliance with NDPC.' },
+                      'property': { law: 'Land Use Act; State tenancy laws', forum: 'State Land Registry / Ministry of Lands', key: 'Register with State Land Registry; C of O required.' },
+                      'employment': { law: 'Labour Act; Pension Reform Act; Employee Compensation Act', forum: 'National Industrial Court (NICN) / NSITF / PENCOM', key: 'File employment compliance with PENCOM/NSITF; NICN for disputes.' },
+                      'banking': { law: 'BOFIA 2020; CBN Act', forum: 'Central Bank of Nigeria (CBN) / NDIC', key: 'File banking compliance with CBN.' },
+                      'ip': { law: 'Trademarks Act; Patents and Designs Act; Copyright Act', forum: 'Trademark, Patent and Designs Registry / NCC', key: 'File IP registrations with the appropriate registry.' },
+                    };
+                    const fw = frameworks[val];
+                    if (fw) {
+                      onJurisdictionChange?.(fw.forum, val, `Regulatory framework changed to ${val}: ${fw.law}`);
+                      setShowOverride(false);
+                      setExpanded(true);
+                    }
+                  }}
+                >
+                  <option value="">Select framework…</option>
+                  <option value="corporate">Corporate (CAMA / CAC)</option>
+                  <option value="tax">Taxation (FIRS / TAT)</option>
+                  <option value="data_protection">Data Protection (NDPA / NDPC)</option>
+                  <option value="property">Property (Land Use Act)</option>
+                  <option value="employment">Employment (NICN / PENCOM)</option>
+                  <option value="banking">Banking (CBN / BOFIA)</option>
+                  <option value="ip">Intellectual Property (Trademarks/Patents/Copyright)</option>
+                </select>
+              </div>
+              <button
+                onClick={() => setShowOverride(false)}
+                className="text-xs font-bold text-slate-500 px-2 py-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Court venue override (litigation track only — unchanged from prior behavior) */}
+          {showOverride && track === 'litigation' && (
             <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
               <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Select a different court:</p>
               <div>

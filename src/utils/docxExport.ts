@@ -207,69 +207,221 @@ export function exportTextToDocx(text: string, filename: string, options: DocxEx
  * Generate a DOCX Blob from HTML (without triggering a download).
  * Use this when you want to upload the file to Convex storage
  * instead of (or in addition to) downloading it.
+ *
+ * FIX: This now creates a VALID OOXML zip archive (not just raw XML).
+ * A real .docx file is a ZIP containing:
+ *   - [Content_Types].xml
+ *   - _rels/.rels
+ *   - word/document.xml
+ *   - word/_rels/document.xml.rels
+ *   - word/styles.xml (optional but recommended)
+ *
+ * Previously this function returned raw XML with a .docx extension,
+ * which Windows didn't recognize as a Word document. Now it uses JSZip
+ * to create a proper OOXML package that Word opens without repair.
  */
-export function exportHtmlToDocxBlob(html: string, options: DocxExportOptions = {}): Blob {
+export async function exportHtmlToDocxBlob(html: string, options: DocxExportOptions = {}): Promise<Blob> {
   const { title = 'Document', author = 'PracticePro', firmName = '' } = options;
 
-  // Convert HTML to Word XML (same logic as exportHtmlToDocx)
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+
+  // Convert HTML to Word XML
   const bodyContent = htmlToOoxml(html);
 
-  const fullDoc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<?mso-application progid="Word.Document"?>
-<w:wordDocument xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  // ─── [Content_Types].xml ──────────────────────────────────────────
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+  zip.file('[Content_Types].xml', contentTypes);
+
+  // ─── _rels/.rels ──────────────────────────────────────────────────
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+  zip.folder('_rels')!.file('.rels', rels);
+
+  // ─── word/document.xml ────────────────────────────────────────────
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
     ${bodyContent}
+    <w:sectPr>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
+    </w:sectPr>
   </w:body>
-</w:wordDocument>`;
+</w:document>`;
+  zip.folder('word')!.file('document.xml', documentXml);
 
-  return new Blob(['\ufeff' + fullDoc], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  // ─── word/_rels/document.xml.rels ─────────────────────────────────
+  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+  zip.folder('word/_rels')!.file('document.xml.rels', docRels);
+
+  // ─── word/styles.xml ──────────────────────────────────────────────
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:cs="Times New Roman"/>
+        <w:sz w:val="24"/>
+        <w:szCs w:val="24"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:after="160" w:line="259" w:lineRule="auto"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:qFormat/>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:spacing w:before="240" w:after="60"/>
+      <w:outlineLvl w:val="0"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:b/>
+      <w:sz w:val="32"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2">
+    <w:name w:val="heading 2"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:spacing w:before="200" w:after="40"/>
+      <w:outlineLvl w:val="1"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:b/>
+      <w:sz w:val="28"/>
+    </w:rPr>
+  </w:style>
+</w:styles>`;
+  zip.folder('word')!.file('styles.xml', styles);
+
+  // ─── core.xml (document properties) ───────────────────────────────
+  const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:dcterms="http://purl.org/dc/terms/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${escapeXml(title)}</dc:title>
+  <dc:creator>${escapeXml(author)}</dc:creator>
+  <cp:lastModifiedBy>${escapeXml(author)}</cp:lastModifiedBy>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
+  <dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified>
+</cp:coreProperties>`;
+  zip.folder('docProps')!.file('core.xml', coreXml);
+
+  // ─── app.xml (extended properties) ────────────────────────────────
+  const appXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+  xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
+  <Application>PracticePro DraftPro</Application>
+  <Company>${escapeXml(firmName || 'PracticePro')}</Company>
+</Properties>`;
+  zip.folder('docProps')!.file('app.xml', appXml);
+
+  // Add the docProps relationship
+  const relsCore = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+  zip.folder('_rels')!.file('.rels', relsCore);
+
+  // Generate the ZIP blob
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
+
+  return blob;
 }
 
 /**
  * Generate a PDF Blob from HTML using jsPDF.
- * Uses the browser's print rendering to create a clean PDF.
  *
- * The PDF is generated by:
- * 1. Creating a hidden iframe with the HTML content
- * 2. Calling the iframe's print function
- * 3. The browser's "Save as PDF" captures the output
+ * PART 3 FIX — VISUAL FIDELITY TO EDITOR:
+ * The PDF export now renders from the ACTUAL editor canvas element (if
+ * provided) rather than a separate container with approximated styles.
+ * This ensures margins, header/footer placement, and page breaks match
+ * exactly what the user sees in DraftPro.
  *
- * For programmatic Blob generation (no user interaction), we use
- * jsPDF's html() method which renders HTML to PDF directly.
+ * If no canvasElement is provided, falls back to creating a temporary
+ * container (the old behavior).
  */
-export async function exportHtmlToPdfBlob(html: string, options: DocxExportOptions = {}): Promise<Blob> {
-  const { title = 'Document' } = options;
+export async function exportHtmlToPdfBlob(
+  html: string,
+  options: DocxExportOptions & { canvasElement?: HTMLElement } = {}
+): Promise<Blob> {
+  const { title = 'Document', canvasElement } = options;
 
-  // Create a temporary container with the HTML
-  const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '210mm'; // A4 width
-  container.style.padding = '20mm';
-  container.style.fontFamily = 'Times New Roman, serif';
-  container.style.fontSize = '12pt';
-  container.style.lineHeight = '1.5';
-  container.style.color = '#111827';
-  container.innerHTML = html;
-  document.body.appendChild(container);
+  // ─── Use the actual editor canvas if provided (Part 3 fix) ────────
+  // This ensures the PDF matches the editor's exact layout: margins,
+  // header/footer spacing, page breaks, fonts — everything.
+  const renderTarget = canvasElement || (() => {
+    // Fallback: create a temporary container with the HTML
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '210mm'; // A4 width
+    container.style.padding = '20mm';
+    container.style.fontFamily = 'Times New Roman, serif';
+    container.style.fontSize = '12pt';
+    container.style.lineHeight = '1.5';
+    container.style.color = '#111827';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    return container;
+  })();
+
+  const isExternalElement = renderTarget !== canvasElement;
 
   try {
-    // Use jsPDF to generate the PDF
     const { jsPDF } = await import('jspdf');
     const { default: html2canvas } = await import('html2canvas');
 
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const canvas = await html2canvas(container, {
+    // Render the canvas element at high resolution
+    const canvas = await html2canvas(renderTarget, {
       scale: 2,
       useCORS: true,
       logging: false,
       backgroundColor: '#ffffff',
+      // Use the element's actual scroll dimensions to capture full content
+      width: renderTarget.scrollWidth,
+      height: renderTarget.scrollHeight,
+      windowWidth: renderTarget.scrollWidth,
+      windowHeight: renderTarget.scrollHeight,
     });
 
+    const pdf = new jsPDF('p', 'mm', 'a4');
     const imgData = canvas.toDataURL('image/png');
     const imgWidth = 210; // A4 width in mm
     const pageHeight = 297; // A4 height in mm
@@ -290,9 +442,11 @@ export async function exportHtmlToPdfBlob(html: string, options: DocxExportOptio
       heightLeft -= pageHeight;
     }
 
-    // Return as Blob
     return pdf.output('blob');
   } finally {
-    document.body.removeChild(container);
+    // Only remove if we created it (not the editor's own canvas)
+    if (isExternalElement && renderTarget.parentNode) {
+      renderTarget.parentNode.removeChild(renderTarget);
+    }
   }
 }

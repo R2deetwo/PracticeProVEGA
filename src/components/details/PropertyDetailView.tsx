@@ -345,6 +345,8 @@ const PropertyDetailViewContent: React.FC = () => {
         const existing = firmId ? loadDraftSession(firmId, sessionKey) : null;
 
         if (existing?.content?.trim()) {
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+
             openEditor(existing.documentId || null, {
                 draftTitle: existing.title || draftTitle,
                 draftContent: existing.content,
@@ -393,6 +395,9 @@ const PropertyDetailViewContent: React.FC = () => {
         prompt += `\n\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
 
         setTimeout(() => {
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+
             openEditor(null, {
                 draftTitle,
                 draftPrompt: prompt,
@@ -433,6 +438,9 @@ const PropertyDetailViewContent: React.FC = () => {
         });
 
         setTimeout(() => {
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+
             openEditor(content, {
                 draftTitle: `${template.name} - ${display?.name || addressPart}`,
                 matterId: primaryMatter?.id,
@@ -631,6 +639,9 @@ const PropertyDetailViewContent: React.FC = () => {
 
         const draftTitle = `7-Day Notice - ${d.name || property.address.split(',')[0]}`;
         setTimeout(() => {
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+            // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+
             openEditor(null, {
                 draftTitle,
                 draftPrompt: prompt,

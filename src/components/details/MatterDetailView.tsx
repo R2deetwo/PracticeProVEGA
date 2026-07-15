@@ -305,6 +305,7 @@ const MatterDetailViewContent: React.FC = () => {
         });
     };
 
+    // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
     const handleDraftDocument = () => { if (matterData) navigateTo('editor', null, { matterId: matterData.id }); };
 
     const handleTogglePrivacy = async () => {

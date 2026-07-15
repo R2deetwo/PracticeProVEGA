@@ -101,7 +101,8 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                                             onClick={() => {
                                                 const draftTitle = w.message.split('"')[1] || w.message;
                                                 const template = TemplateService.getTemplate(draftTitle, matter);
-                                                navigateTo('editor', null, { 
+                                                // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+                                        navigateTo("editor", null, { 
                                                     matterId: matter.id, 
                                                     draftTitle: draftTitle, 
                                                     draftContent: template,

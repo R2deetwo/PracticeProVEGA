@@ -314,7 +314,8 @@ const ResearchView: React.FC = () => {
                                     onDeleteSource={dataHandlers.handleDeleteResearchSource}
                                     onOpenInDraftPro={(source) => {
                                         // Open the source content in DraftPro
-                                        navigateTo('editor', null, {
+                                        // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
+                                        navigateTo("editor", null, {
                                             draftTitle: source.name,
                                             draftContent: source.content || '',
                                             disableAutoDraft: true,

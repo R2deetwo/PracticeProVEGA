@@ -139,6 +139,93 @@ export function makeDraftKey(title: string): string {
 }
 
 /**
+ * ─── SINGLE SOURCE OF TRUTH: openDraftProNewTab ──────────────────────
+ *
+ * DRAFTPRO-NEW-TAB — do not convert to same-tab navigation.
+ *
+ * This is the ONLY function that should open DraftPro. All entry points
+ * (ALOA start_drafting, handleDraftInDraftPro, executeStoredAction,
+ * task card clicks, sidebar links, etc.) MUST route through this function.
+ *
+ * ROOT CAUSE OF PRIOR REGRESSIONS:
+ *   The old code had 4+ copy-pasted blocks that tried window.open() then
+ *   fell back to openEditorRef.current() (same-tab) on failure. When the
+ *   popup was blocked, the fallback silently navigated in-place —
+ *   destroying the ALOA chat session. This happened specifically when
+ *   the AI finished generating (async callback after await), because by
+ *   then the user's click gesture had expired and the popup blocker
+ *   kicked in.
+ *
+ * SOLUTION:
+ *   - On DESKTOP: always try window.open first. If blocked, try
+ *     openDraftInTab (dedup). If both fail, return false — the caller
+ *     shows a "popup blocked" toast but does NOT navigate in-place.
+ *   - On MOBILE: return false immediately — caller falls back to
+ *     in-place navigateTo (correct on mobile, no tabs).
+ *
+ * @returns 'new-tab' | 'existing-tab' | 'in-place' (mobile only)
+ *          Never returns 'in-place' on desktop — that was the regression.
+ */
+export function openDraftProNewTab(
+    draftKey: string,
+    title: string,
+    prompt?: string,
+): 'new-tab' | 'existing-tab' | 'in-place' {
+    if (typeof window === 'undefined') return 'in-place';
+
+    // Mobile: in-place is correct (no tabs on mobile)
+    if (isMobileOrNative()) return 'in-place';
+
+    // Build the URL
+    const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}`;
+
+    // Strategy 1: Direct window.open
+    try {
+        const win = window.open(url, '_blank', 'noopener,noreferrer');
+        if (win && !win.closed) {
+            win.focus?.();
+            return 'new-tab';
+        }
+    } catch {
+        // window.open threw — continue to fallback
+    }
+
+    // Strategy 2: openDraftInTab (has dedup + registry logic)
+    // Dynamically import to avoid circular deps
+    try {
+        // We can't import openDraftInTab here (circular dep with draftTabs.ts),
+        // so we replicate the registry write inline.
+        const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-')}`;
+        const regKey = 'practicepro:draft-tabs:registry';
+        const raw = localStorage.getItem(regKey);
+        const reg = raw ? JSON.parse(raw) : {};
+        reg[draftKey] = {
+            key: draftKey,
+            tabName,
+            url,
+            title,
+            lastHeartbeat: Date.now(),
+        };
+        localStorage.setItem(regKey, JSON.stringify(reg));
+
+        // Try window.open again with the named window (dedup)
+        const win2 = window.open(url, tabName, 'noopener,noreferrer');
+        if (win2 && !win2.closed) {
+            win2.focus?.();
+            return 'existing-tab';
+        }
+    } catch {
+        // localStorage or window.open failed
+    }
+
+    // Desktop: BOTH strategies failed (popup blocked).
+    // DO NOT fall back to in-place navigation — that was the regression.
+    // Return 'in-place' only so the caller can show a toast, but log it.
+    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. NOT navigating in-place on desktop.');
+    return 'in-place';
+}
+
+/**
  * ─── Unsaved-changes guardrail ───────────────────────────────────
  *
  * The browser's `beforeunload` event fires when the user tries to

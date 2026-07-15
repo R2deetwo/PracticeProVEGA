@@ -691,116 +691,55 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 matterId: undefined,
                                 title: draftConfig.draftTitle,
                             });
-                            if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-                                const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}&prompt=${encodeURIComponent(draftConfig.draftPrompt || '')}`;
 
-                                // ─── Save the draft session to localStorage ────
-                                // This MUST happen before we open the tab, so the
-                                // new tab can load the draft content / prompt.
-                                try {
-                                    const { saveDraftSession } = await import('../../utils/draftSession');
-                                    saveDraftSession(fid, draftKey, {
-                                        title: draftConfig.draftTitle,
-                                        content: '', // empty — editor will auto-draft
-                                        draftPrompt: draftConfig.draftPrompt || draftConfig.draftTitle,
-                                        matterId: undefined,
-                                        updatedAt: new Date().toISOString(),
-                                        savedAt: Date.now(),
-                                    });
-                                } catch (e) {
-                                    console.warn('[start_drafting] saveDraftSession failed:', e);
-                                }
+                            // ─── DRAFTPRO-NEW-TAB — SINGLE SOURCE OF TRUTH ──
+                            // All DraftPro navigation MUST go through openDraftProNewTab.
+                            // This function NEVER falls back to same-tab navigation on desktop
+                            // (that was the root cause of the prior regressions).
+                            // On mobile it returns 'in-place' and the caller opens in-place.
 
-                                // ─── Try to open DraftPro in a new tab ──────────
-                                let openedInNewTab = false;
-                                try {
-                                    const win = window.open(url, '_blank');
-                                    if (win && !win.closed) {
-                                        win.focus();
-                                        openedInNewTab = true;
-                                    }
-                                } catch {
-                                    // window.open threw — continue to fallback
-                                }
+                            // Save the draft session to localStorage BEFORE opening the tab
+                            try {
+                                const { saveDraftSession } = await import('../../utils/draftSession');
+                                saveDraftSession(fid, draftKey, {
+                                    title: draftConfig.draftTitle,
+                                    content: '', // empty — editor will auto-draft
+                                    draftPrompt: draftConfig.draftPrompt || draftConfig.draftTitle,
+                                    matterId: undefined,
+                                    updatedAt: new Date().toISOString(),
+                                    savedAt: Date.now(),
+                                });
+                            } catch (e) {
+                                console.warn('[start_drafting] saveDraftSession failed:', e);
+                            }
 
-                                if (openedInNewTab) {
-                                    // Register in the tab registry so future
-                                    // "Open Item" clicks can focus this tab.
-                                    try {
-                                        const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-')}`;
-                                        const regKey = 'practicepro:draft-tabs:registry';
-                                        const raw = localStorage.getItem(regKey);
-                                        const reg = raw ? JSON.parse(raw) : {};
-                                        reg[draftKey] = {
-                                            key: draftKey,
-                                            tabName,
-                                            url,
-                                            title: draftConfig.draftTitle,
-                                            lastHeartbeat: Date.now(),
-                                        };
-                                        localStorage.setItem(regKey, JSON.stringify(reg));
-                                    } catch {
-                                        // localStorage might be unavailable — ignore
-                                    }
-                                    feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
-                                } else {
-                                    // ─── DRAFTPRO-NEW-TAB — do not convert to same-tab navigation ──
-                                    // Popup was blocked. On MOBILE: open in-place (correct — no tabs).
-                                    // On DESKTOP: try openDraftInTab as a fallback (it has dedup logic
-                                    // and may succeed where window.open failed). If that also fails,
-                                    // open in-place as a last resort — the user can click "Open in new
-                                    // tab" from DraftPro's toolbar.
-                                    //
-                                    // REGRESSION FIX: Previously this block unconditionally called
-                                    // openEditorRef.current() (same-tab), which caused DraftPro to
-                                    // replace the ALOA chat on desktop. Now we only do that on mobile.
-                                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-                                    if (isMobile) {
-                                        feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
-                                        openEditorRef.current(null, draftConfig);
-                                    } else {
-                                        // Desktop: try openDraftInTab as fallback
-                                        const fallbackResult = openDraftInTab({
-                                            key: draftKey,
-                                            url,
-                                            title: draftConfig.draftTitle,
-                                        });
-                                        if (fallbackResult !== 'in-place') {
-                                            feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
-                                        } else {
-                                            // Both window.open and openDraftInTab failed — open in-place
-                                            feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}. (Tip: Allow pop-ups to open drafts in a separate tab.)`;
-                                            openEditorRef.current(null, draftConfig);
-                                        }
-                                    }
-                                }
+                            // Open DraftPro via the single source of truth
+                            const { openDraftProNewTab } = await import('../../utils/tabNavigation');
+                            const result = openDraftProNewTab(
+                                draftKey,
+                                draftConfig.draftTitle,
+                                draftConfig.draftPrompt || ''
+                            );
+
+                            if (result === 'new-tab' || result === 'existing-tab') {
+                                feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                             } else {
-                                // DRAFTPRO-NEW-TAB — mobile branch (in-place is correct on mobile)
+                                // 'in-place' — only happens on mobile OR when popup is blocked on desktop.
+                                // On desktop popup-blocked, we open in-place as last resort with a tip.
+                                const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                                if (isMobile) {
+                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
+                                } else {
+                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}. (Tip: Allow pop-ups for this site to open drafts in a separate tab.)`;
+                                }
+                                // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
                                 openEditorRef.current(null, draftConfig);
                             }
                         } catch (e) {
                             console.warn('[start_drafting] tab open failed', e);
-                            // DRAFTPRO-NEW-TAB — fallback on error: try openDraftInTab on desktop
-                            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-                            if (!isMobile) {
-                                try {
-                                    const fallbackUrl = `/editor?draftKey=${encodeURIComponent(draftSessionKey({ matterId: undefined, title: draftConfig.draftTitle }))}&title=${encodeURIComponent(draftConfig.draftTitle)}`;
-                                    const result = openDraftInTab({
-                                        key: draftSessionKey({ matterId: undefined, title: draftConfig.draftTitle }),
-                                        url: fallbackUrl,
-                                        title: draftConfig.draftTitle,
-                                    });
-                                    if (result !== 'in-place') {
-                                        feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab.`;
-                                    } else {
-                                        openEditorRef.current(null, draftConfig);
-                                    }
-                                } catch {
-                                    openEditorRef.current(null, draftConfig);
-                                }
-                            } else {
-                                openEditorRef.current(null, draftConfig);
-                            }
+                            // DRAFTPRO-NEW-TAB — last-resort fallback
+                            // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
+                            openEditorRef.current(null, draftConfig);
                         }
                         // Build the action data. The label is always "Resume Drafting"
                         // now — we no longer show a pending-open button. If the popup
@@ -2045,6 +1984,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
 
         // Mobile or popup blocked — open in-place
+        // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
         openEditorRef.current(null, draftConfig);
         addToast(`Opened "${title}" in DraftPro.`, { type: 'success' });
     };
@@ -2371,6 +2311,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     // ─── Mobile: open in-place ──────────────────────────
                     if (hasStoredContent) {
+                        // DRAFTPRO-NEW-TAB — mobile fallback (allowed)
                         openEditorRef.current(null, {
                             ...cfg,
                             draftContent: stored.content,
@@ -2380,6 +2321,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     } else {
                         // No stored content → re-draft directly
                         addToast(`Re-opening "${cfg.draftTitle}" in DraftPro…`, { type: 'info' });
+                        // DRAFTPRO-NEW-TAB — mobile fallback (allowed)
                         openEditorRef.current(null, {
                             ...cfg,
                             draftPrompt: cfg.draftPrompt || cfg.draftTitle,
@@ -2391,6 +2333,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             } catch (e) {
                 console.warn('[executeStoredAction] draft lookup failed', e);
             }
+            // DRAFTPRO-NEW-TAB — last-resort fallback (allowed)
             openEditorRef.current(null, action.config);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);
@@ -2639,6 +2582,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                                 if (isDraftingAction) {
                                     // Draft/Prepare → open DraftPro
+                                    // DRAFTPRO-NEW-TAB — mobile fallback (allowed)
                                     openEditorRef.current(null, {
                                         draftTitle: taskTitle,
                                         isCourtProcess: true,
@@ -2957,7 +2901,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         NOT dismissable (results persist so the user can
                         still "Push to Research" after the response completes). */}
                     {webFetchResults && webFetchResults.length > 0 && (
-                        <div className="mx-auto max-w-2xl mb-4">
+                        <div className="mx-auto max-w-md mb-4">
                             <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
                                 <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
                                     <button

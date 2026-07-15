@@ -681,6 +681,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const modalRef = useRef<HTMLInputElement>(null);
 
     const editorWrapRef = useRef<HTMLDivElement>(null);
+    const pageSheetsContainerRef = useRef<HTMLDivElement>(null);
     const contentLoadedRef = useRef(false);
     
     // Dynamic height tracking to automatically expand the page background
@@ -1438,6 +1439,11 @@ ${allCites.map((c: any) => {
                         title: title || 'Document',
                         author: currentUser?.name || 'PracticePro',
                         firmName: appState?.firmDetails?.name || '',
+                        // PART 3 FIX: Pass the actual editor canvas element so
+                        // the PDF matches the editor's exact layout (margins,
+                        // header/footer, page breaks). Falls back to a temp
+                        // container if the ref isn't available.
+                        canvasElement: pageSheetsContainerRef.current || undefined,
                     });
                 }
             })();
@@ -2326,7 +2332,7 @@ ${allCites.map((c: any) => {
                         }}
                     >
                         {/* ── True Page Sheets (structural, not decorative) ── */}
-                        <div className="flex flex-col" style={{ gap: `${PAGE_GAP_PX}px` }}>
+                        <div ref={pageSheetsContainerRef} className="flex flex-col" style={{ gap: `${PAGE_GAP_PX}px` }}>
                             {Array.from({ length: pageCount }).map((_, i) => (
                                 <div
                                     key={i}
@@ -2692,7 +2698,15 @@ ${allCites.map((c: any) => {
                 <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-150">
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-                        onClick={cancelPendingNav}
+                        onClick={() => {
+                            // RACE CONDITION FIX: Don't allow dismissal while a save is in-flight.
+                            // Show a warning instead of silently navigating away.
+                            if (isSavingFile) {
+                                addToast('Save in progress — please wait for it to complete before leaving.', { type: 'info' });
+                                return;
+                            }
+                            cancelPendingNav();
+                        }}
                     />
                     <div className="relative z-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
                         {/* Warning icon */}
@@ -2712,26 +2726,75 @@ ${allCites.map((c: any) => {
                             </div>
                         </div>
 
-                        {/* Action buttons — Save & Leave is the primary CTA */}
+                        {/* ─── Race condition warning ──────────────────────────
+                            If a save is in-flight, show a warning and disable
+                            the leave buttons until the save completes. */}
+                        {isSavingFile && (
+                            <div className="mb-4 p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-lg flex items-center gap-2">
+                                <svg className="w-4 h-4 text-amber-600 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                                    Save in progress — please wait for it to complete before leaving.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Action buttons — PDF/DOCX save are the primary CTAs */}
                         <div className="flex flex-col gap-2 mt-5">
+                            {/* Save as PDF & Leave — PRIMARY (highlighted) */}
                             <button
-                                onClick={confirmNavWithSave}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98]"
+                                onClick={async () => {
+                                    if (isSavingFile) return; // Block during save
+                                    // Save as PDF, then leave after the save completes
+                                    await saveAsFile('pdf');
+                                    confirmNavWithoutSave();
+                                }}
+                                disabled={isSavingFile}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21a3 3 0 003-3v-4.5a3 3 0 00-3-3h-15a3 3 0 00-3 3V18a3 3 0 003 3h15zM1.5 10.5a3 3 0 013-3h15a3 3 0 013 3M1.5 10.5V18a3 3 0 003 3h15a3 3 0 003-3v-7.5M1.5 10.5V6a3 3 0 013-3h15a3 3 0 013 3v4.5" />
                                 </svg>
-                                Save &amp; Leave
+                                {isSavingFile ? 'Saving…' : 'Save as PDF & Leave'}
                             </button>
+                            {/* Save as DOCX & Leave — SECONDARY */}
+                            <button
+                                onClick={async () => {
+                                    if (isSavingFile) return; // Block during save
+                                    await saveAsFile('docx');
+                                    confirmNavWithoutSave();
+                                }}
+                                disabled={isSavingFile}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold transition-all shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 21a3 3 0 003-3v-4.5a3 3 0 00-3-3h-15a3 3 0 00-3 3V18a3 3 0 003 3h15zM1.5 10.5a3 3 0 013-3h15a3 3 0 013 3M1.5 10.5V18a3 3 0 003 3h15a3 3 0 003-3v-7.5M1.5 10.5V6a3 3 0 013-3h15a3 3 0 013 3v4.5" />
+                                </svg>
+                                {isSavingFile ? 'Saving…' : 'Save as DOCX & Leave'}
+                            </button>
+                            {/* Save text only & Leave — TERTIARY (visually subordinate) */}
+                            <button
+                                onClick={confirmNavWithSave}
+                                disabled={isSavingFile}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Save text only &amp; Leave
+                            </button>
+                            {/* Leave Without Saving */}
                             <button
                                 onClick={confirmNavWithoutSave}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-lg text-sm font-bold border border-slate-200 dark:border-zinc-700 transition-all active:scale-[0.98]"
+                                disabled={isSavingFile}
+                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded-lg text-sm font-bold border border-slate-200 dark:border-zinc-700 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Leave Without Saving
                             </button>
+                            {/* Stay on Page */}
                             <button
                                 onClick={cancelPendingNav}
-                                className="w-full px-4 py-2 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded-lg text-xs font-semibold transition-colors"
+                                disabled={isSavingFile}
+                                className="w-full px-4 py-2 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                             >
                                 Stay on Page
                             </button>

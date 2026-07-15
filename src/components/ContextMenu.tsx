@@ -144,7 +144,17 @@ const ContextMenu: React.FC = () => {
                 <>
                      <MenuItem icon={<div className="font-bold text-xs">View</div>} label="View Document" onClick={() => navigateTo('documentDetail', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Rename / Properties" onClick={() => openModal('editDocument', contextMenu.itemId)} />
-                     <MenuItem icon={<EditIcon />} label="Open in Editor" onClick={() => navigateTo('editor', contextMenu.itemId)} />
+                     <MenuItem icon={<EditIcon />} label="Open in Editor" onClick={() => {
+                         // DRAFTPRO-NEW-TAB — route through openDraftProNewTab on desktop
+                         if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+                             import('../utils/tabNavigation').then(({ openDraftProNewTab }) => {
+                                 const draftKey = `draft:doc:${contextMenu.itemId || 'new'}`;
+                                 openDraftProNewTab(draftKey, 'Document');
+                             });
+                         } else {
+                             navigateTo('editor', contextMenu.itemId);
+                         }
+                     }} />
                      {/* Document download — not yet implemented. Re-add when file download is wired. */}
                      <Divider />
                      <MenuItem icon={<ShareIcon />} label="Share" onClick={() => openModal('shareDocument', contextMenu.itemId)} />

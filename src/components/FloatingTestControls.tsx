@@ -259,6 +259,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
     };
 
     const testDrafting = () => {
+        // DRAFTPRO-NEW-TAB — debug test tool (allowed)
         openEditor(null, { 
             draftTitle: "Motion Ex Parte (Drafting Test)",
             draftPrompt: "Draft a Motion Ex Parte for substituted service in the High Court of Lagos State."
