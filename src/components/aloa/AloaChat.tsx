@@ -182,6 +182,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         snippet: string;
         content?: string;  // full fetched text (for "Push to Research")
     }> | null>(null);
+    // Collapsed state for the web results panel — user can click the chevron
+    // to collapse/expand. NOT dismissable (the X is gone). Results persist
+    // so the user can still "Push to Research" after the response completes.
+    const [webResultsCollapsed, setWebResultsCollapsed] = useState(false);
 
     // Refs for callbacks
     const liveSessionRef = useRef<any>(null);
@@ -1189,6 +1193,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
         // Clear previous web fetch results when starting a new message
         setWebFetchResults(null);
+        setWebResultsCollapsed(false);  // reset collapsed state for new results
 
         // ─── API KEY PRE-FLIGHT VALIDATION ──────────────────────────────
         // Check that a valid Gemini API key exists BEFORE we do any work.
@@ -2904,26 +2909,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     {/* ─── Web Fetch Results Panel (like Claude's search panels) ──
                         Shows the URLs ALOA has fetched and read, with titles
-                        and snippets. Collapsible. Clears when the response
-                        completes. */}
+                        and snippets. Collapsible via the chevron toggle —
+                        NOT dismissable (results persist so the user can
+                        still "Push to Research" after the response completes). */}
                     {webFetchResults && webFetchResults.length > 0 && (
                         <div className="mx-auto max-w-2xl mb-4">
                             <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 overflow-hidden">
                                 <div className="flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
-                                    <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setWebResultsCollapsed(!webResultsCollapsed)}
+                                        className="flex items-center gap-2 hover:text-slate-900 dark:hover:text-white transition-colors"
+                                        title={webResultsCollapsed ? 'Expand web results' : 'Collapse web results'}
+                                    >
+                                        {/* Chevron icon — rotates up/down */}
+                                        <svg className={`w-3 h-3 text-slate-500 transition-transform ${webResultsCollapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                                        </svg>
                                         <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                                         </svg>
                                         <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-200">
                                             {webFetchResults.length} web result{webFetchResults.length > 1 ? 's' : ''} {isLoading && '· reading…'}
                                         </span>
-                                    </div>
+                                    </button>
                                     <div className="flex items-center gap-1.5">
                                         {/* ─── Push to Research button ──────────────────
-                                            Appears when not loading AND at least one result
-                                            has content. Pushes all successful web results
-                                            as sources into a new Research notebook, then
-                                            opens Research in a new tab. */}
+                                            Always available (even when collapsed) so the
+                                            user can push sources without expanding. */}
                                         {!isLoading && webFetchResults.some(r => r.success) && (
                                             <button
                                                 onClick={handlePushWebResultsToResearch}
@@ -2936,18 +2948,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 Push to Research
                                             </button>
                                         )}
-                                        {!isLoading && (
-                                            <button
-                                                onClick={() => setWebFetchResults(null)}
-                                                className="text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 p-0.5"
-                                            >
-                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
+                                {/* Results list — hidden when collapsed */}
+                                {!webResultsCollapsed && (
                                 <div className="max-h-48 overflow-y-auto custom-scrollbar">
                                     {webFetchResults.map((r, i) => (
                                         <a
@@ -2978,6 +2982,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </a>
                                     ))}
                                 </div>
+                                )}
                             </div>
                         </div>
                     )}

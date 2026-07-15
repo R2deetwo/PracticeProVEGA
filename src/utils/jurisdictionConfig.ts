@@ -258,6 +258,48 @@ export function buildJurisdictionalReasoning(
   // a foreign jurisdiction when the matter is actually Nigerian) are rare
   // and less harmful than false negatives (defaulting to Lagos for a
   // San Francisco matter).
+  // ─── NIGERIA OVERRIDE GUARD ─────────────────────────────────────────
+  // If the prompt EXPLICITLY mentions Nigeria or a Nigerian state/city,
+  // we SKIP foreign-jurisdiction detection entirely. This prevents false
+  // positives like "Victoria Island, Lagos" matching Australia's "Victoria"
+  // state, or "Birmingham" matching when the matter is clearly Nigerian.
+  //
+  // The override is intentionally broad: Nigerian state names, major cities,
+  // and common abbreviations. If ANY of these appear, the matter is Nigerian
+  // and we fall through to the Nigerian court detection logic below.
+  const nigeriaIndicators = [
+    'nigeria', 'nigerian', 'lagos', 'abuja', 'fct', 'kano', 'ibadan',
+    'port harcourt', 'benin city', 'kaduna', 'enugu', 'owerri', 'warri',
+    'calabar', 'uyo', 'abeokuta', 'asaba', 'benue', 'plateau', 'nassarawa',
+    'cross river', 'akwa ibom', 'rivers state', 'delta state', 'edo state',
+    'ogun state', 'oyo state', 'osun', 'ondo', 'ekiti', 'kwara', 'kogi',
+    'anambra', 'imo state', 'abia', 'ebonyi', 'bayelsa', 'gombe', 'bauchi',
+    'borno', 'yobe', 'jigawa', 'sokoto', 'kebbi', 'zamfara', 'katsina',
+    'niger state', 'taraba', 'adamawa',
+    // Nigerian courts (strong Nigeria signal)
+    'nwlr', 'lpelr', 'scn', 'supreme court of nigeria', 'court of appeal of nigeria',
+    'federal high court of nigeria', 'nicn',
+    // Common Nigerian legal terms
+    'cama 2020', 'cama 2004', 'land use act', 'recovery of premises',
+    'magistrate court of', 'customary court of', 'area court of',
+    'naira', '₦',
+  ];
+  const isNigeriaMatter = nigeriaIndicators.some(kw => p.includes(kw));
+
+  // US state abbreviations as whole words (e.g. "CA", "NY", "TX")
+  // to catch "San Francisco, CA" without matching "ca" inside other words.
+  // Declared here (before use) so the foreign-detection block can reference it.
+  const usStateAbbrevs = [
+    '\bAL\b', '\bAK\b', '\bAZ\b', '\bAR\b', '\bCA\b', '\bCO\b', '\bCT\b',
+    '\bDE\b', '\bFL\b', '\bGA\b', '\bHI\b', '\bID\b', '\bIL\b', '\bIN\b',
+    '\bIA\b', '\bKS\b', '\bKY\b', '\bLA\b', '\bME\b', '\bMD\b', '\bMA\b',
+    '\bMI\b', '\bMN\b', '\bMS\b', '\bMO\b', '\bMT\b', '\bNE\b', '\bNV\b',
+    '\bNH\b', '\bNJ\b', '\bNM\b', '\bNY\b', '\bNC\b', '\bND\b', '\bOH\b',
+    '\bOK\b', '\bOR\b', '\bPA\b', '\bRI\b', '\bSC\b', '\bSD\b', '\bTN\b',
+    '\bTX\b', '\bUT\b', '\bVT\b', '\bVA\b', '\bWA\b', '\bWV\b', '\bWI\b', '\bWY\b',
+    '\bDC\b',
+  ];
+
   const foreignJurisdictions: { keywords: string[]; name: string }[] = [
     { keywords: [
         'san francisco', 'california', 'u.s.', 'u.s.a.', 'united states', 'united states of america',
@@ -268,11 +310,10 @@ export function buildJurisdictionalReasoning(
         'sacramento', 'austin', 'georgia', 'virginia', 'michigan', 'ohio',
         'pennsylvania', 'new jersey', 'arizona', 'nevada', 'oregon',
         'massachusetts', 'washington d.c.', 'washington dc',
-        // State abbreviations with word boundaries (matched via regex below)
       ], name: 'United States' },
     { keywords: [
-        'united kingdom', 'uk ', 'u.k.', 'england', 'london', 'british',
-        'wales', 'scotland', 'manchester', 'birmingham', 'liverpool', 'leeds',
+        'united kingdom', 'u.k.', 'england', 'london', 'british',
+        'wales', 'scotland', 'manchester', 'birmingham uk', 'liverpool', 'leeds',
         'glasgow', 'edinburgh', 'cardiff', 'belfast',
       ], name: 'United Kingdom' },
     { keywords: [
@@ -287,9 +328,12 @@ export function buildJurisdictionalReasoning(
         'alberta', 'manitoba', 'saskatchewan', 'nova scotia',
       ], name: 'Canada' },
     { keywords: [
+        // REMOVED 'victoria' — false positive on Victoria Island, Lagos.
+        // REMOVED 'perth' — ambiguous (also a Scottish city).
+        // Now requires explicit Australia context or uniquely-Australian cities.
         'australia', 'australian', 'sydney', 'melbourne', 'brisbane',
-        'perth', 'adelaide', 'canberra', 'queensland', 'victoria',
-        'new south wales', 'nsw',
+        'adelaide', 'canberra', 'queensland', 'new south wales', 'nsw',
+        'victoria australia', 'perth australia',
       ], name: 'Australia' },
     { keywords: [
         'south africa', 'south african', 'johannesburg', 'cape town',
@@ -321,42 +365,37 @@ export function buildJurisdictionalReasoning(
     { keywords: ['rwanda', 'kigali'], name: 'Rwanda' },
   ];
 
-  // Also check US state abbreviations as whole words (e.g. "CA", "NY", "TX")
-  // to catch "San Francisco, CA" without matching "ca" inside other words.
-  const usStateAbbrevs = [
-    '\bAL\b', '\bAK\b', '\bAZ\b', '\bAR\b', '\bCA\b', '\bCO\b', '\bCT\b',
-    '\bDE\b', '\bFL\b', '\bGA\b', '\bHI\b', '\bID\b', '\bIL\b', '\bIN\b',
-    '\bIA\b', '\bKS\b', '\bKY\b', '\bLA\b', '\bME\b', '\bMD\b', '\bMA\b',
-    '\bMI\b', '\bMN\b', '\bMS\b', '\bMO\b', '\bMT\b', '\bNE\b', '\bNV\b',
-    '\bNH\b', '\bNJ\b', '\bNM\b', '\bNY\b', '\bNC\b', '\bND\b', '\bOH\b',
-    '\bOK\b', '\bOR\b', '\bPA\b', '\bRI\b', '\bSC\b', '\bSD\b', '\bTN\b',
-    '\bTX\b', '\bUT\b', '\bVT\b', '\bVA\b', '\bWA\b', '\bWV\b', '\bWI\b', '\bWY\b',
-    '\bDC\b',
-  ];
-
-  for (const fj of foreignJurisdictions) {
-    if (fj.keywords.some(kw => p.includes(kw))) {
-      return {
-        court: `[JURISDICTION: ${fj.name}]`,
-        jurisdiction: fj.name,
-        reasoning: `This matter pertains to ${fj.name} jurisdiction. Drafting using general legal principles applicable to ${fj.name}. Verify with local counsel in ${fj.name} for jurisdiction-specific requirements, court formatting, and procedural rules.`,
-      };
-    }
-  }
-
-  // Check US state abbreviations (regex word-boundary match)
-  for (const abbrev of usStateAbbrevs) {
-    try {
-      const re = new RegExp(abbrev, 'i');
-      if (re.test(prompt)) {
+  // ─── Foreign-jurisdiction detection ───
+  // SKIPPED if the prompt explicitly mentions Nigeria or a Nigerian
+  // state/city. This is the key fix: "Victoria Island, Lagos" should
+  // NEVER trigger Australia just because "victoria" is in the keyword list.
+  // The Nigeria guard runs FIRST and short-circuits to Nigerian court
+  // detection below.
+  if (!isNigeriaMatter) {
+    for (const fj of foreignJurisdictions) {
+      if (fj.keywords.some(kw => p.includes(kw))) {
         return {
-          court: `[JURISDICTION: United States]`,
-          jurisdiction: 'United States',
-          reasoning: `This matter references a US state (${abbrev.replace(/\\b/g, '')}). Drafting using general legal principles applicable to the United States. Verify with local counsel for state-specific requirements, court formatting, and procedural rules.`,
+          court: `[JURISDICTION: ${fj.name}]`,
+          jurisdiction: fj.name,
+          reasoning: `This matter pertains to ${fj.name} jurisdiction. Drafting using general legal principles applicable to ${fj.name}. Verify with local counsel in ${fj.name} for jurisdiction-specific requirements, court formatting, and procedural rules.`,
         };
       }
-    } catch {
-      // regex error — skip
+    }
+
+    // Check US state abbreviations (regex word-boundary match)
+    for (const abbrev of usStateAbbrevs) {
+      try {
+        const re = new RegExp(abbrev, 'i');
+        if (re.test(prompt)) {
+          return {
+            court: `[JURISDICTION: United States]`,
+            jurisdiction: 'United States',
+            reasoning: `This matter references a US state (${abbrev.replace(/\\b/g, '')}). Drafting using general legal principles applicable to the United States. Verify with local counsel for state-specific requirements, court formatting, and procedural rules.`,
+          };
+        }
+      } catch {
+        // regex error — skip
+      }
     }
   }
 
