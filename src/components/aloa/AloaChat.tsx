@@ -744,23 +744,63 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     }
                                     feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
                                 } else {
-                                    // ─── Popup blocked — open in-place immediately ──
-                                    // The user complained about having to press a
-                                    // button to open the draft. Instead of showing
-                                    // a "Open DraftPro" CTA, we open the draft
-                                    // IN-PLACE right now. The editor will start
-                                    // streaming the draft immediately. The user
-                                    // can click "Open in new tab" from DraftPro's
-                                    // toolbar if they want a separate tab.
-                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
+                                    // ─── DRAFTPRO-NEW-TAB — do not convert to same-tab navigation ──
+                                    // Popup was blocked. On MOBILE: open in-place (correct — no tabs).
+                                    // On DESKTOP: try openDraftInTab as a fallback (it has dedup logic
+                                    // and may succeed where window.open failed). If that also fails,
+                                    // open in-place as a last resort — the user can click "Open in new
+                                    // tab" from DraftPro's toolbar.
+                                    //
+                                    // REGRESSION FIX: Previously this block unconditionally called
+                                    // openEditorRef.current() (same-tab), which caused DraftPro to
+                                    // replace the ALOA chat on desktop. Now we only do that on mobile.
+                                    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                                    if (isMobile) {
+                                        feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
+                                        openEditorRef.current(null, draftConfig);
+                                    } else {
+                                        // Desktop: try openDraftInTab as fallback
+                                        const fallbackResult = openDraftInTab({
+                                            key: draftKey,
+                                            url,
+                                            title: draftConfig.draftTitle,
+                                        });
+                                        if (fallbackResult !== 'in-place') {
+                                            feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
+                                        } else {
+                                            // Both window.open and openDraftInTab failed — open in-place
+                                            feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}. (Tip: Allow pop-ups to open drafts in a separate tab.)`;
+                                            openEditorRef.current(null, draftConfig);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // DRAFTPRO-NEW-TAB — mobile branch (in-place is correct on mobile)
+                                openEditorRef.current(null, draftConfig);
+                            }
+                        } catch (e) {
+                            console.warn('[start_drafting] tab open failed', e);
+                            // DRAFTPRO-NEW-TAB — fallback on error: try openDraftInTab on desktop
+                            const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+                            if (!isMobile) {
+                                try {
+                                    const fallbackUrl = `/editor?draftKey=${encodeURIComponent(draftSessionKey({ matterId: undefined, title: draftConfig.draftTitle }))}&title=${encodeURIComponent(draftConfig.draftTitle)}`;
+                                    const result = openDraftInTab({
+                                        key: draftSessionKey({ matterId: undefined, title: draftConfig.draftTitle }),
+                                        url: fallbackUrl,
+                                        title: draftConfig.draftTitle,
+                                    });
+                                    if (result !== 'in-place') {
+                                        feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab.`;
+                                    } else {
+                                        openEditorRef.current(null, draftConfig);
+                                    }
+                                } catch {
                                     openEditorRef.current(null, draftConfig);
                                 }
                             } else {
                                 openEditorRef.current(null, draftConfig);
                             }
-                        } catch (e) {
-                            console.warn('[start_drafting] tab open failed', e);
-                            openEditorRef.current(null, draftConfig);
                         }
                         // Build the action data. The label is always "Resume Drafting"
                         // now — we no longer show a pending-open button. If the popup

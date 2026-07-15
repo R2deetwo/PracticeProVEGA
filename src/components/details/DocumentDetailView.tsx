@@ -143,13 +143,35 @@ const DocumentDetailViewContent: React.FC = () => {
     const { isProperty } = useProduct();
 
     const document = React.useMemo(() => documentState.documents.find(d => d.id === selectedId), [documentState.documents, selectedId]);
-    
-    if (!document) return <div className="p-8 text-center text-slate-500 italic">Document not found.</div>;
+
+    // ─── ALL HOOKS MUST RUN BEFORE ANY EARLY RETURN ──────────────────
+    // Previously, useState was called AFTER the `if (!document) return`
+    // guard, which caused a React Hooks violation ("Rendered more hooks
+    // than during the previous render") when the document went from
+    // undefined → defined. This crashed the /documents page on refresh
+    // with a stale/deleted ID. Now all hooks run first, then the guard.
+    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation'>(isProperty ? 'details' : 'details');
+
+    // ─── Null-state guard ─────────────────────────────────────────────
+    // If no document is selected or the ID is stale/deleted, show a safe
+    // empty state instead of crashing. This handles:
+    //   - Direct navigation to /documents with no id
+    //   - Refresh with no id
+    //   - Refresh with a stale/deleted id
+    if (!document || !selectedId) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
+                <svg className="w-16 h-16 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-lg font-medium text-slate-500 dark:text-zinc-400 mb-1">No Document Selected</p>
+                <p className="text-sm text-slate-400 dark:text-zinc-500">Select a document from the list to preview its contents or open it in DraftPro.</p>
+            </div>
+        );
+    }
 
     const previousViewName = (currentHistoryEntry?.previousView as string) || 'documents';
     const onGoBack = () => navigateTo((previousViewName as any) || 'documents');
-
-    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation'>(isProperty ? 'details' : 'details'); // default same for now
 
     const handleRunAnalysis = async () => {
         if (currentUser?.email === 'demo@practicepro.ng') {

@@ -68,6 +68,7 @@ import { HeaderDesigner } from '../HeaderDesigner';
 import PrintPreviewDrawer from './PrintPreviewDrawer';
 import { HeaderConfiguration } from '../../../types';
 import Tooltip from '../../Tooltip';
+import { classifyAndCheckCitation } from '../../../utils/citationClassifier';
 
 // ─── Inline SVG Toolbar Icons (Heroicons 1.5px stroke — unified with constants.tsx) ───
 const Sparkles: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>;
@@ -1332,28 +1333,64 @@ ${sourceList}
         }
 
         try {
-            // Build the authorities section as HTML — matches the canvas
-            // formatting (bold heading, numbered list, consistent font).
-            // We use a page break first so the authorities start on a new page.
-            const authoritiesHtml = `
+            // ─── Nigerian footnote convention ──────────────────────────
+            // Replace the old "TABLE OF AUTHORITIES" bottom table with:
+            //   1. Inline superscript markers (¹, ², ³...) at the point of
+            //      each [n] citation in the document body
+            //   2. A standard footnote block at the bottom of the canvas
+            //      (not a table) with the full citation text
+            //
+            // This matches Nigerian legal practice: numbered footnotes at
+            // the page margin, not a separate table of authorities page.
+            //
+            // The superscript markers replace the inline [1], [2] etc.
+            // citation markers that the AI inserts during drafting.
+
+            // ─── Step 1: Replace inline [n] markers with superscript ──
+            // Walk the document and replace [1], [2], etc. with <sup>¹</sup>
+            const currentHtml = editor.getHTML();
+            let updatedHtml = currentHtml;
+
+            // Map citation numbers to Unicode superscripts
+            const superscripts = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹', '¹⁰',
+                                  '¹¹', '¹²', '¹³', '¹⁴', '¹⁵', '¹⁶', '¹⁷', '¹⁸', '¹⁹', '²⁰'];
+
+            allCites.forEach((cite: any) => {
+                const num = cite.number;
+                const superscript = num < superscripts.length ? superscripts[num] : `<sup>${num}</sup>`;
+                // Replace [n] with the superscript — but only if it looks
+                // like a citation marker, not a placeholder
+                const marker = `[${num}]`;
+                // Don't replace if it's inside a legal-placeholder span
+                updatedHtml = updatedHtml.split(marker).join(`<sup>${superscript}</sup>`);
+            });
+
+            // ─── Step 2: Build the footnote block ─────────────────────
+            // Standard footnote block format (not a table):
+            //   ____________________
+            //   ¹ Citation text
+            //   ² Citation text
+            const footnoteBlock = `
 <div style="page-break-before: always;"></div>
-<h2 style="text-align: center; font-weight: bold; text-decoration: underline; margin-top: 2rem; margin-bottom: 1.5rem;">TABLE OF AUTHORITIES</h2>
-<ol style="line-height: 1.8; padding-left: 1.5rem;">
+<div style="border-top: 1px solid #333; margin-top: 2rem; padding-top: 0.5rem;">
+<p style="font-weight: bold; font-size: 0.9em; margin-bottom: 0.5rem;">Footnotes</p>
 ${allCites.map((c: any) => {
-    const citationLine = `[${c.number}] ${c.text}${c.url ? ` <em>(${c.url})</em>` : ''}${c.jurisdiction ? ` <strong>[${c.jurisdiction}]</strong>` : ''}`;
-    return `  <li style="margin-bottom: 0.5rem;">${citationLine}</li>`;
+    const num = c.number;
+    const superscript = num < superscripts.length ? superscripts[num] : `${num}`;
+    const pinpoint = classifyAndCheckCitation(c.text)?.pinpoint;
+    const citationText = `${c.text}${pinpoint ? ` (at ${pinpoint})` : ''}${c.url ? ` Available at ${c.url}` : ''}`;
+    return `<p style="font-size: 0.85em; line-height: 1.6; margin-bottom: 0.4rem; padding-left: 1.5rem; text-indent: -1.5rem;"><sup>${superscript}</sup> ${citationText}</p>`;
 }).join('\n')}
-</ol>
-<p style="margin-top: 2rem; font-style: italic; text-align: center; color: #6b7280; font-size: 0.85em;">Authorities cited in support of this document.</p>
+</div>
 `;
 
-            // Move cursor to end of document, then insert the authorities
-            editor.chain().focus().setPageBreak().run();
-            // Insert the HTML content at the end
-            editor.chain().focus().insertContent(authoritiesHtml).run();
+            // Set the updated HTML (with superscripts) + append footnote block
+            editor.chain().focus().setContent(updatedHtml).run();
+            editor.chain().focus().insertContent(footnoteBlock).run();
+
             // Mark as unsaved (the user just added content)
             setIsSaved(false);
-            addToast(`Inserted ${allCites.length} citation${allCites.length > 1 ? 's' : ''} into the document footer.`, { type: 'success' });
+            addToast(`Inserted ${allCites.length} footnote${allCites.length > 1 ? 's' : ''} (Nigerian convention).`, { type: 'success' });
         } catch (e: any) {
             console.error('[Insert Citations to Footer] failed:', e);
             addToast('Could not insert citations — please try again.', { type: 'error' });
@@ -1367,6 +1404,7 @@ ${allCites.map((c: any) => {
     const [isSavingFile, setIsSavingFile] = useState(false);
     const saveAsFile = useCallback(async (format: 'docx' | 'pdf') => {
         if (!editor) return;
+        const startTime = Date.now();
         try {
             setIsSavingFile(true);
             const html = editor.getHTML();
@@ -1376,61 +1414,117 @@ ${allCites.map((c: any) => {
                 ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                 : 'application/pdf';
 
-            addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
-
-            // Generate the Blob
-            let blob: Blob;
-            if (format === 'docx') {
-                blob = exportHtmlToDocxBlob(html, {
-                    title: title || 'Document',
-                    author: currentUser?.name || 'PracticePro',
-                    firmName: appState?.firmDetails?.name || '',
-                });
-            } else {
-                blob = await exportHtmlToPdfBlob(html, {
-                    title: title || 'Document',
-                    author: currentUser?.name || 'PracticePro',
-                    firmName: appState?.firmDetails?.name || '',
-                });
-            }
-
-            // Upload to Convex storage
-            addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
-            const storageId = await uploadBlobToConvex(blob, generateUploadUrl);
-
-            // Create a Document record so it appears in the Documents section
-            await handleAddDocumentAndAnalyze({
-                title: title || 'Untitled Document',
-                firmId: appState?.firmDetails?.id || currentUser?.firmId || '',
-                categoryId: 'drafts',
-                dateFiled: new Date().toISOString(),
-                source: 'generated',
-                uploadedBy: currentUser?.id,
-                content: html, // Keep HTML for in-app editing
-                file: {
-                    name: filename,
-                    type: mimeType,
-                    size: blob.size,
-                    filePath: '',
-                    storageId, // The Convex storage ID — this is the key
-                },
+            // ─── DIAGNOSTIC LOG ──────────────────────────────────────
+            // Logs the payload size and format so we can diagnose failures.
+            console.log(`[saveAsFile] Starting ${format.toUpperCase()} export`, {
+                htmlLength: html.length,
+                htmlSizeKB: Math.round(html.length / 1024),
             });
 
-            // Also trigger a browser download
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
+            addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
 
-            addToast(`${format.toUpperCase()} saved to Documents and downloaded.`, { type: 'success' });
-            setIsSaved(true);
+            // Generate the Blob with a timeout
+            let blob: Blob;
+            const generateTimeout = format === 'pdf' ? 60000 : 30000; // PDF: 60s, DOCX: 30s
+            const generatePromise = (async () => {
+                if (format === 'docx') {
+                    return exportHtmlToDocxBlob(html, {
+                        title: title || 'Document',
+                        author: currentUser?.name || 'PracticePro',
+                        firmName: appState?.firmDetails?.name || '',
+                    });
+                } else {
+                    return exportHtmlToPdfBlob(html, {
+                        title: title || 'Document',
+                        author: currentUser?.name || 'PracticePro',
+                        firmName: appState?.firmDetails?.name || '',
+                    });
+                }
+            })();
+
+            // Race the generation against a timeout
+            const timeoutPromise = new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error('timeout')), generateTimeout);
+            });
+
+            try {
+                blob = await Promise.race([generatePromise, timeoutPromise]);
+            } catch (genErr: any) {
+                console.error(`[saveAsFile] ${format.toUpperCase()} generation failed:`, genErr);
+                if (genErr.message === 'timeout') {
+                    addToast(`${format.toUpperCase()} generation timed out after ${generateTimeout / 1000}s. The document may be too large — try splitting it.`, { type: 'error' });
+                } else {
+                    addToast(`${format.toUpperCase()} generation failed: ${genErr.message}. Try again or use Print/PDF instead.`, { type: 'error' });
+                }
+                return;
+            }
+
+            console.log(`[saveAsFile] ${format.toUpperCase()} blob generated`, {
+                blobSizeKB: Math.round(blob.size / 1024),
+                generateTimeMs: Date.now() - startTime,
+            });
+
+            // Upload to Convex storage with a timeout
+            addToast(`Uploading ${format.toUpperCase()} to documents…`, { type: 'info' });
+            const uploadStartTime = Date.now();
+
+            try {
+                const uploadTimeout = 120000; // 2 minutes for upload
+                const storageId = await Promise.race([
+                    uploadBlobToConvex(blob, generateUploadUrl),
+                    new Promise<never>((_, reject) => {
+                        setTimeout(() => reject(new Error('upload-timeout')), uploadTimeout);
+                    }),
+                ]);
+
+                console.log(`[saveAsFile] Upload complete`, {
+                    storageId,
+                    uploadTimeMs: Date.now() - uploadStartTime,
+                });
+
+                // Create a Document record so it appears in the Documents section
+                await handleAddDocumentAndAnalyze({
+                    title: title || 'Untitled Document',
+                    firmId: appState?.firmDetails?.id || currentUser?.firmId || '',
+                    categoryId: 'drafts',
+                    dateFiled: new Date().toISOString(),
+                    source: 'generated',
+                    uploadedBy: currentUser?.id,
+                    content: html, // Keep HTML for in-app editing
+                    file: {
+                        name: filename,
+                        type: mimeType,
+                        size: blob.size,
+                        filePath: '',
+                        storageId, // The Convex storage ID — this is the key
+                    },
+                });
+
+                // Also trigger a browser download
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+
+                addToast(`${format.toUpperCase()} saved to Documents and downloaded.`, { type: 'success' });
+                setIsSaved(true);
+            } catch (uploadErr: any) {
+                console.error(`[saveAsFile] Upload failed:`, uploadErr);
+                if (uploadErr.message === 'upload-timeout') {
+                    addToast(`Upload timed out after 2 minutes. The file (${Math.round(blob.size / 1024)}KB) may be too large. Try a smaller document.`, { type: 'error' });
+                } else if (uploadErr.message?.includes('Failed to fetch')) {
+                    addToast(`Network error during upload. Check your internet connection and try again.`, { type: 'error' });
+                } else {
+                    addToast(`Upload failed: ${uploadErr.message}. The file was generated but could not be saved to Documents.`, { type: 'error' });
+                }
+            }
         } catch (err: any) {
-            console.error(`[DraftPro] Save as ${format} failed:`, err);
-            addToast(`Failed to save as ${format.toUpperCase()}: ${err.message}`, { type: 'error' });
+            console.error(`[saveAsFile] Unexpected error:`, err);
+            addToast(`Unexpected error saving ${format.toUpperCase()}: ${err.message}`, { type: 'error' });
         } finally {
             setIsSavingFile(false);
         }
@@ -3169,73 +3263,15 @@ interface CitationIssue {
     message: string;
 }
 
+// ─── Citation Completeness Checker (uses new 6-class taxonomy) ──────
+// Replaced the old binary statute/case-law checker with the full
+// citationClassifier that supports 6 classes: Statute, Case Law,
+// Constitutional, Contract, Direct Quote, Secondary Source.
+// Each class has its own completeness rules — no more flagging valid
+// statute citations as incomplete for lacking a reporter/volume.
 function checkCitationCompleteness(text: string): CitationIssue[] {
-    const issues: CitationIssue[] = [];
-    const t = (text || '').trim();
-    if (!t) {
-        issues.push({ field: 'empty', message: 'Citation text is empty.' });
-        return issues;
-    }
-
-    // Year detection — most legal citations must include a year.
-    // Matches 4-digit years 19xx or 20xx, optionally in brackets/parens.
-    const yearMatch = t.match(/(?:\[|\(|\b)(19|20)\d{2}(?:\]|\)|\b)/);
-    if (!yearMatch) {
-        issues.push({ field: 'year', message: 'Citation lacks a year — legal citations should include the year of decision.' });
-    }
-
-    // Volume / part number detection
-    // Nigerian NWLR: "Volume NWLR (Pt. N)"  →  e.g. "15 NWLR (Pt. 789)"
-    // OSCOLA: "[Year] Volume Reporter Page"
-    // Bluebook: "Volume Reporter Page"
-    // LPELR: "LPELR-NNNNN"
-    const hasVolume = /\b\d{1,4}\s+(?:NWLR|SC|LR|All\s*ER|AC|QB|WLR|F\s*Supp|NMLR|QdLRN|JLRN|PLC|AELR)\b/i.test(t);
-    const hasLPELR = /LPELR[-\s]?\d{3,}/i.test(t);
-    const hasPartNumber = /\bPt\.?\s*\d+/i.test(t);
-    if (!hasVolume && !hasLPELR && !hasPartNumber) {
-        // Try a generic "Volume Reporter" pattern (digits + uppercase word)
-        const hasGenericVol = /\b\d{1,4}\s+[A-Z]{2,}/.test(t);
-        if (!hasGenericVol) {
-            issues.push({ field: 'volume', message: 'Citation lacks volume/reporter number — verify the reporter citation (e.g., "15 NWLR (Pt. 789) 123" or "LPELR-12345").' });
-        }
-    }
-
-    // Page number detection — the trailing number after the volume
-    // e.g. "15 NWLR (Pt. 789) 123" — the "123" is the page
-    // e.g. "[2024] 1 All ER 567" — the "567" is the page
-    const hasPageNumber = /\)\s*\d{1,4}\b/.test(t) || /\b\d{1,4}\s+[A-Z]{2,}.*?\s\d{1,4}\b/.test(t);
-    if (!hasPageNumber && !hasLPELR) {
-        // For case citations, page is essential. For statute citations, it may not be.
-        const isStatute = /Act|Law|Code|Constitution|Section|Regulation/i.test(t);
-        if (!isStatute) {
-            issues.push({ field: 'page', message: 'Citation lacks a page number — case citations should include the starting page (e.g., "... 123").' });
-        }
-    }
-
-    // Court detection — Nigerian citations often include (SC), (CA), (FHC), (HC)
-    // Bluebook/OSCOLA include court names like "Supreme Court", "Court of Appeal"
-    const courtPatterns = /\b(?:SC|CA|FHC|HC|NICN|SCN|CCA|SCA)\b|\b(?:Supreme Court|Court of Appeal|Federal High Court|High Court|Industrial Court|Magistrate Court)\b/i;
-    if (!courtPatterns.test(t)) {
-        // Only flag if there's no obvious court indicator
-        const hasCourtName = /court|tribunal/i.test(t);
-        if (!hasCourtName) {
-            issues.push({ field: 'court', message: 'Citation lacks the court identifier — add (SC), (CA), (FHC) or the full court name.' });
-        }
-    }
-
-    // "v." / "vs." for case citations — if it looks like a case but lacks "v."
-    const looksLikeCase = /\b[A-Z][a-z]+\s+(?:v\.?|vs\.?)\s+[A-Z]/.test(t);
-    const looksLikeCaseWithoutV = /\b[A-Z][a-z]+\s+(?:and|&)\s+[A-Z]/.test(t);
-    if (looksLikeCaseWithoutV && !looksLikeCase) {
-        issues.push({ field: 'parties', message: 'Citation uses "and" or "&" between parties — case citations should use "v." (e.g., "Adeyemi v. State").' });
-    }
-
-    // URL check — if the citation is just a URL, flag missing case name
-    if (/^https?:\/\//i.test(t) && !looksLikeCase) {
-        issues.push({ field: 'parties', message: 'Citation is a URL only — add the case name and full citation.' });
-    }
-
-    return issues;
+    const result = classifyAndCheckCitation(text);
+    return result.issues;
 }
 
 // ─── CitationCard ──────────────────────────────────────────────────────────
@@ -3271,7 +3307,8 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
 
     // Run the completeness check ONCE on mount (memoised) — it doesn't
     // change unless the citation text changes.
-    const issues = useMemo(() => checkCitationCompleteness(cite.text), [cite.text]);
+    const classification = useMemo(() => classifyAndCheckCitation(cite.text), [cite.text]);
+    const issues = classification.issues;
 
     const handleClick = async () => {
         if (!expanded && !insight && cite.url) {
@@ -3320,9 +3357,22 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
 
                         {/* Metadata row — compact */}
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                            <span className="text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-700/80 text-slate-500 dark:text-zinc-400">
-                                {cite.type}
+                            {/* Classification badge — shows the citation class */}
+                            <span className={`text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ${
+                                classification.citationClass === 'statute' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300' :
+                                classification.citationClass === 'case_law' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' :
+                                classification.citationClass === 'constitutional' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300' :
+                                classification.citationClass === 'unclassified' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300' :
+                                'bg-slate-100 dark:bg-zinc-700/80 text-slate-500 dark:text-zinc-400'
+                            }`}>
+                                {classification.className}
                             </span>
+                            {/* Pinpoint — shows the specific section/clause if extracted */}
+                            {classification.pinpoint && (
+                                <span className="text-[8px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">
+                                    {classification.pinpoint}
+                                </span>
+                            )}
                             {cite.jurisdiction && (
                                 <span className="text-[8px] font-medium text-slate-400 dark:text-zinc-500">
                                     {cite.jurisdiction}
