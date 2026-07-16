@@ -52,12 +52,14 @@ export const WordProcessor: React.FC = () => {
         setDisableAutoDraft(shouldSuppress);
 
         // Resolve the prompt: URL param, context, or stored
+        // NOTE: URLSearchParams.get() already URL-decodes the value.
+        // Calling decodeURIComponent() again would double-decode and crash
+        // on strings containing literal '%' (e.g., "100% ownership").
         const resolvedPrompt = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || undefined;
-        // URL-decode the prompt if it came from query params
-        setDraftPrompt(resolvedPrompt ? decodeURIComponent(resolvedPrompt) : undefined);
+        setDraftPrompt(resolvedPrompt || undefined);
 
         // Resolve the title: URL param, context, or stored
-        const resolvedTitle = urlTitle ? decodeURIComponent(urlTitle) : ctx.draftTitle || stored?.title || 'Untitled Draft';
+        const resolvedTitle = urlTitle || ctx.draftTitle || stored?.title || 'Untitled Draft';
         setDocumentTitle(resolvedTitle);
     }, [location.state, location.search, currentHistoryEntry, firmId]);
 
