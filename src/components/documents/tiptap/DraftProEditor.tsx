@@ -1414,6 +1414,24 @@ ${allCites.map((c: any) => {
     const [isSavingFile, setIsSavingFile] = useState(false);
     const saveAsFile = useCallback(async (format: 'docx' | 'pdf') => {
         if (!editor) return;
+
+        // ─── PDF: Use iframe print pipeline (NOT html2canvas) ────────
+        // The browser's native print engine produces a vector PDF with
+        // proper page breaks, margins, and selectable text. html2canvas
+        // produces a rasterized screenshot that has gaps, orphan headings,
+        // and is affected by zoom level.
+        //
+        // For PDF: we open the print dialog — the user saves as PDF via
+        // the browser. This is the most reliable approach and produces a
+        // TRUE representation of what appears on the DraftPro canvas.
+        if (format === 'pdf') {
+            addToast('Opening print dialog — choose "Save as PDF" to save.', { type: 'info' });
+            handlePrint();
+            setIsSaved(true);
+            return;
+        }
+
+        // ─── DOCX: Use the OOXML export pipeline ─────────────────────
         const startTime = Date.now();
         try {
             setIsSavingFile(true);
@@ -1574,8 +1592,114 @@ ${allCites.map((c: any) => {
             setActiveModal('fill_placeholders');
             return;
         }
-        window.print();
-    }, [editor, addToast]);
+
+        // ─── Iframe-based print pipeline ──────────────────────────────
+        // Creates a hidden iframe with the document HTML, applies the exact
+        // same print CSS (A4, margins, Times New Roman, page breaks),
+        // and calls iframe.contentWindow.print().
+        //
+        // This produces a VECTOR PDF (text is selectable, sharp at any zoom)
+        // via the browser's native print engine — NOT a rasterized screenshot
+        // like html2canvas. The zoom level of the editor does NOT affect the
+        // output because the iframe renders at 100% scale independently.
+        //
+        // The user gets the browser's "Save as PDF" dialog which is the most
+        // reliable PDF generator available.
+        try {
+            const html = editor.getHTML();
+            const letterheadHtml = appState.firmDetails?.settings?.headerConfig
+                ? '<div class="letterhead"></div>'
+                : '';
+
+            const printDoc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title || 'Document'}</title>
+<style>
+  @page { size: A4; margin: 25mm 25mm 25mm 25mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', serif;
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #1a1a1a;
+  }
+  .letterhead { margin-bottom: 16pt; text-align: center; }
+  h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; break-after: avoid; break-inside: avoid; }
+  h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; break-after: avoid; break-inside: avoid; }
+  h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; break-after: avoid; break-inside: avoid; }
+  h1 + p, h2 + p, h3 + p { break-before: avoid; }
+  p { margin: 0 0 8pt; text-align: justify; orphans: 2; widows: 2; }
+  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+  li { margin-bottom: 4pt; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; break-inside: avoid; }
+  td, th { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
+  th { background: #f5f5f5; font-weight: bold; }
+  strong { font-weight: bold; }
+  em { font-style: italic; }
+  u { text-decoration: underline; }
+  .page-break { page-break-after: always; break-after: page; }
+  sup { font-size: 0.7em; vertical-align: super; }
+  /* Prevent orphan headings at bottom of page */
+  h1, h2, h3 { page-break-after: avoid; }
+  /* Prevent large gaps — keep paragraphs with their following content */
+  p { page-break-inside: avoid; }
+  /* Watermark */
+  .watermark {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 120px; font-weight: 900;
+    color: rgba(220, 38, 38, 0.08);
+    white-space: nowrap; pointer-events: none; z-index: 0;
+  }
+</style>
+</head>
+<body>
+  ${watermark ? `<div class="watermark">${watermark}</div>` : ''}
+  ${letterheadHtml}
+  ${html}
+</body>
+</html>`;
+
+            // Create hidden iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = 'none';
+            iframe.style.opacity = '0';
+            iframe.style.pointerEvents = 'none';
+            document.body.appendChild(iframe);
+
+            // Write content and print
+            const doc = iframe.contentWindow?.document;
+            if (doc) {
+                doc.open();
+                doc.write(printDoc);
+                doc.close();
+                // Wait for content to render before printing
+                setTimeout(() => {
+                    try {
+                        iframe.contentWindow?.focus();
+                        iframe.contentWindow?.print();
+                    } catch (e) {
+                        console.error('[DraftPro] Print failed:', e);
+                        addToast('Could not open print dialog. Try the Print/PDF button instead.', { type: 'error' });
+                    }
+                    // Remove iframe after print dialog closes
+                    setTimeout(() => {
+                        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                    }, 1000);
+                }, 500);
+            }
+        } catch (e) {
+            console.error('[DraftPro] Print setup failed:', e);
+            addToast('Could not prepare document for printing.', { type: 'error' });
+        }
+    }, [editor, addToast, title, appState.firmDetails, watermark]);
 
     // ─── Redraft Handler ──────────────────────────────────────────────────
     // Re-triggers the AI drafting engine using the original prompt plus any
@@ -3288,7 +3412,7 @@ ${allCites.map((c: any) => {
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
         /* ── Print Styles (PART 4: High-fidelity PDF matching) ── */
-        @page { size: A4; margin: 25mm 25mm 20mm 25mm; }
+        @page { size: A4; margin: 25mm 25mm 25mm 25mm; }
         @media print {
           body * { visibility: hidden; }
           #draftpro-scroll-area, #draftpro-scroll-area * { visibility: visible; }
@@ -3318,10 +3442,18 @@ ${allCites.map((c: any) => {
           /* Hide visual-only chrome */
           .print\:hidden { display: none !important; }
           .draftpro-editor-content { padding-bottom: 0 !important; }
-          table { break-inside: avoid; }
-          tr { break-inside: avoid; }
-          h1, h2, h3 { break-after: avoid; }
-          p { orphans: 2; widows: 2; }
+          /* Anti-orphan headings: keep headings with following content */
+          h1, h2, h3, h4 { break-after: avoid !important; page-break-after: avoid !important; break-inside: avoid !important; }
+          /* Keep heading + first paragraph together */
+          h1 + p, h2 + p, h3 + p, h4 + p { break-before: avoid !important; page-break-before: avoid !important; }
+          /* Prevent large gaps: avoid breaking inside paragraphs */
+          p { break-inside: avoid !important; page-break-inside: avoid !important; orphans: 2; widows: 2; }
+          /* Keep tables together */
+          table { break-inside: avoid !important; page-break-inside: avoid !important; }
+          tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+          /* Keep list items together */
+          li { break-inside: avoid !important; page-break-inside: avoid !important; }
+          ul, ol { break-inside: avoid !important; page-break-inside: avoid !important; }
         }
       `}</style>
         </div >

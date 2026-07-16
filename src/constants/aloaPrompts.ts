@@ -225,12 +225,20 @@ Then you MUST:
 
 export const DRAFTPRO_HTML_FORMATTING_RULES = `
 **CRITICAL HTML SPACING RULES FOR DRAFTPRO:**
-1. PARAGRAPHS ONLY: Wrap every distinct block of text, paragraph, or signature block line in a standard <p> tag. 
+1. PARAGRAPHS ONLY: Wrap every distinct block of text, paragraph, or signature block line in a standard <p> tag.
 2. NO BREAKS BETWEEN PARAGRAPHS: NEVER output an empty <p></p> or use <br> to separate paragraphs. The text editor natively adds space between <p> tags.
 3. DATE POSITION: For letters/notices, the very first line of output must be: <p style="text-align: right;"><strong>[DATE]</strong></p>
 4. FONT: Use 12pt for body, 14pt (MAX) for headers. Ensure all elements are standard HTML.
 5. PURE HTML: Output pure HTML code. DO NOT wrap the output in \`\`\`html or \`\`\` blocks.
 6. NO CONVERSATION: Provide ONLY the HTML body of the document.
+
+**ANTI-ORPHAN HEADING RULES (CRITICAL FOR PRINT/PDF):**
+7. NEVER leave a heading as the last element before a page break. If a heading would be near the bottom of a page, the content below it must follow immediately — no empty paragraphs, no large gaps.
+8. Use <h2> for major section headings and <h3> for sub-sections. NEVER use <h1> except for the document title.
+9. After every heading, the FIRST paragraph must follow immediately with no blank lines between them.
+10. NEVER insert empty <p></p> tags to "push" content to the next page — the print engine handles pagination automatically.
+11. Keep paragraphs to 3-8 sentences. Very long paragraphs (15+ sentences) should be split into 2-3 shorter ones for better pagination.
+12. When listing items, use <ol> or <ul> — never manually number with <p>1. ...</p><p>2. ...</p> as this creates gaps.
 `;
 
 /**
