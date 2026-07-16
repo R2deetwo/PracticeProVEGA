@@ -100,7 +100,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     }, [onClose]);
     const {
         messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
-        preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled,
+        preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
         activeConversationId, setActiveConversationId, activeView, setActiveView,
         activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent,
         injectedContext, setInjectedContext
@@ -875,9 +875,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             // If brain search is available, query it; otherwise provide a helpful fallback
                             let repoResults: any[] = [];
                             
-                            if (context?.searchBrain) {
+                            if (liveSessionRef.current?.searchBrain) {
                                 try {
-                                    const brainResult = await context.searchBrain(query);
+                                    const brainResult = await liveSessionRef.current.searchBrain(query);
                                     if (brainResult) {
                                         repoResults = [{ title: 'Firm Document Match', snippet: brainResult.substring(0, 300), source: 'firm_knowledge_base' }];
                                     }

@@ -440,7 +440,7 @@ export const EMPTY_APP_STATE: AppState = {
     automationLogs: []
 };
 export interface HistoryEntry { view: View; selectedId: SelectedId; context?: any; initialTab?: string; activeContactCategory?: string; activeTab?: string; calendarDate?: string; calendarViewMode?: 'month' | 'diary' | 'week'; taskUserFilter?: string; notesSelectionPath?: string[]; selectedResearchNotebookId?: string | null; previousView?: View; }
-export interface Toast { id: number; message: React.ReactNode; type: 'success' | 'error' | 'info'; link?: { text: string; onClick: () => void; }; }
+export interface Toast { id: number; message: React.ReactNode; type: 'success' | 'error' | 'info' | 'warning'; link?: { text: string; onClick: () => void; }; }
 export interface AloaArtifact { id: string; type: 'form' | 'draft' | 'confirmation' | 'note'; data: any; }
 export interface AloaConfirmationData { question: string; originalForm: any; match: { id: string; }; }
 export interface AloaMessage { id: string; role: 'user' | 'model' | 'tool'; content?: string; toolCalls?: any[]; toolResult?: any; modelUsed?: string; toolAction?: any; isError?: boolean; errorDetails?: string; completedResult?: { id: string; title: string; type: string; }; interactiveForm?: InteractiveFormSchema; attachments?: string[]; attachmentNames?: string[]; }

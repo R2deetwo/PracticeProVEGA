@@ -10,7 +10,7 @@
  *   the [[...]] text in the textarea.
  */
 import React, { useState, useEffect, useRef } from 'react';
-import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
+import { searchEntities, EntitySearchResult } from '../utils/linkParser';
 
 interface LinkAutocompleteProps {
   /** The textarea element to watch */

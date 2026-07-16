@@ -43,7 +43,7 @@ export interface UIContextType {
     searchQuery: string | null;
     setSearchQuery: React.Dispatch<React.SetStateAction<string | null>>;
     toasts: Toast[];
-    addToast: (message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link'] }) => void;
+    addToast: (message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => void;
     removeToast: (id: number) => void;
     taskStatusFilter: TaskStatus | null;
     setTaskStatusFilter: React.Dispatch<React.SetStateAction<TaskStatus | null>>;
