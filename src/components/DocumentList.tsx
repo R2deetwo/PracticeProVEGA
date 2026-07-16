@@ -103,41 +103,10 @@ const DocumentRow: React.FC<{
                     </div>
                 </div>
 
-                {/* Desktop: inline action buttons (hidden on mobile) */}
-                <div className="hidden md:flex items-center gap-0.5 flex-shrink-0 flex-wrap justify-end">
-                    <Tooltip text="View">
-                        <button onClick={(e) => { e.stopPropagation(); onViewDetails(doc.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors">
-                            <EyeIcon className="w-4 h-4" />
-                        </button>
-                    </Tooltip>
-                    {doc.file && (
-                        <Tooltip text="Download">
-                            <button onClick={(e) => { e.stopPropagation(); onDownload(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors">
-                                <DownloadIcon className="w-4 h-4" />
-                            </button>
-                        </Tooltip>
-                    )}
-                    <Tooltip text="Share">
-                        <button onClick={(e) => { e.stopPropagation(); onShare(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
-                            <ShareIcon className="w-4 h-4" />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Edit">
-                        <button onClick={(e) => { e.stopPropagation(); onEdit(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
-                            <EditIcon className="w-4 h-4" />
-                        </button>
-                    </Tooltip>
-                    <Tooltip text="Delete">
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(doc); }} className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                            <TrashIcon className="w-4 h-4" />
-                        </button>
-                    </Tooltip>
-                </div>
-
-                {/* Mobile: kebab menu (hidden on desktop) */}
+                {/* Kebab menu — shown on ALL screen sizes (not just mobile) */}
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowBottomSheet(true); }}
-                    className="md:hidden flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                    className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
                     aria-label="More options"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -146,14 +115,14 @@ const DocumentRow: React.FC<{
                 </button>
             </div>
 
-            {/* Mobile Bottom Sheet */}
+            {/* Bottom Sheet — shown on ALL screen sizes */}
             {showBottomSheet && (
-                <div className="md:hidden fixed inset-0 z-[2000] flex items-end justify-center animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center animate-in fade-in duration-200">
                     <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={() => setShowBottomSheet(false)}
                     />
-                    <div className="relative z-10 w-full bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl border-t border-slate-200 dark:border-zinc-700 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-300">
+                    <div className="relative z-10 w-full sm:max-w-sm bg-white dark:bg-zinc-900 rounded-t-3xl sm:rounded-2xl shadow-2xl border-t sm:border border-slate-200 dark:border-zinc-700 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
                         {/* Drag handle */}
                         <div className="flex justify-center pt-3 pb-1">
                             <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-600" />
