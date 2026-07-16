@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppMode } from '../../types';
 import type { Document, User, FirmDetails, ModalType, View } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
@@ -163,6 +163,172 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
             <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
                 <DownloadIcon className="w-5 h-5" /> Download for Full Access
             </a>
+        </div>
+    );
+};
+
+// ─── HTML Page Preview — renders document content as paginated A4 pages ──
+// Uses an iframe with @page CSS so the browser's print pagination engine
+// creates REAL separate A4 pages with proper margins — not one long sheet.
+// Includes zoom controls (50%–200%) like a real PDF reader.
+const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, title }) => {
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+    const [zoom, setZoom] = useState(100);
+    const [pageCount, setPageCount] = useState(1);
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const printCss = `
+        @page { size: A4; margin: 25mm; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            color: #1a1a1a;
+            background: #e5e7eb;
+        }
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            padding: 25mm;
+            margin: 0 auto 10mm;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            page-break-after: always;
+            break-after: page;
+            position: relative;
+        }
+        .page:last-child { page-break-after: auto; break-after: auto; }
+        h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; break-after: avoid; }
+        h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; break-after: avoid; }
+        h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; break-after: avoid; }
+        h1 + p, h2 + p, h3 + p { break-before: avoid; }
+        p { margin: 0 0 8pt; text-align: justify; orphans: 2; widows: 2; break-inside: avoid; }
+        ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+        li { margin-bottom: 4pt; break-inside: avoid; }
+        table { width: 100%; border-collapse: collapse; margin: 8pt 0; break-inside: avoid; }
+        td, th { border: 1px solid #ccc; padding: 4pt 8pt; }
+        th { background: #f5f5f5; font-weight: bold; }
+        strong { font-weight: bold; }
+        em { font-style: italic; }
+        u { text-decoration: underline; }
+        sup { font-size: 0.7em; vertical-align: super; }
+        .page-break { page-break-after: always; break-after: page; }
+        /* Page number badge in corner of each page */
+        .page::after {
+            content: attr(data-page);
+            position: absolute;
+            bottom: 10mm;
+            right: 25mm;
+            font-size: 9pt;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+    `;
+
+    const fullHtml = useMemo(() => {
+        // Split content on page-break markers to create separate page divs
+        const cleanHtml = sanitize(html);
+        const pages = cleanHtml.split(/<div[^>]*data-type="page-break"[^>]*><\/div>|<div[^>]*class="[^"]*page-break[^"]*"[^>]*><\/div>|<div[^>]*style="[^"]*page-break[^"]*"[^>]*><\/div>/i);
+        const pageDivs = pages.map((p, i) =>
+            `<div class="page" data-page="Page ${i + 1} of ${pages.length}">${p}</div>`
+        ).join('\n');
+
+        return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>${printCss}</style>
+</head>
+<body>
+${pageDivs}
+</body>
+</html>`;
+    }, [html, title, printCss]);
+
+    // Count pages and track scroll position
+    useEffect(() => {
+        const iframe = iframeRef.current;
+        if (!iframe) return;
+        const updatePageInfo = () => {
+            try {
+                const doc = iframe.contentDocument;
+                if (!doc) return;
+                const pages = doc.querySelectorAll('.page');
+                setPageCount(pages.length);
+                // Determine current page based on scroll position
+                const container = iframe.contentWindow;
+                if (container) {
+                    const scrollTop = container.scrollY;
+                    const pageHeight = 297 + 10; // mm → roughly pixels at 100%
+                    const pageNum = Math.floor(scrollTop / (pageHeight * 3.78)) + 1; // mm to px conversion
+                    setCurrentPage(Math.min(Math.max(1, pageNum), pages.length));
+                }
+            } catch { /* cross-origin */ }
+        };
+        const interval = setInterval(updatePageInfo, 500);
+        return () => clearInterval(interval);
+    }, [fullHtml]);
+
+    return (
+        <div className="flex flex-col h-full bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
+            {/* Toolbar — like a real PDF reader */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm flex-shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                        <DocumentIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{title}</p>
+                        <p className="text-[10px] text-slate-400">Page {currentPage} of {pageCount}</p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {/* Zoom out */}
+                    <button
+                        onClick={() => setZoom(z => Math.max(50, z - 25))}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        title="Zoom out"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
+                    </button>
+                    {/* Zoom level */}
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-10 text-center">{zoom}%</span>
+                    {/* Zoom in */}
+                    <button
+                        onClick={() => setZoom(z => Math.min(200, z + 25))}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
+                        title="Zoom in"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    </button>
+                    {/* Fit 100% */}
+                    <button
+                        onClick={() => setZoom(100)}
+                        className="px-2 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors text-[10px] font-bold"
+                        title="Reset to 100%"
+                    >
+                        100%
+                    </button>
+                </div>
+            </div>
+
+            {/* Page viewer area */}
+            <div className="flex-1 overflow-auto bg-slate-200/50 dark:bg-zinc-900/30">
+                <iframe
+                    ref={iframeRef}
+                    title={title}
+                    srcDoc={fullHtml}
+                    className="w-full h-full border-none"
+                    style={{
+                        transform: `scale(${zoom / 100})`,
+                        transformOrigin: 'top center',
+                        transition: 'transform 200ms ease-out',
+                    }}
+                    sandbox="allow-same-origin allow-popups"
+                />
+            </div>
         </div>
     );
 };
@@ -394,38 +560,7 @@ const DocumentDetailViewContent: React.FC = () => {
 
                     {activeTab === 'details' ? (
                         document.content ? (
-                            <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-xl p-4 custom-scrollbar">
-                                <div
-                                    className="bg-white rounded-xl shadow-2xl border border-slate-200 mx-auto"
-                                    style={{
-                                        maxWidth: '210mm',
-                                        minHeight: '297mm',
-                                        padding: '25mm 25mm 25mm 25mm',
-                                        fontFamily: "'Times New Roman', serif",
-                                        fontSize: '12pt',
-                                        lineHeight: '1.5',
-                                        color: '#1a1a1a',
-                                    }}
-                                >
-                                    <style>{`
-                                        .doc-preview h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
-                                        .doc-preview h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
-                                        .doc-preview h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
-                                        .doc-preview p { margin: 0 0 8pt; text-align: justify; }
-                                        .doc-preview ul, .doc-preview ol { margin: 0 0 8pt; padding-left: 20pt; }
-                                        .doc-preview li { margin-bottom: 4pt; }
-                                        .doc-preview table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-                                        .doc-preview td, .doc-preview th { border: 1px solid #ccc; padding: 4pt 8pt; }
-                                        .doc-preview th { background: #f5f5f5; font-weight: bold; }
-                                        .doc-preview strong { font-weight: bold; }
-                                        .doc-preview em { font-style: italic; }
-                                        .doc-preview u { text-decoration: underline; }
-                                        .doc-preview sup { font-size: 0.7em; vertical-align: super; }
-                                        .doc-preview .page-break { page-break-after: always; }
-                                    `}</style>
-                                    <div className="doc-preview" dangerouslySetInnerHTML={{ __html: sanitize(document.content) }} />
-                                </div>
-                            </div>
+                            <HtmlPagePreview html={document.content} title={document.title} />
                         ) : (
                             <FileViewer file={document.file} />
                         )
