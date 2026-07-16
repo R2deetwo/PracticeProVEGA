@@ -96,31 +96,55 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     if (isPdf && blobUrl) {
         return (
-            <div className="w-full flex flex-col items-center bg-slate-100 dark:bg-zinc-900/50 rounded-2xl p-2 sm:p-4 border border-slate-200 dark:border-zinc-800 shadow-inner group">
-                <div className="w-full flex justify-end gap-2 mb-3">
-                    <button 
-                        onClick={() => setViewMode(viewMode === 'fit' ? 'portrait' : 'fit')}
-                        className="px-4 py-1.5 bg-white dark:bg-zinc-800 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700 hover:border-primary-500 transition-all shadow-sm"
-                    >
-                        {viewMode === 'fit' ? 'Switch to Portrait' : 'Back to Fit Width'}
-                    </button>
-                </div>
-                <div className={`w-full transition-all duration-500 ease-in-out ${viewMode === 'portrait' ? 'max-w-[550px]' : 'max-w-5xl'} h-[85vh] min-h-[500px] bg-white dark:bg-zinc-800 rounded-xl shadow-2xl overflow-hidden border border-slate-300 dark:border-zinc-700 relative`}>
-                    <object
-                        data={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`}
-                        type="application/pdf"
-                        className="w-full h-full"
-                    >
-                        <iframe src={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`} className="w-full h-full border-none" title="PDF Preview"></iframe>
-                        <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-white dark:bg-zinc-800">
-                            <DocumentIcon className="w-12 h-12 mb-4 opacity-20" />
-                            <p className="font-bold mb-2">Browser Preview Unavailable</p>
-                            <p className="text-sm mb-4">Your browser doesn't support direct PDF embedding.</p>
-                            <a href={blobUrl} download={file.name} className="px-5 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 transition-all">
-                                Download to view
-                            </a>
+            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
+                {/* PDF toolbar — like a top PDF reader */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
                         </div>
-                    </object>
+                        <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{file.name}</p>
+                            <p className="text-[10px] text-slate-400">PDF Document</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                            onClick={() => setViewMode(viewMode === 'fit' ? 'portrait' : 'fit')}
+                            className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                            title={viewMode === 'fit' ? 'Switch to portrait view' : 'Switch to fit-width view'}
+                        >
+                            {viewMode === 'fit' ? 'Fit' : 'Portrait'}
+                        </button>
+                        <a
+                            href={blobUrl}
+                            download={file.name}
+                            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1"
+                        >
+                            <DownloadIcon className="w-3 h-3" />
+                            Download
+                        </a>
+                    </div>
+                </div>
+                {/* PDF viewer area */}
+                <div className="flex-1 overflow-hidden bg-slate-200/50 dark:bg-zinc-900/30 flex items-center justify-center p-4">
+                    <div className={`w-full transition-all duration-300 ease-in-out ${viewMode === 'portrait' ? 'max-w-[550px]' : 'max-w-5xl'} h-full bg-white dark:bg-zinc-800 rounded-lg shadow-2xl overflow-hidden border border-slate-300 dark:border-zinc-700`}>
+                        <object
+                            data={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`}
+                            type="application/pdf"
+                            className="w-full h-full"
+                        >
+                            <iframe src={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`} className="w-full h-full border-none" title="PDF Preview"></iframe>
+                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-white dark:bg-zinc-800">
+                                <DocumentIcon className="w-12 h-12 mb-4 opacity-20" />
+                                <p className="font-bold mb-2">Browser Preview Unavailable</p>
+                                <p className="text-sm mb-4">Your browser doesn't support direct PDF embedding.</p>
+                                <a href={blobUrl} download={file.name} className="px-5 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 transition-all">
+                                    Download to view
+                                </a>
+                            </div>
+                        </object>
+                    </div>
                 </div>
             </div>
         );
@@ -206,17 +230,32 @@ const DocxPreview: React.FC<{ file: any; activeUrl: string }> = ({ file, activeU
     }
 
     return (
-        <div className="w-full">
+        <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-xl p-4 custom-scrollbar">
             <div
-                className="bg-white dark:bg-white rounded-xl shadow-lg border border-slate-200 overflow-x-auto mx-auto"
-                style={{ maxWidth: '210mm', minHeight: '297mm', padding: '25mm 25mm 20mm 25mm' }}
+                className="bg-white rounded-xl shadow-2xl border border-slate-200 mx-auto"
+                style={{ maxWidth: '210mm', minHeight: '297mm', padding: '25mm 25mm 25mm 25mm' }}
             >
+                <style>{`
+                    .docx-preview h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
+                    .docx-preview h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
+                    .docx-preview h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
+                    .docx-preview p { margin: 0 0 8pt; text-align: justify; }
+                    .docx-preview ul, .docx-preview ol { margin: 0 0 8pt; padding-left: 20pt; }
+                    .docx-preview li { margin-bottom: 4pt; }
+                    .docx-preview table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+                    .docx-preview td, .docx-preview th { border: 1px solid #ccc; padding: 4pt 8pt; }
+                    .docx-preview th { background: #f5f5f5; font-weight: bold; }
+                    .docx-preview strong { font-weight: bold; }
+                    .docx-preview em { font-style: italic; }
+                    .docx-preview sup { font-size: 0.7em; vertical-align: super; }
+                `}</style>
                 <div
-                    className="prose prose-sm max-w-none text-slate-900"
+                    className="docx-preview"
                     style={{
                         fontFamily: "'Times New Roman', serif",
                         fontSize: '12pt',
                         lineHeight: '1.5',
+                        color: '#1a1a1a',
                     }}
                     dangerouslySetInnerHTML={{ __html: html || '<p>No content.</p>' }}
                 />
@@ -355,8 +394,37 @@ const DocumentDetailViewContent: React.FC = () => {
 
                     {activeTab === 'details' ? (
                         document.content ? (
-                            <div className="bg-white dark:bg-zinc-800 rounded-xl p-8 border border-slate-200 shadow-lg prose dark:prose-invert max-w-none custom-scrollbar overflow-y-auto max-h-[80vh]">
-                                <div dangerouslySetInnerHTML={{ __html: sanitize(document.content) }} />
+                            <div className="flex-1 overflow-y-auto bg-slate-100 dark:bg-zinc-900/50 rounded-xl p-4 custom-scrollbar">
+                                <div
+                                    className="bg-white rounded-xl shadow-2xl border border-slate-200 mx-auto"
+                                    style={{
+                                        maxWidth: '210mm',
+                                        minHeight: '297mm',
+                                        padding: '25mm 25mm 25mm 25mm',
+                                        fontFamily: "'Times New Roman', serif",
+                                        fontSize: '12pt',
+                                        lineHeight: '1.5',
+                                        color: '#1a1a1a',
+                                    }}
+                                >
+                                    <style>{`
+                                        .doc-preview h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
+                                        .doc-preview h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
+                                        .doc-preview h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
+                                        .doc-preview p { margin: 0 0 8pt; text-align: justify; }
+                                        .doc-preview ul, .doc-preview ol { margin: 0 0 8pt; padding-left: 20pt; }
+                                        .doc-preview li { margin-bottom: 4pt; }
+                                        .doc-preview table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+                                        .doc-preview td, .doc-preview th { border: 1px solid #ccc; padding: 4pt 8pt; }
+                                        .doc-preview th { background: #f5f5f5; font-weight: bold; }
+                                        .doc-preview strong { font-weight: bold; }
+                                        .doc-preview em { font-style: italic; }
+                                        .doc-preview u { text-decoration: underline; }
+                                        .doc-preview sup { font-size: 0.7em; vertical-align: super; }
+                                        .doc-preview .page-break { page-break-after: always; }
+                                    `}</style>
+                                    <div className="doc-preview" dangerouslySetInnerHTML={{ __html: sanitize(document.content) }} />
+                                </div>
                             </div>
                         ) : (
                             <FileViewer file={document.file} />
