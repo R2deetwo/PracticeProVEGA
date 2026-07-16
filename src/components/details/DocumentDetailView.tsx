@@ -451,7 +451,7 @@ const DocumentDetailViewContent: React.FC = () => {
     // than during the previous render") when the document went from
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
-    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation'>(isProperty ? 'details' : 'details');
+    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>(isProperty ? 'details' : 'details');
 
     // ─── Null-state guard ─────────────────────────────────────────────
     // If no document is selected or the ID is stale/deleted, show a safe
@@ -549,28 +549,38 @@ const DocumentDetailViewContent: React.FC = () => {
                 )}
             </div>
 
-            <div className="flex-grow overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                <div className="max-w-5xl mx-auto space-y-6">
-                    <div className="flex gap-4 border-b border-slate-200 dark:border-zinc-700">
-                        <button onClick={() => setActiveTab('details')} className={`pb-3 border-b-2 font-bold text-sm ${activeTab === 'details' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>Preview</button>
-                        {document.isCourtProcess && (
-                            <button onClick={() => setActiveTab('litigation')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'litigation' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
-                                {isProperty ? 'Operational Pipeline' : 'Litigation Pipeline'}
-                            </button>
-                        )}
-                        <button onClick={() => setActiveTab('analysis')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
-                            {isProperty ? 'Document' : 'ALDIA'} Analysis {document.analysisState === 'pending' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
+            <div className="flex-grow flex flex-col overflow-hidden">
+                {/* Tab bar */}
+                <div className="flex-shrink-0 flex gap-4 px-4 sm:px-8 pt-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+                    <button onClick={() => setActiveTab('details')} className={`pb-3 border-b-2 font-bold text-sm ${activeTab === 'details' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>Preview</button>
+                    {document.isCourtProcess && (
+                        <button onClick={() => setActiveTab('litigation')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'litigation' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                            {isProperty ? 'Operational Pipeline' : 'Litigation Pipeline'}
                         </button>
-                    </div>
+                    )}
+                    <button onClick={() => setActiveTab('analysis')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                        {isProperty ? 'Document' : 'ALDIA'} Analysis {document.analysisState === 'pending' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
+                    </button>
+                    <button onClick={() => setActiveTab('mentions')} className={`pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'mentions' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                        Mentions
+                    </button>
+                </div>
 
-                    {activeTab === 'details' ? (
-                        document.content ? (
+                {/* Preview tab — fills ALL available space */}
+                {activeTab === 'details' && (
+                    <div className="flex-1 overflow-hidden p-4">
+                        {document.content ? (
                             <HtmlPagePreview html={document.content} title={document.title} />
                         ) : (
                             <FileViewer file={document.file} />
-                        )
-                    ) : activeTab === 'litigation' ? (
-                        <div className="space-y-8 animate-fade-in py-6">
+                        )}
+                    </div>
+                )}
+
+                {/* Litigation tab */}
+                {activeTab === 'litigation' && (
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                        <div className="max-w-5xl mx-auto space-y-8 animate-fade-in py-6">
                             <div className="bg-white dark:bg-zinc-800 rounded-2xl p-8 border border-slate-200 dark:border-zinc-700 shadow-sm relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-2 h-full bg-primary-600"></div>
                                 <div className="mb-6">
@@ -635,8 +645,13 @@ const DocumentDetailViewContent: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="space-y-6 animate-fade-in pb-20">
+                    </div>
+                )}
+
+                {/* Analysis tab */}
+                {activeTab === 'analysis' && (
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                        <div className="max-w-5xl mx-auto space-y-6 animate-fade-in pb-20">
                             {/* Analysis Header State */}
                             {!document.analysisState || document.analysisState === 'failed' ? (
                                 <div className="bg-white dark:bg-zinc-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-zinc-700 shadow-sm">
@@ -809,19 +824,25 @@ const DocumentDetailViewContent: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    )}
+                    </div>
+                )}
 
-                    {/* Bidirectional backlinks — notes that mention this document */}
-                    {document && (
-                        <BacklinksPanel
-                            entityId={document.id}
-                            entityType="document"
-                            entityLabel={document.title}
-                            notes={documentState.notePages || []}
-                            navigateTo={navigateTo}
-                        />
-                    )}
-                </div>
+                {/* Mentions tab — BacklinksPanel moved here so it doesn't block the preview */}
+                {activeTab === 'mentions' && (
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                        <div className="max-w-5xl mx-auto">
+                            {document && (
+                                <BacklinksPanel
+                                    entityId={document.id}
+                                    entityType="document"
+                                    entityLabel={document.title}
+                                    notes={documentState.notePages || []}
+                                    navigateTo={navigateTo}
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
