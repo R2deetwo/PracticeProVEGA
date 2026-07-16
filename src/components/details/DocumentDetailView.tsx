@@ -167,125 +167,125 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     );
 };
 
-// ─── HTML Page Preview — renders document content as paginated A4 pages ──
-// Uses an iframe with @page CSS so the browser's print pagination engine
-// creates REAL separate A4 pages with proper margins — not one long sheet.
-// Includes zoom controls (50%–200%) like a real PDF reader.
+// ─── HTML Page Preview — page-by-page navigation like a real PDF reader ──
+// Shows ONE page at a time. User navigates with prev/next buttons or keyboard
+// arrows. No scrolling through multiple pages. Includes zoom (50%–200%).
 const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, title }) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
     const [zoom, setZoom] = useState(100);
-    const [pageCount, setPageCount] = useState(1);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(0); // 0-indexed
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    const printCss = `
-        @page { size: A4; margin: 25mm; }
+    // Split content into pages based on page-break markers
+    const pages = useMemo(() => {
+        const cleanHtml = sanitize(html);
+        // Split on page-break divs
+        const parts = cleanHtml.split(/<div[^>]*data-type="page-break"[^>]*><\/div>|<div[^>]*class="[^"]*page-break[^"]*"[^>]*><\/div>|<div[^>]*style="[^"]*page-break[^"]*"[^>]*><\/div>/i);
+        // If there's only one part (no page breaks), we still treat it as page 1
+        return parts.filter(p => p.trim());
+    }, [html]);
+
+    const pageCount = pages.length || 1;
+    const safeCurrentPage = Math.min(currentPage, pageCount - 1);
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKey = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                setCurrentPage(p => Math.max(0, p - 1));
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                setCurrentPage(p => Math.min(pageCount - 1, p + 1));
+            }
+        };
+        const el = containerRef.current;
+        el?.addEventListener('keydown', handleKey);
+        return () => el?.removeEventListener('keydown', handleKey);
+    }, [pageCount]);
+
+    const goToPage = (page: number) => {
+        setCurrentPage(Math.max(0, Math.min(pageCount - 1, page)));
+    };
+
+    const pageCss = `
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
+        .page-sheet {
             font-family: 'Times New Roman', serif;
             font-size: 12pt;
             line-height: 1.5;
             color: #1a1a1a;
-            background: #e5e7eb;
         }
-        .page {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 25mm;
-            margin: 0 auto 10mm;
-            background: white;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
-            page-break-after: always;
-            break-after: page;
-            position: relative;
-        }
-        .page:last-child { page-break-after: auto; break-after: auto; }
-        h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; break-after: avoid; }
-        h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; break-after: avoid; }
-        h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; break-after: avoid; }
-        h1 + p, h2 + p, h3 + p { break-before: avoid; }
-        p { margin: 0 0 8pt; text-align: justify; orphans: 2; widows: 2; break-inside: avoid; }
-        ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
-        li { margin-bottom: 4pt; break-inside: avoid; }
-        table { width: 100%; border-collapse: collapse; margin: 8pt 0; break-inside: avoid; }
-        td, th { border: 1px solid #ccc; padding: 4pt 8pt; }
-        th { background: #f5f5f5; font-weight: bold; }
-        strong { font-weight: bold; }
-        em { font-style: italic; }
-        u { text-decoration: underline; }
-        sup { font-size: 0.7em; vertical-align: super; }
-        .page-break { page-break-after: always; break-after: page; }
-        /* Page number badge in corner of each page */
-        .page::after {
-            content: attr(data-page);
-            position: absolute;
-            bottom: 10mm;
-            right: 25mm;
-            font-size: 9pt;
-            color: #94a3b8;
-            font-weight: 600;
-        }
+        .page-sheet h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
+        .page-sheet h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
+        .page-sheet h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
+        .page-sheet p { margin: 0 0 8pt; text-align: justify; }
+        .page-sheet ul, .page-sheet ol { margin: 0 0 8pt; padding-left: 20pt; }
+        .page-sheet li { margin-bottom: 4pt; }
+        .page-sheet table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
+        .page-sheet td, .page-sheet th { border: 1px solid #ccc; padding: 4pt 8pt; }
+        .page-sheet th { background: #f5f5f5; font-weight: bold; }
+        .page-sheet strong { font-weight: bold; }
+        .page-sheet em { font-style: italic; }
+        .page-sheet u { text-decoration: underline; }
+        .page-sheet sup { font-size: 0.7em; vertical-align: super; }
     `;
 
-    const fullHtml = useMemo(() => {
-        // Split content on page-break markers to create separate page divs
-        const cleanHtml = sanitize(html);
-        const pages = cleanHtml.split(/<div[^>]*data-type="page-break"[^>]*><\/div>|<div[^>]*class="[^"]*page-break[^"]*"[^>]*><\/div>|<div[^>]*style="[^"]*page-break[^"]*"[^>]*><\/div>/i);
-        const pageDivs = pages.map((p, i) =>
-            `<div class="page" data-page="Page ${i + 1} of ${pages.length}">${p}</div>`
-        ).join('\n');
-
-        return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${title}</title>
-<style>${printCss}</style>
-</head>
-<body>
-${pageDivs}
-</body>
-</html>`;
-    }, [html, title, printCss]);
-
-    // Count pages and track scroll position
-    useEffect(() => {
-        const iframe = iframeRef.current;
-        if (!iframe) return;
-        const updatePageInfo = () => {
-            try {
-                const doc = iframe.contentDocument;
-                if (!doc) return;
-                const pages = doc.querySelectorAll('.page');
-                setPageCount(pages.length);
-                // Determine current page based on scroll position
-                const container = iframe.contentWindow;
-                if (container) {
-                    const scrollTop = container.scrollY;
-                    const pageHeight = 297 + 10; // mm → roughly pixels at 100%
-                    const pageNum = Math.floor(scrollTop / (pageHeight * 3.78)) + 1; // mm to px conversion
-                    setCurrentPage(Math.min(Math.max(1, pageNum), pages.length));
-                }
-            } catch { /* cross-origin */ }
-        };
-        const interval = setInterval(updatePageInfo, 500);
-        return () => clearInterval(interval);
-    }, [fullHtml]);
-
     return (
-        <div className="flex flex-col h-full bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
-            {/* Toolbar — like a real PDF reader */}
+        <div ref={containerRef} tabIndex={0} className="flex flex-col h-full bg-slate-200 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 outline-none">
+            {/* Toolbar */}
             <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm flex-shrink-0">
+                {/* Left: file info */}
                 <div className="flex items-center gap-2 min-w-0">
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                         <DocumentIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{title}</p>
-                        <p className="text-[10px] text-slate-400">Page {currentPage} of {pageCount}</p>
+                        <p className="text-[10px] text-slate-400">Page {safeCurrentPage + 1} of {pageCount}</p>
                     </div>
                 </div>
+
+                {/* Center: page navigation */}
+                <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                        onClick={() => goToPage(0)}
+                        disabled={safeCurrentPage === 0}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="First page"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
+                    </button>
+                    <button
+                        onClick={() => goToPage(safeCurrentPage - 1)}
+                        disabled={safeCurrentPage === 0}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Previous page (←)"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </button>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-14 text-center">
+                        {safeCurrentPage + 1} / {pageCount}
+                    </span>
+                    <button
+                        onClick={() => goToPage(safeCurrentPage + 1)}
+                        disabled={safeCurrentPage >= pageCount - 1}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Next page (→)"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    </button>
+                    <button
+                        onClick={() => goToPage(pageCount - 1)}
+                        disabled={safeCurrentPage >= pageCount - 1}
+                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Last page"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" /></svg>
+                    </button>
+                </div>
+
+                {/* Right: zoom controls */}
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                    {/* Zoom out */}
                     <button
                         onClick={() => setZoom(z => Math.max(50, z - 25))}
                         className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
@@ -293,9 +293,7 @@ ${pageDivs}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
                     </button>
-                    {/* Zoom level */}
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-10 text-center">{zoom}%</span>
-                    {/* Zoom in */}
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-9 text-center">{zoom}%</span>
                     <button
                         onClick={() => setZoom(z => Math.min(200, z + 25))}
                         className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
@@ -303,31 +301,38 @@ ${pageDivs}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     </button>
-                    {/* Fit 100% */}
-                    <button
-                        onClick={() => setZoom(100)}
-                        className="px-2 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors text-[10px] font-bold"
-                        title="Reset to 100%"
-                    >
-                        100%
-                    </button>
                 </div>
             </div>
 
-            {/* Page viewer area */}
-            <div className="flex-1 overflow-auto bg-slate-200/50 dark:bg-zinc-900/30">
-                <iframe
-                    ref={iframeRef}
-                    title={title}
-                    srcDoc={fullHtml}
-                    className="w-full h-full border-none"
+            {/* Single page display area — shows ONE page at a time */}
+            <div className="flex-1 overflow-auto bg-slate-300/40 dark:bg-zinc-900/30 flex items-start justify-center p-4">
+                <style>{pageCss}</style>
+                <div
+                    className="bg-white shadow-2xl border border-slate-300 transition-all duration-200 flex-shrink-0"
                     style={{
+                        width: '210mm',
+                        minHeight: '297mm',
+                        padding: '25mm',
                         transform: `scale(${zoom / 100})`,
                         transformOrigin: 'top center',
-                        transition: 'transform 200ms ease-out',
                     }}
-                    sandbox="allow-same-origin allow-popups"
-                />
+                >
+                    <div
+                        className="page-sheet"
+                        dangerouslySetInnerHTML={{ __html: pages[safeCurrentPage] || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>' }}
+                    />
+                    {/* Page number */}
+                    <div style={{ position: 'absolute', bottom: '10mm', right: '25mm', fontSize: '9pt', color: '#94a3b8', fontWeight: 600 }}>
+                        Page {safeCurrentPage + 1} of {pageCount}
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom hint */}
+            <div className="flex-shrink-0 px-4 py-1.5 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-center">
+                <p className="text-[9px] text-slate-400 dark:text-zinc-500">
+                    Use ← → arrow keys or the buttons above to navigate pages
+                </p>
             </div>
         </div>
     );
