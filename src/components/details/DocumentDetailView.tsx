@@ -384,6 +384,19 @@ const DocumentDetailViewContent: React.FC = () => {
                             <Tooltip text="Edit Document Metadata">
                                 <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
                             </Tooltip>
+                            {document.content && (
+                                <button
+                                    onClick={() => {
+                                        setActiveTab('details');
+                                        setShowFullScreenPreview(true);
+                                    }}
+                                    className="px-4 py-2.5 rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 bg-slate-900 dark:bg-zinc-700 hover:bg-slate-800 dark:hover:bg-zinc-600 text-white shadow-slate-900/20"
+                                    title="Open document in full screen reader (ESC to exit)"
+                                >
+                                    <ArrowsExpandIcon className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Full Screen</span>
+                                </button>
+                            )}
                             <button onClick={() => openModal('shareDocument', document.id)} className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-black shadow-lg shadow-primary-500/20 transition-all active:scale-95">Share</button>
                         </div>
                     </div>
@@ -410,17 +423,6 @@ const DocumentDetailViewContent: React.FC = () => {
                 {/* Preview tab — FULL SCREEN, fills all available space */}
                 {activeTab === 'details' && (
                     <div className="flex-1 min-h-0 overflow-hidden relative">
-                        {/* Floating "Open Full Screen" button — always visible on the preview tab */}
-                        {document.content && (
-                            <button
-                                onClick={() => setShowFullScreenPreview(true)}
-                                className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 bg-white/95 dark:bg-zinc-800/95 hover:bg-white dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg text-xs font-bold text-slate-700 dark:text-zinc-200 transition-all hover:shadow-xl active:scale-95"
-                                title="Open in full screen (ESC to exit)"
-                            >
-                                <ArrowsExpandIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                                <span className="hidden sm:inline">Full Screen</span>
-                            </button>
-                        )}
                         {document.content ? (
                             <HtmlPagePreview
                                 html={document.content}
