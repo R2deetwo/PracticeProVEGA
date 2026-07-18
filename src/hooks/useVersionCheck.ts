@@ -139,15 +139,25 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
-    // Bypass any bfcache by appending a cache-bust query, then reload.
+    // Bypass any bfcache and CDN caches:
+    // 1. Clear all Cache Storage (service workers, etc.)
+    // 2. Reload with cache-bust query AND `no-cache` headers via location.reload(true)
+    // 3. Fall back to location.replace with cache-bust query
     try {
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
     } catch { /* ignore */ }
-    const url = new URL(window.location.href);
-    url.searchParams.set('_refresh', String(Date.now()));
-    window.location.replace(url.toString());
+    try {
+      // Force-reload — bypasses bfcache in modern browsers
+      (window.location as any).reload(true);
+      return;
+    } catch {
+      // Fallback: cache-bust via query string
+      const url = new URL(window.location.href);
+      url.searchParams.set('_refresh', String(Date.now()));
+      window.location.replace(url.toString());
+    }
   };
 
   const dismiss = () => {

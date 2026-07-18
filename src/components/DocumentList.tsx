@@ -126,15 +126,16 @@ const DocumentRow: React.FC<{
                     </div>
                 </div>
 
-                {/* Quick Full Screen Preview button — visible on hover (desktop), always on mobile */}
+                {/* Quick Full Screen Preview button — ALWAYS visible, prominent */}
                 {doc.content && onQuickFullScreenPreview && (
                     <Tooltip text="Open in Full Screen Preview">
                         <button
                             onClick={(e) => { e.stopPropagation(); onQuickFullScreenPreview(doc); }}
-                            className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:text-primary-400 dark:hover:bg-primary-900/30 transition-colors flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100"
+                            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors flex-shrink-0 border border-primary-200 dark:border-primary-800"
                             aria-label="Open in full screen preview"
                         >
-                            <ArrowsExpandIcon className="w-5 h-5" />
+                            <ArrowsExpandIcon className="w-4 h-4" />
+                            <span className="text-[10px] font-bold hidden sm:inline">Preview</span>
                         </button>
                     </Tooltip>
                 )}
