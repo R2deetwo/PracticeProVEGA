@@ -8,7 +8,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useDataActions } from '../../contexts/DataContext';
-import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon } from '../../constants'; // Fixed path
+import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon, ArrowsExpandIcon } from '../../constants'; // Fixed path
 import { Breadcrumbs } from '../Breadcrumbs';
 import Tooltip from '../Tooltip';
 import { useQuery } from "convex/react";
@@ -16,6 +16,8 @@ import { api } from "../../../convex/_generated/api";
 import { sanitize } from '../../utils/sanitization';
 import ErrorBoundary from '../ErrorBoundary';
 import BacklinksPanel from '../BacklinksPanel';
+import HtmlPagePreview from '../documents/HtmlPagePreview';
+import DocumentPreviewModal from '../documents/DocumentPreviewModal';
 
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId } : "skip");
@@ -167,292 +169,9 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     );
 };
 
-// ─── HTML Page Preview — full-featured document viewer ──
-// Features: page-by-page + continuous scroll modes, auto-pagination,
-// fit-to-width, zoom (50%–200%), swipe gestures, keyboard nav, download, print.
-const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, title }) => {
-    const [zoom, setZoom] = useState(100);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [viewMode, setViewMode] = useState<'single' | 'continuous'>('single');
-    const containerRef = useRef<HTMLDivElement>(null);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const touchStartX = useRef(0);
-
-    // Auto-paginate: split on page-break markers, OR split long content at paragraph boundaries
-    const pages = useMemo(() => {
-        const cleanHtml = sanitize(html);
-        // First try explicit page-break markers
-        const explicitPages = cleanHtml.split(/<div[^>]*data-type="page-break"[^>]*><\/div>|<div[^>]*class="[^"]*page-break[^"]*"[^>]*><\/div>|<div[^>]*style="[^"]*page-break[^"]*"[^>]*><\/div>/i);
-        const filtered = explicitPages.filter(p => p.trim());
-
-        // If only 1 page and content is long (>4000 chars), auto-paginate at paragraph boundaries
-        if (filtered.length <= 1 && cleanHtml.length > 4000) {
-            const paragraphs = cleanHtml.split(/(<\/p>)/i);
-            const autoPages: string[] = [];
-            let currentChunk = '';
-            let charCount = 0;
-            const CHARS_PER_PAGE = 3000; // ~1 A4 page of 12pt Times New Roman
-
-            for (let i = 0; i < paragraphs.length; i++) {
-                currentChunk += paragraphs[i];
-                if (paragraphs[i] === '</p>') {
-                    charCount += currentChunk.length;
-                    if (charCount >= CHARS_PER_PAGE) {
-                        autoPages.push(currentChunk);
-                        currentChunk = '';
-                        charCount = 0;
-                    }
-                }
-            }
-            if (currentChunk.trim()) autoPages.push(currentChunk);
-            return autoPages.length > 0 ? autoPages : filtered;
-        }
-
-        return filtered;
-    }, [html]);
-
-    const pageCount = pages.length || 1;
-    const safeCurrentPage = Math.min(currentPage, pageCount - 1);
-
-    // Fit-to-width: calculate zoom to fit 210mm page width into container
-    const fitToWidth = () => {
-        if (!containerRef.current) return;
-        const containerWidth = containerRef.current.clientWidth - 32; // padding
-        const pageWidthPx = 210 * 3.779; // 210mm to px at 96dpi
-        const calculatedZoom = Math.round((containerWidth / pageWidthPx) * 100);
-        setZoom(Math.max(50, Math.min(200, calculatedZoom)));
-    };
-
-    // Auto fit on mount and when container resizes
-    useEffect(() => {
-        fitToWidth();
-        const handleResize = () => fitToWidth();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    // Keyboard navigation
-    useEffect(() => {
-        const handleKey = (e: KeyboardEvent) => {
-            if (viewMode !== 'single') return;
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                setCurrentPage(p => Math.max(0, p - 1));
-            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
-                e.preventDefault();
-                setCurrentPage(p => Math.min(pageCount - 1, p + 1));
-            }
-        };
-        const el = containerRef.current;
-        el?.addEventListener('keydown', handleKey);
-        return () => el?.removeEventListener('keydown', handleKey);
-    }, [pageCount, viewMode]);
-
-    // Touch swipe navigation (single page mode)
-    const handleTouchStart = (e: React.TouchEvent) => {
-        touchStartX.current = e.touches[0].clientX;
-    };
-    const handleTouchEnd = (e: React.TouchEvent) => {
-        if (viewMode !== 'single') return;
-        const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-        if (Math.abs(deltaX) > 50) {
-            if (deltaX > 0) setCurrentPage(p => Math.max(0, p - 1));
-            else setCurrentPage(p => Math.min(pageCount - 1, p + 1));
-        }
-    };
-
-    const goToPage = (page: number) => {
-        setCurrentPage(Math.max(0, Math.min(pageCount - 1, page)));
-    };
-
-    // Track current page in continuous scroll mode
-    const handleScroll = () => {
-        if (viewMode !== 'continuous' || !scrollRef.current) return;
-        const scrollTop = scrollRef.current.scrollTop;
-        const pageHeight = 297 * 3.779 + 40; // A4 height + gap
-        const pageNum = Math.floor(scrollTop / pageHeight);
-        setCurrentPage(Math.max(0, Math.min(pageCount - 1, pageNum)));
-    };
-
-    // Download as HTML
-    const handleDownload = () => {
-        const fullDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#1a1a1a;max-width:210mm;margin:0 auto;padding:25mm;}h1{font-size:16pt;font-weight:bold;margin:16pt 0 8pt;}h2{font-size:14pt;font-weight:bold;margin:14pt 0 6pt;}h3{font-size:12pt;font-weight:bold;margin:12pt 0 4pt;}p{margin:0 0 8pt;text-align:justify;}</style></head><body>${sanitize(html)}</body></html>`;
-        const blob = new Blob([fullDoc], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${title.replace(/[^a-zA-Z0-9-_]/g, '_')}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
-    // Print
-    const handlePrint = () => {
-        const printWin = window.open('', '_blank');
-        if (!printWin) return;
-        const fullDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>@page{size:A4;margin:25mm;}body{font-family:'Times New Roman',serif;font-size:12pt;line-height:1.5;color:#1a1a1a;}h1{font-size:16pt;font-weight:bold;margin:16pt 0 8pt;break-after:avoid;}h2{font-size:14pt;font-weight:bold;margin:14pt 0 6pt;break-after:avoid;}h3{font-size:12pt;font-weight:bold;margin:12pt 0 4pt;break-after:avoid;}p{margin:0 0 8pt;text-align:justify;orphans:2;widows:2;}</style></head><body>${sanitize(html)}</body></html>`;
-        printWin.document.write(fullDoc);
-        printWin.document.close();
-        setTimeout(() => { printWin.print(); }, 500);
-    };
-
-    const pageCss = `
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        .page-sheet {
-            font-family: 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #1a1a1a;
-        }
-        .page-sheet h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
-        .page-sheet h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
-        .page-sheet h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
-        .page-sheet p { margin: 0 0 8pt; text-align: justify; }
-        .page-sheet ul, .page-sheet ol { margin: 0 0 8pt; padding-left: 20pt; }
-        .page-sheet li { margin-bottom: 4pt; }
-        .page-sheet table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-        .page-sheet td, .page-sheet th { border: 1px solid #ccc; padding: 4pt 8pt; }
-        .page-sheet th { background: #f5f5f5; font-weight: bold; }
-        .page-sheet strong { font-weight: bold; }
-        .page-sheet em { font-style: italic; }
-        .page-sheet u { text-decoration: underline; }
-        .page-sheet sup { font-size: 0.7em; vertical-align: super; }
-    `;
-
-    const PageSheet = ({ pageIndex }: { pageIndex: number }) => (
-        <div
-            className="bg-white shadow-2xl border border-slate-300 flex-shrink-0 relative"
-            style={{
-                width: '210mm',
-                minHeight: '297mm',
-                padding: '25mm',
-                transform: `scale(${zoom / 100})`,
-                transformOrigin: 'top center',
-                transition: 'transform 200ms ease-out',
-            }}
-        >
-            <div
-                className="page-sheet"
-                dangerouslySetInnerHTML={{ __html: pages[pageIndex] || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>' }}
-            />
-            <div style={{ position: 'absolute', bottom: '10mm', right: '25mm', fontSize: '9pt', color: '#94a3b8', fontWeight: 600 }}>
-                Page {pageIndex + 1} of {pageCount}
-            </div>
-        </div>
-    );
-
-    return (
-        <div ref={containerRef} tabIndex={0} className="flex flex-col h-full bg-slate-300/50 dark:bg-zinc-900/50 overflow-hidden outline-none">
-            <style>{pageCss}</style>
-
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-3 py-2 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm flex-shrink-0 gap-2">
-                {/* Left: file info + page count */}
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                        <DocumentIcon className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="min-w-0 hidden sm:block">
-                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate max-w-[150px]">{title}</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                        {safeCurrentPage + 1} / {pageCount}
-                    </span>
-                </div>
-
-                {/* Center: page navigation (hidden in continuous mode) */}
-                {viewMode === 'single' && (
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <button onClick={() => goToPage(0)} disabled={safeCurrentPage === 0} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="First page">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
-                        </button>
-                        <button onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 0} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Previous (←)">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-                        </button>
-                        <input
-                            type="number"
-                            min={1}
-                            max={pageCount}
-                            value={safeCurrentPage + 1}
-                            onChange={(e) => goToPage(parseInt(e.target.value) - 1)}
-                            className="w-9 h-7 text-center text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-md border-none outline-none"
-                        />
-                        <button onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Next (→)">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                        </button>
-                        <button onClick={() => goToPage(pageCount - 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Last page">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" /></svg>
-                        </button>
-                    </div>
-                )}
-
-                {/* Right: view mode toggle + zoom + actions */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                    {/* View mode toggle: single page vs continuous scroll */}
-                    <div className="flex bg-slate-100 dark:bg-zinc-700 rounded-md p-0.5">
-                        <button
-                            onClick={() => setViewMode('single')}
-                            className={`px-2 py-1 rounded text-[9px] font-bold transition-colors ${viewMode === 'single' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
-                            title="Single page view"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-9-15h12v15H6V4.5z" /></svg>
-                        </button>
-                        <button
-                            onClick={() => setViewMode('continuous')}
-                            className={`px-2 py-1 rounded text-[9px] font-bold transition-colors ${viewMode === 'continuous' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
-                            title="Continuous scroll view"
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 4.5v15m6-15v15m-9-15h12v15H6V4.5z" /></svg>
-                        </button>
-                    </div>
-
-                    {/* Zoom controls */}
-                    <button onClick={() => setZoom(z => Math.max(50, z - 25))} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center" title="Zoom out">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
-                    </button>
-                    <button onClick={fitToWidth} className="px-1.5 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors text-[9px] font-bold" title="Fit to width">
-                        Fit
-                    </button>
-                    <span className="text-[9px] font-bold text-slate-400 w-8 text-center">{zoom}%</span>
-                    <button onClick={() => setZoom(z => Math.min(200, z + 25))} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center" title="Zoom in">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    </button>
-
-                    {/* Download */}
-                    <button onClick={handleDownload} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center" title="Download as HTML">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-                    </button>
-
-                    {/* Print */}
-                    <button onClick={handlePrint} className="w-7 h-7 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 transition-colors flex items-center justify-center" title="Print / Save as PDF">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621.504-1.125 1.125-1.125h.871c1.018 0 1.997.346 2.778.984M6.75 7.234V18" /></svg>
-                    </button>
-                </div>
-            </div>
-
-            {/* Page display area */}
-            {viewMode === 'single' ? (
-                <div
-                    className="flex-1 min-h-0 overflow-auto flex items-start justify-center p-4"
-                    onTouchStart={handleTouchStart}
-                    onTouchEnd={handleTouchEnd}
-                >
-                    <PageSheet pageIndex={safeCurrentPage} />
-                </div>
-            ) : (
-                <div
-                    ref={scrollRef}
-                    onScroll={handleScroll}
-                    className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-3 p-4 custom-scrollbar"
-                >
-                    {Array.from({ length: pageCount }).map((_, i) => (
-                        <PageSheet key={i} pageIndex={i} />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
+// ─── HtmlPagePreview & DocumentPreviewModal are now imported from
+// '../documents/HtmlPagePreview' and '../documents/DocumentPreviewModal'.
+// The inline component was extracted so it can be reused in the modal.
 
 // ─── DOCX Preview Component (Part 2) ─────────────────────────────────
 // Uses mammoth.js to convert .docx → HTML for in-app preview.
@@ -568,6 +287,12 @@ const DocumentDetailViewContent: React.FC = () => {
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
     const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>(isProperty ? 'details' : 'details');
+    const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
+
+    // Close the full-screen modal whenever the selected document changes
+    useEffect(() => {
+        setShowFullScreenPreview(false);
+    }, [selectedId]);
 
     // ─── Null-state guard ─────────────────────────────────────────────
     // If no document is selected or the ID is stale/deleted, show a safe
@@ -684,9 +409,24 @@ const DocumentDetailViewContent: React.FC = () => {
 
                 {/* Preview tab — FULL SCREEN, fills all available space */}
                 {activeTab === 'details' && (
-                    <div className="flex-1 min-h-0 overflow-hidden">
+                    <div className="flex-1 min-h-0 overflow-hidden relative">
+                        {/* Floating "Open Full Screen" button — always visible on the preview tab */}
+                        {document.content && (
+                            <button
+                                onClick={() => setShowFullScreenPreview(true)}
+                                className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-2 bg-white/95 dark:bg-zinc-800/95 hover:bg-white dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg text-xs font-bold text-slate-700 dark:text-zinc-200 transition-all hover:shadow-xl active:scale-95"
+                                title="Open in full screen (ESC to exit)"
+                            >
+                                <ArrowsExpandIcon className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                                <span className="hidden sm:inline">Full Screen</span>
+                            </button>
+                        )}
                         {document.content ? (
-                            <HtmlPagePreview html={document.content} title={document.title} />
+                            <HtmlPagePreview
+                                html={document.content}
+                                title={document.title}
+                                onRequestFullScreen={() => setShowFullScreenPreview(true)}
+                            />
                         ) : (
                             <FileViewer file={document.file} />
                         )}
@@ -960,6 +700,15 @@ const DocumentDetailViewContent: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* Full-screen preview modal — overlays the entire viewport */}
+            {showFullScreenPreview && document.content && (
+                <DocumentPreviewModal
+                    html={document.content}
+                    title={document.title}
+                    onClose={() => setShowFullScreenPreview(false)}
+                />
+            )}
         </div>
     );
 };
