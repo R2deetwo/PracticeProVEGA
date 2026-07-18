@@ -3,14 +3,14 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { DocumentIcon, DownloadIcon, ArrowsExpandIcon } from '../../constants';
 import { sanitize } from '../../utils/sanitization';
 
-// ─── Adobe Acrobat-style HTML Page Preview ────────────────────────────
+// ─── Professional PDF-style HTML Page Preview ────────────────────
 //
-// Design references:
-//   - Adobe Acrobat Reader default view: single page, fit-to-page (entire
+// Design references (generic, non-trademarked):
+//   - Standard PDF reader default view: single page, fit-to-page (entire
 //     page visible in viewport, centered both horizontally and vertically).
-//   - Adobe Acrobat page navigator: horizontal thumbnail strip at the
+//   - Common page navigator pattern: horizontal thumbnail strip at the
 //     BOTTOM (not the left sidebar), main page on top.
-//   - Adobe Acrobat reading mode: hides all chrome, just the page.
+//   - Reading mode: hides all chrome, just the page.
 //
 // CRITICAL IMPLEMENTATION DETAIL — Page sizing:
 //   Using `transform: scale()` alone does NOT change the element's layout
@@ -584,7 +584,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 </div>
             )}
 
-            {/* ─── Bottom thumbnail strip (Adobe Acrobat style) ─── */}
+            {/* ─── Bottom thumbnail strip (professional PDF-reader style) ─── */}
             {showThumbnails && (
                 <div className="flex-shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700">
                     <div

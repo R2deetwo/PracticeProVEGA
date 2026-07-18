@@ -1,5 +1,5 @@
 /**
- * PdfViewer — Adobe Acrobat-style PDF viewer built on pdf.js
+ * PdfViewer — Professional PDF viewer built on pdf.js
  *
  * Why pdf.js instead of HTML+CSS scale():
  *   - CSS transforms are visual-only — they don't change layout footprint,
@@ -543,7 +543,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 )}
             </div>
 
-            {/* ─── BOTTOM THUMBNAIL STRIP (Adobe Acrobat style) ─── */}
+            {/* ─── BOTTOM THUMBNAIL STRIP (professional PDF-reader style) ─── */}
             {showThumbnails && (
                 <div className="shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700">
                     <div className="flex items-center gap-1.5 px-2 py-2 overflow-x-auto custom-scrollbar" style={{ scrollbarWidth: 'thin' }}>

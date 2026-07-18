@@ -98,7 +98,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     }
 
     if (isPdf && blobUrl) {
-        // ─── PDF rendering via pdf.js (Adobe Acrobat-style) ────────
+        // ─── PDF rendering via pdf.js (professional PDF-reader style) ──
         // Replaces the old <object> tag with a proper canvas-based viewer.
         // Works on iOS Safari, Android Chrome, and desktop browsers.
         // Features: fit-to-page, zoom, thumbnails, reading mode, keyboard nav.
