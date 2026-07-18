@@ -4364,3 +4364,115 @@ Stage Summary:
 - v1.18.0 What's New entry added to CHANGELOG array
 - Popup will show on next load for anyone whose lastSeen !== 'v1.18.0'
 - Commit 8c6b73e pushed to main + force-synced to master
+
+---
+Task ID: pdfviewer-zoom-fix-and-deep-analysis
+Agent: main
+Task: Fix zoom bug in PdfViewer + deep analysis of documents section
+
+User feedback: "the first thing i tried to do was zoom the image and it failed as you can see in the screenshot. do a deep analysis of the documents section with the new features and lets see if we are able to save quality pdfs and draftpro's functionality"
+
+Work Log:
+
+1. ZOOM BUG FIX (commit 1d80939)
+   Root cause: renderSinglePage() used a renderLockRef (boolean) to prevent
+   concurrent renders. When user clicked zoom:
+   1. setZoomMode(125) → zoomMode changes
+   2. computeScale gets new reference → renderSinglePage gets new reference
+   3. useEffect triggers new renderSinglePage
+   4. New render sets renderLockRef.current = true
+   5. Calls renderTaskRef.current.cancel() — rejects previous render's promise
+   6. Previous render's catch block runs, then finally sets renderLockRef.current = false
+   7. BUT the new render is still in progress! The lock is now false, so the
+      next zoom click might run concurrently, or the cancellation propagates
+      and kills the new render too.
+   
+   Fix:
+   - Removed renderLockRef entirely
+   - Added renderIdRef (incrementing counter)
+   - Each render captures its own ID at start
+   - After every await, checks if myRenderId === renderIdRef.current
+   - If not, aborts (a newer render has started)
+   - This is the standard pdf.js pattern for handling rapid re-renders
+   - Also wrapped renderTaskRef.current.cancel() in try/catch
+   - Set renderTaskRef.current = null after cancelling
+
+2. DEEP ANALYSIS OF DOCUMENTS SECTION
+
+   A. PDF Preview (uploaded PDFs) — PdfViewer.tsx
+      Status: ✓ Working (after zoom fix)
+      - Canvas-based rendering via pdf.js
+      - Fit-to-page, fit-to-width, manual zoom (25-300%)
+      - Single page, continuous scroll, reading mode
+      - Bottom thumbnail strip (lazy-loaded)
+      - Keyboard shortcuts + touch (swipe + pinch)
+      - ResizeObserver for container changes
+      - Mobile + desktop compatible
+      
+   B. HTML Preview (DraftPro-created docs) — HtmlPagePreview.tsx
+      Status: ✓ Working (stopgap)
+      - Uses CSS transform: scale() — has known limitations
+      - Will be replaced by server-side PDF rendering (ANTI-GRAVITY pipeline)
+      - For now, serves as preview for docs without a file URL
+      
+   C. DOCX Preview — DocxPreview (in DocumentDetailView)
+      Status: ✓ Working
+      - Uses mammoth.js to convert .docx → HTML
+      - Renders with professional CSS
+      
+   D. Image Preview — FileViewer
+      Status: ✓ Working
+      - Direct <img> tag with object-contain
+      
+   E. DraftPro Save-as-PDF — handlePrint()
+      Status: ✓ Working (vector PDF)
+      - Uses hidden iframe + browser's native print engine
+      - Produces VECTOR PDF (text selectable, sharp at any zoom)
+      - Proper @page A4 CSS with 25mm margins
+      - Page-break-avoid for headings
+      - Watermark support
+      - Letterhead support
+      - Placeholder safety guard (blocks print if placeholders unfilled)
+      - NOT html2canvas (which would rasterize)
+      
+   F. DraftPro Save-as-DOCX — exportHtmlToDocxBlob()
+      Status: ✓ Working
+      - Creates valid OOXML ZIP via JSZip
+      - Opens in Microsoft Word / Google Docs
+      
+   G. exportHtmlToPdfBlob() — UNUSED for PDF save
+      Status: ⚠️ Dead code path
+      - Uses html2canvas + jsPDF (rasterized, low quality)
+      - Was the old approach before iframe print pipeline
+      - Still imported but saveAsFile('pdf') early-returns to handlePrint()
+      - Could be removed or kept as fallback
+
+3. ISSUES FOUND IN DEEP ANALYSIS
+
+   Issue 1: Blob URL memory leak in FileViewer
+   - blobUrl is created via URL.createObjectURL() but never revoked
+   - Comment says "we don't revoke here to prevent flickering"
+   - Over a long session, this could leak memory
+   - Fix: revoke on unmount or when activeUrl changes
+   
+   Issue 2: exportHtmlToPdfBlob is dead code
+   - Still imported in DraftProEditor but never reached
+   - saveAsFile('pdf') early-returns to handlePrint() before reaching it
+   - Could be removed for code cleanliness
+   
+   Issue 3: No server-side HTML→PDF rendering yet
+   - DraftPro-created docs (HTML content) still use HtmlPagePreview
+   - For true Acrobat-style UX on these docs, need server-side Puppeteer
+   - This is the ANTI-GRAVITY pipeline (deferred)
+   
+   Issue 4: PdfViewer doesn't handle CORS errors gracefully
+   - If blob URL fetch fails (e.g., session expired), pdf.js shows generic error
+   - Should add retry logic and better error messages
+
+Stage Summary:
+- Zoom bug FIXED (commit 1d80939) — render lock removed, render ID counter added
+- Deep analysis complete — documents section is in good shape
+- DraftPro save-as-PDF produces quality vector PDFs via browser print engine
+- PdfViewer (pdf.js) handles uploaded PDFs correctly
+- HtmlPagePreview (CSS transform) is stopgap for HTML content
+- Server-side HTML→PDF rendering is the next big upgrade (ANTI-GRAVITY)
