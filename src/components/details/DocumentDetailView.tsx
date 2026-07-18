@@ -18,6 +18,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import BacklinksPanel from '../BacklinksPanel';
 import HtmlPagePreview from '../documents/HtmlPagePreview';
 import DocumentPreviewModal from '../documents/DocumentPreviewModal';
+import PdfViewer from '../documents/PdfViewer';
 
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId } : "skip");
@@ -97,58 +98,21 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     }
 
     if (isPdf && blobUrl) {
+        // ─── PDF rendering via pdf.js (Adobe Acrobat-style) ────────
+        // Replaces the old <object> tag with a proper canvas-based viewer.
+        // Works on iOS Safari, Android Chrome, and desktop browsers.
+        // Features: fit-to-page, zoom, thumbnails, reading mode, keyboard nav.
         return (
-            <div className="h-full flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 overflow-hidden">
-                {/* PDF toolbar — like a top PDF reader */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                            <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{file.name}</p>
-                            <p className="text-[10px] text-slate-400">PDF Document</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                            onClick={() => setViewMode(viewMode === 'fit' ? 'portrait' : 'fit')}
-                            className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
-                            title={viewMode === 'fit' ? 'Switch to portrait view' : 'Switch to fit-width view'}
-                        >
-                            {viewMode === 'fit' ? 'Fit' : 'Portrait'}
-                        </button>
-                        <a
-                            href={blobUrl}
-                            download={file.name}
-                            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1"
-                        >
-                            <DownloadIcon className="w-3 h-3" />
-                            Download
-                        </a>
-                    </div>
-                </div>
-                {/* PDF viewer area */}
-                <div className="flex-1 overflow-hidden bg-slate-200/50 dark:bg-zinc-900/30 flex items-center justify-center p-4">
-                    <div className={`w-full transition-all duration-300 ease-in-out ${viewMode === 'portrait' ? 'max-w-[550px]' : 'max-w-5xl'} h-full bg-white dark:bg-zinc-800 rounded-lg shadow-2xl overflow-hidden border border-slate-300 dark:border-zinc-700`}>
-                        <object
-                            data={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`}
-                            type="application/pdf"
-                            className="w-full h-full"
-                        >
-                            <iframe src={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`} className="w-full h-full border-none" title="PDF Preview"></iframe>
-                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-white dark:bg-zinc-800">
-                                <DocumentIcon className="w-12 h-12 mb-4 opacity-20" />
-                                <p className="font-bold mb-2">Browser Preview Unavailable</p>
-                                <p className="text-sm mb-4">Your browser doesn't support direct PDF embedding.</p>
-                                <a href={blobUrl} download={file.name} className="px-5 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 transition-all">
-                                    Download to view
-                                </a>
-                            </div>
-                        </object>
-                    </div>
-                </div>
-            </div>
+            <PdfViewer
+                fileUrl={blobUrl}
+                title={file.name}
+                onDownload={() => {
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = file.name;
+                    a.click();
+                }}
+            />
         );
     }
 
@@ -390,7 +354,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                 <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
                             </Tooltip>
                         )}
-                        {document.content && (
+                        {(document.content || document.file) && (
                             <button
                                 onClick={() => {
                                     setActiveTab('details');
@@ -711,9 +675,10 @@ const DocumentDetailViewContent: React.FC = () => {
             </div>
 
             {/* Full-screen preview modal — overlays the entire viewport */}
-            {showFullScreenPreview && document.content && (
+            {showFullScreenPreview && (document.content || document.file) && (
                 <DocumentPreviewModal
                     html={document.content}
+                    fileUrl={document.file?.dataUrl || undefined}
                     title={document.title}
                     onClose={() => setShowFullScreenPreview(false)}
                 />

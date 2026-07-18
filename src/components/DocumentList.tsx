@@ -127,7 +127,7 @@ const DocumentRow: React.FC<{
                 </div>
 
                 {/* Quick Full Screen Preview button — ALWAYS visible, prominent */}
-                {doc.content && onQuickFullScreenPreview && (
+                {(doc.content || doc.file) && onQuickFullScreenPreview && (
                     <Tooltip text="Open in Full Screen Preview">
                         <button
                             onClick={(e) => { e.stopPropagation(); onQuickFullScreenPreview(doc); }}
@@ -177,7 +177,7 @@ const DocumentRow: React.FC<{
                         {/* Action items */}
                         <div className="py-2">
                             {/* Quick Full Screen Preview — primary action at top */}
-                            {doc.content && onQuickFullScreenPreview && (
+                            {(doc.content || doc.file) && onQuickFullScreenPreview && (
                                 <button
                                     onClick={() => { setShowBottomSheet(false); onQuickFullScreenPreview(doc); }}
                                     className="w-full flex items-center gap-3 px-5 py-3 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
@@ -355,8 +355,9 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
     // When set, renders DocumentPreviewModal as a full-screen overlay.
     const [quickPreviewDoc, setQuickPreviewDoc] = useState<Document | null>(null);
     const onQuickFullScreenPreview = React.useCallback((doc: Document) => {
-        if (!doc?.content) {
-            // Fallback: if no HTML content, fall back to detail view
+        // Support both HTML content (DraftPro docs) AND uploaded files (PDFs)
+        if (!doc?.content && !doc?.file) {
+            // Fallback: if no content and no file, fall back to detail view
             onViewDetails(doc.id);
             return;
         }
@@ -827,9 +828,10 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
             </div>
 
             {/* Quick Full Screen Preview modal — overlay rendered at root level */}
-            {quickPreviewDoc && quickPreviewDoc.content && (
+            {quickPreviewDoc && (
                 <DocumentPreviewModal
                     html={quickPreviewDoc.content}
+                    fileUrl={quickPreviewDoc.file?.dataUrl || undefined}
                     title={quickPreviewDoc.title || 'Untitled Document'}
                     onClose={() => setQuickPreviewDoc(null)}
                 />
