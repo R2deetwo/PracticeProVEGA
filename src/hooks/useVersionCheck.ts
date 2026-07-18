@@ -143,14 +143,7 @@ export function useVersionCheck(): VersionCheckState {
     // The user has reported that even after clicking "Refresh to Update",
     // they see the same UI. This is because the browser is serving a
     // stale index.html from its HTTP cache, which references the OLD
-    // hashed JS bundle. We need to bust through ALL cache layers:
-    //
-    // 1. Cache Storage API (used by service workers — clears if any SW ever registered)
-    // 2. Service Worker registrations (unregister any that exist)
-    // 3. Cookie Store (clears app cookies)
-    // 4. Hard reload with cache-bust query string
-    //
-    // After all that, fall back to a no-cache fetch of index.html.
+    // hashed JS bundle. We need to bust through ALL cache layers.
 
     // Step 1: Clear Cache Storage API
     try {
@@ -168,19 +161,24 @@ export function useVersionCheck(): VersionCheckState {
       }
     } catch { /* ignore */ }
 
-    // Step 3: Force-reload. We use a small delay so the cache clears
-    // can settle first, then we navigate to a cache-busted URL.
-    // Using location.replace() with a unique query param ensures the
-    // browser treats this as a new navigation, not a back/forward.
-    setTimeout(() => {
+    // Step 3: Fetch the current index.html with no-cache headers, then
+    // navigate to a cache-busted URL. This forces the browser to get the
+    // fresh HTML (which references the new hashed JS bundle) instead of
+    // serving the old HTML from its HTTP cache.
+    setTimeout(async () => {
+      try {
+        // Fetch fresh HTML with no-cache to bust the HTTP cache
+        await fetch(window.location.href, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        });
+      } catch { /* ignore — will still try the reload below */ }
+
       try {
         const url = new URL(window.location.href);
-        // Strip any previous _refresh param
         url.searchParams.delete('_refresh');
-        // Add a fresh one
         url.searchParams.set('_refresh', String(Date.now()));
-        // location.replace() overwrites history so the user can't
-        // "back" into the stale version
+        // Use location.replace() so the user can't "back" into the stale version
         window.location.replace(url.toString());
       } catch {
         // Last resort: plain reload

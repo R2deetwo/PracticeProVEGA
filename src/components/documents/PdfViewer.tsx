@@ -131,8 +131,10 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     }, [zoomState]);
 
     // ─── Render single page to canvas ──────────────────────────────
+    // Renders in BOTH 'single' and 'reading' modes (the canvas exists in both).
+    // Only skips in 'continuous' mode (which has its own render path).
     const renderSinglePage = useCallback(async () => {
-        if (!pdfDoc || !canvasRef.current || viewMode !== 'single') return;
+        if (!pdfDoc || !canvasRef.current || viewMode === 'continuous') return;
         if (renderTaskRef.current) {
             try { renderTaskRef.current.cancel(); } catch { /* ignore */ }
             renderTaskRef.current = null;
@@ -168,7 +170,15 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         }
     }, [pdfDoc, currentPage, viewMode, computeScale]);
 
-    useEffect(() => { renderSinglePage(); }, [renderSinglePage]);
+    useEffect(() => {
+        // When entering reading mode, the canvas DOM node changes.
+        // Wait one frame so the new canvas is mounted before rendering.
+        if (viewMode === 'reading') {
+            const raf = requestAnimationFrame(() => renderSinglePage());
+            return () => cancelAnimationFrame(raf);
+        }
+        renderSinglePage();
+    }, [renderSinglePage, viewMode]);
 
     // ─── ResizeObserver: re-render on container resize ─────────────
     // Catches sidebar toggle, thumbnail strip toggle, URL bar show/hide,
