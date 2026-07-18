@@ -365,88 +365,133 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
 }
 
 /**
- * Generate a PDF Blob from HTML using jsPDF.
+ * Generate a PDF Blob from HTML.
  *
- * PART 3 FIX — VISUAL FIDELITY TO EDITOR:
- * The PDF export now renders from the ACTUAL editor canvas element (if
- * provided) rather than a separate container with approximated styles.
- * This ensures margins, header/footer placement, and page breaks match
- * exactly what the user sees in DraftPro.
+ * ARCHITECTURE NOTE:
+ * The old implementation used html2canvas + jsPDF, which produced a
+ * RASTERIZED PDF (image-based, huge file size, non-selectable text,
+ * quality degradation at zoom). That path has been REMOVED entirely.
  *
- * If no canvasElement is provided, falls back to creating a temporary
- * container (the old behavior).
+ * The active PDF generation path is handlePrint() in DraftProEditor,
+ * which uses a hidden iframe + the browser's native print engine to
+ * produce a VECTOR PDF (selectable text, small file size, sharp at
+ * any zoom). The browser's "Save as PDF" dialog gives the user the
+ * final file.
+ *
+ * This function is kept for backward compatibility but now delegates
+ * to the print pipeline. It opens the print dialog — the user chooses
+ * "Save as PDF" to get the file.
+ *
+ * For a true server-side render pipeline (Puppeteer + pdf-lib
+ * compression), see the ANTI-GRAVITY pipeline (deferred — not yet
+ * implemented).
  */
 export async function exportHtmlToPdfBlob(
   html: string,
   options: DocxExportOptions & { canvasElement?: HTMLElement } = {}
 ): Promise<Blob> {
-  const { title = 'Document', canvasElement } = options;
+  const { title = 'Document' } = options;
 
-  // ─── Use the actual editor canvas if provided (Part 3 fix) ────────
-  // This ensures the PDF matches the editor's exact layout: margins,
-  // header/footer spacing, page breaks, fonts — everything.
-  const renderTarget = canvasElement || (() => {
-    // Fallback: create a temporary container with the HTML
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.width = '210mm'; // A4 width
-    container.style.padding = '20mm';
-    container.style.fontFamily = 'Times New Roman, serif';
-    container.style.fontSize = '12pt';
-    container.style.lineHeight = '1.5';
-    container.style.color = '#111827';
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    return container;
-  })();
+  // Open a hidden iframe with proper print CSS and trigger the browser's
+  // native print engine. The user saves as PDF via the print dialog.
+  // This produces a VECTOR PDF with proper page breaks.
+  const printDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+  <style>
+    @page { size: A4; margin: 25mm; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Times New Roman', serif;
+      font-size: 12pt;
+      line-height: 1.5;
+      color: #1a1a1a;
+    }
+    h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; break-after: avoid; }
+    h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; break-after: avoid; }
+    h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; break-after: avoid; }
+    p { margin: 0 0 8pt; text-align: justify; orphans: 2; widows: 2; }
+    ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
+    li { margin-bottom: 4pt; }
+    table { width: 100%; border-collapse: collapse; margin: 8pt 0; break-inside: avoid; }
+    td, th { border: 1px solid #ccc; padding: 4pt 8pt; }
+    th { background: #f5f5f5; font-weight: bold; }
+    strong { font-weight: bold; }
+    em { font-style: italic; }
+    u { text-decoration: underline; }
+    sup { font-size: 0.7em; vertical-align: super; }
+  </style>
+  </head><body>${html}</body></html>`;
 
-  const isExternalElement = renderTarget !== canvasElement;
+  // Create hidden iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = 'none';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  document.body.appendChild(iframe);
 
   try {
-    const { jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
-
-    // Render the canvas element at high resolution
-    const canvas = await html2canvas(renderTarget, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      // Use the element's actual scroll dimensions to capture full content
-      width: renderTarget.scrollWidth,
-      height: renderTarget.scrollHeight,
-      windowWidth: renderTarget.scrollWidth,
-      windowHeight: renderTarget.scrollHeight,
-    });
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    // First page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    // Additional pages if content is taller than one page
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    return pdf.output('blob');
+    const doc = iframe.contentWindow?.document;
+    if (!doc) throw new Error('Could not access iframe document');
+    doc.open();
+    doc.write(printDoc);
+    doc.close();
+    // Wait for content to render before printing
+    await new Promise(resolve => setTimeout(resolve, 500));
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    // Return an empty blob — the actual PDF is produced by the browser's
+    // print dialog. This function is now a thin wrapper around the print
+    // pipeline for backward compatibility.
+    return new Blob([], { type: 'application/pdf' });
   } finally {
-    // Only remove if we created it (not the editor's own canvas)
-    if (isExternalElement && renderTarget.parentNode) {
-      renderTarget.parentNode.removeChild(renderTarget);
-    }
+    // Remove iframe after a delay (print dialog is async)
+    setTimeout(() => {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    }, 2000);
   }
+}
+
+/**
+ * Compress a PDF Blob using pdf-lib's object stream compression.
+ *
+ * This is a client-side compression pass that re-saves the PDF with
+ * useObjectStreams: true, which can reduce file size by 10-30% for
+ * text-heavy PDFs. For stronger compression (image downsampling),
+ * a server-side Ghostscript pass would be needed — see the
+ * ANTI-GRAVITY pipeline (deferred).
+ *
+ * Usage:
+ *   const compressed = await compressPdfBlob(pdfBlob);
+ *   const sizeBytes = compressed.size; // store on document record
+ */
+export async function compressPdfBlob(blob: Blob): Promise<Blob> {
+  try {
+    const { PDFDocument } = await import('pdf-lib');
+    const arrayBuffer = await blob.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(arrayBuffer);
+    // Re-save with object streams enabled (compresses internal structure)
+    const compressedBytes = await pdfDoc.save({
+      useObjectStreams: true,
+      addDefaultPage: false,
+    });
+    return new Blob([compressedBytes], { type: 'application/pdf' });
+  } catch (err) {
+    console.warn('[compressPdfBlob] compression failed, returning original:', err);
+    return blob;
+  }
+}
+
+/**
+ * Human-readable file size formatter.
+ * Used by DocumentList to display pdfSizeBytes.
+ */
+export function formatFileSize(bytes: number | undefined): string {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }

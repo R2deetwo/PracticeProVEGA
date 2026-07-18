@@ -244,6 +244,9 @@ export default defineSchema({
     metadata: v.optional(v.any()),
     isCourtProcess: nullableBoolean,
     litigationStatus: nullableString,
+    // ANTI-GRAVITY: store compressed PDF size for display in document list
+    // without re-fetching the file. Set when PDF is generated/uploaded.
+    pdfSizeBytes: nullableNumber,
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,

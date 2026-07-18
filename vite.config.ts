@@ -9,6 +9,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 function gitSha(fallback = 'unknown') {
+  // Prefer Vercel's injected commit SHA (always correct, even with shallow clones)
+  if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    return process.env.VERCEL_GIT_COMMIT_SHA.trim();
+  }
   try {
     return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
   } catch {

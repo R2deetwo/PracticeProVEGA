@@ -42,8 +42,10 @@ function run(cmd, fallback = '') {
   }
 }
 
-const sha = run('git rev-parse HEAD', 'unknown');
-const branch = run('git rev-parse --abbrev-ref HEAD', 'unknown');
+// Prefer Vercel's injected commit SHA (always correct, even with shallow clones)
+// Fall back to git rev-parse HEAD (works locally and in CI environments with full clones)
+const sha = process.env.VERCEL_GIT_COMMIT_SHA || run('git rev-parse HEAD', 'unknown');
+const branch = process.env.VERCEL_GIT_COMMIT_REF || run('git rev-parse --abbrev-ref HEAD', 'unknown');
 const timestamp = new Date().toISOString();
 const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 

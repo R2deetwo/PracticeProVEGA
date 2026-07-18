@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Document, Matter, Contact, DocumentCategory, User, UserRole, ModalType } from '../types';
 import { DocumentIcon, PlusIcon, SearchIcon, LargeFolderIcon, EditIcon, TrashIcon, DownloadIcon, EyeIcon, ShareIcon, UserUploadIcon, ChevronDownIcon, UploadIcon, ChartBarIcon, ImageIcon, SparklesIcon, ComputerDesktopIcon, UserCircleIcon, OfficeBuildingIcon, ArrowsExpandIcon } from '../constants';
@@ -14,6 +14,7 @@ import Tooltip from './Tooltip';
 import { LocalDocumentManager } from './LocalDocumentManager';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
 import DocumentPreviewModal from './documents/DocumentPreviewModal';
+import { List, type RowComponentProps } from 'react-window';
 
 interface DocumentListProps {
     documents: Document[];
@@ -59,16 +60,23 @@ const DocumentRow: React.FC<{
     selected?: boolean;
     selectionMode?: boolean;
     onToggleSelect?: (id: string) => void;
-}> = ({ doc, onViewDetails, onDownload, onEdit, onShare, onDelete, onQuickFullScreenPreview, users, selected, selectionMode, onToggleSelect }) => {
+    style?: React.CSSProperties; // for virtualized list
+}> = ({ doc, onViewDetails, onDownload, onEdit, onShare, onDelete, onQuickFullScreenPreview, users, selected, selectionMode, onToggleSelect, style }) => {
     const uploader = doc.uploadedBy ? users.find(u => u.id === doc.uploadedBy) : null;
     const uploadedByClient = uploader?.role === UserRole.Client;
     const fileName = doc.file?.name || doc.title;
     const fileType = doc.file?.type;
     const [showBottomSheet, setShowBottomSheet] = useState(false);
 
+    // Determine file size to display — prefer pdfSizeBytes (compressed),
+    // fall back to raw file.size
+    const sizeBytes = doc.pdfSizeBytes || doc.file?.size;
+    const sizeLabel = sizeBytes ? formatBytes(sizeBytes) : '';
+
     return (
         <>
             <div
+                style={style}
                 onClick={() => {
                     if (selectionMode && onToggleSelect) {
                         onToggleSelect(doc.id);
@@ -76,77 +84,80 @@ const DocumentRow: React.FC<{
                         onViewDetails(doc.id);
                     }
                 }}
-                className={`flex items-start gap-2 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
+                // ANTI-GRAVITY: compact 44px row height, single-line content
+                // No wrapping to second line — truncate with ellipsis
+                className={`flex items-center gap-2 px-3 h-11 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/50 cursor-pointer group transition-all border ${selected ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-300 dark:border-primary-700' : 'border-transparent hover:border-slate-200 dark:hover:border-zinc-700'}`}
             >
-                <div className="flex items-start gap-3 min-w-0 flex-1">
-                    {/* Checkbox — visible in selection mode */}
-                    {selectionMode && (
-                        <div className="flex-shrink-0 mt-0.5">
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'}`}>
-                                {selected && (
-                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                )}
-                            </div>
+                {/* Checkbox — visible in selection mode */}
+                {selectionMode && (
+                    <div className="flex-shrink-0">
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800'}`}>
+                            {selected && (
+                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* File-type icon (compact, no badges — keep row slim) */}
+                <div className="relative flex-shrink-0">
+                    {getFileIcon(fileName, fileType)}
+                    {uploadedByClient && (
+                        <div className="absolute -top-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-0.5 shadow-sm">
+                            <UserUploadIcon className="w-3 h-3 text-primary-500" />
                         </div>
                     )}
-                    <div className="relative flex-shrink-0 mt-0.5">
-                        {getFileIcon(fileName, fileType)}
-                        {uploadedByClient && (
-                            <div className="absolute -top-1 -right-1 bg-white dark:bg-zinc-800 rounded-full p-0.5 shadow-sm">
-                                <UserUploadIcon className="w-3 h-3 text-primary-500" />
-                            </div>
-                        )}
-                        {doc.analysisState === 'complete' && (
-                            <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 shadow-sm animate-pulse border-2 border-white dark:border-zinc-900" title="Analysis Complete">
-                                <SparklesIcon className="w-2.5 h-2.5 text-white" />
-                            </div>
-                        )}
-                    </div>
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                        <Tooltip text={doc.title}>
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
-                        </Tooltip>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-2 mt-0.5">
-                            <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
-                            {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
-                            {doc.isCourtProcess && (
-                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
-                                    doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
-                                        doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
-                                            'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
-                                    }`}>
-                                    {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
-                                        doc.litigationStatus === 'served' ? 'Served' :
-                                            doc.litigationStatus === 'filed' ? 'Filed' : 'Drafting'}
-                                </span>
-                            )}
-                        </p>
-                    </div>
+                    {doc.analysisState === 'complete' && (
+                        <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-0.5 shadow-sm border border-white dark:border-zinc-900" title="Analysis Complete">
+                            <SparklesIcon className="w-2 h-2 text-white" />
+                        </div>
+                    )}
                 </div>
 
-                {/* Quick Full Screen Preview button — ALWAYS visible, prominent */}
+                {/* Title — single line, truncated with ellipsis */}
+                <Tooltip text={doc.title}>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-white truncate flex-1 min-w-0">{doc.title}</p>
+                </Tooltip>
+
+                {/* Metadata — single line, no wrap */}
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 flex-shrink-0">
+                    <span className="hidden sm:inline">{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
+                    {sizeLabel && <span className="hidden md:inline">• {sizeLabel}</span>}
+                    {doc.isCourtProcess && (
+                        <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
+                            doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
+                                doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
+                                    'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
+                            }`}>
+                            {doc.litigationStatus === 'acknowledged' ? 'Confirmed' :
+                                doc.litigationStatus === 'served' ? 'Served' :
+                                    doc.litigationStatus === 'filed' ? 'Filed' : 'Drafting'}
+                        </span>
+                    )}
+                </div>
+
+                {/* Quick Preview — icon-only eye button (left of kebab, always visible, visually quiet) */}
                 {(doc.content || doc.file) && onQuickFullScreenPreview && (
-                    <Tooltip text="Open in Full Screen Preview">
+                    <Tooltip text="Preview">
                         <button
                             onClick={(e) => { e.stopPropagation(); onQuickFullScreenPreview(doc); }}
-                            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors flex-shrink-0 border border-primary-200 dark:border-primary-800"
-                            aria-label="Open in full screen preview"
+                            className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                            aria-label="Preview document"
                         >
-                            <ArrowsExpandIcon className="w-4 h-4" />
-                            <span className="text-[10px] font-bold hidden sm:inline">Preview</span>
+                            <EyeIcon className="w-4 h-4" />
                         </button>
                     </Tooltip>
                 )}
 
-                {/* Kebab menu — shown on ALL screen sizes (not just mobile) */}
+                {/* Kebab menu — same size as eye icon for visual consistency */}
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowBottomSheet(true); }}
-                    className="flex items-center justify-center p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                    className="flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-zinc-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
                     aria-label="More options"
                 >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6h.01M12 12h.01M12 18h.01" />
                     </svg>
                 </button>
@@ -261,6 +272,106 @@ const DocumentRow: React.FC<{
     );
 }
 
+// ─── Virtualized Document List (scales to 1000+ documents) ────────
+// Uses react-window v2's List component — only mounts visible rows + small
+// overscan buffer. Multi-select state is keyed by doc.id (passed in via
+// selectedIds Set), so selection survives unmount/remount as the user scrolls.
+//
+// Row height matches DocumentRow's h-11 (44px) + 4px gap = 48px total.
+const VIRTUAL_ROW_HEIGHT = 48;
+
+// Shared row data — passed to every row via rowProps
+interface RowData {
+    documents: Document[];
+    onViewDetails: (id: string) => void;
+    onDownload: (doc: Document) => void;
+    onEdit: (doc: Document) => void;
+    onShare: (doc: Document) => void;
+    onDelete: (doc: Document) => void;
+    onQuickFullScreenPreview?: (doc: Document) => void;
+    selectedIds: Set<string>;
+    selectionMode: boolean;
+    onToggleSelect: (id: string) => void;
+}
+
+const VirtualRow = ({ index, style, ...rest }: RowComponentProps<RowData>) => {
+    const data = (rest as any).data || (rest as any).rowProps as RowData;
+    if (!data) return null;
+    const doc = data.documents[index];
+    if (!doc) return null;
+    return (
+        <DocumentRow
+            key={doc.id}
+            doc={doc}
+            users={[]}
+            onViewDetails={data.onViewDetails}
+            onDownload={data.onDownload}
+            onEdit={data.onEdit}
+            onShare={data.onShare}
+            onDelete={data.onDelete}
+            onQuickFullScreenPreview={data.onQuickFullScreenPreview}
+            selected={data.selectedIds.has(doc.id)}
+            selectionMode={data.selectionMode}
+            onToggleSelect={data.onToggleSelect}
+            style={style as React.CSSProperties}
+        />
+    );
+};
+
+const VirtualizedDocumentList: React.FC<{
+    documents: Document[];
+    onViewDetails: (id: string) => void;
+    onDownload: (doc: Document) => void;
+    onEdit: (doc: Document) => void;
+    onShare: (doc: Document) => void;
+    onDelete: (doc: Document) => void;
+    onQuickFullScreenPreview?: (doc: Document) => void;
+    selectedIds: Set<string>;
+    selectionMode: boolean;
+    onToggleSelect: (id: string) => void;
+}> = ({ documents, onViewDetails, onDownload, onEdit, onShare, onDelete, onQuickFullScreenPreview, selectedIds, selectionMode, onToggleSelect }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [containerHeight, setContainerHeight] = useState(600);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                setContainerHeight(entry.contentRect.height);
+            }
+        });
+        ro.observe(containerRef.current);
+        return () => ro.disconnect();
+    }, []);
+
+    const rowData: RowData = {
+        documents,
+        onViewDetails,
+        onDownload,
+        onEdit,
+        onShare,
+        onDelete,
+        onQuickFullScreenPreview,
+        selectedIds,
+        selectionMode,
+        onToggleSelect,
+    };
+
+    return (
+        <div ref={containerRef} className="h-full pb-20">
+            <List
+                height={containerHeight}
+                rowCount={documents.length}
+                rowHeight={VIRTUAL_ROW_HEIGHT}
+                rowComponent={VirtualRow}
+                rowProps={rowData}
+                width="100%"
+                overscanCount={5}
+            />
+        </div>
+    );
+};
+
 const MatterGroup: React.FC<{
     matterTitle: string,
     matterId?: string,
@@ -345,6 +456,13 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
     const onViewDetails = (id: string) => navigate(`/documents/${id}`);
 
     const [searchTerm, setSearchTerm] = useState('');
+    // Debounced search — 300ms delay so we don't filter on every keystroke
+    // when the user has hundreds/thousands of documents.
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+    React.useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'documents' | 'local'>('documents');
     const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'my'>(
@@ -414,12 +532,12 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                 return isUploadedByMe || isAssignedToMe || isMatterAssignedToMe;
             });
         }
-        if (searchTerm) {
-            const lower = searchTerm.toLowerCase();
+        if (debouncedSearchTerm) {
+            const lower = debouncedSearchTerm.toLowerCase();
             docs = docs.filter(d => d.title.toLowerCase().includes(lower));
         }
         return docs.sort((a, b) => new Date(b.dateFiled).getTime() - new Date(a.dateFiled).getTime());
-    }, [documents, selectedCategory, searchTerm, assignmentFilter, currentUser?.id, matters]);
+    }, [documents, selectedCategory, debouncedSearchTerm, assignmentFilter, currentUser?.id, matters]);
 
     const groupedDocuments = useMemo(() => {
         if (selectedCategory) return null; // Or if viewMode === 'local'
@@ -793,33 +911,31 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                             )}
                                         </>
                                     ) : (
-                                        <div className="space-y-1">
-                                            {filteredDocuments.map(doc => (
-                                                <DocumentRow
-                                                    key={doc.id}
-                                                    doc={doc}
-                                                    users={[]}
-                                                    onViewDetails={onViewDetails}
-                                                    onDownload={handleDownload}
-                                                    onEdit={handleEditDoc}
-                                                    onShare={(d) => openModal('shareDocument', d.id)}
-                                                    onDelete={handleDelete}
-                                                    onQuickFullScreenPreview={onQuickFullScreenPreview}
-                                                    selected={selectedIds.has(doc.id)}
-                                                    selectionMode={selectionMode}
-                                                    onToggleSelect={toggleSelect}
-                                                />
-                                            ))}
-                                        </div>
+                                        // ─── Virtualized flat list (1000+ docs performant) ───
+                                        // react-window FixedSizeList only mounts visible rows + overscan buffer.
+                                        // Multi-select state is keyed by doc.id, not DOM index, so it
+                                        // survives unmount/remount as the user scrolls.
+                                        <VirtualizedDocumentList
+                                            documents={filteredDocuments}
+                                            onViewDetails={onViewDetails}
+                                            onDownload={handleDownload}
+                                            onEdit={handleEditDoc}
+                                            onShare={(d) => openModal('shareDocument', d.id)}
+                                            onDelete={handleDelete}
+                                            onQuickFullScreenPreview={onQuickFullScreenPreview}
+                                            selectedIds={selectedIds}
+                                            selectionMode={selectionMode}
+                                            onToggleSelect={toggleSelect}
+                                        />
                                     )}
                                 </div>
                             ) : (
                                 <EmptyState
                                     title="No Documents Yet"
-                                    description={searchTerm ? "No matches found for your search." : (selectedCategory ? "This folder is empty. Upload a document to get started." : "Upload your first document to get started. You can organize files by matter, category, or keep them firm-wide.")}
+                                    description={debouncedSearchTerm ? "No matches found for your search." : (selectedCategory ? "This folder is empty. Upload a document to get started." : "Upload your first document to get started. You can organize files by matter, category, or keep them firm-wide.")}
                                     icon={<DocumentIcon />}
-                                    actionLabel={searchTerm ? undefined : "Upload Document"}
-                                    onAction={searchTerm ? undefined : () => openModal('newDocument')}
+                                    actionLabel={debouncedSearchTerm ? undefined : "Upload Document"}
+                                    onAction={debouncedSearchTerm ? undefined : () => openModal('newDocument')}
                                 />
                             )}
                         </div>
