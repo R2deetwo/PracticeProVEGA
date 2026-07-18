@@ -3,23 +3,18 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { DocumentIcon, DownloadIcon, ArrowsExpandIcon } from '../../constants';
 import { sanitize } from '../../utils/sanitization';
 
-// ─── Professional PDF-style HTML Page Preview ────────────────────
+// ─── HTML Page Preview (for DraftPro-created documents) ────────────
 //
-// Design references (generic, non-trademarked):
-//   - Standard PDF reader default view: single page, fit-to-page (entire
-//     page visible in viewport, centered both horizontally and vertically).
-//   - Common page navigator pattern: horizontal thumbnail strip at the
-//     BOTTOM (not the left sidebar), main page on top.
-//   - Reading mode: hides all chrome, just the page.
+// ANTI-GRAVITY spec compliance:
+//   1. Zoom state is a discriminated union — either fit-mode OR custom percent,
+//      never both. Toolbar shows "Fit" OR "75%", never "Fit / 75%".
+//   2. Page is centered both H and V. Uses inner wrapper with min-height: 100%
+//      so align-items: center works even when content overflows.
+//   3. Bottom thumbnail strip is a real docked horizontal strip, not overlay.
 //
-// CRITICAL IMPLEMENTATION DETAIL — Page sizing:
-//   Using `transform: scale()` alone does NOT change the element's layout
-//   footprint. The browser still allocates 210mm × 297mm for the page
-//   even when scaled to 50%. This breaks centering AND causes overflow.
-//
-//   Fix: Wrap the page in a container with the SCALED dimensions, then
-//   apply transform: scale to the inner page. The outer container takes
-//   the scaled size in layout, so flex centering works correctly.
+// NOTE: This is a stopgap for HTML-content documents. The proper solution is
+// server-side HTML→PDF rendering (ANTI-GRAVITY pipeline) so these docs also
+// flow through PdfViewer. For now, this component matches PdfViewer's UX.
 
 export interface HtmlPagePreviewProps {
     html: string;
@@ -31,9 +26,18 @@ export interface HtmlPagePreviewProps {
 
 type ViewMode = 'fit' | 'continuous';
 
+// ─── Discriminated zoom state ──────────────────────────────────────
+type ZoomState =
+    | { mode: 'fit-page' }
+    | { mode: 'fit-width' }
+    | { mode: 'custom'; percent: number };
+
 const PAGE_W_MM = 210;
 const PAGE_H_MM = 297;
 const PX_PER_MM = 3.7795;
+const ZOOM_STEP = 25;
+const MIN_ZOOM = 25;
+const MAX_ZOOM = 300;
 
 const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     html,
@@ -42,10 +46,10 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     onRequestFullScreen,
     onRequestClose,
 }) => {
-    const [zoom, setZoom] = useState(100);
+    const [zoomState, setZoomState] = useState<ZoomState>({ mode: 'fit-page' });
     const [currentPage, setCurrentPage] = useState(0);
     const [viewMode, setViewMode] = useState<ViewMode>('fit');
-    const [showThumbnails, setShowThumbnails] = useState(isFullScreen);
+    const [showThumbnails, setShowThumbnails] = useState(false);
     const [readingMode, setReadingMode] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const pageAreaRef = useRef<HTMLDivElement>(null);
@@ -53,6 +57,8 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     const thumbnailStripRef = useRef<HTMLDivElement>(null);
     const touchStartX = useRef(0);
     const touchStartY = useRef(0);
+    // Track actual rendered zoom (for zoom in/out from any mode)
+    const currentZoomRef = useRef(100);
 
     // ─── Auto-paginate ──────────────────────────────────────────────
     const pages = useMemo(() => {
@@ -88,63 +94,73 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     const pageCount = pages.length || 1;
     const safeCurrentPage = Math.min(currentPage, pageCount - 1);
 
-    // ─── Fit-to-page: zoom to fit ENTIRE page (width AND height) ────
-    // Uses ResizeObserver (not window.resize) so it fires when the
-    // container's size changes due to thumbnail strip toggle, sidebar
-    // collapse, etc. — not just when the window resizes.
-    const fitToPage = useCallback(() => {
-        if (!pageAreaRef.current) return;
+    // ─── Compute zoom from ZoomState ────────────────────────────────
+    const computeZoom = useCallback(() => {
+        if (!pageAreaRef.current) return 100;
         const areaW = pageAreaRef.current.clientWidth;
         const areaH = pageAreaRef.current.clientHeight;
-        if (areaW <= 0 || areaH <= 0) return;
-        const pageW = PAGE_W_MM * PX_PER_MM;
-        const pageH = PAGE_H_MM * PX_PER_MM;
-        const zoomW = areaW / pageW;
-        const zoomH = areaH / pageH;
-        const fitZoom = Math.min(zoomW, zoomH) * 0.98; // 2% padding
-        setZoom(Math.max(25, Math.min(300, Math.round(fitZoom * 100))));
-    }, []);
+        if (areaW <= 0 || areaH <= 0) return 100;
 
-    // ─── Fit-to-width: zoom to fit page width (used in continuous mode)
-    const fitToWidth = useCallback(() => {
-        if (!pageAreaRef.current) return;
-        const areaW = pageAreaRef.current.clientWidth;
-        if (areaW <= 0) return;
-        const pageW = PAGE_W_MM * PX_PER_MM;
-        const fitZoom = (areaW / pageW) * 0.98;
-        setZoom(Math.max(25, Math.min(300, Math.round(fitZoom * 100))));
-    }, []);
+        if (zoomState.mode === 'fit-page') {
+            const pageW = PAGE_W_MM * PX_PER_MM;
+            const pageH = PAGE_H_MM * PX_PER_MM;
+            const zoomW = areaW / pageW;
+            const zoomH = areaH / pageH;
+            const fitZoom = Math.min(zoomW, zoomH) * 0.98;
+            return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(fitZoom * 100)));
+        }
+        if (zoomState.mode === 'fit-width') {
+            const pageW = PAGE_W_MM * PX_PER_MM;
+            const fitZoom = (areaW / pageW) * 0.98;
+            return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(fitZoom * 100)));
+        }
+        return zoomState.percent;
+    }, [zoomState]);
 
-    // Auto-fit on mount, on view mode change, on thumbnail toggle, on reading mode toggle
+    // Apply computed zoom and track it
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (viewMode === 'fit') fitToPage();
-            else fitToWidth();
-        }, 60);
-        return () => clearTimeout(timer);
-    }, [viewMode, fitToPage, fitToWidth, showThumbnails, readingMode]);
+        const newZoom = computeZoom();
+        currentZoomRef.current = newZoom;
+        // Force re-render by updating a state (zoomState is the source of truth,
+        // but we need to apply the computed value. Use a separate render trigger.)
+        setRenderTrigger(t => t + 1);
+    }, [computeZoom, showThumbnails, readingMode, viewMode]);
 
-    // ─── ResizeObserver: re-fit when container resizes ─────────────
-    // This is the KEY fix — window.resize doesn't fire when:
-    //   - Thumbnail strip toggles open/closed (changes container height)
-    //   - Sidebar collapses (changes container width)
-    //   - Mobile browser URL bar shows/hides (changes container height)
-    // ResizeObserver fires for ALL of these.
+    // Render trigger (so computeZoom runs and PageSheet picks up new value)
+    const [, setRenderTrigger] = useState(0);
+    const effectiveZoom = computeZoom();
+
+    // ─── ResizeObserver: re-fit on container resize ─────────────────
     useEffect(() => {
         const el = pageAreaRef.current;
         if (!el) return;
         const ro = new ResizeObserver(() => {
-            if (viewMode === 'fit') fitToPage();
-            else fitToWidth();
+            // Trigger re-render to recompute zoom
+            setRenderTrigger(t => t + 1);
         });
         ro.observe(el);
         return () => ro.disconnect();
-    }, [viewMode, fitToPage, fitToWidth]);
+    }, []);
 
     // Reset current page when document changes
     useEffect(() => {
         setCurrentPage(0);
     }, [html]);
+
+    // ─── Zoom handlers (discriminated state) ────────────────────────
+    const handleZoomIn = useCallback(() => {
+        const newPercent = Math.min(MAX_ZOOM, currentZoomRef.current + ZOOM_STEP);
+        setZoomState({ mode: 'custom', percent: newPercent });
+    }, []);
+
+    const handleZoomOut = useCallback(() => {
+        const newPercent = Math.max(MIN_ZOOM, currentZoomRef.current - ZOOM_STEP);
+        setZoomState({ mode: 'custom', percent: newPercent });
+    }, []);
+
+    const handleFit = useCallback(() => {
+        setZoomState({ mode: 'fit-page' });
+    }, []);
 
     // ─── Keyboard navigation ────────────────────────────────────────
     useEffect(() => {
@@ -192,14 +208,13 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 setCurrentPage(pageCount - 1);
             } else if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) {
                 e.preventDefault();
-                setZoom(z => Math.min(300, z + 25));
+                handleZoomIn();
             } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
                 e.preventDefault();
-                setZoom(z => Math.max(25, z - 25));
+                handleZoomOut();
             } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
                 e.preventDefault();
-                if (viewMode === 'fit') fitToPage();
-                else fitToWidth();
+                handleFit();
             } else if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 setShowThumbnails(s => !s);
@@ -211,7 +226,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         const el = containerRef.current;
         el?.addEventListener('keydown', handleKey);
         return () => el?.removeEventListener('keydown', handleKey);
-    }, [pageCount, viewMode, isFullScreen, onRequestClose, readingMode, fitToPage, fitToWidth]);
+    }, [pageCount, viewMode, isFullScreen, onRequestClose, readingMode, handleZoomIn, handleZoomOut, handleFit]);
 
     // ─── Touch swipe (only horizontal) ──────────────────────────────
     const handleTouchStart = (e: React.TouchEvent) => {
@@ -232,7 +247,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         const target = Math.max(0, Math.min(pageCount - 1, page));
         setCurrentPage(target);
         if (scrollRef.current && viewMode === 'continuous') {
-            const pageHeight = PAGE_H_MM * PX_PER_MM * (zoom / 100) + 40;
+            const pageHeight = PAGE_H_MM * PX_PER_MM * (effectiveZoom / 100) + 40;
             scrollRef.current.scrollTo({ top: target * pageHeight, behavior: 'smooth' });
         }
         if (thumbnailStripRef.current) {
@@ -246,7 +261,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     const handleScroll = () => {
         if (viewMode !== 'continuous' || !scrollRef.current) return;
         const scrollTop = scrollRef.current.scrollTop;
-        const pageHeight = PAGE_H_MM * PX_PER_MM * (zoom / 100) + 40;
+        const pageHeight = PAGE_H_MM * PX_PER_MM * (effectiveZoom / 100) + 40;
         const pageNum = Math.floor(scrollTop / pageHeight);
         const newPage = Math.max(0, Math.min(pageCount - 1, pageNum));
         if (newPage !== currentPage) {
@@ -303,12 +318,10 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         .page-sheet sup { font-size: 0.7em; vertical-align: super; }
     `;
 
-    // ─── Page sheet — wrapped so layout uses SCALED dimensions ──────
-    // Outer div: scaled width/height (so flex centering works correctly)
-    // Inner div: original 210×297mm + transform: scale (visual only)
+    // ─── Page sheet — outer wrapper has SCALED dimensions so flex centering works ───
     const PageSheet = ({ pageIndex }: { pageIndex: number }) => {
-        const scaledW = PAGE_W_MM * (zoom / 100);
-        const scaledH = PAGE_H_MM * (zoom / 100);
+        const scaledW = PAGE_W_MM * (effectiveZoom / 100);
+        const scaledH = PAGE_H_MM * (effectiveZoom / 100);
         return (
             <div
                 className="flex-shrink-0"
@@ -324,7 +337,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         width: `${PAGE_W_MM}mm`,
                         minHeight: `${PAGE_H_MM}mm`,
                         padding: '25mm',
-                        transform: `scale(${zoom / 100})`,
+                        transform: `scale(${effectiveZoom / 100})`,
                         transformOrigin: 'top left',
                         transition: 'transform 150ms ease-out',
                     }}
@@ -341,7 +354,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         );
     };
 
-    // ─── Thumbnail (miniature page preview for the bottom strip) ────
+    // ─── Thumbnail ───
     const Thumbnail = ({ pageIndex }: { pageIndex: number }) => (
         <button
             onClick={() => goToPage(pageIndex)}
@@ -351,7 +364,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     : 'border-slate-200 dark:border-zinc-700 hover:border-slate-400 dark:hover:border-zinc-500'
             }`}
             title={`Page ${pageIndex + 1}`}
-            style={{ width: '60px', height: '85px' }}
+            style={{ width: '72px', height: '94px' }}
         >
             <div
                 className="bg-white relative overflow-hidden"
@@ -361,7 +374,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     className="page-sheet absolute top-0 left-0 origin-top-left pointer-events-none"
                     style={{
                         width: '210mm',
-                        transform: 'scale(0.113)',
+                        transform: 'scale(0.135)',
                         fontSize: '12pt',
                         lineHeight: '1.5',
                         color: '#1a1a1a',
@@ -372,14 +385,22 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         __html: (pages[pageIndex] || '').slice(0, 1200),
                     }}
                 />
-                <div className="absolute bottom-0.5 right-0.5 px-1 py-0.5 bg-black/70 text-white text-[8px] font-bold rounded">
+                <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/70 text-white text-[9px] font-bold text-center">
                     {pageIndex + 1}
                 </div>
             </div>
         </button>
     );
 
-    // ═══ READING MODE (pure page view, no chrome) ═══════════════════
+    // ─── Zoom indicator: EITHER "Fit" OR percent, never both ────────
+    const zoomLabel = zoomState.mode === 'fit-page'
+        ? 'Fit'
+        : zoomState.mode === 'fit-width'
+            ? 'W-Fit'
+            : `${zoomState.percent}%`;
+    const isFitMode = zoomState.mode !== 'custom';
+
+    // ═══ READING MODE ═══════════════════════════════════════════════
     if (readingMode && isFullScreen) {
         return (
             <div
@@ -388,18 +409,17 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 className="flex flex-col h-full w-full bg-zinc-900 outline-none relative"
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
-                onClick={(e) => {
-                    if (e.target === e.currentTarget) setReadingMode(false);
-                }}
+                onClick={(e) => { if (e.target === e.currentTarget) setReadingMode(false); }}
             >
                 <style>{pageCss}</style>
                 <div
                     ref={pageAreaRef}
-                    className="flex-1 min-h-0 flex items-center justify-center p-2 overflow-hidden"
+                    className="flex-1 min-h-0 overflow-auto flex items-center justify-center p-2"
                 >
-                    <PageSheet pageIndex={safeCurrentPage} />
+                    <div className="min-h-full w-full flex items-center justify-center">
+                        <PageSheet pageIndex={safeCurrentPage} />
+                    </div>
                 </div>
-
                 <button
                     onClick={() => setReadingMode(false)}
                     className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors backdrop-blur-sm"
@@ -409,7 +429,6 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
-
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/70 text-white rounded-full text-xs font-bold backdrop-blur-sm pointer-events-none">
                     {safeCurrentPage + 1} / {pageCount}
                 </div>
@@ -417,20 +436,20 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         );
     }
 
-    // ═══ STANDARD VIEW (slim toolbar + optional thumbnail strip) ════
+    // ═══ STANDARD VIEW ═════════════════════════════════════════════
     return (
         <div ref={containerRef} tabIndex={0} className={`flex flex-col h-full bg-slate-200/50 dark:bg-zinc-900/50 overflow-hidden outline-none ${isFullScreen ? 'rounded-none' : ''}`}>
             <style>{pageCss}</style>
 
-            {/* ─── SLIM toolbar (single row, ~32px tall) ─── */}
-            <div className="flex items-center justify-between px-2 py-1 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0 gap-1">
-                {/* Left: page navigation (compact) */}
-                <div className="flex items-center gap-0.5">
-                    <button onClick={() => goToPage(0)} disabled={safeCurrentPage === 0} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="First (Home)">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
+            {/* ─── SLIM TOOLBAR ─── */}
+            <div className="flex items-center justify-between px-2 py-1.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm shrink-0 gap-1">
+                {/* Left: page navigation */}
+                <div className="flex items-center gap-0.5 min-w-0">
+                    <button onClick={() => goToPage(0)} disabled={safeCurrentPage === 0} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="First page (Home)">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
                     </button>
-                    <button onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 0} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Previous (←)">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    <button onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 0} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Previous (←)">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                     </button>
                     <input
                         type="number"
@@ -438,66 +457,64 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         max={pageCount}
                         value={safeCurrentPage + 1}
                         onChange={(e) => goToPage(parseInt(e.target.value) - 1)}
-                        className="w-9 h-6 text-center text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded border-none outline-none"
+                        className="w-10 h-7 text-center text-[11px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded border-none outline-none"
                     />
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 whitespace-nowrap px-1">
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap px-1">
                         / {pageCount}
                     </span>
-                    <button onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Next (→)">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                    <button onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Next (→)">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
                     </button>
-                    <button onClick={() => goToPage(pageCount - 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Last (End)">
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" /></svg>
+                    <button onClick={() => goToPage(pageCount - 1)} disabled={safeCurrentPage >= pageCount - 1} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Last page (End)">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" /></svg>
                     </button>
                 </div>
 
-                {/* Center: view mode toggle (compact) */}
-                <div className="flex bg-slate-100 dark:bg-zinc-700 rounded p-0.5">
+                {/* Center: view mode toggle (hidden on small screens) */}
+                <div className="hidden sm:flex bg-slate-100 dark:bg-zinc-700 rounded p-0.5">
                     <button
                         onClick={() => setViewMode('fit')}
-                        className={`px-1.5 py-0.5 rounded transition-colors ${viewMode === 'fit' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
-                        title="Single page — fit to viewport"
+                        className={`px-2 py-0.5 rounded transition-colors ${viewMode === 'fit' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                        title="Single page view"
                     >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 3.75h9A2.25 2.25 0 0118.75 6v12a2.25 2.25 0 01-2.25 2.25h-9A2.25 2.25 0 015.25 18V6A2.25 2.25 0 017.5 3.75z" />
                         </svg>
                     </button>
                     <button
                         onClick={() => setViewMode('continuous')}
-                        className={`px-1.5 py-0.5 rounded transition-colors ${viewMode === 'continuous' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
-                        title="Continuous scroll"
+                        className={`px-2 py-0.5 rounded transition-colors ${viewMode === 'continuous' ? 'bg-white dark:bg-zinc-600 text-slate-700 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                        title="Continuous scroll view"
                     >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5v3.75h-7.5v-3.75zM8.25 13.5h7.5v3.75h-7.5v-3.75z" />
                         </svg>
                     </button>
                 </div>
 
-                {/* Right: zoom + actions (compact) */}
+                {/* Right: zoom + actions */}
                 <div className="flex items-center gap-0.5">
-                    <button onClick={() => setZoom(z => Math.max(25, z - 25))} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center" title="Zoom out (Ctrl -)">
+                    <button onClick={handleZoomOut} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom out (Ctrl -)">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
                     </button>
                     <button
-                        onClick={() => viewMode === 'fit' ? fitToPage() : fitToWidth()}
-                        className="px-1.5 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[9px] font-bold"
-                        title="Fit (Ctrl 0)"
+                        onClick={handleFit}
+                        className={`px-2 h-7 rounded text-[9px] font-bold transition-colors ${isFitMode ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}
+                        title="Fit to page (Ctrl 0)"
                     >
                         Fit
                     </button>
-                    <span className="text-[9px] font-bold text-slate-400 w-7 text-center">{zoom}%</span>
-                    <button onClick={() => setZoom(z => Math.min(300, z + 25))} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center" title="Zoom in (Ctrl +)">
+                    {/* Single zoom indicator: either "Fit" OR percent, never both */}
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 w-10 text-center hidden sm:inline">{zoomLabel}</span>
+                    <button onClick={handleZoomIn} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom in (Ctrl +)">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     </button>
 
-                    {/* Thumbnails toggle */}
+                    <div className="w-px h-5 bg-slate-200 dark:bg-zinc-700 mx-1" />
+
                     <button
                         onClick={() => setShowThumbnails(s => !s)}
-                        className={`ml-1 w-6 h-6 rounded flex items-center justify-center transition-colors ${
-                            showThumbnails
-                                ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400'
-                                : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400'
-                        }`}
+                        className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${showThumbnails ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}
                         title="Toggle thumbnails (F)"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -505,11 +522,10 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         </svg>
                     </button>
 
-                    {/* Reading mode (full-screen only) */}
                     {isFullScreen && (
                         <button
                             onClick={() => setReadingMode(true)}
-                            className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center"
+                            className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center"
                             title="Reading mode (R)"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -519,35 +535,31 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                         </button>
                     )}
 
-                    {/* Full-screen expand (inline only) */}
                     {!isFullScreen && onRequestFullScreen && (
                         <button
                             onClick={onRequestFullScreen}
-                            className="w-6 h-6 rounded hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-primary-400 flex items-center justify-center"
+                            className="w-7 h-7 rounded hover:bg-primary-50 dark:hover:bg-primary-900/30 text-slate-600 dark:text-zinc-300 hover:text-primary-600 dark:hover:text-primary-400 flex items-center justify-center"
                             title="Open in full screen (ESC to exit)"
                         >
                             <ArrowsExpandIcon className="w-3.5 h-3.5" />
                         </button>
                     )}
 
-                    {/* Download */}
-                    <button onClick={handleDownload} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center" title="Download as HTML">
+                    <button onClick={handleDownload} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Download as HTML">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
                     </button>
 
-                    {/* Print */}
-                    <button onClick={handlePrint} className="w-6 h-6 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 dark:text-zinc-400 flex items-center justify-center" title="Print / Save as PDF">
+                    <button onClick={handlePrint} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Print / Save as PDF">
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621.504-1.125 1.125-1.125h.871c1.018 0 1.997.346 2.778.984M6.75 7.234V18" /></svg>
                     </button>
 
-                    {/* Close (full-screen only) */}
                     {isFullScreen && onRequestClose && (
                         <button
                             onClick={onRequestClose}
-                            className="ml-1 w-7 h-7 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 flex items-center justify-center"
+                            className="ml-1 w-8 h-8 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-600 dark:text-zinc-300 hover:text-red-600 dark:hover:text-red-400 flex items-center justify-center"
                             title="Close (ESC)"
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
@@ -555,15 +567,20 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 </div>
             </div>
 
-            {/* ─── Main page area — fills ALL available space, centered ─── */}
+            {/* ─── MAIN VIEWPORT ───
+                BUG 1 fix: outer wrapper is overflow-auto, inner wrapper has
+                min-h-full + flex centering. This makes align-items: center
+                work even when the page is taller than the viewport. */}
             {viewMode === 'fit' ? (
                 <div
                     ref={pageAreaRef}
-                    className="flex-1 min-h-0 flex items-center justify-center overflow-hidden bg-slate-200/50 dark:bg-zinc-900/30"
+                    className="flex-1 min-h-0 overflow-auto bg-slate-200/50 dark:bg-zinc-900/30"
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <PageSheet pageIndex={safeCurrentPage} />
+                    <div className="min-h-full w-full flex items-center justify-center p-3 sm:p-6">
+                        <PageSheet pageIndex={safeCurrentPage} />
+                    </div>
                 </div>
             ) : (
                 <div
@@ -573,7 +590,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                     <div
                         ref={scrollRef}
                         onScroll={handleScroll}
-                        className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-3 p-3 custom-scrollbar"
+                        className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center gap-3 p-3 sm:p-6 custom-scrollbar"
                         onTouchStart={handleTouchStart}
                         onTouchEnd={handleTouchEnd}
                     >
@@ -584,12 +601,14 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 </div>
             )}
 
-            {/* ─── Bottom thumbnail strip (professional PDF-reader style) ─── */}
+            {/* ─── BOTTOM THUMBNAIL STRIP (BUG 3 fix) ───
+                Real docked horizontal strip, not overlay. Fixed height.
+                Toggling off re-runs fit (flex layout reclaims space). */}
             {showThumbnails && (
-                <div className="flex-shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700">
+                <div className="shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700" style={{ height: '110px' }}>
                     <div
                         ref={thumbnailStripRef}
-                        className="flex items-center gap-1.5 px-2 py-1.5 overflow-x-auto custom-scrollbar"
+                        className="flex items-center gap-1.5 px-2 py-2 overflow-x-auto overflow-y-hidden custom-scrollbar h-full"
                         style={{ scrollbarWidth: 'thin' }}
                     >
                         {Array.from({ length: pageCount }).map((_, i) => (
@@ -602,14 +621,16 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
                 </div>
             )}
 
-            {/* ─── Footer hint bar (only in full-screen mode) ─── */}
+            {/* ─── Footer hint (full-screen only) ─── */}
             {isFullScreen && (
-                <div className="flex-shrink-0 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-[9px] text-slate-400 dark:text-zinc-500 flex items-center justify-between">
+                <div className="shrink-0 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-[9px] text-slate-400 dark:text-zinc-500 flex items-center justify-between">
                     <span className="hidden sm:inline">← → navigate • Ctrl +/− zoom • F thumbnails • R reading • Ctrl 0 fit</span>
-                    <span className="sm:hidden">Swipe to navigate</span>
-                    <button onClick={onRequestClose} className="font-bold text-slate-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400">
-                        ESC to close
-                    </button>
+                    <span className="sm:hidden">Swipe to navigate • Pinch to zoom</span>
+                    {onRequestClose && (
+                        <button onClick={onRequestClose} className="font-bold text-slate-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400">
+                            ESC to close
+                        </button>
+                    )}
                 </div>
             )}
         </div>

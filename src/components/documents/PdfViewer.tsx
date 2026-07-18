@@ -1,30 +1,21 @@
 /**
  * PdfViewer — Professional PDF viewer built on pdf.js
  *
+ * ANTI-GRAVITY spec compliance:
+ *   1. Zoom state is a discriminated union — either fit-mode OR custom percent,
+ *      never both. Toolbar shows "Fit" OR "75%", never "Fit / 75%".
+ *   2. Page is centered both H and V. Uses inner wrapper with min-height: 100%
+ *      so align-items: center works even when content overflows (browsers
+ *      ignore align-items on overflowing flex containers).
+ *   3. Bottom thumbnail strip is a real docked horizontal strip, not an overlay.
+ *      Toggling it re-runs fit calculation (no stale empty space).
+ *
  * Why pdf.js instead of HTML+CSS scale():
  *   - CSS transforms are visual-only — they don't change layout footprint,
  *     so fit-to-page math never quite works.
  *   - pdf.js renders to <canvas> with actual pixel dimensions, so the
  *     math is exact. This is what Chrome's and Firefox's built-in PDF
  *     viewers use.
- *   - We get proper page breaks, accurate page counts, search-in-document,
- *     text selection, etc. for free.
- *
- * Mobile + desktop UX:
- *   - Canvas-based rendering works on iOS Safari, Android Chrome, desktop
- *   - Uses devicePixelRatio for crisp rendering on retina/hi-dpi screens
- *   - Bottom toolbar is in the thumb zone on mobile
- *   - Pinch-to-zoom via touch handlers (with single-finger pan)
- *   - Swipe left/right to navigate pages
- *   - Keyboard shortcuts on desktop (←/→/Home/End/PgUp/PgDn, Ctrl +/-/0, F, R, ESC)
- *   - ResizeObserver recomputes fit when container resizes (sidebar, URL bar, etc.)
- *
- * HTML-to-PDF rendering:
- *   - If the document has HTML content (DraftPro-created), we render it
- *     to a PDF in the browser using a hidden iframe + window.print()
- *     pipeline. This produces a real PDF with proper page breaks.
- *   - If the document has a file URL (uploaded PDF), we pass it directly
- *     to pdf.js.
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -33,20 +24,14 @@ import {
     ZoomIn, ZoomOut, Maximize2, LayoutGrid, Eye, Download, Printer, X,
     Loader2,
 } from 'lucide-react';
-import { sanitize } from '../../utils/sanitization';
 
-// ── Configure pdf.js worker (Vite-native bundled approach) ────────
-// Uses import.meta.url so Vite serves the worker from the bundle.
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
     'pdfjs-dist/build/pdf.worker.min.mjs',
     import.meta.url
 ).href;
 
 export interface PdfViewerProps {
-    /** Direct PDF file URL (uploaded PDF) — takes priority over html. */
     fileUrl?: string;
-    /** HTML content to render as a PDF (DraftPro-created documents). */
-    html?: string;
     title?: string;
     isFullScreen?: boolean;
     onClose?: () => void;
@@ -54,11 +39,21 @@ export interface PdfViewerProps {
 }
 
 type ViewMode = 'single' | 'continuous' | 'reading';
-type ZoomMode = 'fit-page' | 'fit-width' | number;
+
+// ─── Discriminated zoom state (BUG 2 fix) ───────────────────────────
+// Either we're in a fit mode (no percent shown) OR we're at a custom
+// percent (no "Fit" label shown). Never both.
+type ZoomState =
+    | { mode: 'fit-page' }
+    | { mode: 'fit-width' }
+    | { mode: 'custom'; percent: number };
+
+const ZOOM_STEP = 25;
+const MIN_ZOOM = 25;
+const MAX_ZOOM = 300;
 
 const PdfViewer: React.FC<PdfViewerProps> = ({
     fileUrl,
-    html,
     title = 'Document',
     isFullScreen = false,
     onClose,
@@ -68,28 +63,23 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     const [numPages, setNumPages] = useState(0);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('single');
-    const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-page');
+    const [zoomState, setZoomState] = useState<ZoomState>({ mode: 'fit-page' });
     const [showThumbnails, setShowThumbnails] = useState(false);
     const [pageInput, setPageInput] = useState('1');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [thumbUrls, setThumbUrls] = useState<Record<number, string>>({});
 
+    // Track the ACTUAL current rendered scale (for zoom in/out from any mode)
+    const currentScaleRef = useRef(1);
+
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const continuousContainerRef = useRef<HTMLDivElement>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
-    const renderIdRef = useRef(0); // increments on each render; used to detect stale renders
+    const renderIdRef = useRef(0);
     const touchStart = useRef<{ x: number; y: number } | null>(null);
     const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
-
-    // ─── Compute the source URL or data to load ────────────────────
-    // If we have HTML content, we need to convert it to a PDF first.
-    // For now, we use a hidden iframe + print-to-PDF approach. The user
-    // clicks print and saves as PDF. (For automated server-side rendering,
-    // see the ANTI-GRAVITY pipeline — deferred.)
-    //
-    // If we have a fileUrl (uploaded PDF), use it directly.
 
     // ─── Load PDF document ─────────────────────────────────────────
     useEffect(() => {
@@ -121,31 +111,28 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         return () => { cancelled = true; };
     }, [fileUrl]);
 
-    // ─── Compute scale for fit modes ───────────────────────────────
-    const computeScale = useCallback(async (page: pdfjsLib.PDFPageProxy) => {
+    // ─── Compute scale from ZoomState ──────────────────────────────
+    // Reads the container dimensions and the page's base viewport (scale=1)
+    // to determine the actual pixel scale to render at.
+    const computeScale = useCallback(async (page: pdfjsLib.PDFPageProxy): Promise<number> => {
         const el = containerRef.current;
         if (!el) return 1;
         const baseViewport = page.getViewport({ scale: 1 });
         const availW = el.clientWidth - 24;
         const availH = el.clientHeight - 24;
         if (availW <= 0 || availH <= 0) return 1;
-        if (zoomMode === 'fit-page') {
+        if (zoomState.mode === 'fit-page') {
             return Math.min(availW / baseViewport.width, availH / baseViewport.height);
         }
-        if (zoomMode === 'fit-width') {
+        if (zoomState.mode === 'fit-width') {
             return availW / baseViewport.width;
         }
-        return (zoomMode as number) / 100;
-    }, [zoomMode]);
+        return zoomState.percent / 100;
+    }, [zoomState]);
 
     // ─── Render single page to canvas ──────────────────────────────
-    // Renders the current page to the canvas at the current zoom level.
-    // Each render gets a unique ID; if a new render starts before the
-    // previous one finishes, the previous one is cancelled and its
-    // promise rejection is swallowed (RenderingCancelledException).
     const renderSinglePage = useCallback(async () => {
         if (!pdfDoc || !canvasRef.current || viewMode !== 'single') return;
-        // Cancel any in-progress render
         if (renderTaskRef.current) {
             try { renderTaskRef.current.cancel(); } catch { /* ignore */ }
             renderTaskRef.current = null;
@@ -153,10 +140,11 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         const myRenderId = ++renderIdRef.current;
         try {
             const page = await pdfDoc.getPage(currentPage);
-            // If a newer render started while we were awaiting, abort
             if (myRenderId !== renderIdRef.current) return;
             const scale = await computeScale(page);
             if (myRenderId !== renderIdRef.current) return;
+            // Track actual rendered scale for zoom-in/out from any mode
+            currentScaleRef.current = scale;
             const outputScale = window.devicePixelRatio || 1;
             const viewport = page.getViewport({ scale });
             const canvas = canvasRef.current;
@@ -173,7 +161,6 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             try {
                 await task.promise;
             } catch (e: any) {
-                // Expected when a newer render cancels this one
                 if (e?.name !== 'RenderingCancelledException') throw e;
             }
         } catch (err) {
@@ -183,13 +170,14 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
 
     useEffect(() => { renderSinglePage(); }, [renderSinglePage]);
 
-    // Re-render on container resize (ResizeObserver catches sidebar, URL bar, etc.)
+    // ─── ResizeObserver: re-render on container resize ─────────────
+    // Catches sidebar toggle, thumbnail strip toggle, URL bar show/hide,
+    // window resize — all the cases window.resize misses.
     useEffect(() => {
         const el = containerRef.current;
         if (!el) return;
         let timeout: ReturnType<typeof setTimeout>;
         const ro = new ResizeObserver(() => {
-            // Debounce — ResizeObserver can fire rapidly during animations
             clearTimeout(timeout);
             timeout = setTimeout(() => renderSinglePage(), 100);
         });
@@ -203,7 +191,6 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         const container = continuousContainerRef.current;
         container.innerHTML = '';
         let cancelled = false;
-
         (async () => {
             for (let i = 1; i <= pdfDoc.numPages; i++) {
                 if (cancelled) return;
@@ -232,7 +219,6 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 }
             }
         })();
-
         return () => { cancelled = true; };
     }, [pdfDoc, viewMode]);
 
@@ -269,6 +255,25 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         setPageInput(String(clamped));
     }, [numPages]);
 
+    // ─── Zoom handlers (BUG 2 fix: discriminated state) ────────────
+    // Zoom in/out reads the ACTUAL current rendered scale (currentScaleRef),
+    // not a stale percent. Switches to { mode: 'custom', percent }.
+    const handleZoomIn = useCallback(() => {
+        const currentPercent = Math.round(currentScaleRef.current * 100);
+        const newPercent = Math.min(MAX_ZOOM, currentPercent + ZOOM_STEP);
+        setZoomState({ mode: 'custom', percent: newPercent });
+    }, []);
+
+    const handleZoomOut = useCallback(() => {
+        const currentPercent = Math.round(currentScaleRef.current * 100);
+        const newPercent = Math.max(MIN_ZOOM, currentPercent - ZOOM_STEP);
+        setZoomState({ mode: 'custom', percent: newPercent });
+    }, []);
+
+    const handleFit = useCallback(() => {
+        setZoomState({ mode: 'fit-page' });
+    }, []);
+
     // ─── Keyboard shortcuts (desktop) ──────────────────────────────
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
@@ -290,21 +295,14 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 setViewMode(v => v === 'reading' ? 'single' : 'reading');
             }
             else if (e.ctrlKey || e.metaKey) {
-                if (e.key === '+' || e.key === '=') {
-                    e.preventDefault();
-                    setZoomMode(z => typeof z === 'number' ? Math.min(z + 25, 300) : 125);
-                } else if (e.key === '-') {
-                    e.preventDefault();
-                    setZoomMode(z => typeof z === 'number' ? Math.max(z - 25, 25) : 75);
-                } else if (e.key === '0') {
-                    e.preventDefault();
-                    setZoomMode('fit-page');
-                }
+                if (e.key === '+' || e.key === '=') { e.preventDefault(); handleZoomIn(); }
+                else if (e.key === '-') { e.preventDefault(); handleZoomOut(); }
+                else if (e.key === '0') { e.preventDefault(); handleFit(); }
             }
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [currentPage, numPages, goToPage, viewMode, onClose]);
+    }, [currentPage, numPages, goToPage, viewMode, onClose, handleZoomIn, handleZoomOut, handleFit]);
 
     // ─── Touch: swipe + pinch-to-zoom (mobile) ─────────────────────
     const onTouchStart = (e: React.TouchEvent) => {
@@ -316,7 +314,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             const distance = Math.hypot(dx, dy);
             pinchStart.current = {
                 distance,
-                zoom: typeof zoomMode === 'number' ? zoomMode : 100,
+                zoom: Math.round(currentScaleRef.current * 100),
             };
         }
     };
@@ -327,15 +325,14 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             const dy = e.touches[0].clientY - e.touches[1].clientY;
             const distance = Math.hypot(dx, dy);
             const ratio = distance / pinchStart.current.distance;
-            const newZoom = Math.max(25, Math.min(300, Math.round(pinchStart.current.zoom * ratio)));
-            setZoomMode(newZoom);
+            const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(pinchStart.current.zoom * ratio)));
+            setZoomState({ mode: 'custom', percent: newZoom });
         }
     };
     const onTouchEnd = (e: React.TouchEvent) => {
         if (touchStart.current && e.changedTouches.length === 1) {
             const dx = e.changedTouches[0].clientX - touchStart.current.x;
             const dy = e.changedTouches[0].clientY - touchStart.current.y;
-            // Only navigate on horizontal swipe (not vertical scroll)
             if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
                 if (dx < 0) goToPage(currentPage + 1);
                 else goToPage(currentPage - 1);
@@ -345,11 +342,15 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
         pinchStart.current = null;
     };
 
-    const zoomPct = typeof zoomMode === 'number'
-        ? `${zoomMode}%`
-        : zoomMode === 'fit-page' ? 'Fit' : 'W-Fit';
+    // ─── Zoom indicator: EITHER "Fit" OR percent, never both ───────
+    const zoomLabel = zoomState.mode === 'fit-page'
+        ? 'Fit'
+        : zoomState.mode === 'fit-width'
+            ? 'W-Fit'
+            : `${zoomState.percent}%`;
+    const isFitMode = zoomState.mode !== 'custom';
 
-    // ─── Print (uses browser's native print dialog) ────────────────
+    // ─── Print ─────────────────────────────────────────────────────
     const handlePrint = () => {
         if (!fileUrl) return;
         const printWin = window.open(fileUrl, '_blank');
@@ -379,10 +380,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 <p className="text-sm font-bold mb-1">Couldn't load document</p>
                 <p className="text-xs text-zinc-400 mb-4 max-w-xs">{error}</p>
                 {onClose && (
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold"
-                    >
+                    <button onClick={onClose} className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-xs font-bold">
                         Close
                     </button>
                 )}
@@ -399,8 +397,10 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 onTouchEnd={onTouchEnd}
                 onClick={(e) => { if (e.target === e.currentTarget) setViewMode('single'); }}
             >
-                <div ref={containerRef} className="flex-1 min-h-0 flex items-center justify-center w-full p-2">
-                    <canvas ref={canvasRef} className="shadow-2xl bg-white" />
+                <div ref={containerRef} className="flex-1 min-h-0 flex items-center justify-center w-full p-2 overflow-auto">
+                    <div className="min-h-full flex items-center justify-center w-full">
+                        <canvas ref={canvasRef} className="shadow-2xl bg-white" />
+                    </div>
                 </div>
                 <button
                     onClick={() => setViewMode('single')}
@@ -419,9 +419,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     // ─── Standard view ─────────────────────────────────────────────
     return (
         <div className="flex flex-col h-full min-h-0 bg-zinc-100 dark:bg-zinc-900/50">
-            {/* ─── SLIM TOOLBAR (top, ~36px, works on mobile + desktop) ─── */}
+            {/* ─── SLIM TOOLBAR ─── */}
             <div className="flex items-center justify-between px-2 py-1.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm shrink-0 gap-1">
-                {/* Left: page navigation (compact) */}
+                {/* Left: page navigation */}
                 <div className="flex items-center gap-0.5 min-w-0">
                     <button onClick={() => goToPage(1)} disabled={currentPage <= 1} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="First page (Home)">
                         <ChevronsLeft className="w-3.5 h-3.5" />
@@ -450,7 +450,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                     </button>
                 </div>
 
-                {/* Center: view mode toggle (hidden on small screens — use reading mode instead) */}
+                {/* Center: view mode toggle (hidden on small screens) */}
                 <div className="hidden sm:flex bg-slate-100 dark:bg-zinc-700 rounded p-0.5">
                     <button
                         onClick={() => setViewMode('single')}
@@ -470,18 +470,19 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
 
                 {/* Right: zoom + actions */}
                 <div className="flex items-center gap-0.5">
-                    <button onClick={() => setZoomMode(z => typeof z === 'number' ? Math.max(z - 25, 25) : 75)} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom out (Ctrl -)">
+                    <button onClick={handleZoomOut} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom out (Ctrl -)">
                         <ZoomOut className="w-3.5 h-3.5" />
                     </button>
                     <button
-                        onClick={() => setZoomMode('fit-page')}
-                        className="px-1.5 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-[9px] font-bold"
+                        onClick={handleFit}
+                        className={`px-2 h-7 rounded text-[9px] font-bold transition-colors ${isFitMode ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}
                         title="Fit to page (Ctrl 0)"
                     >
                         Fit
                     </button>
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 w-10 text-center hidden sm:inline">{zoomPct}</span>
-                    <button onClick={() => setZoomMode(z => typeof z === 'number' ? Math.min(z + 25, 300) : 125)} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom in (Ctrl +)">
+                    {/* Single zoom indicator: either "Fit" OR percent, never both */}
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 w-10 text-center hidden sm:inline">{zoomLabel}</span>
+                    <button onClick={handleZoomIn} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom in (Ctrl +)">
                         <ZoomIn className="w-3.5 h-3.5" />
                     </button>
 
@@ -527,42 +528,54 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 </div>
             </div>
 
-            {/* ─── MAIN VIEWPORT — page canvas ─── */}
+            {/* ─── MAIN VIEWPORT ───
+                BUG 1 fix: outer wrapper is overflow-auto, inner wrapper has
+                min-h-full + flex centering. This makes align-items: center
+                work even when the page is taller than the viewport (browsers
+                ignore align-items on overflowing flex containers, but the
+                min-h-full inner wrapper restores centering). */}
             <div
                 ref={containerRef}
-                className="flex-1 min-h-0 overflow-auto flex items-center justify-center p-2 sm:p-4 bg-zinc-200/50 dark:bg-zinc-900/30 touch-pan-y"
+                className="flex-1 min-h-0 overflow-auto bg-zinc-200/50 dark:bg-zinc-900/30 touch-pan-y"
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
                 style={{ WebkitOverflowScrolling: 'touch' }}
             >
                 {viewMode === 'single' ? (
-                    <canvas ref={canvasRef} className="shadow-2xl bg-white" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                    <div className="min-h-full w-full flex items-center justify-center p-3 sm:p-6">
+                        <canvas ref={canvasRef} className="shadow-2xl bg-white" style={{ flexShrink: 0 }} />
+                    </div>
                 ) : (
-                    <div ref={continuousContainerRef} className="flex flex-col items-center w-full" />
+                    <div ref={continuousContainerRef} className="flex flex-col items-center w-full p-3 sm:p-6" />
                 )}
             </div>
 
-            {/* ─── BOTTOM THUMBNAIL STRIP (professional PDF-reader style) ─── */}
+            {/* ─── BOTTOM THUMBNAIL STRIP (BUG 3 fix) ───
+                Real docked horizontal strip, not overlay. Fixed height ~96px.
+                When toggled off, the main viewport reclaims the space
+                (flex layout handles this automatically). */}
             {showThumbnails && (
-                <div className="shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700">
-                    <div className="flex items-center gap-1.5 px-2 py-2 overflow-x-auto custom-scrollbar" style={{ scrollbarWidth: 'thin' }}>
+                <div className="shrink-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700" style={{ height: '110px' }}>
+                    <div className="flex items-center gap-1.5 px-2 py-2 overflow-x-auto overflow-y-hidden custom-scrollbar h-full" style={{ scrollbarWidth: 'thin' }}>
                         {Array.from({ length: numPages }, (_, i) => i + 1).map((n) => (
                             <button
                                 key={n}
                                 onClick={() => goToPage(n)}
-                                className={`shrink-0 border-2 rounded overflow-hidden transition-all ${n === currentPage ? 'border-primary-600 shadow-md ring-2 ring-primary-200' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-400'}`}
-                                style={{ width: '60px', height: '85px' }}
+                                className={`relative shrink-0 rounded-md overflow-hidden border-2 transition-all ${n === currentPage ? 'border-primary-600 shadow-md ring-2 ring-primary-200' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-400'}`}
+                                style={{ width: '72px', height: '94px' }}
                                 title={`Page ${n}`}
                             >
                                 {thumbUrls[n] ? (
                                     <img src={thumbUrls[n]} alt={`Page ${n}`} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-slate-100 dark:bg-zinc-700 animate-pulse flex items-center justify-center">
-                                        <span className="text-[9px] font-bold text-slate-400">{n}</span>
+                                        <span className="text-[10px] font-bold text-slate-400">{n}</span>
                                     </div>
                                 )}
-                                <div className="absolute bottom-0 right-0 px-1 bg-black/70 text-white text-[8px] font-bold rounded-tl">{n}</div>
+                                <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/70 text-white text-[9px] font-bold text-center">
+                                    {n}
+                                </div>
                             </button>
                         ))}
                     </div>
