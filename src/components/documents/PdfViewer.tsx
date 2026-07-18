@@ -79,9 +79,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const continuousContainerRef = useRef<HTMLDivElement>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
+    const renderIdRef = useRef(0); // increments on each render; used to detect stale renders
     const touchStart = useRef<{ x: number; y: number } | null>(null);
     const pinchStart = useRef<{ distance: number; zoom: number } | null>(null);
-    const renderLockRef = useRef(false);
 
     // ─── Compute the source URL or data to load ────────────────────
     // If we have HTML content, we need to convert it to a PDF first.
@@ -139,14 +139,24 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     }, [zoomMode]);
 
     // ─── Render single page to canvas ──────────────────────────────
+    // Renders the current page to the canvas at the current zoom level.
+    // Each render gets a unique ID; if a new render starts before the
+    // previous one finishes, the previous one is cancelled and its
+    // promise rejection is swallowed (RenderingCancelledException).
     const renderSinglePage = useCallback(async () => {
         if (!pdfDoc || !canvasRef.current || viewMode !== 'single') return;
-        if (renderLockRef.current) return;
-        renderLockRef.current = true;
+        // Cancel any in-progress render
+        if (renderTaskRef.current) {
+            try { renderTaskRef.current.cancel(); } catch { /* ignore */ }
+            renderTaskRef.current = null;
+        }
+        const myRenderId = ++renderIdRef.current;
         try {
-            renderTaskRef.current?.cancel();
             const page = await pdfDoc.getPage(currentPage);
+            // If a newer render started while we were awaiting, abort
+            if (myRenderId !== renderIdRef.current) return;
             const scale = await computeScale(page);
+            if (myRenderId !== renderIdRef.current) return;
             const outputScale = window.devicePixelRatio || 1;
             const viewport = page.getViewport({ scale });
             const canvas = canvasRef.current;
@@ -160,13 +170,14 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
             const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
             const task = page.render({ canvasContext: ctx, viewport, transform });
             renderTaskRef.current = task;
-            try { await task.promise; } catch (e: any) {
+            try {
+                await task.promise;
+            } catch (e: any) {
+                // Expected when a newer render cancels this one
                 if (e?.name !== 'RenderingCancelledException') throw e;
             }
         } catch (err) {
             console.error('[PdfViewer] render failed:', err);
-        } finally {
-            renderLockRef.current = false;
         }
     }, [pdfDoc, currentPage, viewMode, computeScale]);
 
