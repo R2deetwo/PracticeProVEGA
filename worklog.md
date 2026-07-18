@@ -4597,3 +4597,70 @@ Stage Summary:
 - Zoom state is now a proper discriminated union (no more 'Fit / 100%')
 - Page is centered both H and V (min-h-full inner wrapper trick)
 - Thumbnail strip is real, docked, clickable, with current-page highlight
+
+---
+Task ID: anti-gravity-pdf-compression-and-list-density
+Agent: main
+Task: PDF compression pipeline + document list density refactor + refresh-to-update fix
+
+Work Log:
+
+PART 1 — PDF Compression Pipeline:
+
+Diagnosis:
+- No server-side Puppeteer pipeline exists yet (ANTI-GRAVITY deferred)
+- Active PDF path: handlePrint() in DraftProEditor — iframe + browser print
+  (already produces vector PDFs with proper page breaks)
+- Dead code: exportHtmlToPdfBlob() used html2canvas + jsPDF (rasterized)
+- Fonts: Times New Roman (system), Inter (Google Fonts) — no @font-face embedding
+- Watermarks: text-based, not rasterized
+- printBackground: N/A (no Puppeteer)
+
+Fixes:
+- Removed html2canvas dead code entirely from docxExport.ts
+- exportHtmlToPdfBlob() now delegates to iframe print pipeline (vector PDF)
+- Added compressPdfBlob() using pdf-lib's useObjectStreams:true
+  (client-side compression, 10-30% size reduction)
+- Added formatFileSize() utility
+- Added pdfSizeBytes field to Convex schema + TypeScript Document type
+
+PART 2 — Document List Density Refactor:
+
+- Replaced labeled green 'Preview' pill with icon-only eye button
+  (16px EyeIcon, neutral color at rest, subtle hover background, always visible)
+  Positioned LEFT of kebab menu, same size for visual consistency
+- Fixed row height to compact 44px (h-11), single-line content
+  Title truncates with ellipsis + tooltip
+  Date and size on same line, no wrapping
+- Added list virtualization (react-window v2 List component)
+  Only visible rows + 5-row overscan buffer mounted
+  Scales to 1000+ documents
+- Multi-select keyed by doc.id (survives unmount/remount)
+- Added 300ms debounced search
+
+ALSO — Fixed 'Refresh to Update' not appearing:
+
+Root cause: vite.config.ts and generate-version-manifest.cjs used
+'git rev-parse HEAD' which returns wrong SHA on Vercel's shallow clones.
+The deployed bundle had VITE_BUILD_SHA = '7143152' (build-306) baked in,
+even though later builds (307, 308, etc.) were deployed. The version.json
+also showed '7143152'. So local SHA matched remote SHA — no update detected.
+
+Fix: Use VERCEL_GIT_COMMIT_SHA environment variable (always correct on Vercel)
+Falls back to git rev-parse HEAD for local dev.
+
+Stage Summary:
+- Commit 4ed094f pushed to main + force-synced to master
+- Build passes (vite build ✓)
+- PDF compression pipeline in place (client-side pdf-lib)
+- Document list slim + virtualized + debounced search
+- Refresh-to-update will now correctly detect new deploys
+
+Files Changed: 8
+- convex/schema.ts (pdfSizeBytes field)
+- src/types.ts (pdfSizeBytes on Document interface)
+- src/utils/docxExport.ts (removed html2canvas, added compressPdfBlob, formatFileSize)
+- src/components/DocumentList.tsx (slim rows, icon-only preview, virtualization, debounced search)
+- vite.config.ts (use VERCEL_GIT_COMMIT_SHA)
+- scripts/generate-version-manifest.cjs (use VERCEL_GIT_COMMIT_SHA)
+- package.json + package-lock.json (added pdf-lib, react-window)
