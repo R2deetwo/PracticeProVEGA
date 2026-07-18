@@ -4103,3 +4103,31 @@ Stage Summary:
 Files Changed: 2
 - src/components/documents/HtmlPagePreview.tsx (rewritten — Adobe-style UX)
 - src/components/details/DocumentDetailView.tsx (prominent header button, removed redundant floating button)
+
+---
+Task ID: fix-full-screen-button-hidden-for-local-docs
+Agent: main
+Task: Fix — Full Screen button was hidden for locally-stored documents
+
+User feedback that drove this:
+- "where is it? here are the improvements????!!!!"
+- User could not see any of the new preview features despite them being deployed
+
+Root cause:
+- The entire action toolbar in DocumentDetailView was wrapped in `{!isLocal && (...)}`
+- `isLocal = document.firmId === 'local'`
+- For locally-uploaded documents (the kind most users test with), the ENTIRE toolbar
+  was hidden — Edit, Full Screen, AND Share were all gone
+- Looked like nothing had been deployed, even though the code WAS live
+
+Fix:
+- Moved the Full Screen button OUTSIDE the `!isLocal` block
+- It now renders for ANY document with `document.content` (local OR synced)
+- Edit and Share remain gated to synced documents (they call Convex mutations)
+- Litigation Status pills also moved inside `!isLocal` check (they call updateDocument)
+
+Stage Summary:
+- The Full Screen button now appears for ALL documents on the detail page
+- Verification: `git push` to main + force-sync to master
+- Commit 8637e67 deployed to Vercel
+- This was the actual reason the user couldn't see the changes — not browser cache
