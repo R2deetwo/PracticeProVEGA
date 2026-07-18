@@ -4053,3 +4053,53 @@ Deferred (ANTI-GRAVITY server-side PDF pipeline):
 - Phase 3 Unified DocumentPdfViewer with pdf.js (replaces <object> tag)
 - Phases 4-6 layout fixes, DraftPro save flow, DOCX export unification
 - Will tackle these in a follow-up commit per user priority ("both" — quick wins first, then full pipeline)
+
+---
+Task ID: adobe-acrobat-style-preview
+Agent: main
+Task: Redesign document preview to follow Adobe Acrobat Reader UX (fit-to-page default, bottom thumbnail strip, reading mode, prominent full-screen button)
+
+User feedback that drove this:
+- "the user should see the full single page fit in the preview space"
+  → Previous default was fit-to-WIDTH which cut off the bottom of the page
+- "the multi-page view at the bottom and the main pdf at the top"
+  → Thumbnails should be at the BOTTOM (horizontal), not left sidebar (vertical)
+- "the user should be able to chose between both views or just the full screen view"
+  → Need both: split view (page + thumbnails) AND pure full-screen (reading mode)
+- "i thought we were going to have a button that would allow the user to make the document full screen"
+  → The expand icon was too subtle; need a prominent labeled button
+
+Work Log:
+- Rewrote HtmlPagePreview.tsx with Adobe Acrobat-style UX
+- Default zoom changed from fit-to-width → fit-to-page (entire page visible, both W and H)
+- New fitToPage() function: calculates min(containerW/pageW, containerH/pageH) × 0.95
+- Page is now centered both horizontally AND vertically (was only horizontally)
+- Thumbnails moved from LEFT sidebar (vertical) → BOTTOM strip (horizontal, Adobe style)
+- Thumbnails default VISIBLE in full-screen mode, hidden inline (less clutter)
+- Page count badge shown at top of thumbnail strip
+- Clicking a thumbnail jumps to that page AND scrolls thumbnail into view
+- Continuous scroll mode syncs current page back to thumbnail strip
+- Added READING MODE: pure full-screen, no toolbar/thumbnails, just the page
+  - Activated by R key or eye icon (only available in full-screen mode)
+  - Page is centered on dark zinc-900 background
+  - Click anywhere on background OR press ESC to exit
+  - Floating exit button (top-right) and page indicator (bottom-center)
+- Added prominent dark "Full Screen" button to DocumentDetailView header
+  - Sits next to Share button, can't miss it
+  - Auto-switches to Preview tab when clicked
+- Removed redundant floating expand button on preview tab (header button replaces it)
+- Keyboard shortcuts extended: ←/→/PgUp/PgDn/Home/End nav, Ctrl +/-/0 zoom, F thumbnails, R reading mode, ESC exit
+- Touch: swipe left/right to navigate (horizontal swipes only)
+
+Stage Summary:
+- Default view: single page, ENTIRE page visible (fit-to-page), centered H+V
+- Three view modes: 'fit' (single, fit-to-page), 'continuous' (vertical scroll), 'reading' (pure page)
+- Thumbnail strip at bottom (Adobe Acrobat style), toggleable with F key
+- Reading mode for distraction-free reading (R key)
+- Prominent Full Screen button in document header
+- Build passes (vite build ✓)
+- Commit a27427f pushed to main + force-synced to master (Vercel will auto-deploy)
+
+Files Changed: 2
+- src/components/documents/HtmlPagePreview.tsx (rewritten — Adobe-style UX)
+- src/components/details/DocumentDetailView.tsx (prominent header button, removed redundant floating button)
