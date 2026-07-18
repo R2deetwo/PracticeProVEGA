@@ -4012,3 +4012,44 @@ Task: Fix notetaker permission, DocumentForm dual-link, wire up backlinks in End
    - MessagesView Compose + ContactsView New buttons: p-2 → p-2.5 + min-h-[40px]
 
 5. MINIMUM VEND — confirmed not a typo. It's a property management term for minimum electricity purchase.
+
+---
+Task ID: fullscreen-preview-and-quick-wins
+Agent: main
+Task: Add full-screen preview button, page thumbnails, distinct mode icons, and proper preview access buttons throughout the app
+
+Work Log:
+- Extracted inline HtmlPagePreview from DocumentDetailView into src/components/documents/HtmlPagePreview.tsx (now reusable)
+- Created src/components/documents/DocumentPreviewModal.tsx — full-viewport overlay with body-scroll lock and ESC-to-close
+- Added page thumbnails sidebar to HtmlPagePreview (toggleable via toolbar button or 'F' key)
+- Replaced identical single/continuous mode icons with distinct ones (single = 1 square, continuous = 2 stacked squares)
+- Added full-screen expand button to HtmlPagePreview toolbar (ArrowsExpandIcon)
+- Added ESC key handler (modal only), Ctrl +/- zoom, Ctrl 0 fit, Home/End jump, F thumbnails
+- Improved swipe detection: only triggers on horizontal swipes (>50px AND >1.5× vertical delta) to avoid blocking vertical scroll
+- Added floating "Full Screen" button (top-right) on DocumentDetailView preview tab
+- Added "Full Screen Preview" item at top of DocumentList kebab-menu bottom sheet (primary action)
+- Added quick expand icon button on each DocumentList row (hover on desktop, always on mobile)
+- Lifted quick-preview state to DocumentList so the modal can be opened directly from any document row
+- Reset full-screen state when selectedId changes (prevents stale modal)
+
+Stage Summary:
+- 3 entry points to full-screen preview: (1) inline expand button, (2) kebab menu item, (3) row hover button
+- All keyboard shortcuts work in both inline and modal modes
+- Thumbnails sidebar shows miniature page previews with active-page ring highlight
+- Modal closes on ESC, backdrop click, or close button
+- Build passes (vite build ✓). Pre-existing tsc error on BacklinksPanel navigateTo type is unrelated (verified via git stash)
+- Commit d2925cc pushed to main and force-synced to master (Vercel will auto-deploy)
+
+Files Changed: 5 (2 new + 2 modified + 1 helper script)
+- src/components/documents/HtmlPagePreview.tsx (NEW — extracted + enhanced)
+- src/components/documents/DocumentPreviewModal.tsx (NEW)
+- src/components/details/DocumentDetailView.tsx (uses extracted component + modal)
+- src/components/DocumentList.tsx (quick-preview button + kebab item + modal state)
+- scripts/remove_inline_html_preview.py (one-shot refactor helper)
+
+Deferred (ANTI-GRAVITY server-side PDF pipeline):
+- Phase 1 Convex schema additions (pdfStorageId, pdfGeneratedAt, contentHash, pdfStatus)
+- Phase 2 PDF render service via Puppeteer on Vercel serverless
+- Phase 3 Unified DocumentPdfViewer with pdf.js (replaces <object> tag)
+- Phases 4-6 layout fixes, DraftPro save flow, DOCX export unification
+- Will tackle these in a follow-up commit per user priority ("both" — quick wins first, then full pipeline)
