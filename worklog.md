@@ -4131,3 +4131,60 @@ Stage Summary:
 - Verification: `git push` to main + force-sync to master
 - Commit 8637e67 deployed to Vercel
 - This was the actual reason the user couldn't see the changes — not browser cache
+
+---
+Task ID: fix-fit-to-page-and-slimmer-toolbar
+Agent: main
+Task: Fix three real bugs that made the preview look unchanged despite deployments
+
+User feedback that drove this:
+- "firstly it is still not showing. i am not seeing the updates even though it asks me to refresh"
+- "i would like the infor at the top to be lower profile so that the user can see even more of the page"
+- "i want them to be able to see the full page but you still have not done that"
+
+Work Log — THREE ACTUAL BUGS:
+
+1. FIT-TO-PAGE WAS BROKEN (the real reason user couldn't see 'full page')
+   Root cause: PageSheet used `transform: scale()` alone. CSS transforms are
+   VISUAL ONLY — they don't change the element's layout footprint. The browser
+   still allocated 210mm × 297mm for the page even when scaled to 50%.
+   Result: flex centering broke, page overflowed, fit-to-page calculation
+   was correct but the visual rendering didn't match.
+   Fix: Wrapped PageSheet in outer div with SCALED dimensions
+        (width: 210mm × zoom/100, height: 297mm × zoom/100)
+        Inner div keeps transform: scale + transformOrigin: top-left
+        Now layout matches visual, centering works, fit-to-page actually fits.
+
+2. TOOLBAR TOO TALL (~40px → ~28px, ~30% more space for page)
+   Removed: title (already in document detail header), document icon
+   Smaller buttons: 24px → 24px (was 28px)
+   Smaller page count: '1 / 5' instead of 'Page 1 of 5'
+   Compact view-mode toggle
+
+3. QUICK-PREVIEW BUTTON WAS INVISIBLE (the 'where is it?' bug)
+   Before: `sm:opacity-0 sm:group-hover:opacity-100` — only appeared on hover
+   After: Always visible, prominent green pill button with 'Preview' label
+   Now users can SEE the button without having to discover it by hover
+
+ALSO:
+- Made refresh() in useVersionCheck more aggressive:
+  Uses location.reload(true) to bypass bfcache
+  Falls back to cache-bust URL with _refresh=timestamp
+  This addresses 'I refresh but still see old UI' complaints
+- Removed redundant title from toolbar
+- Removed inner wrapper div from page area (was breaking centering)
+- Tighter thumbnail strip (60×85px instead of 72×102px)
+- Page area uses overflow-hidden (not overflow-auto) in fit mode
+
+Stage Summary:
+- Fit-to-page ACTUALLY fits the page now (was broken by CSS transform issue)
+- Toolbar is ~30% slimmer, gives more vertical space to the page
+- Quick-preview button is ALWAYS visible on every document row (green pill)
+- Refresh-to-update now bypasses bfcache
+- Commit ef0bb2b pushed to main + force-synced to master
+- Build passes (vite build ✓)
+
+Files Changed: 3
+- src/components/documents/HtmlPagePreview.tsx (rewrote PageSheet with wrapper)
+- src/components/DocumentList.tsx (always-visible green Preview button)
+- src/hooks/useVersionCheck.ts (more aggressive refresh)
