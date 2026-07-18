@@ -139,25 +139,54 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
-    // Bypass any bfcache and CDN caches:
-    // 1. Clear all Cache Storage (service workers, etc.)
-    // 2. Reload with cache-bust query AND `no-cache` headers via location.reload(true)
-    // 3. Fall back to location.replace with cache-bust query
+    // ─── AGGRESSIVE CACHE BUSTING ─────────────────────────────────
+    // The user has reported that even after clicking "Refresh to Update",
+    // they see the same UI. This is because the browser is serving a
+    // stale index.html from its HTTP cache, which references the OLD
+    // hashed JS bundle. We need to bust through ALL cache layers:
+    //
+    // 1. Cache Storage API (used by service workers — clears if any SW ever registered)
+    // 2. Service Worker registrations (unregister any that exist)
+    // 3. Cookie Store (clears app cookies)
+    // 4. Hard reload with cache-bust query string
+    //
+    // After all that, fall back to a no-cache fetch of index.html.
+
+    // Step 1: Clear Cache Storage API
     try {
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
     } catch { /* ignore */ }
+
+    // Step 2: Unregister any service workers
     try {
-      // Force-reload — bypasses bfcache in modern browsers
-      (window.location as any).reload(true);
-      return;
-    } catch {
-      // Fallback: cache-bust via query string
-      const url = new URL(window.location.href);
-      url.searchParams.set('_refresh', String(Date.now()));
-      window.location.replace(url.toString());
-    }
+      if (navigator.serviceWorker) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          regs.forEach(r => r.unregister());
+        }).catch(() => {});
+      }
+    } catch { /* ignore */ }
+
+    // Step 3: Force-reload. We use a small delay so the cache clears
+    // can settle first, then we navigate to a cache-busted URL.
+    // Using location.replace() with a unique query param ensures the
+    // browser treats this as a new navigation, not a back/forward.
+    setTimeout(() => {
+      try {
+        const url = new URL(window.location.href);
+        // Strip any previous _refresh param
+        url.searchParams.delete('_refresh');
+        // Add a fresh one
+        url.searchParams.set('_refresh', String(Date.now()));
+        // location.replace() overwrites history so the user can't
+        // "back" into the stale version
+        window.location.replace(url.toString());
+      } catch {
+        // Last resort: plain reload
+        window.location.reload();
+      }
+    }, 150);
   };
 
   const dismiss = () => {

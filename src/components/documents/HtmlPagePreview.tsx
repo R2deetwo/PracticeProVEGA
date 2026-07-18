@@ -89,6 +89,9 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     const safeCurrentPage = Math.min(currentPage, pageCount - 1);
 
     // ─── Fit-to-page: zoom to fit ENTIRE page (width AND height) ────
+    // Uses ResizeObserver (not window.resize) so it fires when the
+    // container's size changes due to thumbnail strip toggle, sidebar
+    // collapse, etc. — not just when the window resizes.
     const fitToPage = useCallback(() => {
         if (!pageAreaRef.current) return;
         const areaW = pageAreaRef.current.clientWidth;
@@ -112,7 +115,7 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         setZoom(Math.max(25, Math.min(300, Math.round(fitZoom * 100))));
     }, []);
 
-    // Auto-fit on mount, on view mode change, and on resize
+    // Auto-fit on mount, on view mode change, on thumbnail toggle, on reading mode toggle
     useEffect(() => {
         const timer = setTimeout(() => {
             if (viewMode === 'fit') fitToPage();
@@ -121,13 +124,21 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
         return () => clearTimeout(timer);
     }, [viewMode, fitToPage, fitToWidth, showThumbnails, readingMode]);
 
+    // ─── ResizeObserver: re-fit when container resizes ─────────────
+    // This is the KEY fix — window.resize doesn't fire when:
+    //   - Thumbnail strip toggles open/closed (changes container height)
+    //   - Sidebar collapses (changes container width)
+    //   - Mobile browser URL bar shows/hides (changes container height)
+    // ResizeObserver fires for ALL of these.
     useEffect(() => {
-        const handleResize = () => {
+        const el = pageAreaRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver(() => {
             if (viewMode === 'fit') fitToPage();
             else fitToWidth();
-        };
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
     }, [viewMode, fitToPage, fitToWidth]);
 
     // Reset current page when document changes
