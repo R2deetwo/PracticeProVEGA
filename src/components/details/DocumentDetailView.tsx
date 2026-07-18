@@ -339,68 +339,75 @@ const DocumentDetailViewContent: React.FC = () => {
                         </div>
                     )}
                 </div>
-                {!isLocal && (
-                    <div className="flex flex-col items-end gap-2">
-                        {document.isCourtProcess && (
-                            <div className="flex flex-col items-end">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
-                                <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
-                                    <Tooltip text="Document is still being drafted">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Draft
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Formally filed with the court">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'filed' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Filed
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Served on the opposing party">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'served' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Served
-                                        </button>
-                                    </Tooltip>
-                                    <Tooltip text="Proof of Service Filed">
-                                        <button
-                                            onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'acknowledged' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
-                                        >
-                                            Proof of Service
-                                        </button>
-                                    </Tooltip>
-                                </div>
+
+                {/* Action toolbar — always rendered.
+                    The Full Screen button is shown for ANY document with content
+                    (local OR synced). Edit/Share remain gated to synced documents
+                    because they require Convex mutations. */}
+                <div className="flex flex-col items-end gap-2">
+                    {document.isCourtProcess && !isLocal && (
+                        <div className="flex flex-col items-end">
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
+                            <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
+                                <Tooltip text="Document is still being drafted">
+                                    <button
+                                        onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                    >
+                                        Draft
+                                    </button>
+                                </Tooltip>
+                                <Tooltip text="Formally filed with the court">
+                                    <button
+                                        onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'filed' })}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                    >
+                                        Filed
+                                    </button>
+                                </Tooltip>
+                                <Tooltip text="Served on the opposing party">
+                                    <button
+                                        onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'served' })}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                    >
+                                        Served
+                                    </button>
+                                </Tooltip>
+                                <Tooltip text="Proof of Service Filed">
+                                    <button
+                                        onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'acknowledged' })}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                    >
+                                        Proof of Service
+                                    </button>
+                                </Tooltip>
                             </div>
-                        )}
-                        <div className="flex items-center gap-2">
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                        {!isLocal && (
                             <Tooltip text="Edit Document Metadata">
                                 <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
                             </Tooltip>
-                            {document.content && (
-                                <button
-                                    onClick={() => {
-                                        setActiveTab('details');
-                                        setShowFullScreenPreview(true);
-                                    }}
-                                    className="px-4 py-2.5 rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 bg-slate-900 dark:bg-zinc-700 hover:bg-slate-800 dark:hover:bg-zinc-600 text-white shadow-slate-900/20"
-                                    title="Open document in full screen reader (ESC to exit)"
-                                >
-                                    <ArrowsExpandIcon className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Full Screen</span>
-                                </button>
-                            )}
+                        )}
+                        {document.content && (
+                            <button
+                                onClick={() => {
+                                    setActiveTab('details');
+                                    setShowFullScreenPreview(true);
+                                }}
+                                className="px-4 py-2.5 rounded-xl text-sm font-black shadow-lg transition-all active:scale-95 flex items-center gap-2 bg-slate-900 dark:bg-zinc-700 hover:bg-slate-800 dark:hover:bg-zinc-600 text-white shadow-slate-900/20"
+                                title="Open document in full screen reader (ESC to exit)"
+                            >
+                                <ArrowsExpandIcon className="w-4 h-4" />
+                                <span className="hidden sm:inline">Full Screen</span>
+                            </button>
+                        )}
+                        {!isLocal && (
                             <button onClick={() => openModal('shareDocument', document.id)} className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-black shadow-lg shadow-primary-500/20 transition-all active:scale-95">Share</button>
-                        </div>
+                        )}
                     </div>
-                )}
+                </div>
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
