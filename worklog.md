@@ -4188,3 +4188,60 @@ Files Changed: 3
 - src/components/documents/HtmlPagePreview.tsx (rewrote PageSheet with wrapper)
 - src/components/DocumentList.tsx (always-visible green Preview button)
 - src/hooks/useVersionCheck.ts (more aggressive refresh)
+
+---
+Task ID: cache-busting-and-resizeobserver-fix
+Agent: main
+Task: Implement Claude's diagnosis — cache busting + ResizeObserver
+
+User shared Claude's review. Claude correctly identified TWO separate bugs:
+1. Caching is real and probably the bigger problem right now
+2. Fit-to-page math was 90% correct but using wrong resize trigger
+
+Work Log:
+
+1. CACHE BUSTING — refresh() in useVersionCheck.ts was broken
+   Old code: window.location.reload(true) — DEPRECATED in modern Chrome
+   The browser was serving stale index.html from HTTP cache, which
+   referenced the OLD hashed JS bundle.
+   
+   New refresh():
+   - Clears Cache Storage API (caches.keys().delete())
+   - Unregisters any service workers (navigator.serviceWorker.getRegistrations().unregister())
+   - 150ms delay for cache clears to settle
+   - location.replace() with _refresh=Date.now() query
+   - Strips any previous _refresh param first
+   - Falls back to location.reload() if URL construction fails
+
+2. RESIZEOBSERVER — fit-to-page wasn't re-running when needed
+   Old: window.addEventListener('resize') — only fires on window resize
+   New: ResizeObserver on pageAreaRef.current — fires on:
+     - Thumbnail strip toggle (changes container height)
+     - Sidebar collapse (changes container width)
+     - Mobile browser URL bar show/hide (changes container height)
+     - Window resize (also fires)
+   
+   This means fit-to-page now correctly recomputes when the thumbnail
+   strip appears, instead of leaving the page too big for the viewport.
+
+3. VERIFICATION: Deployed bundle confirmed to contain my latest fixes
+   - Checked deployed index-EUgQydtJ.js for green Preview button class string
+   - Found: 1 match (the always-visible green Preview button is in there)
+   - Headers verified correct: index.html has no-cache, assets have immutable
+   - No service worker registered (would have shown in /sw.js — returns index.html)
+
+Claude's architecture verdict (deferred):
+- Kill HtmlPagePreview in favor of pdf.js + server-rendered PDFs (ANTI-GRAVITY)
+- pdf.js was designed for exactly this UX (powers Chrome/Firefox PDF viewers)
+- Building Acrobat-style UX on live HTML DOM is fighting a losing battle
+- Future task: implement server-side PDF pipeline + PdfViewer component
+
+Stage Summary:
+- Refresh button now aggressively busts ALL cache layers
+- Fit-to-page now correctly responds to container resizes (not just window)
+- Commit 9a5c635 pushed to main + force-synced to master
+- Build passes (vite build ✓)
+
+Files Changed: 2
+- src/hooks/useVersionCheck.ts (aggressive cache busting)
+- src/components/documents/HtmlPagePreview.tsx (ResizeObserver)
