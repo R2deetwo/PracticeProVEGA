@@ -4520,3 +4520,80 @@ LESSON LEARNED:
   as descriptors in user-facing copy or code comments
 - Use generic descriptors instead: 'professional PDF viewer', 'standard PDF
   reader', 'word processor', 'spreadsheet'
+
+---
+Task ID: anti-gravity-spec-implementation
+Agent: main
+Task: Implement ANTI-GRAVITY spec — fix centering, zoom state, thumbnail strip
+
+User provided a detailed spec with 3 concrete bugs and acceptance criteria.
+
+Work Log — 3 BUGS FIXED:
+
+BUG 1 — Fit-to-page does not vertically center the page
+  Root cause: align-items: center on an overflowing flex container is
+  IGNORED by browsers. Content clips to the start, leaving empty space
+  at the bottom.
+  Fix: Added inner wrapper with min-h-full + flex centering.
+    Outer: <div overflow-auto> (scroll container)
+    Inner: <div min-h-full flex items-center justify-center>
+      Page: <canvas/div with explicit pixel dimensions>
+  The inner wrapper's min-h-full makes it at least as tall as the viewport,
+  so align-items: center works. When content is taller, the wrapper grows
+  and scrolling works naturally.
+  Applied to BOTH PdfViewer (canvas) and HtmlPagePreview (scaled div).
+
+BUG 2 — Zoom and 'Fit' mode are not mutually exclusive state
+  Root cause: zoomState was a plain variable. Could show 'Fit' label
+  alongside a percentage, which is contradictory.
+  Fix: Refactored to discriminated union:
+    type ZoomState =
+      | { mode: 'fit-page' }
+      | { mode: 'fit-width' }
+      | { mode: 'custom'; percent: number };
+  - Zoom in/out reads ACTUAL current rendered scale (currentScaleRef for
+    PdfViewer, currentZoomRef for HtmlPagePreview), not stale percent
+  - Switches to { mode: 'custom', percent: newPercent }
+  - Clicking Fit sets mode back to 'fit-page'
+  - Toolbar shows EITHER 'Fit' (highlighted with primary color) OR a
+    percent — never both
+  - The Fit button gets primary-color highlight when active so users
+    see the current mode at a glance
+
+BUG 3 — No bottom thumbnail strip appears when toggled on
+  Root cause: Strip was conditionally rendered but had rendering issues
+  for some code paths.
+  Fix: Real docked horizontal strip:
+    - Fixed height (110px), below main viewport (not overlay)
+    - Each thumbnail: 72×94px
+    - Lazy-loaded low-res page render (pdf.js scale 0.2 or HTML scale 0.135)
+    - 2px primary-color border on current page + ring-2 ring-primary-200
+    - Page number badge at bottom (black/70 background)
+    - Click-to-navigate to that page
+    - Horizontal scroll with custom-scrollbar
+  Toggling off collapses the strip; main viewport reclaims space
+  automatically (flex layout). ResizeObserver triggers re-render so
+  fit-to-page recomputes for the new container size.
+
+ACCEPTANCE CRITERIA (all met):
+  ✓ Page has visually equal empty space above/below and left/right at any
+    viewport size, including after resizing the browser window
+  ✓ Toolbar zoom indicator shows either 'Fit' (no percent) or a percent
+    (no 'Fit' label) — never both, at every step of zoom in/out/fit
+  ✓ Toggling thumbnails icon reveals/hides a real bottom strip with
+    visible page thumbnails and click-to-navigate
+  ✓ Tested: load doc → zoom out 2x → zoom in 1x → click Fit → toggle
+    thumbnails on → toggle off → resize window → page stays centered
+    and correctly labeled throughout
+
+Files Changed: 2 (both fully rewritten per spec)
+- src/components/documents/PdfViewer.tsx
+- src/components/documents/HtmlPagePreview.tsx
+
+Stage Summary:
+- Commit 3bea397 pushed to main + force-synced to master
+- Build passes (vite build ✓)
+- All 3 ANTI-GRAVITY bugs fixed in both PDF and HTML preview components
+- Zoom state is now a proper discriminated union (no more 'Fit / 100%')
+- Page is centered both H and V (min-h-full inner wrapper trick)
+- Thumbnail strip is real, docked, clickable, with current-page highlight
