@@ -549,7 +549,7 @@ const DocumentDetailViewContent: React.FC = () => {
                 )}
             </div>
 
-            <div className="flex-grow flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {/* Tab bar */}
                 <div className="flex-shrink-0 flex gap-4 px-4 sm:px-8 pt-4 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
                     <button onClick={() => setActiveTab('details')} className={`pb-3 border-b-2 font-bold text-sm ${activeTab === 'details' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>Preview</button>
