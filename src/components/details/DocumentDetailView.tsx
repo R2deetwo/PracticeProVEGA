@@ -96,7 +96,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     if (isPdf && blobUrl) {
         return (
-            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
+            <div className="h-full flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 overflow-hidden">
                 {/* PDF toolbar — like a top PDF reader */}
                 <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm">
                     <div className="flex items-center gap-2 min-w-0">
@@ -566,9 +566,9 @@ const DocumentDetailViewContent: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Preview tab — fills ALL available space */}
+                {/* Preview tab — FULL SCREEN, fills all available space */}
                 {activeTab === 'details' && (
-                    <div className="flex-1 overflow-hidden p-4">
+                    <div className="flex-1 min-h-0 overflow-hidden">
                         {document.content ? (
                             <HtmlPagePreview html={document.content} title={document.title} />
                         ) : (
