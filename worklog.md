@@ -4245,3 +4245,78 @@ Stage Summary:
 Files Changed: 2
 - src/hooks/useVersionCheck.ts (aggressive cache busting)
 - src/components/documents/HtmlPagePreview.tsx (ResizeObserver)
+
+---
+Task ID: pdfjs-viewer-implementation
+Agent: main
+Task: Implement Claude's architectural recommendation — replace HTML+CSS preview with pdf.js-based PdfViewer
+
+User instruction: "have you done what claude said to make it work? do it!. remember it should be for the mobile and the webapp so think carefully how to make it work properly on traditional screens and iphone"
+
+Work Log:
+
+1. CREATED PdfViewer.tsx (NEW — src/components/documents/PdfViewer.tsx)
+   - Built on pdfjs-dist (already in package.json, used by AloaXView)
+   - Canvas-based rendering (works on iOS Safari, Android Chrome, desktop)
+   - Uses devicePixelRatio for crisp rendering on retina/hi-dpi screens
+   - Three view modes:
+     * 'single' (default) — fit-to-page, centered, entire page visible
+     * 'continuous' — all pages stacked vertically, fit-to-width
+     * 'reading' — pure full-screen, no chrome, dark background
+   - Bottom thumbnail strip (Adobe Acrobat style) — lazy-loaded, low-res
+   - Zoom controls: fit-page / fit-width / 25%-300%
+   - Page navigation: first/prev/next/last + page input
+   - Keyboard shortcuts: ←/→/PgUp/PgDn/Home/End, Ctrl +/-/0, F, R, ESC
+   - Touch: swipe left/right to navigate, pinch-to-zoom (2-finger)
+   - ResizeObserver recomputes fit when container resizes (sidebar, URL bar)
+   - Loading state with spinner
+   - Error state with retry option
+
+2. UPDATED DocumentPreviewModal.tsx
+   - Now accepts fileUrl OR html (was html-only)
+   - Renders PdfViewer if fileUrl provided, HtmlPagePreview if html
+   - Used by both DocumentList (quick-preview) and DocumentDetailView (full-screen)
+
+3. UPDATED DocumentDetailView.tsx
+   - FileViewer's PDF rendering now uses PdfViewer (replaces <object> tag)
+   - Full Screen header button now works for PDFs too (was content-only)
+   - Modal rendering passes fileUrl for PDFs
+
+4. UPDATED DocumentList.tsx
+   - Quick-preview button now visible for PDFs too (was content-only)
+   - onQuickFullScreenPreview handles both HTML and PDF docs
+   - Modal rendering passes fileUrl for PDFs
+
+5. CREATED htmlToPdf.ts utility (src/utils/htmlToPdf.ts)
+   - printHtmlAsPdf() — opens browser print dialog with proper @page CSS
+   - wrapHtmlForIframePreview() — for iframe-based preview (legacy)
+
+MOBILE + DESKTOP COMPATIBILITY:
+- Canvas rendering works on all modern browsers (no plugins needed)
+- iOS Safari: touch events handled properly, no native PDF viewer quirks
+- Android Chrome: same as iOS Safari
+- Desktop: keyboard shortcuts work
+- Pinch-to-zoom on touch devices (with single-finger pan/swipe)
+- Bottom toolbar in thumb zone on mobile
+- Slim toolbar (~36px) on desktop
+
+ARCHITECTURE NOTE (per Claude):
+- For uploaded PDFs: PdfViewer renders directly (no conversion needed)
+- For DraftPro-created HTML docs: still uses HtmlPagePreview for now
+  (server-side HTML→PDF rendering is the ANTI-GRAVITY pipeline — deferred)
+- htmlToPdf.ts provides printHtmlAsPdf() for the print button
+
+VERIFICATION:
+- Vercel deployed commit 4a5bf16 at 21:20:54 GMT
+- Deployed bundle index-DnE28Lce.js contains:
+  * PdfViewer (component)
+  * fit-page, fit-width (zoom modes)
+  * getDocument (pdfjs API)
+- Build passes (vite build ✓)
+
+Files Changed: 5 (2 new + 3 modified)
+- src/components/documents/PdfViewer.tsx (NEW — 530 lines)
+- src/components/documents/DocumentPreviewModal.tsx (accepts fileUrl OR html)
+- src/utils/htmlToPdf.ts (NEW — print utility)
+- src/components/details/DocumentDetailView.tsx (FileViewer uses PdfViewer)
+- src/components/DocumentList.tsx (quick-preview works for PDFs)
