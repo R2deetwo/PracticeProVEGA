@@ -4476,3 +4476,47 @@ Stage Summary:
 - PdfViewer (pdf.js) handles uploaded PDFs correctly
 - HtmlPagePreview (CSS transform) is stopgap for HTML content
 - Server-side HTML→PDF rendering is the next big upgrade (ANTI-GRAVITY)
+
+---
+Task ID: remove-acrobat-trademark-references
+Agent: main
+Task: Remove all 'Acrobat' / 'Adobe Acrobat' trademark references from source code
+
+User feedback: "You said Acrobat-style..... this is a trade mark. you should not use this name anywhere in the app"
+
+Work Log:
+- Searched src/ for 'Acrobat', 'adobe acrobat', 'Adobe Acrobat', 'acrobat' (case-insensitive)
+- Found 10 references across 4 files:
+  * HtmlPagePreview.tsx — 3 comment references
+  * PdfViewer.tsx — 2 references (header comment + thumbnail strip comment)
+  * DocumentDetailView.tsx — 1 inline comment
+  * WhatsNew.tsx — 3 USER-FACING references in v1.18.0 changelog entry
+
+Replacements:
+- 'Adobe Acrobat-style' → 'Professional PDF-reader style' (comments)
+- 'Adobe Acrobat Reader default view' → 'Standard PDF reader default view'
+- 'Adobe Acrobat page navigator' → 'Common page navigator pattern'
+- 'Adobe Acrobat reading mode' → 'Reading mode'
+- 'Adobe Acrobat style' (thumbnail strip) → 'professional PDF-reader style'
+- WhatsNew title: 'Adobe Acrobat-style PDF Viewer...' → 'Professional PDF Viewer...'
+- WhatsNew feature label: 'Adobe Acrobat-style PDF Viewer' → 'Professional PDF Viewer'
+- WhatsNew feature text: 'Bottom thumbnail strip (Adobe style)' → 'Bottom thumbnail strip'
+
+Verification:
+- grep -rn 'Acrobat\|adobe' src/ returns NO matches (case-insensitive)
+- Only remaining 'Adobe' references are in:
+  * worklog.md (internal history, not user-facing — left as-is)
+  * public/1746367810.pdf binary (standard PDF spec CMap metadata, unavoidable —
+    Adobe created the PDF spec so their name appears in every PDF's CMap)
+
+Stage Summary:
+- All trademark references removed from source code
+- User-facing WhatsNew popup now reads 'Professional PDF Viewer' (was 'Adobe Acrobat-style')
+- Commit cc26a70 pushed to main + force-synced to master
+- Build passes (vite build ✓)
+
+LESSON LEARNED:
+- Avoid using trademarked product names (Acrobat, Photoshop, Word, Excel, etc.)
+  as descriptors in user-facing copy or code comments
+- Use generic descriptors instead: 'professional PDF viewer', 'standard PDF
+  reader', 'word processor', 'spreadsheet'
