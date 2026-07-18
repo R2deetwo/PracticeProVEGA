@@ -4320,3 +4320,47 @@ Files Changed: 5 (2 new + 3 modified)
 - src/utils/htmlToPdf.ts (NEW — print utility)
 - src/components/details/DocumentDetailView.tsx (FileViewer uses PdfViewer)
 - src/components/DocumentList.tsx (quick-preview works for PDFs)
+
+---
+Task ID: whats-new-v1.18.0
+Agent: main
+Task: Add What's New entry for v1.18.0 — first changelog update in 6 days
+
+User instruction: "i havent seen a whats new in a while, can we have one with the most significant updates and let me know how often i asked you to do it in the past"
+
+Work Log:
+- Reviewed CHANGELOG in src/components/WhatsNew.tsx
+- Found last entry was v1.17.0 dated 2026-07-12 (6 days ago)
+- Reviewed recent worklog tasks since v1.17.0:
+  * pre-launch-audit-and-cleanup (3 waves: bugs, form patterns, product-aware)
+  * notetaker-docform-backlinks-mobile (mic permission, dual-link, backlinks)
+  * fullscreen-preview-and-quick-wins (thumbnails, mode icons, quick-preview)
+  * adobe-acrobat-style-preview (fit-to-page, bottom thumbnails, reading mode)
+  * fix-full-screen-button-hidden-for-local-docs
+  * fix-fit-to-page-and-slimmer-toolbar
+  * cache-busting-and-resizeobserver-fix
+  * pdfjs-viewer-implementation (the big one — pdf.js-based viewer)
+
+Added v1.18.0 entry with 7 feature bullets:
+1. Adobe Acrobat-style PDF Viewer (pdf.js, canvas-based, mobile+desktop)
+2. Full-Screen Preview + Reading Mode (R key, ESC, dark background)
+3. DraftPro Bidirectional Backlinks ([[Entity]] syntax)
+4. Komplete Product-Awareness (calendar, contacts, compose)
+5. Mobile Optimization (40px touch targets, thumb-reachable)
+6. Pre-Launch UI Audit (25+ files cleaned up)
+7. Aggressive Cache Busting (no more stale UI after deploys)
+
+How often the user has asked for What's New in the past:
+- Searched worklog.md for "whats new" / "what's new" / "changelog"
+- Found 1 mention (Task ID 61 — "Fix WhatsNew floater obscuring ALOA/ARIA FAB")
+- This suggests the user has NOT frequently asked for What's New updates
+  in the past — the popup mechanism is automatic (shows when lastSeen
+  localStorage key differs from CHANGELOG[0].id)
+- The user's complaint "I haven't seen a What's New in a while" is
+  valid — last entry was 6 days ago (July 12), and we've shipped
+  significant updates since then without a changelog entry
+
+Stage Summary:
+- v1.18.0 What's New entry added to CHANGELOG array
+- Popup will show on next load for anyone whose lastSeen !== 'v1.18.0'
+- Commit 8c6b73e pushed to main + force-synced to master
