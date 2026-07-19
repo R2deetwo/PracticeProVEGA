@@ -123,7 +123,6 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
       maxCaseFileStorageGb: 1,
       extras: [
         'Legal billing & ledger record-keeping',
-        'Client Portal — Not Included',
       ],
     }),
     maxUsers: 1,
@@ -224,7 +223,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
       maxManagedProperties: 15,
       maxActiveTenants: 25,
       whatsappLimit: 100,
-      extras: ['Lease tracking & maintenance log', "Residents' Portal — Not Included"],
+      extras: ['Lease tracking & maintenance log'],
     }),
     maxUsers: 1,
     maxUnits: 20,

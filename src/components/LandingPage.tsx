@@ -245,7 +245,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Terms of Service</span>
                         <span onClick={onCookieClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Cookie Policy</span>
                         <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Contact Sales</span>
-                        <a href="mailto:practiceprovega@gmail.com" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Email Us</a>
+                        <a href="mailto:dpo@practicepro.ng" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Email Us</a>
                         <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Security</span>
                     </div>
                 </div>
@@ -647,13 +647,13 @@ const TIER_DESCRIPTIONS: Record<ProductMode, Record<TierId, string>> = {
     property: {
         Core: 'For Individual Landlords & Micro-Agents',
         Growth: 'For Professional Estate Managers',
-        Pro: 'For Institutional Developers & Commercial RE',
+        Pro: 'For Large-Scale Estate Portfolios',
         Enterprise: '',
     },
     atrium: {
         Core: 'For Individual Landlords & Micro-Agents',
         Growth: 'For Professional Estate Managers',
-        Pro: 'For Institutional Developers & Commercial RE',
+        Pro: 'For Large-Scale Estate Portfolios',
         Enterprise: '',
     },
     vega: {
@@ -693,7 +693,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
         const description = TIER_DESCRIPTIONS[productMode][id];
         const features = tier.features.map((text) => ({
             text,
-            note: (text.includes('ARIA') || text.includes('ALOA')) ? 'Growth+' : undefined,
+            note: (id === 'Core' && (text.includes('ARIA') || text.includes('ALOA'))) ? 'Growth+' : undefined,
         }));
         return {
             id,
@@ -774,7 +774,17 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         {/* Tenant Contribution Section (Atrium Only) */}
                         {!isVega && (
                             <div className={`mb-8 p-4 rounded-2xl border ${plan.highlighted ? 'bg-white/5 border-white/10 dark:bg-slate-50 dark:border-slate-200' : 'bg-slate-50 border-slate-100 dark:bg-white/5 dark:border-white/5'}`}>
-                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400 dark:text-blue-600' : 'text-blue-600 dark:text-blue-400'}`}>Service Charge Equiv.</p>
+                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400 dark:text-blue-600' : 'text-blue-600 dark:text-blue-400'}`}>
+                                    <span className="inline-flex items-center gap-1">
+                                        Service Charge Equiv.
+                                        <span className="group relative inline-flex items-center">
+                                            <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            <span role="tooltip" className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 w-60 -translate-x-1/2 scale-95 rounded-lg bg-slate-900 dark:bg-slate-700 px-3 py-2 text-2xs font-normal normal-case tracking-normal leading-snug text-white opacity-0 shadow-xl transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                                                This is the annual subscription cost divided across your tenant base, shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost — it is not an additional fee charged by Atrium.
+                                            </span>
+                                        </span>
+                                    </span>
+                                </p>
                                 <div className="flex items-baseline gap-1">
                                     <span className={`text-lg font-bold ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.tenantContribution}</span>
                                     <span className={`text-2xs ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
