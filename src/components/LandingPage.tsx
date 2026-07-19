@@ -80,9 +80,9 @@ const NavBar: React.FC<{
             {/* Logo + back-to-hub breadcrumb */}
             <div className="flex items-center gap-3">
                 <button onClick={() => productChosen ? scrollTo('home') : undefined} className="flex items-center gap-2 group">
-                    <Logo className="h-7 w-7 text-primary-600 group-hover:scale-105 transition-transform drop-shadow-sm" />
+                    <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
                     <span className="text-[19px] font-bold tracking-tight text-slate-900 dark:text-white flex items-center">
-                        Practice<span className="text-primary-600">Pro</span>
+                        Practice<span className="text-primary-500">Pro</span>
                     </span>
                 </button>
                 {productChosen && (
@@ -315,12 +315,6 @@ const HubHero: React.FC<{
 
             <div className={`relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
 
-                {/* Corporate badge */}
-                <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-10 ${isDark ? 'bg-white/[0.04] border border-white/[0.08]' : 'bg-slate-900/[0.03] border border-slate-900/[0.08]'}`}>
-                    <Logo className="w-4 h-4 text-primary-500" />
-                    <span className={`text-2xs font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>PracticePro · Nigeria</span>
-                </div>
-
                 <h1 className={`text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     Professional Practice,
                     <br />
@@ -352,7 +346,7 @@ const HubHero: React.FC<{
                                 <span className="text-2xs font-black uppercase tracking-[0.22em] text-amber-500">Vega</span>
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
                             </div>
-                            <h3 className="text-lg font-bold text-white mb-2.5">For Law Firms</h3>
+                            <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Law Firms</h3>
                             <p className="text-sm text-slate-500 leading-[1.75]">
                                 {isProperty ? 'Case management, automated billing, and AI-assisted research.' : 'Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.'}
                             </p>
@@ -378,7 +372,7 @@ const HubHero: React.FC<{
                                 <span className="text-2xs font-black uppercase tracking-[0.22em] text-emerald-500">Atrium</span>
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
                             </div>
-                            <h3 className="text-lg font-bold text-white mb-2.5">For Property Managers</h3>
+                            <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Property Managers</h3>
                             <p className="text-sm text-slate-500 leading-[1.75]">
                                 Revenue monitoring, rent collection, and portfolio analytics for modern Nigerian estates.
                             </p>
