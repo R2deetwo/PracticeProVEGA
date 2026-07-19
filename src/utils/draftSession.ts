@@ -5,6 +5,8 @@ export interface DraftSessionData {
   matterId?: string | null;
   documentId?: string | null;
   documentType?: string | null;
+  // FIX 5b: Persist citations so they survive new-tab navigation and tab-close recovery
+  citations?: any[];
   updatedAt: string;
   savedAt: number;
 }

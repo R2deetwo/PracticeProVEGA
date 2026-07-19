@@ -725,7 +725,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     title: draftConfig.draftTitle,
                                     content: '', // empty — editor will auto-draft
                                     draftPrompt: draftConfig.draftPrompt || draftConfig.draftTitle,
-                                    matterId: undefined,
+                                    matterId: draftConfig.matterId || undefined, // FIX 5a: persist matterId
+                                    citations: draftConfig.citations || undefined, // FIX 5b: persist citations
                                     updatedAt: new Date().toISOString(),
                                     savedAt: Date.now(),
                                 });
@@ -738,7 +739,12 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             const result = openDraftProNewTab(
                                 draftKey,
                                 draftConfig.draftTitle,
-                                draftConfig.draftPrompt || ''
+                                draftConfig.draftPrompt || '',
+                                // FIX 5b: pass citations + matterId via hash context
+                                {
+                                    citations: draftConfig.citations,
+                                    matterId: draftConfig.matterId,
+                                }
                             );
 
                             if (result === 'new-tab' || result === 'existing-tab') {

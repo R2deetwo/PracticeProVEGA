@@ -17,7 +17,16 @@ import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
 import { ChevronRightIcon, LockClosedIcon, ResearchIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
-import { readHashContext } from '../utils/tabNavigation';
+import { readHashContext, type ContextResult } from '../utils/tabNavigation';
+
+/** Helper: extract context from ContextResult, log on error */
+function extractContext(result: ContextResult): Record<string, any> {
+    if (result.status === 'ok') return result.context;
+    if (result.status === 'error') {
+        console.warn('[ResearchView] Context decode error:', result.reason);
+    }
+    return {};
+}
 
 const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 dark:text-zinc-500 p-8">
@@ -70,23 +79,26 @@ const ResearchView: React.FC = () => {
     //     in either the in-app context OR the URL hash. Map it to the
     //     internal `selectedResearchNotebookId` field. Also reads the hash
     //     for the new-tab case.
+    //
+    // FIX: Do NOT strip the hash after reading. The hash is the durable,
+    // refresh-proof source of truth. Instead, use a processed-flag keyed
+    // by the context's `id` field to prevent re-triggering.
+    const [processedCtxId, setProcessedCtxId] = useState<string | null>(null);
     useEffect(() => {
         const ctx =
             currentHistoryEntry?.context ||
             (window.history.state?.state as any) ||
-            readHashContext() ||
+            extractContext(readHashContext()) ||
             {};
+        // Idempotency: skip if we've already processed this context
+        const ctxId = ctx.id || ctx.selectedNotebookId || 'unknown';
+        if (ctxId === processedCtxId) return;
         if (ctx.selectedNotebookId && !currentHistoryEntry.selectedResearchNotebookId) {
             updateCurrentHistoryEntry({ selectedResearchNotebookId: ctx.selectedNotebookId });
-            // Clean up the hash so a refresh doesn't re-trigger
-            if (window.location.hash && window.location.hash.includes('__ctx=')) {
-                try {
-                    history.replaceState(history.state, '', window.location.pathname + window.location.search);
-                } catch { /* ignore */ }
-            }
+            setProcessedCtxId(ctxId);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentHistoryEntry?.context]);
+    }, [currentHistoryEntry?.context, processedCtxId]);
 
     // ─── Auto-create notebook from DraftPro "Send to Research" ────────
     // When the user clicks "Send to Research" in DraftPro, we navigate
@@ -111,12 +123,14 @@ const ResearchView: React.FC = () => {
         const ctx =
             currentHistoryEntry?.context ||
             (window.history.state?.state as any) ||
-            readHashContext() ||
+            extractContext(readHashContext()) ||
             {};
         const hasSources = ctx.sources && Array.isArray(ctx.sources) && ctx.sources.length > 0;
         const shouldStart = (ctx.autoStartResearch || ctx.promptFirstMode) && hasSources;
         if (!shouldStart) return;
         setHasProcessedResearchContext(true);
+        // FIX: Do NOT strip the hash — it's the durable source of truth.
+        // The hasProcessedResearchContext flag prevents re-triggering.
         const sources: any[] = ctx.sources;
         const query: string = ctx.researchQuery || ctx.prefillQuery || 'Analyze these legal sources:';
         const docTitle: string = ctx.documentTitle || 'Draft Research';
@@ -166,13 +180,9 @@ const ResearchView: React.FC = () => {
                 }, 500);
             }
         }
-
-        // Clean up the hash so a refresh doesn't re-trigger auto-research
-        if (window.location.hash && window.location.hash.includes('__ctx=')) {
-            try {
-                history.replaceState(history.state, '', window.location.pathname + window.location.search);
-            } catch { /* ignore */ }
-        }
+        // FIX: Hash is no longer stripped — it survives refresh as the
+        // durable source of truth. hasProcessedResearchContext prevents
+        // re-triggering on the same page session.
     }, [currentHistoryEntry?.context, hasProcessedResearchContext]);
 
     const handleSelectNotebook = (id: string) => {

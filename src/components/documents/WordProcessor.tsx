@@ -6,6 +6,14 @@ import { ChevronLeftIcon as BackIcon, CheckIcon as SaveIcon } from '../../consta
 import { useCoreState } from '../../contexts/CoreContext';
 import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession } from '../../utils/draftSession';
 import { registerDraftTab } from '../../utils/draftTabs';
+import { readHashContext } from '../../utils/tabNavigation';
+
+/** Helper: extract context from ContextResult */
+function extractCtx(result: ReturnType<typeof readHashContext>): Record<string, any> {
+    if (result.status === 'ok') return result.context;
+    if (result.status === 'error') console.warn('[WordProcessor] Hash context error:', result.reason);
+    return {};
+}
 
 export const WordProcessor: React.FC = () => {
     const { currentHistoryEntry, openModal, goBack } = useUI();
@@ -18,21 +26,34 @@ export const WordProcessor: React.FC = () => {
     const [disableAutoDraft, setDisableAutoDraft] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [sessionKey, setSessionKey] = useState('');
+    const [resolvedCitations, setResolvedCitations] = useState<any[] | undefined>(undefined);
+    const [resolvedMatterId, setResolvedMatterId] = useState<string | undefined>(undefined);
 
-    const linkedMatterId = currentHistoryEntry?.context?.matterId;
     const firmId = coreState.firmDetails?.id || '';
 
     useEffect(() => {
-        // Parse URL query params (when opened in a new tab via draftTabs)
+        // FIX 4: Canonical carrier read order:
+        // 1. URL query params (scalar values: draftKey, title, prompt)
+        // 2. Hash context / ctxRef (structured payloads: citations, matterId, etc.)
+        // 3. currentHistoryEntry.context (in-memory — same-tab fast path)
+        // 4. localStorage draft session (recovery path)
+
+        // 1. URL params
         const searchParams = new URLSearchParams(location.search);
         const urlDraftKey = searchParams.get('draftKey');
         const urlTitle = searchParams.get('title');
         const urlPrompt = searchParams.get('prompt');
 
-        const ctx = (location.state as any) || currentHistoryEntry?.context || {};
+        // 2. Hash context (new-tab path for structured data)
+        const hashCtx = extractCtx(readHashContext());
 
-        // Determine the draft key: URL param takes priority (tab-driven),
-        // then context-based (in-app navigation)
+        // 3. In-memory context (in-place path)
+        const memCtx = (location.state as any) || currentHistoryEntry?.context || {};
+
+        // Merge: URL params > hash > memory (memory is fallback for same-tab)
+        const ctx = { ...memCtx, ...hashCtx };
+
+        // Determine the draft key
         const key = urlDraftKey || draftSessionKey({
             matterId: ctx.matterId,
             title: ctx.draftTitle || urlTitle,
@@ -40,6 +61,7 @@ export const WordProcessor: React.FC = () => {
         });
         setSessionKey(key);
 
+        // 4. localStorage draft session (recovery path)
         const stored = firmId ? loadDraftSession(firmId, key) : null;
         const content = ctx.draftContent || stored?.content || '';
         if (content) {
@@ -47,20 +69,22 @@ export const WordProcessor: React.FC = () => {
             setIsSaved(false);
         }
 
-        // Determine whether auto-drafting should be suppressed
         const shouldSuppress = ctx.disableAutoDraft || !!stored?.content;
         setDisableAutoDraft(shouldSuppress);
 
-        // Resolve the prompt: URL param, context, or stored
-        // NOTE: URLSearchParams.get() already URL-decodes the value.
-        // Calling decodeURIComponent() again would double-decode and crash
-        // on strings containing literal '%' (e.g., "100% ownership").
         const resolvedPrompt = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || undefined;
         setDraftPrompt(resolvedPrompt || undefined);
 
-        // Resolve the title: URL param, context, or stored
         const resolvedTitle = urlTitle || ctx.draftTitle || stored?.title || 'Untitled Draft';
         setDocumentTitle(resolvedTitle);
+
+        // FIX 5a: matterId — read from hash context → memory → localStorage
+        const mId = ctx.matterId || hashCtx.matterId || stored?.matterId || undefined;
+        setResolvedMatterId(mId);
+
+        // FIX 5b: citations — read from hash context → memory → localStorage
+        const cites = ctx.citations || hashCtx.citations || stored?.citations || undefined;
+        setResolvedCitations(cites);
     }, [location.state, location.search, currentHistoryEntry, firmId]);
 
     // ─── Register with the tab manager (desktop only) ────────────────────
@@ -81,7 +105,8 @@ export const WordProcessor: React.FC = () => {
             title,
             content,
             draftPrompt: prompt,
-            matterId: linkedMatterId,
+            matterId: resolvedMatterId,  // FIX 5a: now always available
+            citations: resolvedCitations, // FIX 5b: now persisted
             updatedAt: new Date().toISOString(),
         });
     };
@@ -122,7 +147,7 @@ export const WordProcessor: React.FC = () => {
         openModal('newDocument', null, {
             draftTitle: documentTitle,
             draftContent: cleanText,
-            matterId: linkedMatterId,
+            matterId: resolvedMatterId,
             openedByAloa: false,
             isCourtProcess: isPotentialCourtProcess,
             // Also pass the original HTML so the document is stored with
@@ -171,8 +196,8 @@ export const WordProcessor: React.FC = () => {
                     onContentChange={(html) => persistDraft(html, documentTitle, draftPrompt)}
                     disableAloaAutoOpen={disableAutoDraft || !currentHistoryEntry?.context?.autoStartDrafting}
                     onBack={goBack}
-                    linkedMatterId={linkedMatterId}
-                    citations={currentHistoryEntry?.context?.citations}
+                    linkedMatterId={resolvedMatterId}
+                    citations={resolvedCitations}
                 />
             </div>
         </div>

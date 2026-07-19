@@ -55,48 +55,124 @@ export function isMobileOrNative(): boolean {
  * @param route   e.g. 'research', 'editor'
  * @param context arbitrary context object (must be JSON-serialisable)
  * @returns URL string like `/research#__ctx=<base64>`
+ *
+ * FIX 2: Size-guards the encoded payload. If > 1500 chars of base64,
+ * falls back to sessionStorage (keyed by a short UUID) and encodes
+ * only `#__ctxRef=<id>` in the URL. This handles large citation arrays
+ * that would exceed browser URL limits or btoa's string limit.
+ *
+ * Also adds an `id` field (UUID) to every context payload for
+ * idempotency checks on the receiving side (Fix 1).
  */
+const MAX_HASH_CTX_SIZE = 1500; // conservative URL hash limit
+
 export function buildRouteUrlWithHashContext(route: string, context?: Record<string, any>): string {
     const base = route === 'editor' ? '/editor' : `/${route}`;
     if (!context || Object.keys(context).length === 0) return base;
+
+    // Add an id field for idempotency (Fix 1)
+    const ctxWithId = { ...context, id: context.id || generateContextId() };
+
     try {
-        // Use base64url encoding so the hash is URL-safe and compact.
-        // Note: btoa fails on non-ASCII — use TextEncoder + base64.
-        const json = JSON.stringify(context);
+        const json = JSON.stringify(ctxWithId);
         const bytes = new TextEncoder().encode(json);
-        // Convert bytes to base64 in chunks (btoa limit ~32k chars).
         let bin = '';
         for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
         const b64 = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+        // FIX 2: Size guard — if too large for URL hash, use sessionStorage
+        if (b64.length > MAX_HASH_CTX_SIZE) {
+            const refId = generateContextId();
+            try {
+                sessionStorage.setItem(`__ctxRef_${refId}`, json);
+                return `${base}#__ctxRef=${refId}`;
+            } catch (storageErr) {
+                console.error('[buildRouteUrlWithHashContext] sessionStorage write failed:', storageErr);
+                // Last resort: truncate sources array to fit
+                const truncated = { ...ctxWithId, sources: (ctxWithId.sources || []).slice(0, 3), _truncated: true };
+                const truncJson = JSON.stringify(truncated);
+                const truncBytes = new TextEncoder().encode(truncJson);
+                let truncBin = '';
+                for (let i = 0; i < truncBytes.length; i++) truncBin += String.fromCharCode(truncBytes[i]);
+                const truncB64 = btoa(truncBin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                return `${base}#__ctx=${truncB64}`;
+            }
+        }
+
         return `${base}#__ctx=${b64}`;
-    } catch {
+    } catch (err) {
+        console.error('[buildRouteUrlWithHashContext] Encoding failed:', err, 'Context keys:', Object.keys(context));
         return base;
     }
 }
 
 /**
- * Decode the `#__ctx=` hash fragment back into a context object.
- * Used by receiving pages (ResearchView, WordProcessor) on mount.
- *
- * Returns null if no hash context is present or decoding fails.
+ * Discriminated result type for readHashContext (Fix 3).
+ * Callers can distinguish "nothing sent" from "sent but corrupted."
  */
-export function readHashContext(): Record<string, any> | null {
-    if (typeof window === 'undefined') return null;
+export type ContextResult =
+    | { status: 'absent' }
+    | { status: 'error'; reason: string }
+    | { status: 'ok'; context: Record<string, any> };
+
+/**
+ * Decode the `#__ctx=` or `#__ctxRef=` hash fragment back into context.
+ *
+ * FIX 3: Returns a discriminated ContextResult instead of null.
+ * FIX 2: Also handles `#__ctxRef=<id>` by looking up sessionStorage.
+ */
+export function readHashContext(): ContextResult {
+    if (typeof window === 'undefined') return { status: 'absent' };
     try {
         const hash = window.location.hash || '';
+
+        // Check for ctxRef (large payload stored in sessionStorage — Fix 2)
+        const refMatch = hash.match(/__ctxRef=([A-Za-z0-9_-]+)/);
+        if (refMatch) {
+            const refId = refMatch[1];
+            const stored = sessionStorage.getItem(`__ctxRef_${refId}`);
+            if (stored) {
+                try {
+                    return { status: 'ok', context: JSON.parse(stored) };
+                } catch (parseErr) {
+                    return { status: 'error', reason: `Failed to parse ctxRef payload: ${parseErr}` };
+                }
+            }
+            return { status: 'error', reason: `ctxRef ${refId} not found in sessionStorage` };
+        }
+
+        // Check for inline ctx (small payload in URL hash)
         const m = hash.match(/__ctx=([A-Za-z0-9_-]+)/);
-        if (!m) return null;
+        if (!m) return { status: 'absent' };
         const b64 = m[1].replace(/-/g, '+').replace(/_/g, '/');
-        // Pad to multiple of 4
         const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
         const bin = atob(padded);
         const bytes = new Uint8Array(bin.length);
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
         const json = new TextDecoder().decode(bytes);
-        return JSON.parse(json);
-    } catch {
-        return null;
+        return { status: 'ok', context: JSON.parse(json) };
+    } catch (err: any) {
+        return { status: 'error', reason: err?.message || 'Unknown decode error' };
     }
+}
+
+/**
+ * Backward-compatible wrapper: returns Record<string,any> | null.
+ * New code should use readHashContext() directly and handle the discriminated result.
+ * This exists so existing call sites don't break during migration.
+ */
+export function readHashContextLegacy(): Record<string, any> | null {
+    const result = readHashContext();
+    if (result.status === 'ok') return result.context;
+    if (result.status === 'error') {
+        console.warn('[readHashContextLegacy] Context decode error:', result.reason);
+    }
+    return null;
+}
+
+/** Generate a short unique ID for context payloads */
+function generateContextId(): string {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
 /**
@@ -169,14 +245,25 @@ export function openDraftProNewTab(
     draftKey: string,
     title: string,
     prompt?: string,
+    context?: Record<string, any>,  // FIX 5b: pass citations + matterId via hash
 ): 'new-tab' | 'existing-tab' | 'in-place' | 'blocked' {
     if (typeof window === 'undefined') return 'in-place';
 
     // Mobile: in-place is correct (no tabs on mobile)
     if (isMobileOrNative()) return 'in-place';
 
-    // Build the URL
-    const url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}`;
+    // Build the URL — base params for scalar values
+    let url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}`;
+
+    // FIX 5b: If context contains citations or matterId, encode them in the hash
+    // so the new tab can read them via readHashContext()
+    if (context && (context.citations || context.matterId)) {
+        url = buildRouteUrlWithHashContext('editor', context);
+        // buildRouteUrlWithHashContext returns /editor#__ctx=... — we need to
+        // merge the query params back in
+        const hashPart = url.split('#')[1];
+        url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}#${hashPart}`;
+    }
 
     // Strategy 1: Direct window.open
     try {
