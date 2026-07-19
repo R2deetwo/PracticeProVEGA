@@ -735,17 +735,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                             if (result === 'new-tab' || result === 'existing-tab') {
                                 feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
-                            } else {
-                                // 'in-place' — only happens on mobile OR when popup is blocked on desktop.
-                                // On desktop popup-blocked, we open in-place as last resort with a tip.
-                                const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-                                if (isMobile) {
-                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
-                                } else {
-                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}. (Tip: Allow pop-ups for this site to open drafts in a separate tab.)`;
-                                }
-                                // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
+                            } else if (result === 'in-place') {
+                                // Mobile only — no tabs on mobile, in-place is correct
+                                feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
+                                // DRAFTPRO-NEW-TAB — mobile fallback (allowed)
                                 openEditorRef.current(null, draftConfig);
+                            } else {
+                                // 'blocked' — desktop popup blocked.
+                                // DO NOT navigate in-place — that destroys the ALOA chat session.
+                                // Show a message telling the user to allow pop-ups or click to retry.
+                                feedbackMessage = `I prepared **${draftConfig.draftTitle}** but your browser blocked the pop-up. Please allow pop-ups for this site (click the icon in your address bar) and ask me to draft again — your chat will stay intact here.`;
+                                // Do NOT call openEditorRef.current() — that was the regression.
                             }
                         } catch (e) {
                             console.warn('[start_drafting] tab open failed', e);

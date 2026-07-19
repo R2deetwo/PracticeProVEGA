@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { Matter, Contact, ClientMessage } from '../types';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -30,14 +30,17 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
     const actions = useDataActions();
     const { currentUser } = useAuth();
     const deleteMatterCascadeMutation = useMutation(api.myFunctions.deleteMatterCascade);
-    
-    const matterState: MatterState = {
+
+    // ─── Memoize matterState + matterActions ───
+    // Without useMemo, these are new references every render, causing all
+    // useMatterState() consumers to re-render on every provider render.
+    const matterState: MatterState = useMemo(() => ({
         matters: appState.matters,
         contacts: appState.contacts,
         clientMessages: appState.clientMessages
-    };
+    }), [appState.matters, appState.contacts, appState.clientMessages]);
 
-    const matterActions: MatterActions = {
+    const matterActions: MatterActions = useMemo(() => ({
         onAddMatter: actions.onAddMatter,
         updateMatter: (item) => actions.updateItem('matters', item, 'Matter'),
         deleteMatter: async (id, name) => {
@@ -52,10 +55,13 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
         handleReopenMatter: actions.handleReopenMatter,
         handleAddContact: actions.handleAddContact,
         handleSendClientMessage: actions.handleSendClientMessage
-    };
+    }), [actions.onAddMatter, actions.updateItem, actions.deleteItem, actions.handleReopenMatter, actions.handleAddContact, actions.handleSendClientMessage, deleteMatterCascadeMutation, currentUser?.firmId]);
+
+    // Memoize the full context value
+    const value = useMemo(() => ({ matterState, matterActions }), [matterState, matterActions]);
 
     return (
-        <MatterContext.Provider value={{ matterState, matterActions }}>
+        <MatterContext.Provider value={value}>
             {children}
         </MatterContext.Provider>
     );

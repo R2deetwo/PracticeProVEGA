@@ -911,7 +911,37 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [currentUser]);
 
-    const value = {
+    // ─── Wrap inline functions in useCallback so their identities are stable ───
+    // Without this, the value object below would be a new reference every render,
+    // causing ALL useAuth() consumers to re-render on every provider render.
+    const updateCurrentUser = React.useCallback((data: Partial<User>) => {
+        setLocalUserOverrides(prev => ({ ...prev, ...data }));
+    }, []);
+
+    const loginAsDemoUser = React.useCallback((email?: string) => {
+        // SECURITY: Demo login only works in development builds
+        if (!import.meta.env.DEV) {
+            console.warn("[Auth] Demo login is not available in production.");
+            return Promise.resolve({ success: false, message: "Demo mode is not available in production." });
+        }
+        if (email) {
+            // Fire-and-forget tracking
+            trackEventMutation({
+                firmId: 'demo_firm',
+                userId: 'demo_user',
+                event: 'Demo Signup',
+                properties: { email, source: 'Landing Page' },
+            }).catch(e => console.warn("[Auth] Demo tracking failed:", e));
+        }
+        return login('demo@practicepro.ng');
+    }, [login, trackEventMutation]);
+
+    // ─── Memoize the context value ───
+    // This is the SINGLE most impactful perf fix in the app: without useMemo,
+    // every useAuth() consumer re-renders on every AuthProvider render (which
+    // happens often — userData polling, retryCount, localUserOverrides, etc.).
+    // With useMemo, the value reference stays stable unless a dep actually changes.
+    const value = React.useMemo(() => ({
         isAuthenticated: !!currentUser,
         currentUser,
         appMode: AppMode.Multi,
@@ -924,26 +954,8 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         logout,
         markOnboardingComplete,
         refreshUser,
-        updateCurrentUser: (data: Partial<User>) => {
-            setLocalUserOverrides(prev => ({ ...prev, ...data }));
-        },
-        loginAsDemoUser: (email?: string) => {
-            // SECURITY: Demo login only works in development builds
-            if (!import.meta.env.DEV) {
-                console.warn("[Auth] Demo login is not available in production.");
-                return Promise.resolve({ success: false, message: "Demo mode is not available in production." });
-            }
-            if (email) {
-                // Fire-and-forget tracking
-                trackEventMutation({
-                    firmId: 'demo_firm',
-                    userId: 'demo_user',
-                    event: 'Demo Signup',
-                    properties: { email, source: 'Landing Page' },
-                }).catch(e => console.warn("[Auth] Demo tracking failed:", e));
-            }
-            return login('demo@practicepro.ng');
-        },
+        updateCurrentUser,
+        loginAsDemoUser,
         deleteAccount,
         switchFirm,
         leaveFirm,
@@ -952,7 +964,13 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         originalUser,
         isImpersonating: !!originalSessionToken,
         revertToOriginalUser
-    };
+    }), [
+        currentUser, isLoading, isAccountRevoked,
+        login, signup, verifyEmail, resendConfirmation, logout,
+        markOnboardingComplete, refreshUser, updateCurrentUser, loginAsDemoUser,
+        deleteAccount, switchFirm, leaveFirm, deleteFirm, loginAsUser,
+        originalUser, originalSessionToken, revertToOriginalUser,
+    ]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

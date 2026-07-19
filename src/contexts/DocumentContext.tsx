@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { Document, NotePage, ResearchNotebook, ResearchSource } from '../types';
 
 export interface DocumentState {
@@ -25,15 +25,18 @@ const DocumentContext = createContext<{ documentState: DocumentState; documentAc
 export const DocumentProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
     const { appState } = useDataState();
     const actions = useDataActions();
-    
-    const documentState: DocumentState = {
+
+    // ─── Memoize documentState + documentActions ───
+    // Without useMemo, these are new references every render, causing all
+    // useDocumentState() consumers to re-render on every provider render.
+    const documentState: DocumentState = useMemo(() => ({
         documents: appState.documents,
         notePages: appState.notePages,
         researchNotebooks: appState.researchNotebooks,
         researchSources: appState.researchSources
-    };
+    }), [appState.documents, appState.notePages, appState.researchNotebooks, appState.researchSources]);
 
-    const documentActions: DocumentActions = {
+    const documentActions: DocumentActions = useMemo(() => ({
         updateDocument: (item) => actions.updateItem('documents', item, 'Document'),
         deleteDocument: (id, name) => actions.deleteItem('documents', id, name || 'Document'),
         handleUpdatePageContent: (id, title, content) => actions.handleUpdatePageContent(id, title, content),
@@ -41,10 +44,13 @@ export const DocumentProvider: React.FC<{ children?: React.ReactNode }> = ({ chi
         handleDeleteNotebook: (id, name) => actions.handleDeleteNotebook(id, name),
         onDeletePage: (id) => actions.deleteItem('notePages', id, 'page'),
         handleAddMatterNote: actions.handleAddMatterNote
-    };
+    }), [actions.updateItem, actions.deleteItem, actions.handleUpdatePageContent, actions.handleRenamePage, actions.handleDeleteNotebook, actions.handleAddMatterNote]);
+
+    // Memoize the full context value
+    const value = useMemo(() => ({ documentState, documentActions }), [documentState, documentActions]);
 
     return (
-        <DocumentContext.Provider value={{ documentState, documentActions }}>
+        <DocumentContext.Provider value={value}>
             {children}
         </DocumentContext.Provider>
     );

@@ -120,7 +120,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const handleShareViaWhatsApp = () => {
         if (!lastGenerated) return;
         const url = `https://wa.me/?text=${encodeURIComponent(lastGenerated.message)}`;
-        window.open(url, '_blank');
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
     const handleRevoke = async (tokenId: string, name: string) => {

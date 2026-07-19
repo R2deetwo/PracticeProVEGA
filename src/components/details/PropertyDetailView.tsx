@@ -1140,7 +1140,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     const clean = tenantPhone.replace(/\D/g, '').replace(/^0+/, '');
                                                     const num = clean.startsWith('234') ? clean : `234${clean}`;
                                                     const msg = encodeURIComponent(`Hello ${d.tenantName || 'Tenant'}, this is a message from ${owner?.name || 'your landlord/manager'} regarding Unit ${d.name} at ${property.address}.`);
-                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+                                                    window.open(`https://wa.me/${num}?text=${msg}`, '_blank', 'noopener,noreferrer');
                                                 };
 
                                                 const handleEmailTenant = () => {

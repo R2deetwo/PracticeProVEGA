@@ -24,6 +24,39 @@ window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault(); // Prevents the "Application Error" crash
 });
 
+// ─── Capacitor Android hardware back button ─────────────────────────────
+// Without this listener, pressing the Android hardware back button on a
+// deep-linked route (e.g., /documents/123 opened via refresh or external
+// link) exits the app immediately — because the in-app history array only
+// has the current entry, so window.history.back() navigates to whatever
+// was before the app (often the home screen or the browser's new-tab page).
+//
+// This listener:
+// 1. Tries to navigate back in the SPA (window.history.back())
+// 2. If there's no SPA history to go back to (we're at root), exits the app
+//
+// Only runs on Capacitor native platforms (Android). iOS doesn't have a
+// hardware back button, so this is a no-op there.
+(async () => {
+    try {
+        const isNative = (window as any).Capacitor?.isNativePlatform?.();
+        if (!isNative) return;
+        const { App: CapacitorApp } = await import('@capacitor/app');
+        CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+            if (canGoBack) {
+                window.history.back();
+            } else {
+                // At root — exit the app
+                CapacitorApp.exitApp();
+            }
+        });
+        console.log('[main.tsx] Capacitor backButton listener installed');
+    } catch (err) {
+        // @capacitor/app not installed or not a native platform — no-op
+        console.debug('[main.tsx] Capacitor backButton listener not installed (not native or @capacitor/app missing)');
+    }
+})();
+
 // --- DATABASE CONNECTION CONFIGURATION ---
 // Prefers the environment variable; falls back to the live production instance.
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud";

@@ -149,7 +149,11 @@ const ContextMenu: React.FC = () => {
                          if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                              import('../utils/tabNavigation').then(({ openDraftProNewTab }) => {
                                  const draftKey = `draft:doc:${contextMenu.itemId || 'new'}`;
-                                 openDraftProNewTab(draftKey, 'Document');
+                                 const result = openDraftProNewTab(draftKey, 'Document');
+                                 // If popup blocked, alert the user (don't silently navigate in-place)
+                                 if (result === 'blocked') {
+                                     alert('Pop-up blocked. Please allow pop-ups for this site and try again.');
+                                 }
                              });
                          } else {
                              navigateTo('editor', contextMenu.itemId);

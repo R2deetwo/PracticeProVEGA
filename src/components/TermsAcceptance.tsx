@@ -65,7 +65,7 @@ function getPreviousVersion(): string | null {
 function openLegalDocument(doc: 'terms' | 'privacy') {
     const path = doc === 'terms' ? '/terms-of-service' : '/privacy-policy';
     if (Capacitor.isNativePlatform()) {
-        window.open(`${PRODUCTION_URL}${path}`, '_blank');
+        window.open(`${PRODUCTION_URL}${path}`, '_blank', 'noopener,noreferrer');
     } else {
         window.location.href = path;
     }

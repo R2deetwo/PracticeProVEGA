@@ -7,6 +7,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useProduct } from '../../contexts/ProductContext';
+import { openHtmlInNewWindow, escapeHtml } from '../../utils/safePrintWindow';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon,
@@ -877,8 +878,8 @@ const ClientDashboard: React.FC = () => {
                         <p>Terms & Conditions Acceptance Record</p>
                     </div>
                     <div class="details">
-                        <div class="row"><span class="label">User</span><span class="value">${consent.inviteeName || currentUser?.name || 'N/A'}</span></div>
-                        <div class="row"><span class="label">Email</span><span class="value">${consent.inviteeEmail || currentUser?.email || 'N/A'}</span></div>
+                        <div class="row"><span class="label">User</span><span class="value">${escapeHtml(consent.inviteeName || currentUser?.name || 'N/A')}</span></div>
+                        <div class="row"><span class="label">Email</span><span class="value">${escapeHtml(consent.inviteeEmail || currentUser?.email || 'N/A')}</span></div>
                         <div class="row"><span class="label">Portal Type</span><span class="value">${consent.portalType === 'client' ? 'Client Portal' : "Residents' Portal"}</span></div>
                         <div class="row"><span class="label">Terms Accepted</span><span class="value">${consent.termsAcceptedAt ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
                         <div class="row"><span class="label">Account Activated</span><span class="value">${consent.acceptedAt ? new Date(consent.acceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span></div>
@@ -895,11 +896,9 @@ const ClientDashboard: React.FC = () => {
                 </body>
                 </html>
             `;
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(html);
-                printWindow.document.close();
-            } else {
+            // Use safe print window (Blob URL + noopener) to prevent XSS
+            const printWindow = openHtmlInNewWindow(html);
+            if (!printWindow) {
                 addToast('Please allow popups to print this record.', { type: 'error' });
             }
         };
@@ -909,7 +908,7 @@ const ClientDashboard: React.FC = () => {
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>${doc.title || 'Document'}</title>
+                    <title>${escapeHtml(doc.title || 'Document')}</title>
                     <style>
                         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1e293b; line-height: 1.7; }
                         .header { border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 24px; }
@@ -922,10 +921,10 @@ const ClientDashboard: React.FC = () => {
                 </head>
                 <body>
                     <div class="header">
-                        <h1>${doc.title || 'Untitled Document'}</h1>
-                        <p>${doc.matterTitle ? `Matter: ${doc.matterTitle}` : ''} ${doc.dateFiled ? `· Filed: ${doc.dateFiled}` : ''}</p>
+                        <h1>${escapeHtml(doc.title || 'Untitled Document')}</h1>
+                        <p>${doc.matterTitle ? `Matter: ${escapeHtml(doc.matterTitle)}` : ''} ${doc.dateFiled ? `· Filed: ${escapeHtml(doc.dateFiled)}` : ''}</p>
                     </div>
-                    <div class="content">${doc.content || 'Document content is not available for viewing in the portal. Please contact your legal team for the full document.'}</div>
+                    <div class="content">${escapeHtml(doc.content || 'Document content is not available for viewing in the portal. Please contact your legal team for the full document.')}</div>
                     <div class="footer">
                         <p>PracticePro VEGA · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                     </div>
@@ -935,11 +934,9 @@ const ClientDashboard: React.FC = () => {
                 </body>
                 </html>
             `;
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(html);
-                printWindow.document.close();
-            } else {
+            // Use safe print window (Blob URL + noopener) to prevent XSS
+            const printWindow = openHtmlInNewWindow(html);
+            if (!printWindow) {
                 addToast('Please allow popups to print this document.', { type: 'error' });
             }
         };

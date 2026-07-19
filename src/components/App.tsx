@@ -771,7 +771,11 @@ export const App: React.FC = () => {
             : 'vega';
         if (url.searchParams.get('app') !== expectedApp) {
             url.searchParams.set('app', expectedApp);
-            window.history.replaceState({}, '', url.toString());
+            // Preserve history.state — passing {} clobbers React Router's
+            // location.state, which breaks in-app navigation context
+            // (ResearchView reads window.history.state?.state for notebook context).
+            // Pass the current history.state through unchanged.
+            window.history.replaceState(window.history.state, '', url.toString());
         }
     }, [currentUser, product, view]);
 

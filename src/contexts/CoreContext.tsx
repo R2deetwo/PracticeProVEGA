@@ -144,7 +144,11 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         return categories;
     }, [product, appState.contactCategories, appState.documentCategories]);
 
-    const coreState: CoreState = {
+    // ─── Memoize coreState + coreActions ───
+    // Without useMemo, these objects are new references every render,
+    // causing ALL useCoreState() consumers to re-render on every provider
+    // render. With useMemo, they stay stable unless appState actually changes.
+    const coreState: CoreState = React.useMemo(() => ({
         users: appState.users || [],
         chatMessages: appState.chatMessages || [],
         firmDetails: appState.firmDetails,
@@ -174,9 +178,22 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         serviceCharges: appState.serviceCharges || [],
         leadsPipeline: appState.leadsPipeline || [],
         automationLogs: appState.automationLogs || [],
-    };
+    }), [
+        appState.users, appState.chatMessages, appState.firmDetails,
+        appState.notifications, appState.leads, appState.firmActivity,
+        appState.emails, appState.automationRules, appState.intakeForms,
+        appState.archive, appState.theme, appState.appMode,
+        appState.externalCounselInvites, appState.eventTypes,
+        productCategories.contactCategories, productCategories.documentCategories,
+        appState.documentTemplateCategories, appState.folderPermissions,
+        appState.checklistTemplates, appState.documentTemplates,
+        appState.chatConversations, appState.noteNotebooks,
+        appState.bookmarkedCaseIds, appState.researchAnalysisResults,
+        appState.properties, appState.ledgerEntries, appState.serviceCharges,
+        appState.leadsPipeline, appState.automationLogs,
+    ]);
 
-    const coreActions: CoreActions = {
+    const coreActions: CoreActions = React.useMemo(() => ({
         handleUpdateUser: actions.handleUpdateUser,
         handleUpdateFirmDetails: actions.handleUpdateFirmDetails,
         handleMarkNotificationsRead: actions.handleMarkNotificationsRead,
@@ -185,10 +202,18 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleSendMessage: actions.handleSendMessage,
         handleDeleteChat: (id, name) => actions.deleteItem('chatConversations', id, name || 'Chat'),
         deleteItem: (table, id, name) => actions.deleteItem(table as any, id, name || 'Item'),
-    };
+    }), [
+        actions.handleUpdateUser, actions.handleUpdateFirmDetails,
+        actions.handleMarkNotificationsRead, actions.handleDismissNotification,
+        actions.handleClearAllNotifications, actions.handleSendMessage,
+        actions.deleteItem,
+    ]);
+
+    // Memoize the full context value so the Provider reference is stable
+    const value = React.useMemo(() => ({ coreState, coreActions, isDataLoaded }), [coreState, coreActions, isDataLoaded]);
 
     return (
-        <CoreContext.Provider value={{ coreState, coreActions, isDataLoaded }}>
+        <CoreContext.Provider value={value}>
             {children}
         </CoreContext.Provider>
     );

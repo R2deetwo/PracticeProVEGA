@@ -81,7 +81,9 @@ const ResearchView: React.FC = () => {
             // Clean up the hash so a refresh doesn't re-trigger
             if (window.location.hash && window.location.hash.includes('__ctx=')) {
                 try {
-                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                    // Preserve history.state — passing null wipes location.state
+                    // for the current entry, breaking back-button context.
+                    history.replaceState(history.state, '', window.location.pathname + window.location.search);
                 } catch { /* ignore */ }
             }
         }
@@ -170,7 +172,8 @@ const ResearchView: React.FC = () => {
         // Clean up the hash so a refresh doesn't re-trigger auto-research
         if (window.location.hash && window.location.hash.includes('__ctx=')) {
             try {
-                history.replaceState(null, '', window.location.pathname + window.location.search);
+                // Preserve history.state — passing null wipes location.state
+                history.replaceState(history.state, '', window.location.pathname + window.location.search);
             } catch { /* ignore */ }
         }
     }, [currentHistoryEntry?.context, hasProcessedResearchContext]);

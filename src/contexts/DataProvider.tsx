@@ -592,8 +592,21 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
 
+    // ─── Memoize the DataStateContext value ───
+    // Without useMemo, this value object is a new reference every render,
+    // causing ALL useDataState() consumers to re-render on every provider
+    // render. The DataActionsContext value is already memoized (contextActions).
+    const dataStateValue = React.useMemo(() => ({
+        appState,
+        setAppState,
+        isDataLoaded,
+        isSaving: false,
+        isOutdated: false,
+        availableBackups: [] as any[],
+    }), [appState, isDataLoaded]);
+
     return (
-        <DataStateContext.Provider value={{ appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] }}>
+        <DataStateContext.Provider value={dataStateValue}>
             <DataActionsContext.Provider value={contextActions as unknown as ExtendedDataActions}>
                 {children}
             </DataActionsContext.Provider>
