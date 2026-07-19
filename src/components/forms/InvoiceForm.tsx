@@ -46,6 +46,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const [invoiceNumber, setInvoiceNumber] = useState(suggestedInvoiceNumber);
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]);
+  // P1 FIX: isSubmitting state to prevent double-submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // SAFE INITIALIZATION OF PAYMENT ACCOUNT
   const safeBankAccounts = bankAccounts || [];
@@ -145,10 +147,18 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const netReceivable = subTotal + vatAmount - whtAmount;
   const selectedMatter = matters.find(m => m.id === matterId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // P1 FIX: Prevent double-submit
+    if (isSubmitting) return;
     if (!clientId || !matterId) {
       addToast(`Please select a ${terminology.client.toLowerCase()} and ${terminology.matter.toLowerCase()}.`, { type: 'info' });
+      return;
+    }
+
+    // P1 FIX: Validate dueDate > issueDate
+    if (new Date(dueDate) <= new Date(issueDate)) {
+      addToast('Due date must be after the issue date.', { type: 'error' });
       return;
     }
 
@@ -201,10 +211,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       taxAmount: vatAmount
     };
 
-    if (isEditing && invoiceToEdit) onUpdateInvoice({ ...invoiceToEdit, ...invoiceData });
-    else onAddInvoice(invoiceData);
-
-    onClose();
+    // P1 FIX: Set isSubmitting before async operations, clear on completion
+    setIsSubmitting(true);
+    try {
+      if (isEditing && invoiceToEdit) await onUpdateInvoice({ ...invoiceToEdit, ...invoiceData });
+      else await onAddInvoice(invoiceData);
+      onClose();
+    } catch (err: any) {
+      addToast(`Failed to ${isEditing ? 'update' : 'create'} invoice: ${err.message}`, { type: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
     const commonInputClass = inputModern;
@@ -369,7 +386,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>
-          <button onClick={handleSubmit} type="submit" disabled={!paymentAccountId && safeBankAccounts.length === 0} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
+          <button onClick={handleSubmit} type="submit" disabled={isSubmitting || (!paymentAccountId && safeBankAccounts.length === 0)} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
               <SaveIcon className="w-4 h-4" /> {isEditing ? 'Update Invoice' : 'Create Invoice'}
           </button>
         </div>

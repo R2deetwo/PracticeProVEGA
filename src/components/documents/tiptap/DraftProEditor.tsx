@@ -668,6 +668,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [aiHelpResult, setAiHelpResult] = useState<Record<string, string>>({});
     const [redraftContext, setRedraftContext] = useState('');
     const isFillingRef = useRef(false);
+    // P1 FIX: Track AI help request ID to prevent stale responses overwriting newer ones.
+    // When user clicks "AI help" on placeholder A then B, both streams run; without
+    // this guard, whichever resolves last wins setAiHelpResult and the loading state
+    // from the first call clears the second's prematurely.
+    const aiHelpRequestIdRef = useRef(0);
     const [formatRules, setFormatRules] = useState({
         suitTitleFormat: true,
         doubleSpacing: false,
@@ -1844,6 +1849,10 @@ ${allCites.map((c: any) => {
         setAiHelpLabel(label);
         setAiHelpLoading(true);
 
+        // P1 FIX: Assign a unique ID to this request. After every await, check
+        // if we're still the latest request — if not, abort silently.
+        const myRequestId = ++aiHelpRequestIdRef.current;
+
         // Build a snippet of the document context (first 500 chars of plain text)
         let docContext = '';
         editor?.state.doc.descendants((node) => {
@@ -1869,6 +1878,9 @@ ${allCites.map((c: any) => {
         (async () => {
             try {
                 const { streamMessage } = await import('../../../services/aiService');
+                // Stale check after dynamic import
+                if (myRequestId !== aiHelpRequestIdRef.current) return;
+
                 const aiContext = {
                     appState,
                     currentUser: currentUser!,
@@ -1884,19 +1896,31 @@ ${allCites.map((c: any) => {
                 await streamMessage(
                     [{ role: 'user' as const, content: prompt, id: 'ai-help' }],
                     aiContext,
-                    (chunk) => { suggestion += chunk; },
+                    (chunk) => {
+                        // Stale check during streaming — don't accumulate if a newer request started
+                        if (myRequestId === aiHelpRequestIdRef.current) {
+                            suggestion += chunk;
+                        }
+                    },
                     'flash'
                 );
+
+                // Final stale check before applying result
+                if (myRequestId !== aiHelpRequestIdRef.current) return;
 
                 if (suggestion.trim()) {
                     setAiHelpResult(prev => ({ ...prev, [label]: suggestion.trim() }));
                     addToast(`AI suggestion for [${label}] ready`, { type: 'info' });
                 }
             } catch (err: any) {
+                if (myRequestId !== aiHelpRequestIdRef.current) return;
                 console.warn('AI help failed for placeholder:', err.message);
             } finally {
-                setAiHelpLoading(false);
-                setAiHelpLabel(null);
+                // Only clear loading state if this is still the latest request
+                if (myRequestId === aiHelpRequestIdRef.current) {
+                    setAiHelpLoading(false);
+                    setAiHelpLabel(null);
+                }
             }
         })();
     };

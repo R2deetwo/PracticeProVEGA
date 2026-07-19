@@ -28,6 +28,8 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
     const [attachments, setAttachments] = useState<Document[]>([]);
     const [isAttaching, setIsAttaching] = useState(false);
     const [confirmNoSubject, setConfirmNoSubject] = useState(false);
+    // P1 FIX: isSending state to prevent double-send + show loading state
+    const [isSending, setIsSending] = useState(false);
 
     const hasAutoFilled = useRef(false);
 
@@ -48,9 +50,20 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
         }
     }, [matter, client, to, subject]);
 
-    const handleSend = () => {
+    const handleSend = async () => {
+        // P1 FIX: Prevent double-send
+        if (isSending) return;
         if (!to.trim()) {
             addToast('Please add at least one recipient.', { type: 'info' });
+            return;
+        }
+
+        // P1 FIX: Validate email format on all recipients (to/cc/bcc)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const allRecipients = [...to.split(','), ...cc.split(','), ...bcc.split(',')].map(s => s.trim()).filter(Boolean);
+        const invalidEmails = allRecipients.filter(email => !emailRegex.test(email));
+        if (invalidEmails.length > 0) {
+            addToast(`Invalid email address: ${invalidEmails.join(', ')}`, { type: 'error' });
             return;
         }
 
@@ -60,16 +73,23 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
             return;
         }
 
-        const recipients = [...to.split(','), ...cc.split(','), ...bcc.split(',')].map(s => s.trim()).filter(Boolean);
-        handleSendEmail({
-            matterId: matterId || '',
-            from: 'admin@practicepro.ng',
-            to: recipients,
-            subject: subject || '(No Subject)',
-            body,
-            attachments: attachments.map(d => d.file!).filter(Boolean)
-        });
-        onClose();
+        // P1 FIX: Await the send and handle errors; disable button during transit
+        setIsSending(true);
+        try {
+            await handleSendEmail({
+                matterId: matterId || '',
+                from: 'admin@practicepro.ng',
+                to: allRecipients,
+                subject: subject || '(No Subject)',
+                body,
+                attachments: attachments.map(d => d.file!).filter(Boolean)
+            });
+            onClose();
+        } catch (err: any) {
+            addToast(`Failed to send email: ${err.message}`, { type: 'error' });
+        } finally {
+            setIsSending(false);
+        }
     };
 
     const toggleAttachment = (doc: Document) => {
@@ -100,9 +120,10 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
                         <button
                             type="button"
                             onClick={handleSend}
-                            className="px-3 py-1 text-xs font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors"
+                            disabled={isSending}
+                            className="px-3 py-1 text-xs font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50"
                         >
-                            Send Anyway
+                            {isSending ? 'Sending…' : 'Send Anyway'}
                         </button>
                     </div>
                 </div>
@@ -232,9 +253,10 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
                     <button
                         type="button"
                         onClick={handleSend}
-                        className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-md text-xs transition-all active:scale-95"
+                        disabled={isSending}
+                        className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold shadow-md text-xs transition-all active:scale-95 disabled:opacity-50"
                     >
-                        Send Email
+                        {isSending ? 'Sending…' : 'Send Email'}
                     </button>
                 </div>
             </div>

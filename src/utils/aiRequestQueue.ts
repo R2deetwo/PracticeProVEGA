@@ -31,7 +31,13 @@ interface InternalTask<T> extends QueuedTask<T> {
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+// Default timeout for AI requests.
+// P1 FIX: Was 15s — too short for streaming/research mode which can take 60-90s.
+// Now 120s (2 minutes). This is the MAX time a single AI task can run before
+// being auto-aborted. Streaming responses send chunks every few seconds, so
+// the queue's activity check keeps the timeout from firing prematurely during
+// active streaming. Only fires if NO activity for 120s (truly hung request).
+const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
  * AIRequestQueue — a self-contained sequential queue.

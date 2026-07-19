@@ -108,33 +108,50 @@ export const streamGemini = async (
             const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
             const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-                    generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
-                    safetySettings: [
-                        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-                        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
-                    ]
-                })
-            });
+            // P1 FIX: Add 90s timeout — was hanging forever on slow networks.
+            // Non-streaming generateContent can take 30-60s for complex prompts;
+            // 90s is generous. If it takes longer, fail fast so the caller can
+            // show an error instead of spinning forever.
+            const timeoutController = new AbortController();
+            const timeoutId = setTimeout(() => timeoutController.abort(), 90_000);
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(`API ${response.status}: ${errData?.error?.message || response.statusText}`);
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+                        generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
+                        safetySettings: [
+                            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
+                        ]
+                    }),
+                    signal: timeoutController.signal,
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({}));
+                    throw new Error(`API ${response.status}: ${errData?.error?.message || response.statusText}`);
+                }
+
+                const data = await response.json();
+                const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                if (responseText) return responseText;
+            } finally {
+                clearTimeout(timeoutId);
             }
-
-            const data = await response.json();
-            const responseText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (responseText) return responseText;
         } catch (e: any) {
             lastError = e;
-            console.warn(`[AI] Model ${modelName} failed:`, e.message);
+            if (e?.name === 'AbortError') {
+                console.warn(`[AI] Model ${modelName} timed out (90s)`);
+                lastError = new Error(`AI request timed out (90s). Try again or use a simpler prompt.`);
+            } else {
+                console.warn(`[AI] Model ${modelName} failed:`, e.message);
+            }
             if (e.message?.includes('API key not valid')) throw e;
         }
     }
@@ -303,20 +320,36 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.embeddingModel}:embedContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            model: AI_CONFIG.embeddingModel,
-            content: { parts: [{ text }] },
-        }),
-    });
+    // P1 FIX: Add 30s timeout — was hanging forever on slow networks.
+    // Embeddings are small requests; 30s is generous. If it takes longer,
+    // something is wrong (network, API, quota) and we should fail fast.
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 30_000);
 
-    if (!response.ok) {
-        const errorArr = await response.json();
-        throw new Error(`Embedding failed: ${errorArr.error?.message || response.statusText}`);
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                model: AI_CONFIG.embeddingModel,
+                content: { parts: [{ text }] },
+            }),
+            signal: timeoutController.signal,
+        });
+
+        if (!response.ok) {
+            const errorArr = await response.json();
+            throw new Error(`Embedding failed: ${errorArr.error?.message || response.statusText}`);
+        }
+
+        const json = await response.json();
+        return json.embedding.values;
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new Error('Embedding request timed out (30s). Check your network connection.');
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
-
-    const json = await response.json();
-    return json.embedding.values;
 };

@@ -408,10 +408,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // Don't reload if we're actively generating (optimistic UI)
         if (isGeneratingRef.current && messages.length > 0) return;
 
+        // ─── P0 FIX: Race condition + missing cancellation ───
+        // When user switches conversations A→B→C quickly, the older query can
+        // resolve LAST and overwrite the correct conversation's messages with
+        // stale ones from a previous conversation. We track a `cancelled` flag
+        // and verify activeConversationId is still current before setMessages.
+        let cancelled = false;
+        const requestedConversationId = activeConversationId;
+
         const loadMessages = async () => {
             setIsLoading(true);
             try {
-                const history = await convex.query(api.myFunctions.getAloaMessages, { conversationId: activeConversationId });
+                const history = await convex.query(api.myFunctions.getAloaMessages, { conversationId: requestedConversationId });
+                // If the user switched to a different conversation while we were
+                // awaiting, OR the effect was cleaned up, discard the result.
+                if (cancelled || requestedConversationId !== activeConversationId) return;
                 if (history && history.length > 0) {
                     setMessages(history.map((m: any) => ({
                         ...m,
@@ -421,14 +432,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setMessages([]);
                 }
             } catch (err) {
+                if (cancelled) return;
                 console.error("Failed to load conversation history:", err);
+                addToast('Could not load conversation history. Tap to retry.', { type: 'error' });
             } finally {
-                setIsLoading(false);
+                if (!cancelled) setIsLoading(false);
             }
         };
 
         loadMessages();
-    }, [activeConversationId, convex, setMessages, setIsLoading]);
+
+        // Cleanup: mark this load as cancelled so a stale response doesn't overwrite
+        return () => { cancelled = true; };
+    }, [activeConversationId, convex, setMessages, setIsLoading, addToast]);
 
     const disconnectLiveSession = () => {
         if (liveSessionRef.current) {

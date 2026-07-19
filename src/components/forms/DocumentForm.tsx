@@ -33,6 +33,25 @@ interface DocumentFormProps {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// P1 FIX: File-type whitelist — prevents uploading executable/script files
+// that could be used for XSS or malware distribution via the document store.
+const ALLOWED_MIME_TYPES = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain',
+    'text/csv',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+];
+const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
 export const DocumentForm: React.FC<DocumentFormProps> = ({
     documents,
@@ -160,6 +179,15 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             return;
         }
 
+        // P1 FIX: Validate file type — reject executables, scripts, and unknown types
+        const fileExtension = '.' + (selectedFile.name.split('.').pop() || '').toLowerCase();
+        const isAllowedMime = ALLOWED_MIME_TYPES.includes(selectedFile.type);
+        const isAllowedExt = ALLOWED_EXTENSIONS.includes(fileExtension);
+        if (!isAllowedMime && !isAllowedExt) {
+            setError(`File type not allowed. Allowed: PDF, Word, Excel, PowerPoint, Text, CSV, Images (JPG, PNG, GIF, WebP, HEIC).`);
+            return;
+        }
+
         setError(null);
         const reader = new FileReader();
         reader.onerror = () => setError("Failed to read file.");
@@ -215,7 +243,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             setError("Please select a folder category.");
             return;
         }
-        if (!file && !content && !isEditing) {
+        // P1 FIX: Check for empty/whitespace-only content (was allowing empty documents to be saved)
+        if (!file && (!content || !content.trim()) && !isEditing) {
             setError("Please upload a file or save draft content.");
             return;
         }
