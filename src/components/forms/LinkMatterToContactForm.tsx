@@ -21,15 +21,22 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
     const clientNoun = terminology.client;       // 'Client' or 'Resident'
     const [selectedMatterId, setSelectedMatterId] = useState<string>('');
     const [asClient, setAsClient] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!selectedMatterId) {
             addToast(`Please select a ${matterNoun.toLowerCase()} to link.`, { type: 'error' });
             return;
         }
-        onSave(contact.id, selectedMatterId, asClient);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            onSave(contact.id, selectedMatterId, asClient);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const commonInputClass = inputLarge;
@@ -84,7 +91,8 @@ export const LinkMatterToContactForm: React.FC<LinkMatterToContactFormProps> = (
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50"
                 >
                     Link {matterNoun}
                 </button>

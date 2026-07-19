@@ -96,7 +96,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                             <p className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{matter.title}</p>
                                             <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{matter.suitNumber || 'No Suit Number'}</p>
                                         </div>
-                                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide rounded-full ${matter.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-200 text-slate-600'}`}>
+                                        <span className={`px-2.5 py-1 text-2xs font-bold uppercase tracking-wide rounded-full ${matter.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-200 text-slate-600'}`}>
                                             {matter.status}
                                         </span>
                                     </div>
@@ -287,7 +287,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                 <button onClick={() => setActiveTab('matters')} className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'matters' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Matters ({matters.length})</button>
                 {(hasRealEstateMatters || allProperties.length > 0) && (
                     <button onClick={() => setActiveTab('properties')} className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'properties' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>
-                        Properties ({new Set(allProperties.map(p => p.address)).size}) {allProperties.length > 1 && <span className="text-[10px] opacity-60 ml-1 font-bold">• {allProperties.length} Units</span>}
+                        Properties ({new Set(allProperties.map(p => p.address)).size}) {allProperties.length > 1 && <span className="text-2xs opacity-60 ml-1 font-bold">• {allProperties.length} Units</span>}
                     </button>
                 )}
                 <button onClick={() => setActiveTab('relationships')} className={`py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'relationships' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Relationship Map</button>

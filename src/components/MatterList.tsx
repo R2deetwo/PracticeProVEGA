@@ -117,7 +117,7 @@ const MatterCardItem: React.FC<{
                     <p>Are you sure you want to <strong>permanently delete</strong> this matter?</p>
                     {(taskCount > 0 || docCount > 0) && (
                         <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl space-y-1">
-                            <p className="text-red-700 dark:text-red-400 font-bold text-[10px] uppercase tracking-wider">Will also delete:</p>
+                            <p className="text-red-700 dark:text-red-400 font-bold text-2xs uppercase tracking-wider">Will also delete:</p>
                             {taskCount > 0 && <p className="text-xs text-red-600 dark:text-red-400">• {taskCount} Tasks</p>}
                             {docCount > 0 && <p className="text-xs text-red-600 dark:text-red-400">• {docCount} Documents</p>}
                         </div>
@@ -161,10 +161,10 @@ const MatterCardItem: React.FC<{
                         <div className="flex-1 min-w-0 pr-2">
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{matter.title}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">{client?.name || 'Unknown Client'}</span>
-                                <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{matter.stage}</span>
+                                <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">{client?.name || 'Unknown Client'}</span>
+                                <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{matter.stage}</span>
                                 {overdueTasks.length > 0 && (
-                                    <span className="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">{overdueTasks.length} overdue</span>
+                                    <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">{overdueTasks.length} overdue</span>
                                 )}
                             </div>
                         </div>
@@ -365,7 +365,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                     {viewMode === 'board' && (
                         <button
                             onClick={() => navigateTo('settings', null, { settingsTargetId: 'workflow-management' })}
-                            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 rounded-lg transition-colors border border-slate-200 dark:border-zinc-700 shadow-sm"
+                            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700 rounded-lg transition-colors border border-slate-200 dark:border-zinc-700 shadow-sm"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> Edit Kanban Stages
                         </button>
@@ -438,9 +438,9 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                                 {allSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
                                 {!allSelected && selectedIds.size > 0 && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
                             </div>
-                            <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
+                            <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
                         </div>
-                        <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredMatters.length} Total Matters</span>
+                        <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredMatters.length} Total Matters</span>
                     </div>
                 )}
                 <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">

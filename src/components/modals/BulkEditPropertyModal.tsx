@@ -42,7 +42,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="space-y-3">
-                            <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Update Status</label>
+                            <label className="block text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Update Status</label>
                             <select 
                                 value={status} 
                                 onChange={(e) => setStatus(e.target.value as PropertyStatus)}
@@ -55,11 +55,11 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
                                 <option value="Maintenance">Maintenance</option>
                                 <option value="Under Renovation">Under Renovation</option>
                             </select>
-                            <p className="text-[9px] text-slate-400 italic px-1">This will override the current status of all selected properties.</p>
+                            <p className="text-3xs text-slate-400 italic px-1">This will override the current status of all selected properties.</p>
                         </div>
 
                         <div className="space-y-3">
-                            <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Update Category</label>
+                            <label className="block text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Update Category</label>
                             <select 
                                 value={category} 
                                 onChange={(e) => setCategory(e.target.value as PropertyCategory)}
@@ -89,7 +89,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
                         <button 
                             type="button" 
                             onClick={onClose} 
-                            className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
+                            className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-2xs font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2"
                         >
                             <XIcon className="w-4 h-4" /> Cancel
                         </button>
@@ -97,7 +97,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
                             type="button"
                             disabled={isSaving || (!status && !category)}
                             onClick={handleConfirm}
-                            className="flex-1 sm:flex-none px-12 py-3 bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
+                            className="flex-1 sm:flex-none px-12 py-3 bg-primary-600 text-white text-2xs font-black uppercase tracking-widest rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
                         >
                             {isSaving ? (
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

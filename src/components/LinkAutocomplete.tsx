@@ -142,7 +142,7 @@ const LinkAutocomplete: React.FC<LinkAutocompleteProps> = ({ textareaRef, value,
       style={{ top: position.top, left: position.left }}
     >
       <div className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Link to</p>
+        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Link to</p>
       </div>
       <div className="max-h-[240px] overflow-y-auto py-1">
         {results.map((result, index) => (
@@ -159,7 +159,7 @@ const LinkAutocomplete: React.FC<LinkAutocompleteProps> = ({ textareaRef, value,
               <p className={`text-sm font-semibold truncate ${index === selectedIndex ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-zinc-300'}`}>
                 {result.label}
               </p>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">{result.subtitle}</p>
+              <p className="text-2xs text-slate-400 dark:text-zinc-500 capitalize">{result.subtitle}</p>
             </div>
           </button>
         ))}

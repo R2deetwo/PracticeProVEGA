@@ -6,6 +6,7 @@ import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon } from '../constants';
 import Fuse from 'fuse.js';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task';
 
@@ -28,6 +29,11 @@ const CommandPalette: React.FC = () => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    // Focus trap container — wraps the whole palette (input + list). While
+    // open, Tab cycles only within the palette so keyboard users can't
+    // reach background UI behind the backdrop.
+    const paletteRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(paletteRef, isCommandPaletteOpen);
 
     // 1. Static Commands
     const staticCommands: SearchResult[] = useMemo(() => [
@@ -50,7 +56,7 @@ const CommandPalette: React.FC = () => {
 
         // System
         { id: 'sys-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, type: 'System', icon: theme === 'dark' ? <SunIcon /> : <MoonIcon />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
-        { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-[10px]">|||</div>, action: () => toggleSidebar() },
+        { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-2xs">|||</div>, action: () => toggleSidebar() },
     ], [navigateTo, openModal, theme, setTheme, toggleSidebar]);
 
     // 2. Dynamic Data Search Index
@@ -193,7 +199,7 @@ const CommandPalette: React.FC = () => {
     if (!isCommandPaletteOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4">
+        <div ref={paletteRef} role="dialog" aria-modal="true" aria-label="Command palette" className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4">
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setCommandPaletteOpen(false)} />
             
             <div className="w-full max-w-2xl bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative z-10 flex flex-col max-h-[70vh] animate-slide-in-up">
@@ -235,7 +241,7 @@ const CommandPalette: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${index === selectedIndex ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-zinc-700 text-slate-500'}`}>
+                                    <span className={`text-2xs font-bold uppercase tracking-wider px-2 py-1 rounded ${index === selectedIndex ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-zinc-700 text-slate-500'}`}>
                                         {result.type}
                                     </span>
                                 </button>

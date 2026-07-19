@@ -144,21 +144,21 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                onClick={() => activeCategory === 'Stale' && onNavigateToDetail('reporting', null, { activeMainTab: 'dashboard', activeDashboardTab: 'bi', scrollTo: 'stale-matters-section', highlight: true })}
                                className="active-press group flex items-center gap-2 px-2 sm:px-3 py-1 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-full border border-slate-200 dark:border-zinc-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-200 transition-all"
                            >
-                               <h3 className="text-[11px] sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors truncate">
+                               <h3 className="text-2xs sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors truncate">
                                    {activeCategory} Matters
                                </h3>
                                <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
                            </button>
                        ) : (
                            <h3 
-                            className="text-[11px] sm:text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400 truncate"
+                            className="text-2xs sm:text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400 truncate"
                            >
                                {activeCategory} Matters
                            </h3>
                        )}
                    </div>
                 </div>
-                <button onClick={() => onNavigateToDetail('matters', null)} className="active-press touch-target text-[10px] font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit flex-shrink-0 px-1">All</button>
+                <button onClick={() => onNavigateToDetail('matters', null)} className="active-press touch-target text-2xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit flex-shrink-0 px-1">All</button>
             </div>
             <div className="flex-grow overflow-y-auto relative min-h-0">
                 {isLoading ? (
@@ -198,7 +198,7 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                 >
                                     <div className="flex flex-col min-w-0 flex-1">
                                         <div className="font-semibold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate">{item.matter.title}</div>
-                                        <p className="text-[10px] text-slate-500 font-medium truncate group-hover:text-primary-600/80 transition-colors">
+                                        <p className="text-2xs text-slate-500 font-medium truncate group-hover:text-primary-600/80 transition-colors">
                                             {activeCategory === 'Stale' ? (
                                                 <span className="text-amber-600 font-bold">Stale for {Math.floor((new Date().getTime() - new Date(item.lastUpdate).getTime()) / (1000 * 3600 * 24))} days</span>
                                             ) : activeCategory === 'Review' ? (
@@ -210,11 +210,11 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                         <div className="text-xs text-slate-500 dark:text-zinc-400">{client?.name || 'Unknown Client'}</div>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
-                                        <div className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                        <div className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-3xs font-black uppercase tracking-wider text-slate-500">
                                             {item.matter.referenceNumber}
                                         </div>
                                         {activeCategory === 'Review' && item.matter.reviewReminder && (
-                                            <div className="text-[8px] font-bold text-red-500 uppercase tracking-tighter">
+                                            <div className="text-3xs font-bold text-red-500 uppercase tracking-tighter">
                                                 Due {new Date(item.matter.reviewReminder.remindAt).toLocaleDateString('en-GB')}
                                             </div>
                                         )}

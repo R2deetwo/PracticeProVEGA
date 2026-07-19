@@ -103,6 +103,13 @@ export const streamGemini = async (
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
+        // Per-attempt AbortController with a 90s timeout. Gemini
+        // occasionally hangs mid-request (network blip, backend stall);
+        // without a deadline the loop would never advance to the next
+        // fallback model. 90s is generous for a single 8k-token generation
+        // while still bounding total wall time across the fallback plan.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90_000);
         try {
             console.log(`[AI] Attempting Gemini: ${modelName}`);
             const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
@@ -111,6 +118,7 @@ export const streamGemini = async (
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
                 body: JSON.stringify({
                     contents: [{ role: 'user', parts: [{ text: prompt }] }],
                     systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
@@ -134,8 +142,20 @@ export const streamGemini = async (
             if (responseText) return responseText;
         } catch (e: any) {
             lastError = e;
-            console.warn(`[AI] Model ${modelName} failed:`, e.message);
-            if (e.message?.includes('API key not valid')) throw e;
+            if (e?.name === 'AbortError') {
+                // Timeout on this model — log and fall through to the next
+                // model in the fallback plan rather than treating the abort
+                // as a hard failure of the whole call.
+                console.warn(`[AI] Model ${modelName} timed out after 90s; trying next fallback.`);
+            } else {
+                console.warn(`[AI] Model ${modelName} failed:`, e.message);
+                if (e.message?.includes('API key not valid')) {
+                    clearTimeout(timeoutId);
+                    throw e;
+                }
+            }
+        } finally {
+            clearTimeout(timeoutId);
         }
     }
 
@@ -303,14 +323,33 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.embeddingModel}:embedContent?key=${apiKey}`;
 
-    const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            model: AI_CONFIG.embeddingModel,
-            content: { parts: [{ text }] },
-        }),
-    });
+    // 30s timeout. Embedding requests are tiny (single text → vector) and
+    // should return in well under a second; if we hit 30s the backend is
+    // stalled and the caller (indexer/Brain) needs to fail fast rather
+    // than block the whole ingestion pipeline indefinitely.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+    let response: Response;
+    try {
+        response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
+            body: JSON.stringify({
+                model: AI_CONFIG.embeddingModel,
+                content: { parts: [{ text }] },
+            }),
+        });
+    } catch (e: any) {
+        clearTimeout(timeoutId);
+        if (e?.name === 'AbortError') {
+            throw new Error('Embedding request timed out (30s).');
+        }
+        throw e;
+    }
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
         const errorArr = await response.json();

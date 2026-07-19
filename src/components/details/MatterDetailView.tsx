@@ -46,7 +46,7 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
     >
         {label}
         {badgeCount !== undefined && badgeCount > 0 && (
-            <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+            <span className="ml-2 bg-red-500 text-white text-2xs px-1.5 py-0.5 rounded-full animate-pulse">
                 {badgeCount}
             </span>
         )}
@@ -55,8 +55,8 @@ const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => voi
 
 const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="flex flex-col justify-center min-w-0">
-        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest truncate mb-0.5 leading-none">{label}</span>
-        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate w-full leading-tight">
+        <span className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest truncate mb-0.5 leading-none">{label}</span>
+        <div className="flex items-center gap-1 text-2xs font-bold text-slate-700 dark:text-zinc-200 truncate w-full leading-tight">
             {icon && <span className="opacity-60 flex-shrink-0 -mt-0.5 scale-90">{icon}</span>}
             <span className="truncate">{value}</span>
         </div>
@@ -297,6 +297,7 @@ const MatterDetailViewContent: React.FC = () => {
                     onGoBack();
                 } catch (err: any) {
                     console.error('[MatterDetailView] Delete failed:', err);
+                    addToast('Failed to delete matter: ' + err.message, { type: 'error' });
                     // Keep modal open so user sees the error
                 }
             },
@@ -353,7 +354,7 @@ const MatterDetailViewContent: React.FC = () => {
             <header className="sticky top-0 z-10 glass flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 shadow-sm">
                 <div className="px-4 pt-3 sm:px-6">
                     <div className="flex items-center justify-between mb-2">
-                        <button onClick={onGoBack} className="flex items-center text-[10px] font-bold uppercase text-slate-400 hover:text-primary-600 transition-colors">
+                        <button onClick={onGoBack} className="flex items-center text-2xs font-bold uppercase text-slate-400 hover:text-primary-600 transition-colors">
                             <ChevronRightIcon className="w-3 h-3 rotate-180 mr-1" /> Back
                         </button>
                         <div className="flex items-center gap-1.5">
@@ -391,23 +392,23 @@ const MatterDetailViewContent: React.FC = () => {
                                         <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-white dark:bg-zinc-800 rounded-xl shadow-lg border border-slate-200 dark:border-zinc-700 py-1 overflow-hidden">
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); openModal('editMatter', matterData.id); }}
-                                                className="w-full px-3 py-2.5 text-[11px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
                                             >
                                                 <EditIcon className="w-3.5 h-3.5 shrink-0" /> Edit Matter
                                             </button>
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); handleTogglePrivacy(); }}
                                                 disabled={privacyLoading}
-                                                className={`w-full px-3 py-2.5 text-[11px] font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 ${(matterData as any).isPrivate ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-zinc-300'}`}
+                                                className={`w-full px-3 py-2.5 text-2xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 ${(matterData as any).isPrivate ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-zinc-300'}`}
                                             >
                                                 <LockClosedIcon className="w-3.5 h-3.5 shrink-0" />
                                                 {(matterData as any).isPrivate ? 'Remove Privacy' : 'Make Private'}
-                                                {privacyLoading && <span className="ml-auto text-[10px] opacity-60">...</span>}
+                                                {privacyLoading && <span className="ml-auto text-2xs opacity-60">...</span>}
                                             </button>
                                             {currentUser?.role === 'Admin' && (
                                                 <button
                                                     onClick={() => { setShowMoreMenu(false); openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory }); }}
-                                                    className="w-full px-3 py-2.5 text-[11px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
                                                 >
                                                     <CogIcon className="w-3.5 h-3.5 shrink-0" /> Edit Workflow
                                                 </button>
@@ -415,7 +416,7 @@ const MatterDetailViewContent: React.FC = () => {
                                             <div className="my-1 border-t border-slate-100 dark:border-zinc-700" />
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); confirmDelete(); }}
-                                                className="w-full px-3 py-2.5 text-[11px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left flex items-center gap-2"
+                                                className="w-full px-3 py-2.5 text-2xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-left flex items-center gap-2"
                                             >
                                                 <TrashIcon className="w-3.5 h-3.5 shrink-0" /> Delete Matter
                                             </button>
@@ -429,7 +430,7 @@ const MatterDetailViewContent: React.FC = () => {
                     <div className="mb-1">
                         <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white leading-tight truncate">{matterData.title}</h2>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-mono text-slate-400">{matterData.referenceNumber}</span>
+                            <span className="text-2xs font-mono text-slate-400">{matterData.referenceNumber}</span>
                         </div>
                     </div>
                     {showWorkflow && (

@@ -791,7 +791,7 @@ function renderBlocks(blocks: Block[]) {
                                         {row.map((cell, k) => (
                                             <td key={k} className="px-4 py-2.5 text-slate-600 dark:text-slate-400 border-b border-slate-100 dark:border-white/5 last:border-b-0">
                                                 {k === row.length - 1 && (cell === 'Yes' || cell === 'No') ? (
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${cell === 'Yes' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${cell === 'Yes' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}>
                                                         {cell}
                                                     </span>
                                                 ) : cell}
@@ -858,7 +858,7 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl overflow-hidden hover:shadow-xl transition-all duration-300">
             <div className="p-7">
                 <div className="flex items-start justify-between gap-4 mb-4">
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${paper.tagColor}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border ${paper.tagColor}`}>
                         {paper.tag}
                     </span>
                     <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">{paper.readTime}</span>
@@ -901,7 +901,7 @@ const GuideCard: React.FC<{ guide: typeof GUIDES[0] }> = ({ guide }) => {
         <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col ${expanded && 'md:col-span-2'}`}>
             <div className="p-6 flex-1 flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 uppercase tracking-wider">{guide.tag}</span>
+                    <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 uppercase tracking-wider">{guide.tag}</span>
                     <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">{guide.readTime}</span>
                 </div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm">{guide.title}</h3>
@@ -946,7 +946,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         <span className="text-slate-400 dark:text-slate-500">/</span>
                         <span className="text-slate-600 dark:text-slate-300 font-medium flex items-center">
                             Resources
-                            <span className="text-[10px] ml-2 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 font-bold bg-slate-100 dark:bg-white/5 text-slate-500 tracking-wider">
+                            <span className="text-2xs ml-2 px-1.5 py-0.5 rounded border border-slate-200 dark:border-white/10 font-bold bg-slate-100 dark:bg-white/5 text-slate-500 tracking-wider">
                                 {isVega ? 'VEGA' : 'ATRIUM'}
                             </span>
                         </span>
@@ -959,7 +959,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 {/* Page Hero */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-6 mb-16">
                     <div>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest border bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800/50 mb-5">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 border-primary-200 dark:border-primary-800/50 mb-5">
                             <SparklesIcon className="w-3 h-3" />
                             Knowledge Base
                         </span>
@@ -1024,7 +1024,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${doc.badgeColor}`}>{doc.badge}</span>
+                                        <span className={`text-2xs font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${doc.badgeColor}`}>{doc.badge}</span>
                                     </div>
                                     <h3 className="font-bold text-slate-900 dark:text-white text-sm mb-1">{doc.title}</h3>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{doc.description}</p>
@@ -1070,7 +1070,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             Terms of Service
                         </button>
                         <div className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-400 dark:text-slate-500 cursor-default">
-                            Cookie Policy <span className="text-[10px] ml-1 font-bold uppercase text-slate-300 dark:text-slate-600">Soon</span>
+                            Cookie Policy <span className="text-2xs ml-1 font-bold uppercase text-slate-300 dark:text-slate-600">Soon</span>
                         </div>
                         <button onClick={onDPAClick} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                             Data Processing Agreement

@@ -136,7 +136,7 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                                 <li key={activity.id} onClick={(e) => handleActivityClick(e, activity, matter.id)} className="relative cursor-pointer hover:bg-gray-100 dark:hover:bg-slate-700/50 -ml-1 pl-1 rounded-r-md transition-transform duration-150 hover:translate-x-1">
                                                     <div className="absolute -left-[0.9rem] top-1.5 w-2.5 h-2.5 bg-gray-300 dark:bg-slate-600 rounded-full border-2 border-white dark:border-slate-800"></div>
                                                     <p className="text-xs text-gray-700 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: sanitize(displayText) }} />
-                                                    <p className="text-[10px] text-gray-500 dark:text-gray-400">{timeAgo(activity.timestamp)}</p>
+                                                    <p className="text-2xs text-gray-500 dark:text-gray-400">{timeAgo(activity.timestamp)}</p>
                                                 </li>
                                             );
                                         })}

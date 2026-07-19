@@ -116,7 +116,7 @@ const InvoiceDetailViewContent: React.FC = () => {
                 ]} />
                 <div className="flex items-center gap-1 sm:gap-2">
                     <Tooltip text="Zoom Out"><button onClick={handleZoomOut} className="p-1 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"><ZoomOutIcon className="w-4 h-4 sm:w-5 sm:h-5" /></button></Tooltip>
-                    <span className="text-[10px] sm:text-xs font-mono text-slate-400 w-8 sm:w-12 text-center">{Math.round(zoom * 100)}%</span>
+                    <span className="text-2xs sm:text-xs font-mono text-slate-400 w-8 sm:w-12 text-center">{Math.round(zoom * 100)}%</span>
                     <Tooltip text="Zoom In"><button onClick={handleZoomIn} className="p-1 sm:p-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500"><ZoomInIcon className="w-4 h-4 sm:w-5 sm:h-5" /></button></Tooltip>
                     <div className="hidden sm:block h-6 w-px bg-slate-200 dark:border-zinc-700 mx-1 sm:mx-2"></div>
 

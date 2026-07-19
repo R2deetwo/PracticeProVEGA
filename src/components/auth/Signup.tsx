@@ -387,7 +387,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <div className="font-black text-lg text-slate-900 dark:text-white">Vega <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Legal</span></div>
+                            <div className="font-black text-lg text-slate-900 dark:text-white">Vega <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Legal</span></div>
                             <div className="text-xs text-slate-500 mt-1">For law firms and legal teams.</div>
                         </div>
                     </button>
@@ -402,7 +402,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>
                         <div>
-                            <div className="font-black text-lg text-slate-900 dark:text-white">Atrium <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Property</span></div>
+                            <div className="font-black text-lg text-slate-900 dark:text-white">Atrium <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Property</span></div>
                             <div className="text-xs text-slate-500 mt-1">For property managers and portfolios.</div>
                         </div>
                     </button>
@@ -417,8 +417,8 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                             <CheckCircleIcon className="w-6 h-6" />
                         </div>
                         <div className="w-full relative">
-                            <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider dark:bg-indigo-900 dark:text-indigo-300">Premium</div>
-                            <div className="font-black text-lg text-slate-900 dark:text-white">Komplet <span className="text-[10px] uppercase font-bold text-slate-400 ml-1">Unified</span></div>
+                            <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-3xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider dark:bg-indigo-900 dark:text-indigo-300">Premium</div>
+                            <div className="font-black text-lg text-slate-900 dark:text-white">Komplet <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Unified</span></div>
                             <div className="text-xs text-slate-500 mt-1 pr-10">Unified workspace for both legal (Vega) and property (Atrium).</div>
                         </div>
                     </button>
@@ -505,7 +505,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                                 {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                             </button>
                         </div>
-                        {passwordError && <p className="text-[10px] text-red-500 font-bold ml-1">{passwordError}</p>}
+                        {passwordError && <p className="text-2xs text-red-500 font-bold ml-1">{passwordError}</p>}
                     </div>
 
                     <div className="flex flex-col gap-3 pt-2">

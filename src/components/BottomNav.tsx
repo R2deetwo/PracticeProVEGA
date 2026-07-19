@@ -81,12 +81,12 @@ const NavItem: React.FC<{
             <div className="relative">
                 {React.cloneElement(icon, { className: 'w-5 h-5 mb-0.5' })}
                 {badgeCount !== undefined && badgeCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10">
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-3xs font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10">
                         {badgeCount > 9 ? '9+' : badgeCount}
                     </span>
                 )}
             </div>
-            <span className="text-[10px] font-medium">{text}</span>
+            <span className="text-2xs font-medium">{text}</span>
         </button>
     );
 };
@@ -273,11 +273,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                                                 {React.cloneElement(item.icon, { className: "w-6 h-6" })}
                                             </div>
                                             {count > 0 && (
-                                                <span className="absolute top-0 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-600 text-white text-[9px] font-bold rounded-full border-2 border-white dark:border-zinc-900 z-10 animate-pulse">
+                                                <span className="absolute top-0 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-600 text-white text-3xs font-bold rounded-full border-2 border-white dark:border-zinc-900 z-10 animate-pulse">
                                                     {count > 9 ? '9+' : count}
                                                 </span>
                                             )}
-                                            <span className={`text-[10px] font-medium text-center leading-tight line-clamp-1 ${parentView === item.view ? 'text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-zinc-400'}`}>{item.text}</span>
+                                            <span className={`text-2xs font-medium text-center leading-tight line-clamp-1 ${parentView === item.view ? 'text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-zinc-400'}`}>{item.text}</span>
                                         </button>
                                     );
                                 })}

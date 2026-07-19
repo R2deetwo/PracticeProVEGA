@@ -198,12 +198,12 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                     </div>
                     <div>
                         <h1 className="font-black text-slate-900 dark:text-white text-base">Gatehouse</h1>
-                        <p className="text-[10px] text-slate-500 dark:text-zinc-400">Visitor Verification</p>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400">Visitor Verification</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Online/offline indicator */}
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-2xs font-bold ${
                         isOnline ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                     }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500' : 'bg-amber-500'} ${isOnline ? '' : 'animate-pulse'}`} />
@@ -231,7 +231,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Code input */}
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-soft p-6">
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2 text-center">
+                    <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2 text-center">
                         Enter 6-Digit Access Code
                     </label>
                     <input
@@ -340,16 +340,16 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-bold text-slate-900 dark:text-white">{log.visitorName}</span>
-                                            <span className="text-[10px] font-mono text-slate-400">{log.tokenCode}</span>
+                                            <span className="text-2xs font-mono text-slate-400">{log.tokenCode}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                        <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                             {log.checkedInAt && <span>In: {new Date(log.checkedInAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>}
                                             {log.checkedOutAt && <span>Out: {new Date(log.checkedOutAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>}
                                             {!log.checkedInAt && <span className="text-amber-500">Pending</span>}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                                        <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${
                                             log.status === 'used' && log.checkedOutAt ? 'bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400' :
                                             log.status === 'used' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                             log.status === 'revoked' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
@@ -363,7 +363,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                         {log.status === 'used' && log.checkedInAt && !log.checkedOutAt && (
                                             <button
                                                 onClick={() => handleCheckOut(log._id)}
-                                                className="text-[9px] px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-full font-bold hover:bg-slate-200 dark:hover:bg-zinc-600"
+                                                className="text-3xs px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-full font-bold hover:bg-slate-200 dark:hover:bg-zinc-600"
                                             >
                                                 Check Out
                                             </button>

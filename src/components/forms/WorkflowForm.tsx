@@ -166,7 +166,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                             <PlusIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">{isProperty ? 'Category' : 'Practice Area'}</h3>
                         </div>
                     </div>
@@ -199,7 +199,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                             </div>
                         )}
                     </div>
-                    {isSubmitting && <div className="text-center text-[10px] font-black text-primary-500 uppercase tracking-widest animate-pulse">Saving Workflow...</div>}
+                    {isSubmitting && <div className="text-center text-2xs font-black text-primary-500 uppercase tracking-widest animate-pulse">Saving Workflow...</div>}
                 </div>
 
                 {/* Stages Section */}
@@ -210,7 +210,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                                 <PlusIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Process</p>
+                                <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Process</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Workflow Stages</h3>
                             </div>
                         </div>
@@ -220,7 +220,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                         <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                             {stages.map((stage, idx) => (
                                 <div key={idx} className="flex items-center gap-3 p-2 bg-white dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 shadow-sm group">
-                                    <span className="text-[10px] font-black text-slate-300 dark:text-zinc-700 w-8 text-center">{String(idx + 1).padStart(2, '0')}</span>
+                                    <span className="text-2xs font-black text-slate-300 dark:text-zinc-700 w-8 text-center">{String(idx + 1).padStart(2, '0')}</span>
                                     <input autoComplete="off" data-lpignore="true" 
                                         type="text"
                                         value={stage}
@@ -236,7 +236,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                                 </div>
                             ))}
                         </div>
-                        <button type="button" onClick={addStage} className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-primary-500 hover:text-primary-600 transition-all flex items-center justify-center gap-2">
+                        <button type="button" onClick={addStage} className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-2xl text-2xs font-black text-slate-400 uppercase tracking-widest hover:border-primary-500 hover:text-primary-600 transition-all flex items-center justify-center gap-2">
                             <PlusIcon className="w-3.5 h-3.5" /> Add Stage
                         </button>
                     </div>
@@ -246,7 +246,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
             <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:justify-between items-center gap-2 sm:gap-4 z-50">
                 <div>
                     {isEditing && onDelete && (
-                        <button type="button" onClick={onDelete} className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:underline px-2">Delete Workflow</button>
+                        <button type="button" onClick={onDelete} className="text-2xs font-black text-rose-500 uppercase tracking-widest hover:underline px-2">Delete Workflow</button>
                     )}
                 </div>
                 <div className="flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 flex-1 sm:flex-none">

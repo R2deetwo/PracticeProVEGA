@@ -391,7 +391,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
 
                     {/* Footer Spacer for Mobile Clearances */}
                     <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA • Nigerian Litigation System' : 'ATRIUM • Property OS'}
                         </p>
                     </div>

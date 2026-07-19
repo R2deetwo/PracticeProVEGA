@@ -175,7 +175,7 @@ const MetricCard: React.FC<{
       <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${iconBg}`}>
         <span className={iconColor}>{icon}</span>
       </div>
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+      <span className="text-2xs font-semibold uppercase tracking-wider text-gray-400">
         {title}
       </span>
     </div>
@@ -185,7 +185,7 @@ const MetricCard: React.FC<{
         <span className="text-xs text-gray-500">{subtitle}</span>
       )}
       {trend && (
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+        <span className={`text-2xs font-semibold px-1.5 py-0.5 rounded-full ${
           trend.positive
             ? 'text-emerald-400 bg-emerald-400/10'
             : 'text-red-400 bg-red-400/10'
@@ -230,7 +230,7 @@ const RateLimitBar: React.FC<{ used: number; limit: number; resetsAt: number | n
           <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-blue-500/10">
             <Gauge className="w-4.5 h-4.5 text-blue-400" />
           </div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-gray-400">
             Rate Limit
           </span>
         </div>
@@ -256,13 +256,13 @@ const RateLimitBar: React.FC<{ used: number; limit: number; resetsAt: number | n
       </div>
 
       {isWarning && (
-        <p className="text-[11px] text-amber-400 mt-2 flex items-center gap-1">
+        <p className="text-2xs text-amber-400 mt-2 flex items-center gap-1">
           <AlertTriangle className="w-3 h-3" />
           Approaching rate limit — {Math.round(percentage)}% used
         </p>
       )}
       {isCritical && (
-        <p className="text-[11px] text-red-400 mt-2 flex items-center gap-1">
+        <p className="text-2xs text-red-400 mt-2 flex items-center gap-1">
           <AlertTriangle className="w-3 h-3" />
           Rate limit reached — requests will be throttled
         </p>
@@ -293,7 +293,7 @@ const BreakdownList: React.FC<{
           <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
             <span className="text-gray-400">{icon}</span>
           </div>
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+          <span className="text-2xs font-semibold uppercase tracking-wider text-gray-400">
             {title}
           </span>
         </div>
@@ -308,18 +308,18 @@ const BreakdownList: React.FC<{
         <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
           <span className="text-gray-400">{icon}</span>
         </div>
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-gray-400">
           {title}
         </span>
       </div>
 
       {/* Header row */}
       <div className="flex items-center justify-between px-1 pb-2 mb-1 border-b border-[#1e293b]">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 w-1/3">Name</span>
+        <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 w-1/3">Name</span>
         <div className="flex items-center gap-6 w-2/3 justify-end">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 w-16 text-right">Requests</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 w-20 text-right">Tokens</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 w-12 text-right">Share</span>
+          <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 w-16 text-right">Requests</span>
+          <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 w-20 text-right">Tokens</span>
+          <span className="text-2xs font-bold uppercase tracking-wider text-gray-500 w-12 text-right">Share</span>
         </div>
       </div>
 
@@ -353,7 +353,7 @@ const BreakdownList: React.FC<{
                       style={{ width: `${share}%` }}
                     />
                   </div>
-                  <span className="text-[10px] text-gray-500 tabular-nums w-7 text-right">
+                  <span className="text-2xs text-gray-500 tabular-nums w-7 text-right">
                     {share}%
                   </span>
                 </div>
@@ -565,10 +565,10 @@ const AIUsageDashboard: React.FC = () => {
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[#1e293b]">
               <BarChart3 className="w-4 h-4 text-gray-400" />
             </div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="text-2xs font-semibold uppercase tracking-wider text-gray-400">
               Daily Activity
             </span>
-            <span className="text-[10px] text-gray-600 ml-auto">
+            <span className="text-2xs text-gray-600 ml-auto">
               Last {Object.keys(usageData.daily).length} days with activity
             </span>
           </div>
@@ -601,7 +601,7 @@ const AIUsageDashboard: React.FC = () => {
                     />
                     {/* Tooltip on hover */}
                     <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-10">
-                      <div className="bg-[#1e293b] border border-[#2d3a4f] rounded-lg px-2.5 py-1.5 text-[10px] whitespace-nowrap shadow-xl">
+                      <div className="bg-[#1e293b] border border-[#2d3a4f] rounded-lg px-2.5 py-1.5 text-2xs whitespace-nowrap shadow-xl">
                         <p className="font-semibold text-white">{data.requests} req</p>
                         <p className="text-gray-400">{formatNumber(data.tokens)} tokens</p>
                       </div>
@@ -614,10 +614,10 @@ const AIUsageDashboard: React.FC = () => {
 
           {/* Date labels */}
           <div className="flex justify-between mt-2">
-            <span className="text-[10px] text-gray-600">
+            <span className="text-2xs text-gray-600">
               {Object.keys(usageData.daily).sort()[0]?.slice(5)}
             </span>
-            <span className="text-[10px] text-gray-600">
+            <span className="text-2xs text-gray-600">
               {Object.keys(usageData.daily).sort().slice(-1)[0]?.slice(5)}
             </span>
           </div>

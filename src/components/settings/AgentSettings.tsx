@@ -97,9 +97,9 @@ const AgentRow: React.FC<{ icon: React.ReactNode; name: string; desc: string; tr
         <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-slate-900 dark:text-white text-xs">{name}</span>
-                <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">{trigger}</span>
+                <span className="text-3xs font-mono text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase tracking-wider flex-shrink-0">{trigger}</span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-snug mt-0.5">{desc}</p>
+            <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-snug mt-0.5">{desc}</p>
         </div>
     </div>
 );
@@ -208,7 +208,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
                     <div className="flex-grow w-full relative">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                        <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">
                             Gemini API Key
                         </label>
                         <div className="relative">
@@ -296,7 +296,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             Set a fallback API key for the entire firm. Used when a user hasn't set their own personal key.
                         </p>
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Firm Gemini Key (Google)</label>
+                            <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Firm Gemini Key (Google)</label>
                             <input autoComplete="off" data-lpignore="true"
                                 type="password"
                                 placeholder="AIzaSy... (Firm Fallback)"
@@ -331,7 +331,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             addToast={addToast}
                             convex={convex}
                         />
-                        <div className="mt-3 p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/40 text-[11px] text-indigo-700 dark:text-indigo-300 leading-relaxed">
+                        <div className="mt-3 p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/40 text-2xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
                             <span className="font-bold">Note:</span> Memory (vector embeddings) is stored in your firm's database, tied to your <code className="font-mono bg-indigo-100 dark:bg-indigo-800/40 px-1 rounded">firmId</code>. You can rotate your Gemini key at any time without losing indexed memories.
                         </div>
                     </SettingsCard>

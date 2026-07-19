@@ -330,7 +330,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                             </button>
                         )}
                         <div>
-                            <p className="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em]">New Matter</p>
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em]">New Matter</p>
                             <h1 id="smart-matter-title" className="text-lg font-bold text-slate-900 dark:text-white leading-tight">
                                 {step === 0 ? 'What type of matter is this?' : MATTER_TYPES.find(m => m.type === matterType)?.label + ' Matter'}
                             </h1>
@@ -357,7 +357,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                         <Icon d={mt.icon} className="w-5 h-5" />
                                     </div>
                                     <p className="text-sm font-bold text-slate-800 dark:text-white">{mt.label}</p>
-                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 leading-tight">{mt.desc}</p>
+                                    <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-tight">{mt.desc}</p>
                                 </button>
                             ))}
                         </div>
@@ -403,9 +403,9 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* Secondary / additional parties */}
                                     {activeProcessConfig.secondaryParties.length > 0 && (
                                         <div className="flex flex-wrap gap-1.5">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider self-center mr-1">Also may include:</span>
+                                            <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider self-center mr-1">Also may include:</span>
                                             {activeProcessConfig.secondaryParties.map(p => (
-                                                <span key={p} className="px-2 py-0.5 text-[10px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-full border border-slate-200 dark:border-zinc-700">
+                                                <span key={p} className="px-2 py-0.5 text-2xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-full border border-slate-200 dark:border-zinc-700">
                                                     {p}
                                                 </span>
                                             ))}
@@ -435,7 +435,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* ── Process-specific dynamic intake fields ── */}
                                     {activeProcessConfig.keyIntakeFields.length > 0 && (
                                         <div className="space-y-2 sm:space-y-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
-                                            <p className="text-[10px] font-black text-primary-500 uppercase tracking-[0.15em]">Process-Specific Details</p>
+                                            <p className="text-2xs font-black text-primary-500 uppercase tracking-[0.15em]">Process-Specific Details</p>
                                             {activeProcessConfig.keyIntakeFields.map(field => (
                                                 <div key={field.fieldId}>
                                                     <label className={lbl}>
@@ -485,7 +485,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* ALOA hint */}
                                     <div className="flex items-start gap-2 p-3 bg-primary-50 dark:bg-primary-900/10 border border-primary-100 dark:border-primary-900/30 rounded-xl">
                                         <svg className="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.75 3.75 0 01-5.3 0l-.347-.347z" /></svg>
-                                        <p className="text-[11px] text-primary-700 dark:text-primary-300 leading-snug">
+                                        <p className="text-2xs text-primary-700 dark:text-primary-300 leading-snug">
                                             <span className="font-bold">ALOA will draft: </span>
                                             {activeProcessConfig.draftingExpectations}
                                         </p>
@@ -499,7 +499,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                 {autoTitle ? (
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2 px-3 py-2 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg text-sm font-medium text-primary-800 dark:text-primary-200">
-                                            <span className="text-[10px] font-bold text-primary-500 uppercase tracking-wide flex-shrink-0">Auto</span>
+                                            <span className="text-2xs font-bold text-primary-500 uppercase tracking-wide flex-shrink-0">Auto</span>
                                             {autoTitle}
                                         </div>
                                         <input autoComplete="off" data-lpignore="true"  className={inp} value={title} onChange={e => setTitle(e.target.value)} placeholder="Override auto-title (optional)" />
@@ -605,7 +605,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                     key={unit.id}
                                                     type="button"
                                                     onClick={() => setActiveUnitIndex(idx)}
-                                                    className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                                    className={`px-3 py-1 rounded-lg text-2xs font-bold transition-all ${
                                                         activeUnitIndex === idx
                                                         ? 'bg-primary-600 text-white'
                                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
@@ -621,12 +621,12 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {(propertyCategory === 'Tenanted Property' || propertyCategory === 'Personal Residence' || propertyCategory === 'Other') && (
                                         <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-emerald-50/50 dark:bg-emerald-900/5 border border-emerald-100 dark:border-emerald-900/20 rounded-xl animate-fade-in">
                                             <div className="flex justify-between items-center">
-                                                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.15em]">
+                                                <p className="text-2xs font-black text-emerald-600 uppercase tracking-[0.15em]">
                                                     {numberOfUnits > 1 ? `${unitsData[activeUnitIndex].unitName} Details` : 'Rental / Lease Details'}
                                                 </p>
                                                 {numberOfUnits > 1 && (
                                                     <input autoComplete="off" data-lpignore="true"  
-                                                        className="text-[10px] font-bold bg-transparent border-none text-emerald-600 focus:ring-0 p-0 text-right w-24"
+                                                        className="text-2xs font-bold bg-transparent border-none text-emerald-600 focus:ring-0 p-0 text-right w-24"
                                                         value={unitsData[activeUnitIndex].unitName}
                                                         onChange={e => updateUnit(activeUnitIndex, 'unitName', e.target.value)}
                                                         placeholder="Unit Name"
@@ -695,7 +695,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* For Sale sub-section */}
                                     {propertyCategory === 'Property For Sale' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 sm:p-4 bg-blue-50/50 dark:bg-blue-900/5 border border-blue-100 dark:border-blue-900/20 rounded-xl animate-fade-in">
-                                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.15em]">Listing Details</p>
+                                            <p className="text-2xs font-black text-blue-600 uppercase tracking-[0.15em]">Listing Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Target Price (₦)</label>
@@ -718,7 +718,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     {/* Disputed sub-section */}
                                     {propertyCategory === 'Disputed Property' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
-                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
+                                            <p className="text-2xs font-black text-red-600 uppercase tracking-[0.15em]">Dispute / Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>
@@ -748,7 +748,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                     )}
                                     {reHasLitigation && propertyCategory !== 'Disputed Property' && (
                                         <div className="space-y-2 sm:space-y-3 p-3 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-xl">
-                                            <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.15em]">Litigation Details</p>
+                                            <p className="text-2xs font-black text-red-600 uppercase tracking-[0.15em]">Litigation Details</p>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <div>
                                                     <label className={lbl}>Court</label>

@@ -150,7 +150,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
               {/* Property / Unit Targeting */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Property</label>
+                  <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Property</label>
                   <select
                     value={newNoticePropertyId}
                     onChange={e => { setNewNoticePropertyId(e.target.value); setNewNoticeUnitId(''); }}
@@ -164,7 +164,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                 </div>
                 {newNoticePropertyId && unitsForProperty.length > 1 && (
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Unit</label>
+                    <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase mb-1">Target Unit</label>
                     <select
                       value={newNoticeUnitId}
                       onChange={e => setNewNoticeUnitId(e.target.value)}
@@ -187,7 +187,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                     <button
                       key={p}
                       onClick={() => setNewNoticePriority(p)}
-                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition-colors ${newNoticePriority === p ? NOTICE_PRIORITY_COLORS[p] + ' ring-2 ring-offset-1' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500'}`}
+                      className={`px-2.5 py-1 rounded text-2xs font-bold transition-colors ${newNoticePriority === p ? NOTICE_PRIORITY_COLORS[p] + ' ring-2 ring-offset-1' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500'}`}
                     >
                       {p.charAt(0).toUpperCase() + p.slice(1)}
                     </button>
@@ -247,7 +247,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
               {/* Active Notices */}
               {activeNotices.length > 0 && (
                 <div>
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-2">Active ({activeNotices.length})</h3>
+                  <h3 className="text-2xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400 mb-2">Active ({activeNotices.length})</h3>
                   <div className="space-y-2">
                     {activeNotices.map((notice: any) => {
                       const matchedUnit = flatUnits.find((u: any) => u.id === notice.propertyId);
@@ -263,12 +263,12 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                                   <svg className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                                 )}
                                 <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">{notice.title}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold flex-shrink-0 ${NOTICE_PRIORITY_COLORS[notice.priority] || NOTICE_PRIORITY_COLORS.normal}`}>
+                                <span className={`px-1.5 py-0.5 rounded text-3xs font-bold flex-shrink-0 ${NOTICE_PRIORITY_COLORS[notice.priority] || NOTICE_PRIORITY_COLORS.normal}`}>
                                   {notice.priority}
                                 </span>
                               </div>
                               <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-2 mb-2">{notice.body}</p>
-                              <div className="flex items-center gap-3 text-[10px] text-slate-400 dark:text-zinc-500">
+                              <div className="flex items-center gap-3 text-2xs text-slate-400 dark:text-zinc-500">
                                 <span>{new Date(notice.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                                 <span className="flex items-center gap-1">
                                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -295,7 +295,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
               {/* Archived Notices */}
               {archivedNotices.length > 0 && (
                 <details className="group">
-                  <summary className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
+                  <summary className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
                     Archived ({archivedNotices.length})
                   </summary>
                   <div className="mt-2 space-y-2">
@@ -304,7 +304,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                         <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{notice.title}</span>
                         <button
                           onClick={() => restoreNotice({ noticeId: notice._id }).then(() => addToast('Notice restored.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to restore.', { type: 'error' }))}
-                          className="text-[10px] font-bold text-amber-600 hover:text-amber-500 flex-shrink-0"
+                          className="text-2xs font-bold text-amber-600 hover:text-amber-500 flex-shrink-0"
                         >
                           Restore
                         </button>

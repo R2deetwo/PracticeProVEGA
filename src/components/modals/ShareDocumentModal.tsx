@@ -21,6 +21,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     const { addToast } = useUI();
 
     const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+    const [isSharing, setIsSharing] = useState(false);
     const [message, setMessage] = useState(`Sharing document: ${document.title}`);
 
     // Filter out current user and clients
@@ -54,6 +55,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     };
 
     const handleShare = async () => {
+        if (isSharing) return;
         if (selectedUserIds.size === 0) {
             addToast("Please select at least one colleague.", { type: 'info' });
             return;
@@ -69,9 +71,14 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
             handleSendMessage(chatId, message + linkText, currentUser.id);
         });
 
-        await Promise.all(sharePromises);
+        setIsSharing(true);
+        try {
+            await Promise.all(sharePromises);
 
-        onClose();
+            onClose();
+        } finally {
+            setIsSharing(false);
+        }
     };
 
     return (
@@ -140,7 +147,8 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
                 <button
                     type="button"
                     onClick={handleShare}
-                    className="px-4 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 shadow-sm transition-colors flex items-center gap-2"
+                    disabled={isSharing}
+                    className="px-4 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
                     Share
                 </button>

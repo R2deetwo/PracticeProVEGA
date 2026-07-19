@@ -59,7 +59,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
 
             {/* Features */}
             <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Included in {planConfig.title}</h4>
+                <h4 className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-3">Included in {planConfig.title}</h4>
                 <ul className="space-y-3">
                     {planConfig.features.map((feat, i) => (
                         <li key={i} className="flex items-start gap-3">
@@ -82,7 +82,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
                 >
                     {planConfig.buttonText}
                 </button>
-                <p className="text-[10px] text-slate-400">Cancel anytime.</p>
+                <p className="text-2xs text-slate-400">Cancel anytime.</p>
             </div>
 
             <div className="text-center">

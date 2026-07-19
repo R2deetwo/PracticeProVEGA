@@ -65,7 +65,7 @@ const GenerationOverlay: React.FC<GenerationOverlayProps> = ({
         {showCancel && onCancel && (
           <button
             onClick={onCancel}
-            className="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+            className="ml-1 text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
             title="Cancel drafting"
           >
             Cancel

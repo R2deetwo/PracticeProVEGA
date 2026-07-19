@@ -155,7 +155,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             {showBottomStatus && (
                 <div className="absolute bottom-20 flex flex-col items-center gap-4 px-10">
                     <p
-                        className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-700"
+                        className="text-2xs font-black uppercase tracking-[0.4em] text-slate-700"
                         style={{
                             animation: 'pulse 2s ease-in-out infinite',
                         }}

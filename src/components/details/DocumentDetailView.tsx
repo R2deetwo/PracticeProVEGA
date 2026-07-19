@@ -105,13 +105,13 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
                         </div>
                         <div className="min-w-0">
                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{file.name}</p>
-                            <p className="text-[10px] text-slate-400">PDF Document</p>
+                            <p className="text-2xs text-slate-400">PDF Document</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
                             onClick={() => setViewMode(viewMode === 'fit' ? 'portrait' : 'fit')}
-                            className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                            className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
                             title={viewMode === 'fit' ? 'Switch to portrait view' : 'Switch to fit-width view'}
                         >
                             {viewMode === 'fit' ? 'Fit' : 'Portrait'}
@@ -119,7 +119,7 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
                         <a
                             href={blobUrl}
                             download={file.name}
-                            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1"
+                            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-2xs font-bold transition-colors flex items-center gap-1"
                         >
                             <DownloadIcon className="w-3 h-3" />
                             Download
@@ -190,6 +190,13 @@ const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, titl
     // Keyboard navigation
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
+            // Guard: don't hijack arrow keys / space when the user is typing
+            // in an input, textarea, or contenteditable region. Without this,
+            // pressing space to type a space in a search box would advance
+            // the page instead — a particularly nasty UX bug because the
+            // input might be inside a child of the same containerRef.
+            const target = e.target as HTMLElement;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) return;
             if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
                 e.preventDefault();
                 setCurrentPage(p => Math.max(0, p - 1));
@@ -241,7 +248,7 @@ const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, titl
                     </div>
                     <div className="min-w-0">
                         <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{title}</p>
-                        <p className="text-[10px] text-slate-400">Page {safeCurrentPage + 1} of {pageCount}</p>
+                        <p className="text-2xs text-slate-400">Page {safeCurrentPage + 1} of {pageCount}</p>
                     </div>
                 </div>
 
@@ -263,7 +270,7 @@ const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, titl
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                     </button>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-14 text-center">
+                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 w-14 text-center">
                         {safeCurrentPage + 1} / {pageCount}
                     </span>
                     <button
@@ -293,7 +300,7 @@ const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, titl
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
                     </button>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 w-9 text-center">{zoom}%</span>
+                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 w-9 text-center">{zoom}%</span>
                     <button
                         onClick={() => setZoom(z => Math.min(200, z + 25))}
                         className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
@@ -330,7 +337,7 @@ const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, titl
 
             {/* Bottom hint */}
             <div className="flex-shrink-0 px-4 py-1.5 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-center">
-                <p className="text-[9px] text-slate-400 dark:text-zinc-500">
+                <p className="text-3xs text-slate-400 dark:text-zinc-500">
                     Use ← → arrow keys or the buttons above to navigate pages
                 </p>
             </div>
@@ -493,7 +500,7 @@ const DocumentDetailViewContent: React.FC = () => {
                     {document.isCourtProcess && (
                         <div className="mt-1 flex items-center gap-2">
                             <Tooltip text="This document is part of a formal court process.">
-                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-800 rounded-md">Court Process</span>
+                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-2xs font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-800 rounded-md">Court Process</span>
                             </Tooltip>
                         </div>
                     )}
@@ -502,12 +509,12 @@ const DocumentDetailViewContent: React.FC = () => {
                     <div className="flex flex-col items-end gap-2">
                         {document.isCourtProcess && (
                             <div className="flex flex-col items-end">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
+                                <span className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
                                 <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
                                     <Tooltip text="Document is still being drafted">
                                         <button
                                             onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                         >
                                             Draft
                                         </button>
@@ -515,7 +522,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     <Tooltip text="Formally filed with the court">
                                         <button
                                             onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'filed' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                         >
                                             Filed
                                         </button>
@@ -523,7 +530,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     <Tooltip text="Served on the opposing party">
                                         <button
                                             onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'served' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                         >
                                             Served
                                         </button>
@@ -531,7 +538,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     <Tooltip text="Proof of Service Filed">
                                         <button
                                             onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'acknowledged' })}
-                                            className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                            className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                         >
                                             Proof of Service
                                         </button>
@@ -610,14 +617,14 @@ const DocumentDetailViewContent: React.FC = () => {
                                                         `bg-white dark:bg-zinc-800 border-dashed border-slate-200 dark:border-zinc-700`
                                                     }`}>
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCurrent ? `text-${step.color}-600 dark:text-${step.color}-400` : 'text-slate-400'}`}>Step {idx + 1}</span>
+                                                        <span className={`text-2xs font-black uppercase tracking-widest ${isCurrent ? `text-${step.color}-600 dark:text-${step.color}-400` : 'text-slate-400'}`}>Step {idx + 1}</span>
                                                         {isPast && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
                                                     </div>
                                                     <h5 className={`font-bold text-sm mb-1 ${isCurrent ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{step.label}</h5>
-                                                    <p className="text-[10px] leading-tight text-slate-500">{step.desc}</p>
+                                                    <p className="text-2xs leading-tight text-slate-500">{step.desc}</p>
                                                     <button
                                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: step.id as any })}
-                                                        className={`mt-3 w-full py-1.5 text-[10px] font-bold rounded-lg transition-all ${isCurrent ? `bg-${step.color}-600 text-white` : `bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600`}`}
+                                                        className={`mt-3 w-full py-1.5 text-2xs font-bold rounded-lg transition-all ${isCurrent ? `bg-${step.color}-600 text-white` : `bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600`}`}
                                                     >
                                                         {isCurrent ? 'Current Stage' : isPast ? 'Revert to Stage' : 'Mark as Done'}
                                                     </button>
@@ -788,7 +795,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center gap-1.5 py-1 px-3 bg-white dark:bg-zinc-800 rounded-full w-fit border border-green-100 dark:border-green-900">
                                                     <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className="text-[10px] font-black uppercase text-green-600 tracking-tighter">Verified Agent</span>
+                                                    <span className="text-2xs font-black uppercase text-green-600 tracking-tighter">Verified Agent</span>
                                                 </div>
                                             </section>
 
@@ -811,7 +818,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                                         <span className="text-xs font-bold text-slate-400 uppercase block mb-2">Detected Nigerian PII</span>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {document.dataProtectionAnalysis?.identifiedPii?.map((pii, idx) => (
-                                                                <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-900 rounded text-[10px] text-slate-600 dark:text-zinc-400 font-bold border border-slate-200 dark:border-zinc-700">
+                                                                <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-900 rounded text-2xs text-slate-600 dark:text-zinc-400 font-bold border border-slate-200 dark:border-zinc-700">
                                                                     {pii}
                                                                 </span>
                                                             )) || <span className="text-xs text-slate-400 italic">None detected</span>}

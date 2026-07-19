@@ -416,7 +416,7 @@ function renderCardContent({
 
             <div className="mb-4">
                 <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-2xs font-bold rounded-full uppercase tracking-wider">
                         Step {stepIndex + 1} of {total}
                     </span>
                 </div>

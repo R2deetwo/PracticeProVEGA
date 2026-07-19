@@ -433,7 +433,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                         <line x1="12" y1="19" x2="12" y2="23"/>
                                         <line x1="8" y1="23" x2="16" y2="23"/>
                                     </svg>
-                                    {isDictating && <span className="text-[9px] font-bold">Listening...</span>}
+                                    {isDictating && <span className="text-3xs font-bold">Listening...</span>}
                                 </button>
                             </>
                         )}
@@ -456,7 +456,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                 }
                                 e.target.value = '';
                             }}
-                            className="text-[10px] font-bold px-1.5 py-1 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-700"
+                            className="text-2xs font-bold px-1.5 py-1 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-700"
                             defaultValue=""
                             title="Insert a template"
                         >
@@ -488,7 +488,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                         style={{ top: linkPosition.top, left: linkPosition.left }}
                     >
                         <div className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Link to</p>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Link to</p>
                         </div>
                         <div className="max-h-[240px] overflow-y-auto py-1">
                             {linkResults.map((result, index) => (
@@ -498,7 +498,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                     onMouseEnter={() => setLinkSelectedIndex(index)}
                                     className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${index === linkSelectedIndex ? 'bg-indigo-50 dark:bg-indigo-900/20' : 'hover:bg-slate-50 dark:hover:bg-zinc-700/50'}`}
                                 >
-                                    <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black uppercase ${
+                                    <div className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-3xs font-black uppercase ${
                                         result.type === 'matter' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
                                         result.type === 'contact' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                         result.type === 'property' ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' :
@@ -511,12 +511,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                                         <p className={`text-sm font-semibold truncate ${index === linkSelectedIndex ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-zinc-300'}`}>
                                             {result.label}
                                         </p>
-                                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">{result.subtitle}</p>
+                                        <p className="text-2xs text-slate-400 dark:text-zinc-500 capitalize">{result.subtitle}</p>
                                     </div>
                                 </button>
                             ))}
                         </div>
-                        <div className="px-3 py-1 bg-slate-50 dark:bg-zinc-900/50 border-t border-slate-100 dark:border-zinc-700 flex items-center gap-3 text-[9px] text-slate-400">
+                        <div className="px-3 py-1 bg-slate-50 dark:bg-zinc-900/50 border-t border-slate-100 dark:border-zinc-700 flex items-center gap-3 text-3xs text-slate-400">
                             <span>↑↓ Navigate</span>
                             <span>↵ Select</span>
                             <span>Esc Close</span>
@@ -539,7 +539,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-xs font-bold text-red-600 dark:text-red-400">Listening…</span>
-                        <span className="text-[10px] text-slate-400">Say "period", "comma", "new line" for punctuation</span>
+                        <span className="text-2xs text-slate-400">Say "period", "comma", "new line" for punctuation</span>
                     </div>
                     <button
                         onClick={toggleDictation}
@@ -551,7 +551,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             )}
 
             {/* Footer — word count + markdown export */}
-            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 py-1.5 flex items-center justify-between text-[10px] text-slate-400 dark:text-zinc-500">
+            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 py-1.5 flex items-center justify-between text-2xs text-slate-400 dark:text-zinc-500">
                 <span>
                     {(() => {
                         const text = editor?.getText() || '';

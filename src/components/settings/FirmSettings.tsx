@@ -280,7 +280,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
                                 Track client funds held in trust separately from your operating account. Adds a "Trust Account" tab to your Financials page where you can record deposits, withdrawals, and transfers with running balance tracking.
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-2">
+                            <p className="text-2xs text-slate-400 mt-2">
                                 You can turn this off anytime — existing trust transactions are preserved.
                             </p>
                         </div>
@@ -343,7 +343,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                     <ShieldCheckIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                                     <h4 className="text-sm font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">{isProperty ? 'Workspace Secret Access Code' : 'Firm Secret Access Code'}</h4>
                                 </div>
-                                <button onClick={handleRotateCode} disabled={isRotating} className="text-[10px] text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors disabled:opacity-50">
+                                <button onClick={handleRotateCode} disabled={isRotating} className="text-2xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors disabled:opacity-50">
                                     <RevertIcon className={`w-3 h-3 ${isRotating ? 'animate-spin' : ''}`} /> {isRotating ? 'Rotating...' : 'Rotate Code'}
                                 </button>
                             </div>
@@ -355,7 +355,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                         </span>
                                         <button
                                             onClick={handleCopyInviteCode}
-                                            className="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-md text-[10px] font-bold uppercase transition-colors text-slate-600 dark:text-slate-200"
+                                            className="px-3 py-1 bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 rounded-md text-2xs font-bold uppercase transition-colors text-slate-600 dark:text-slate-200"
                                         >
                                             Copy
                                         </button>
@@ -420,16 +420,16 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                                 <div className="flex flex-col">
                                                     <span className="flex items-center gap-1.5 text-sm">
                                                         {user.name}
-                                                        {isMe && <span className="text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">You</span>}
+                                                        {isMe && <span className="text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-wider">You</span>}
                                                         {(user.role === UserRole.Client || user.role === UserRole.Tenant) && (
-                                                            <span className="text-[9px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5">
+                                                            <span className="text-3xs font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-0.5">
                                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
                                                                 Portal
                                                             </span>
                                                         )}
                                                     </span>
                                                     {isInAnotherFirm && (
-                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
+                                                        <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
                                                             Currently in other workspace
                                                         </span>
                                                      )}

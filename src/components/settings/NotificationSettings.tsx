@@ -232,7 +232,7 @@ export const NotificationSettings: React.FC = () => {
           </svg>
           <div>
             <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">How this works</p>
-            <p className="text-[11px] text-blue-600 dark:text-blue-400 mt-0.5 leading-relaxed">
+            <p className="text-2xs text-blue-600 dark:text-blue-400 mt-0.5 leading-relaxed">
               When an event occurs (e.g. posting a notice, sending a receipt), the system checks these settings before
               sending an email. Disabling a type means only in-app notifications are delivered — no emails. Types marked
               with a lock icon are always enabled for security and cannot be turned off.
@@ -261,9 +261,9 @@ export const NotificationSettings: React.FC = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-xs font-bold text-slate-800 dark:text-zinc-200">{meta.label}</h3>
-                <p className="text-[10px] text-slate-500 dark:text-zinc-400">{meta.description}</p>
+                <p className="text-2xs text-slate-500 dark:text-zinc-400">{meta.description}</p>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+              <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
                 {types.filter(t => localPrefs[t.key]?.enabled ?? t.defaultEnabled).length}/{types.length} on
               </span>
             </div>
@@ -285,16 +285,16 @@ export const NotificationSettings: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-slate-700 dark:text-zinc-300">{type.label}</span>
                         {isAlwaysOn && (
-                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[9px] font-bold text-slate-500 dark:text-zinc-400">
+                          <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-3xs font-bold text-slate-500 dark:text-zinc-400">
                             <LockClosedIcon className="w-2.5 h-2.5" />
                             Always on
                           </span>
                         )}
                         {!isAlwaysOn && !isEnabled && (
-                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-[9px] font-bold text-slate-400 dark:text-zinc-500">Off</span>
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-3xs font-bold text-slate-400 dark:text-zinc-500">Off</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-zinc-500 mt-0.5">{type.description}</p>
+                      <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-0.5">{type.description}</p>
                     </div>
 
                     {/* Toggle switch */}
@@ -323,7 +323,7 @@ export const NotificationSettings: React.FC = () => {
       })}
 
       {/* Footer note */}
-      <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500 px-1">
+      <div className="flex items-center gap-2 text-2xs text-slate-400 dark:text-zinc-500 px-1">
         <LockClosedIcon className="w-3 h-3" />
         <span>Locked items are always enabled for security and compliance. They cannot be turned off.</span>
       </div>

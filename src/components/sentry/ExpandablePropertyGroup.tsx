@@ -70,7 +70,7 @@ export const ExpandablePropertyGroup: React.FC<ExpandablePropertyGroupProps> = (
                     {unit.rentalDetails?.unitName || `Unit ${unit.id.slice(-4).toUpperCase()}`}
                   </span>
                   <span
-                    className={`text-[10px] px-2 py-0.5 font-bold uppercase rounded-full ${
+                    className={`text-2xs px-2 py-0.5 font-bold uppercase rounded-full ${
                       unit.status === PropertyStatus.Occupied
                         ? "bg-green-50 text-green-700 border border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/30"
                         : "bg-slate-100 text-slate-600 border border-slate-200 dark:bg-zinc-700 dark:text-zinc-400 dark:border-zinc-600"

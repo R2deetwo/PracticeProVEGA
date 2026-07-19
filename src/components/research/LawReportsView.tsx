@@ -141,7 +141,7 @@ const CaseList: React.FC<{
                         <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-2 leading-relaxed">{c.summary}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                             {c.tags?.slice(0, 3).map(tag => (
-                                <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-full">{tag}</span>
+                                <span key={tag} className="text-2xs px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-full">{tag}</span>
                             ))}
                         </div>
                     </div>

@@ -81,7 +81,7 @@ const ResearchView: React.FC = () => {
             // Clean up the hash so a refresh doesn't re-trigger
             if (window.location.hash && window.location.hash.includes('__ctx=')) {
                 try {
-                    history.replaceState(null, '', window.location.pathname + window.location.search);
+                    history.replaceState(history.state, '', window.location.pathname + window.location.search);
                 } catch { /* ignore */ }
             }
         }
@@ -170,7 +170,7 @@ const ResearchView: React.FC = () => {
         // Clean up the hash so a refresh doesn't re-trigger auto-research
         if (window.location.hash && window.location.hash.includes('__ctx=')) {
             try {
-                history.replaceState(null, '', window.location.pathname + window.location.search);
+                history.replaceState(history.state, '', window.location.pathname + window.location.search);
             } catch { /* ignore */ }
         }
     }, [currentHistoryEntry?.context, hasProcessedResearchContext]);
@@ -336,13 +336,13 @@ const ResearchView: React.FC = () => {
 
                         <div className={`flex-1 min-w-0 h-full flex flex-col ${mobileWorkspaceView === 'sources' || mobileWorkspaceView === 'studio' ? 'hidden md:flex' : 'flex'}`}>
                             <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
-                                <button onClick={handleBackToNotebooks} className="flex items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                <button onClick={handleBackToNotebooks} className="flex items-center text-2xs font-bold text-slate-500 uppercase tracking-wider">
                                     <ChevronRightIcon className="w-3.5 h-3.5 rotate-180 mr-1" /> Notebooks
                                 </button>
                                 <span className="font-bold text-xs truncate max-w-[110px] text-slate-900 dark:text-white">{selectedNotebook.name}</span>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => setMobileWorkspaceView('sources')} className="text-[10px] font-bold text-primary-600 uppercase">Sources</button>
-                                    <button onClick={() => setMobileWorkspaceView('studio')} className="text-[10px] font-bold text-indigo-600 uppercase">Studio</button>
+                                    <button onClick={() => setMobileWorkspaceView('sources')} className="text-2xs font-bold text-primary-600 uppercase">Sources</button>
+                                    <button onClick={() => setMobileWorkspaceView('studio')} className="text-2xs font-bold text-indigo-600 uppercase">Studio</button>
                                 </div>
                             </div>
                             <ResearchChat
@@ -397,7 +397,7 @@ const ResearchView: React.FC = () => {
                     </div>
                     <div className="min-w-0">
                         <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Research</h2>
-                        <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 -mt-0.5 truncate">PracticePro Research</p>
+                        <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 -mt-0.5 truncate">PracticePro Research</p>
                     </div>
                 </div>
                 <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0">

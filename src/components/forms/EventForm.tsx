@@ -39,6 +39,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
     const { isProperty } = useProduct();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [matterId, setMatterId] = useState<string>('');
@@ -183,8 +184,9 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
         if (!isNaN(newDate.getTime())) setEndDate(newDate);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!title) {
             addToast("Please provide an event title.", { type: 'info' });
             return;
@@ -221,13 +223,18 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
             recurrence: recurrenceEnabled ? { frequency: recurrenceFrequency, endDate: recurrenceEndDate || undefined } : undefined,
         };
 
-        if (isEditing && onUpdateEvent) {
-            onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
-        } else {
-            onSave(eventData);
-            localStorage.removeItem('draft_newEvent');
+        setIsSubmitting(true);
+        try {
+            if (isEditing && onUpdateEvent) {
+                onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
+            } else {
+                onSave(eventData);
+                localStorage.removeItem('draft_newEvent');
+            }
+            onClose();
+        } finally {
+            setIsSubmitting(false);
         }
-        onClose();
     };
 
     const commonInputClass = inputModern;
@@ -256,7 +263,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                             <div className="flex justify-between items-center mb-0.5">
                                 <label htmlFor="type" className={labelClass}>Activity Type</label>
                                 {onNavigate && (
-                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline">Customize</button>
+                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-3xs font-black text-primary-600 uppercase tracking-widest hover:underline">Customize</button>
                                 )}
                             </div>
                             <select id="type" value={type} onChange={e => setType(e.target.value)} className={commonInputClass} required>
@@ -359,12 +366,12 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                                     +
                                                 </button>
                                             </div>
-                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="minutes">Min</option>
                                                 <option value="hours">Hrs</option>
                                                 <option value="days">Day</option>
                                             </select>
-                                            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">before</span>
+                                            <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">before</span>
                                         </div>
                                     )}
                                 </div>
@@ -381,7 +388,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                                     {recurrenceEnabled && (
                                         <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
-                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="daily">Daily</option>
                                                 <option value="weekly">Weekly</option>
                                                 <option value="monthly">Monthly</option>
@@ -426,7 +433,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Event'}
                 </button>
             </div>

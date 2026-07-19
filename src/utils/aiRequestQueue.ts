@@ -31,7 +31,7 @@ interface InternalTask<T> extends QueuedTask<T> {
     timeoutId: ReturnType<typeof setTimeout>;
 }
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
  * AIRequestQueue — a self-contained sequential queue.

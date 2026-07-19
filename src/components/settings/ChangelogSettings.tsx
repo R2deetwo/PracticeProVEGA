@@ -35,7 +35,7 @@ const EntryCard: React.FC<{ entry: ChangelogEntry; isLatest: boolean }> = ({ ent
                         </p>
                     </div>
                     {isLatest && (
-                        <span className="ml-1 px-2 py-0.5 bg-indigo-500 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
+                        <span className="ml-1 px-2 py-0.5 bg-indigo-500 text-white text-2xs font-bold rounded-full uppercase tracking-wider">
                             Latest
                         </span>
                     )}

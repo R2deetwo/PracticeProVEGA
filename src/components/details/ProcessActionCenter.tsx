@@ -255,7 +255,7 @@ const PriorityBadge: React.FC<{ p: 'CRITICAL' | 'HIGH' | 'MEDIUM' }> = ({ p }) =
         MEDIUM:   'bg-slate-400/15 text-slate-500 dark:text-zinc-400 border-slate-300 dark:border-zinc-600',
     }[p];
     return (
-        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border ${cfg}`}>
+        <span className={`inline-block px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-wider border ${cfg}`}>
             {p}
         </span>
     );
@@ -283,18 +283,18 @@ const ActionCard: React.FC<{
                 <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 leading-tight">{action.title}</p>
                 <PriorityBadge p={action.priority} />
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed mb-2">{action.description}</p>
+            <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-2">{action.description}</p>
             <div className="flex items-center gap-2">
                 <button
                     onClick={() => onExecute(action)}
-                    className="px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider text-white transition-all hover:opacity-90 active:scale-95 shadow-sm flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg text-2xs font-black uppercase tracking-wider text-white transition-all hover:opacity-90 active:scale-95 shadow-sm flex items-center gap-1.5"
                     style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}
                 >
                     {action.actionType === 'generate-document' ? <><FileText className="w-3.5 h-3.5" /> Generate</> :
                      action.actionType === 'file-with-court'   ? <><Landmark className="w-3.5 h-3.5" /> File</> :
                      action.actionType === 'send-email'        ? <><Mail className="w-3.5 h-3.5" /> Send</> : <><Link className="w-3.5 h-3.5" /> Open Portal</>}
                 </button>
-                <span className="text-[10px] text-slate-400 dark:text-zinc-500 capitalize">
+                <span className="text-2xs text-slate-400 dark:text-zinc-500 capitalize">
                     {action.actionType.replace(/-/g, ' ')}
                 </span>
             </div>
@@ -322,7 +322,7 @@ const ProcessChecklist: React.FC<{
                 <span className="text-xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400">
                     Procedure Checklist
                 </span>
-                <span className="text-[10px] font-bold" style={{ color: accent }}>{done}/{filtered.length} complete</span>
+                <span className="text-2xs font-bold" style={{ color: accent }}>{done}/{filtered.length} complete</span>
             </div>
 
             {/* Progress bar */}
@@ -354,7 +354,7 @@ const ProcessChecklist: React.FC<{
                                 {task.title}
                             </p>
                             {task.dueDate && (
-                                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                                <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">
                                     Due {new Date(task.dueDate).toLocaleDateString('en-GB')}
                                 </p>
                             )}
@@ -403,7 +403,7 @@ const StrategicSuggestions: React.FC<{
         <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700/60 overflow-hidden mb-4">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-zinc-700/50 bg-amber-500/5">
                 <ShieldCheckIcon className="w-4 h-4 text-amber-500" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                <span className="text-2xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">
                     Strategic Intelligence
                 </span>
             </div>
@@ -568,17 +568,17 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
             <div className="flex items-center justify-between px-4 py-3 rounded-2xl"
                 style={{ background: style.bg, border: `1px solid ${style.border}` }}>
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: accent }}>
+                    <p className="text-2xs font-black uppercase tracking-widest mb-0.5" style={{ color: accent }}>
                         Action Center
                     </p>
                     <p className="text-sm font-bold text-slate-800 dark:text-zinc-100">{style.label}</p>
                     {matter.subCategory && (
-                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">{matter.subCategory}</p>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">{matter.subCategory}</p>
                     )}
                 </div>
                 <div className="text-right">
                     <p className="text-2xl font-black" style={{ color: accent }}>{completedCount}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">of {actions.length} actions taken</p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500 font-semibold">of {actions.length} actions taken</p>
                 </div>
             </div>
 
@@ -593,7 +593,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
                         <p className="text-sm font-bold text-red-700 dark:text-red-400">
                             {criticalActions.length} critical action{criticalActions.length > 1 ? 's' : ''} pending
                         </p>
-                        <p className="text-[11px] text-red-600/70 dark:text-red-400/70 mt-0.5">
+                        <p className="text-2xs text-red-600/70 dark:text-red-400/70 mt-0.5">
                             {criticalActions.map(a => a.title).join(' · ')}
                         </p>
                     </div>
@@ -608,7 +608,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
                     { id: 'templates', label: 'Templates' },
                 ] as const).map(sec => (
                     <button key={sec.id} onClick={() => setActiveSection(sec.id)}
-                        className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+                        className={`px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                             activeSection === sec.id
                                 ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
                                 : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
@@ -630,7 +630,7 @@ export const ProcessActionCenter: React.FC<ProcessActionCenterProps> = ({
                         <div className="flex flex-col items-center justify-center py-16 text-center">
                             <CheckCircle className="w-10 h-10 text-slate-300 dark:text-zinc-600 mb-3" />
                             <p className="text-sm font-bold text-slate-500 dark:text-zinc-400">No actions defined for this matter type</p>
-                            <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-1">Add tasks manually from the Tasks tab</p>
+                            <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">Add tasks manually from the Tasks tab</p>
                         </div>
                     )}
                 </div>

@@ -115,7 +115,7 @@ const Dashboard: React.FC = () => {
             <header className="sticky top-0 z-30 glass py-3 sm:py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0 pt-safe">
                 <div className="min-w-0">
                     <h2 className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white tracking-tight truncate">Overview</h2>
-                    <p className="text-[11px] sm:text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
+                    <p className="text-2xs sm:text-xs font-medium text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
                         Good day, {currentUser.name?.split(' ')[0] || 'User'}.
                     </p>
                 </div>
@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
                                 <div className="flex border border-slate-200/60 dark:border-zinc-700/60 bg-white dark:bg-zinc-800 rounded-xl p-1 shadow-sm flex-shrink-0">
                                     <button
                                         onClick={() => setActiveUnifiedTab('matters')}
-                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-2xs sm:text-xs font-bold transition-all ${
                                             activeUnifiedTab === 'matters'
                                                 ? 'bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-white shadow-inner'
                                                 : 'text-slate-500 dark:text-zinc-400'
@@ -172,7 +172,7 @@ const Dashboard: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => setActiveUnifiedTab('properties')}
-                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-[10px] sm:text-xs font-bold transition-all ${
+                                        className={`active-press flex-1 text-center py-2 px-2 sm:px-4 rounded-lg text-2xs sm:text-xs font-bold transition-all ${
                                             activeUnifiedTab === 'properties'
                                                 ? 'bg-slate-100 dark:bg-zinc-700 text-slate-800 dark:text-white shadow-inner'
                                                 : 'text-slate-500 dark:text-zinc-400'

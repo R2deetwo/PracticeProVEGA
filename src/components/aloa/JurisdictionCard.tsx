@@ -118,9 +118,9 @@ export function JurisdictionCard({
             <circle cx="12" cy="9" r="2.5" />
           </svg>
           Applicable Framework
-          {locked && <span className="text-[9px]">🔒</span>}
+          {locked && <span className="text-3xs">🔒</span>}
         </button>
-        <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 whitespace-nowrap truncate max-w-[180px]" title={forum}>
+        <span className="px-2 py-0.5 text-2xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 whitespace-nowrap truncate max-w-[180px]" title={forum}>
           {forum}
         </span>
       </div>
@@ -139,7 +139,7 @@ export function JurisdictionCard({
 
       {/* ─── Conditional Warning (only if genuine risk) ─── */}
       {warning && (
-        <div className="p-2.5 rounded bg-amber-50 border border-amber-200 text-[11px] text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400 flex items-start gap-1.5">
+        <div className="p-2.5 rounded bg-amber-50 border border-amber-200 text-2xs text-amber-800 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-400 flex items-start gap-1.5">
           <span className="flex-shrink-0">⚠️</span>
           <span><strong>Note:</strong> {warning}</span>
         </div>
@@ -150,14 +150,14 @@ export function JurisdictionCard({
         <div className="pt-2 border-t border-slate-200 dark:border-zinc-700 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
           {court && (
             <div>
-              <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-0.5">Selected Court</p>
-              <p className="text-[11px] text-slate-700 dark:text-zinc-300 font-medium">{court}</p>
+              <p className="text-3xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-0.5">Selected Court</p>
+              <p className="text-2xs text-slate-700 dark:text-zinc-300 font-medium">{court}</p>
             </div>
           )}
           {reasoning && (
             <div>
-              <p className="text-[9px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-0.5">Full Reasoning</p>
-              <p className="text-[11px] text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">{reasoning}</p>
+              <p className="text-3xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-0.5">Full Reasoning</p>
+              <p className="text-2xs text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-wrap">{reasoning}</p>
             </div>
           )}
 
@@ -165,7 +165,7 @@ export function JurisdictionCard({
           {!locked && !showOverride && onJurisdictionChange && (
             <button
               onClick={() => setShowOverride(true)}
-              className="text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              className="text-2xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
@@ -176,7 +176,7 @@ export function JurisdictionCard({
 
           {/* Locked indicator */}
           {locked && (
-            <p className="text-[10px] text-slate-500 dark:text-zinc-500 italic flex items-center gap-1">
+            <p className="text-2xs text-slate-500 dark:text-zinc-500 italic flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
               </svg>
@@ -189,7 +189,7 @@ export function JurisdictionCard({
             <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
               <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Select regulatory framework:</p>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Framework</label>
+                <label className="text-2xs font-bold text-slate-500 uppercase tracking-wide block mb-1">Framework</label>
                 <select
                   className="w-full text-xs bg-slate-50 dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-md px-2 py-1.5 outline-none focus:ring-1 focus:ring-blue-500"
                   onChange={(e) => {
@@ -235,7 +235,7 @@ export function JurisdictionCard({
             <div className="p-3 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 space-y-3">
               <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Select a different court:</p>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">State</label>
+                <label className="text-2xs font-bold text-slate-500 uppercase tracking-wide block mb-1">State</label>
                 <select
                   value={selectedState}
                   onChange={(e) => setSelectedState(e.target.value)}
@@ -247,7 +247,7 @@ export function JurisdictionCard({
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Court Tier</label>
+                <label className="text-2xs font-bold text-slate-500 uppercase tracking-wide block mb-1">Court Tier</label>
                 <select
                   value={selectedCourtTier}
                   onChange={(e) => setSelectedCourtTier(e.target.value as any)}

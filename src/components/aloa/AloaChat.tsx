@@ -71,7 +71,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
             model === 'research' ? 'Research — multi-step reasoning, citations, and jurisdiction detection' :
             'Select AI mode'
         }
-        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter transition-all border shadow-sm flex items-center gap-1 ${
+        className={`px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-tighter transition-all border shadow-sm flex items-center gap-1 ${
             model === 'pro'
                 ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800'
                 : model === 'flash'
@@ -408,10 +408,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // Don't reload if we're actively generating (optimistic UI)
         if (isGeneratingRef.current && messages.length > 0) return;
 
+        let cancelled = false;
+
         const loadMessages = async () => {
+            if (cancelled) return;
             setIsLoading(true);
             try {
                 const history = await convex.query(api.myFunctions.getAloaMessages, { conversationId: activeConversationId });
+                if (cancelled) return;
                 if (history && history.length > 0) {
                     setMessages(history.map((m: any) => ({
                         ...m,
@@ -421,14 +425,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setMessages([]);
                 }
             } catch (err) {
+                if (cancelled) return;
                 console.error("Failed to load conversation history:", err);
+                addToast('Could not load conversation history.', { type: 'error' });
             } finally {
-                setIsLoading(false);
+                if (!cancelled) setIsLoading(false);
             }
         };
 
         loadMessages();
-    }, [activeConversationId, convex, setMessages, setIsLoading]);
+
+        return () => { cancelled = true; };
+    }, [activeConversationId, convex, setMessages, setIsLoading, addToast]);
 
     const disconnectLiveSession = () => {
         if (liveSessionRef.current) {
@@ -735,17 +743,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                             if (result === 'new-tab' || result === 'existing-tab') {
                                 feedbackMessage = `Opened "${draftConfig.draftTitle}" in a new tab. You can continue chatting here.`;
-                            } else {
-                                // 'in-place' — only happens on mobile OR when popup is blocked on desktop.
-                                // On desktop popup-blocked, we open in-place as last resort with a tip.
-                                const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-                                if (isMobile) {
-                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
-                                } else {
-                                    feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}. (Tip: Allow pop-ups for this site to open drafts in a separate tab.)`;
-                                }
-                                // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
+                            } else if (result === 'in-place') {
+                                // Mobile only — no tabs on mobile, in-place is correct
+                                feedbackMessage = `Drafting **${draftConfig.draftTitle}** — ${jurisdictionAnalysis.court}`;
                                 openEditorRef.current(null, draftConfig);
+                            } else {
+                                // 'blocked' — desktop popup blocked. DO NOT navigate in-place.
+                                feedbackMessage = `I prepared **${draftConfig.draftTitle}** but your browser blocked the pop-up. Please allow pop-ups for this site and ask me to draft again — your chat will stay intact here.`;
                             }
                         } catch (e) {
                             console.warn('[start_drafting] tab open failed', e);
@@ -2380,7 +2384,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             {activeView === 'chat' && <ModelBadge model={preferredModel} onClick={cycleModel} />}
                         </div>
                         {activeView === 'chat' && getAssistantFullName(isProperty) && (
-                            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
+                            <p className="text-2xs text-slate-400 dark:text-zinc-500 font-medium leading-none mt-0.5 truncate">
                                 {getAssistantFullName(isProperty)}
                             </p>
                         )}
@@ -2504,7 +2508,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
                             <section>
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Recent Searches</h3>
+                                <h3 className="text-2xs font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Recent Searches</h3>
                                 <ConversationList
                                     activeId={activeConversationId}
                                     onSelect={(id) => {
@@ -2523,7 +2527,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </section>
 
                             <section>
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Archived Notes</h3>
+                                <h3 className="text-2xs font-black uppercase tracking-widest text-slate-400 mb-3 px-2">Archived Notes</h3>
                                 <div className="space-y-1">
                                     {documentState.notePages?.slice(0, 10).map(note => (
                                         <div key={note.id} className="group relative">
@@ -2536,7 +2540,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 className="w-full text-left p-3 rounded-xl hover:bg-white dark:hover:bg-zinc-800 transition-all border border-transparent hover:border-slate-100 dark:hover:border-zinc-700 pr-10"
                                             >
                                                 <div className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{note.title}</div>
-                                                <div className="text-[10px] text-slate-400 mt-0.5 line-clamp-1 opacity-60">{note.content}</div>
+                                                <div className="text-2xs text-slate-400 mt-0.5 line-clamp-1 opacity-60">{note.content}</div>
                                             </button>
                                             <button
                                                 onClick={async (e) => {
@@ -2560,7 +2564,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     ))}
                                     {(!documentState.notePages || documentState.notePages.length === 0) && (
-                                        <div className="text-[10px] text-slate-400 italic px-2">No notes yet...</div>
+                                        <div className="text-2xs text-slate-400 italic px-2">No notes yet...</div>
                                     )}
                                 </div>
                             </section>
@@ -2656,7 +2660,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {proactiveInsights.filter(i => i.severity === 'critical').length > 0 && (
                                         <button
                                             onClick={() => setShowInsightPanel('critical')}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full border border-red-200 dark:border-red-800/50 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors cursor-pointer"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                                             {proactiveInsights.filter(i => i.severity === 'critical').length} Urgent — View
@@ -2665,7 +2669,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {proactiveInsights.filter(i => i.severity === 'warning').length > 0 && (
                                         <button
                                             onClick={() => setShowInsightPanel('warning')}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
                                         >
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                             {proactiveInsights.filter(i => i.severity === 'warning').length} Attention{proactiveInsights.filter(i => i.severity === 'warning').length !== 1 ? '' : ''} — View
@@ -2674,7 +2678,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     {proactiveInsights.filter(i => i.category === 'briefing').length > 0 && (
                                         <button
                                             onClick={() => setTextInput("Show me today's morning briefing")}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                                         >
                                             ☀️ Briefing Ready
                                         </button>
@@ -2697,7 +2701,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     <button
                                         key={suggestion}
                                         onClick={() => setTextInput(suggestion)}
-                                        className="px-3 py-1.5 text-[11px] font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-colors border border-slate-200 dark:border-zinc-700"
+                                        className="px-3 py-1.5 text-2xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-colors border border-slate-200 dark:border-zinc-700"
                                     >
                                         {suggestion}
                                     </button>
@@ -2810,7 +2814,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {!msg.toolAction && (
                                             <button
                                                 onClick={() => handleCopyMessage(msg.id, msg.content || '')}
-                                                className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5`}
+                                                className={`${copiedMessageId === msg.id ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600'} rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5`}
                                                 title="Copy text"
                                             >
                                                 {copiedMessageId === msg.id ? (
@@ -2842,7 +2846,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {msg.role === 'model' && !msg.isError && !msg.toolAction && msg.content && isFormalDocument(msg.content) && (
                                             <button
                                                 onClick={() => handleDraftInDraftPro(msg.content || '', (msg as any).citations)}
-                                                className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"
+                                                className="bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md px-2 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5 border border-primary-300 dark:border-primary-700"
                                                 title="Send this document to DraftPro for proper editing"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2865,7 +2869,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                         input?.focus();
                                                     }, 100);
                                                 }}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5"
                                                 title="Edit & resend"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2879,7 +2883,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {msg.role === 'model' && !msg.isError && !msg.toolAction && (
                                             <button
                                                 onClick={() => handleSaveMessage(msg.content || '')}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5"
                                                 title="Save to Notes"
                                             >
                                                 <BookmarkIcon className="w-2.5 h-2.5" />
@@ -2891,7 +2895,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
                                             <button
                                                 onClick={() => handleSendToResearch(msg)}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md px-1.5 py-0.5 text-[9px] font-bold transition-all flex items-center gap-0.5"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5"
                                                 title="Send to Research Studio for deeper analysis"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2928,7 +2932,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         <svg className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                                         </svg>
-                                        <span className="text-[11px] font-bold text-slate-700 dark:text-zinc-200">
+                                        <span className="text-2xs font-bold text-slate-700 dark:text-zinc-200">
                                             {webFetchResults.length} web result{webFetchResults.length > 1 ? 's' : ''} {isLoading && '· reading…'}
                                         </span>
                                     </button>
@@ -2939,7 +2943,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {!isLoading && webFetchResults.some(r => r.success) && (
                                             <button
                                                 onClick={handlePushWebResultsToResearch}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-md text-[9px] font-bold transition-colors border border-indigo-200 dark:border-indigo-800/50"
+                                                className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-md text-3xs font-bold transition-colors border border-indigo-200 dark:border-indigo-800/50"
                                                 title="Push these web sources to a new Research notebook"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2973,10 +2977,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] font-semibold text-slate-800 dark:text-zinc-200 truncate">{r.title}</p>
-                                                <p className="text-[9px] text-slate-500 dark:text-zinc-500 truncate">{r.url}</p>
+                                                <p className="text-2xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{r.title}</p>
+                                                <p className="text-3xs text-slate-500 dark:text-zinc-500 truncate">{r.url}</p>
                                                 {r.snippet && (
-                                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{r.snippet}</p>
+                                                    <p className="text-2xs text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{r.snippet}</p>
                                                 )}
                                             </div>
                                         </a>
@@ -2994,9 +2998,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '150ms' }} />
                                 <span className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
-                            <p className="text-[11px] font-medium text-primary-700 dark:text-primary-300 flex-1">{aloaStatus}</p>
+                            <p className="text-2xs font-medium text-primary-700 dark:text-primary-300 flex-1">{aloaStatus}</p>
                             {reasoningTime > 0 && (
-                                <span className="text-[10px] font-mono text-primary-500 dark:text-primary-400 tabular-nums flex-shrink-0">
+                                <span className="text-2xs font-mono text-primary-500 dark:text-primary-400 tabular-nums flex-shrink-0">
                                     {reasoningTime < 60 ? `${reasoningTime}s` : `${Math.floor(reasoningTime / 60)}m ${reasoningTime % 60}s`}
                                 </span>
                             )}
@@ -3005,7 +3009,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 aborts the current request instantly. */}
                             <button
                                 onClick={handleStopRequest}
-                                className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-[10px] font-bold transition-colors flex-shrink-0"
+                                className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-2xs font-bold transition-colors flex-shrink-0"
                                 title="Cancel request"
                             >
                                 <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
@@ -3079,9 +3083,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-xs font-bold text-slate-900 dark:text-white">{insight.title}</p>
-                                                        <p className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">{insight.body}</p>
+                                                        <p className="text-2xs text-slate-600 dark:text-zinc-400 mt-0.5 leading-relaxed">{insight.body}</p>
                                                         {timeText && (
-                                                            <span className={`inline-block mt-1.5 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${showInsightPanel === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}`}>
+                                                            <span className={`inline-block mt-1.5 text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${showInsightPanel === 'critical' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}`}>
                                                                 {timeText}
                                                             </span>
                                                         )}
@@ -3093,7 +3097,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                                         navigateTo(navTarget, insight.entityId);
                                                                         setShowInsightPanel(null);
                                                                     }}
-                                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-900 dark:bg-zinc-700 text-white rounded-md text-[10px] font-bold hover:bg-slate-800 dark:hover:bg-zinc-600 transition-colors"
+                                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-900 dark:bg-zinc-700 text-white rounded-md text-2xs font-bold hover:bg-slate-800 dark:hover:bg-zinc-600 transition-colors"
                                                                 >
                                                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
@@ -3106,7 +3110,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                                     setTextInput(`Help me with this: ${insight.title} — ${insight.body}`);
                                                                     setShowInsightPanel(null);
                                                                 }}
-                                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-md text-[10px] font-bold hover:bg-primary-700 transition-colors"
+                                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-primary-600 text-white rounded-md text-2xs font-bold hover:bg-primary-700 transition-colors"
                                                             >
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -3118,7 +3122,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                                 onClick={() => {
                                                                     handleDismissInsight(insight._id || insight.id);
                                                                 }}
-                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-md text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 rounded-md text-2xs font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                                                                 title="Dismiss this insight"
                                                             >
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3132,7 +3136,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                                     handleDismissInsight(insight._id || insight.id);
                                                                     addToast('Got it — I\'ll remind you about this later.', { type: 'info' });
                                                                 }}
-                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-md text-[10px] font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors border border-amber-200 dark:border-amber-800/50"
+                                                                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-md text-2xs font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors border border-amber-200 dark:border-amber-800/50"
                                                                 title="Snooze this insight"
                                                             >
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -176,15 +176,15 @@ const AutomationCenter: React.FC = () => {
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-4">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-white">{stats.total}</p>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Total Sent</p>
+          <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">Total Sent</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-green-400">{stats.whatsapp}</p>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">via WhatsApp</p>
+          <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">via WhatsApp</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
           <p className="text-2xl font-black text-sky-400">{stats.today}</p>
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Today</p>
+          <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">Today</p>
         </div>
       </div>
 
@@ -200,14 +200,14 @@ const AutomationCenter: React.FC = () => {
                 <ZapIcon className="w-4 h-4 text-emerald-400" />
                 How Automations Work
               </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Click to {showHowItWorks ? 'collapse' : 'expand'} the active automation rules</p>
+              <p className="text-2xs text-slate-500 mt-0.5">Click to {showHowItWorks ? 'collapse' : 'expand'} the active automation rules</p>
             </div>
             <span className="text-slate-500 text-lg">{showHowItWorks ? '−' : '+'}</span>
           </button>
           
           {showHowItWorks && (
             <div className="px-4 pb-4 border-t border-slate-800 pt-3 animate-fade-in">
-              <table className="w-full text-[10px] text-left">
+              <table className="w-full text-2xs text-left">
                 <thead className="text-slate-500 uppercase tracking-widest border-b border-slate-800">
                   <tr>
                     <th className="pb-2 font-semibold">Rule</th>
@@ -246,12 +246,12 @@ const AutomationCenter: React.FC = () => {
           <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-lg"></div>
           <div className="flex-1">
             <h4 className="text-xs font-bold text-amber-400">Late Penalty Fee</h4>
-            <p className="text-[10px] text-slate-400 mt-0.5 mb-2 leading-relaxed">
+            <p className="text-2xs text-slate-400 mt-0.5 mb-2 leading-relaxed">
               When a resident defaults on payment, a late notice is automatically sent. You can choose to apply an automatic penalty fee to their ledger balance.
             </p>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-500">Current Rate:</span>
-              <span className="text-[10px] font-bold text-white px-2 py-0.5 bg-slate-800 rounded">{coreState.firmDetails?.automationSettings?.latePenaltyRate || 0}% / month</span>
+              <span className="text-2xs text-slate-500">Current Rate:</span>
+              <span className="text-2xs font-bold text-white px-2 py-0.5 bg-slate-800 rounded">{coreState.firmDetails?.automationSettings?.latePenaltyRate || 0}% / month</span>
             </div>
           </div>
         </div>
@@ -288,13 +288,13 @@ const AutomationCenter: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-xs font-bold text-white">{MSG_TYPE_LABELS[log.messageType]}</span>
-                  <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel]}`}>{log.channel}</span>
-                  <span className={`text-[9px] font-bold uppercase ${STATUS_COLORS[log.status]}`}>{log.status}</span>
+                  <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel]}`}>{log.channel}</span>
+                  <span className={`text-3xs font-bold uppercase ${STATUS_COLORS[log.status]}`}>{log.status}</span>
                 </div>
-                <p className="text-[10px] text-slate-500 truncate">{log.messagePreview}</p>
-                <p className="text-[10px] text-slate-700 mt-0.5">To: {log.recipient}</p>
+                <p className="text-2xs text-slate-500 truncate">{log.messagePreview}</p>
+                <p className="text-2xs text-slate-700 mt-0.5">To: {log.recipient}</p>
               </div>
-              <div className="flex items-center gap-1 text-[10px] text-slate-600 flex-shrink-0">
+              <div className="flex items-center gap-1 text-2xs text-slate-600 flex-shrink-0">
                 <ClockIcon className="w-3 h-3" />
                 {formatTs(log.sentAt)}
               </div>
@@ -318,19 +318,19 @@ const AutomationCenter: React.FC = () => {
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 mb-6 space-y-2">
               <strong className="text-slate-300 text-sm block mb-1">Available Variables:</strong>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                <code className="text-emerald-400 text-[10px]">{"{{TENANT_NAME}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{PROPERTY_ADDRESS}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{AMOUNT}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{SERVICE_CHARGE}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{CAUTION_DEPOSIT}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{LEGAL_FEE}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{AGENCY_FEE}}"}</code>
-                <code className="text-emerald-400 text-[10px]">{"{{DUE_DATE}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{TENANT_NAME}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{PROPERTY_ADDRESS}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{AMOUNT}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{SERVICE_CHARGE}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{CAUTION_DEPOSIT}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{LEGAL_FEE}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{AGENCY_FEE}}"}</code>
+                <code className="text-emerald-400 text-2xs">{"{{DUE_DATE}}"}</code>
               </div>
             </div>
 
             <div className="space-y-6">
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1">Revenue Pipeline</h4>
+              <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1">Revenue Pipeline</h4>
               {Object.entries(MSG_TYPE_LABELS).filter(([k]) => ['rent_reminder', 'late_notice', 'payment_receipt', 'penalty_notice', 'service_charge_alert'].includes(k)).map(([k, label]) => (
                 <div key={k}>
                   <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
@@ -345,7 +345,7 @@ const AutomationCenter: React.FC = () => {
                 </div>
               ))}
 
-              <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">CRM & Announcements</h4>
+              <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">CRM & Announcements</h4>
               {Object.entries(MSG_TYPE_LABELS).filter(([k]) => ['welcome_note', 'promotion', 'vendor_update', 'general_announcement', 'maintenance_update'].includes(k)).map(([k, label]) => (
                 <div key={k}>
                   <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
@@ -363,7 +363,7 @@ const AutomationCenter: React.FC = () => {
               {/* Custom Templates */}
               {Object.keys(templates).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
                 <>
-                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">Custom Templates</h4>
+                  <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">Custom Templates</h4>
                   {Object.keys(templates).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
                     <div key={k} className="group relative">
                       <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
@@ -374,7 +374,7 @@ const AutomationCenter: React.FC = () => {
                             delete next[k];
                             setTemplates(next);
                           }}
-                          className="text-slate-600 hover:text-rose-500 text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-slate-600 hover:text-rose-500 text-2xs opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           Delete
                         </button>
@@ -393,7 +393,7 @@ const AutomationCenter: React.FC = () => {
 
               {/* Add New Template Input */}
               <div className="pt-4 border-t border-slate-800">
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Create New Template</label>
+                <label className="block text-2xs font-black text-slate-500 uppercase tracking-widest mb-2">Create New Template</label>
                 <div className="flex gap-2">
                   <input 
                     value={newTemplateKey}

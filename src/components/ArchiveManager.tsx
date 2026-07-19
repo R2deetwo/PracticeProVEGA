@@ -88,7 +88,7 @@ export const ArchiveManager: React.FC = () => {
                                         <div>
                                             <h4 className="font-semibold text-slate-900 dark:text-white text-sm">{note.title || 'Untitled Note'}</h4>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${note.contextType === 'property' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                                <span className={`text-2xs uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${note.contextType === 'property' ? 'bg-blue-50 text-blue-600' : 'bg-indigo-50 text-indigo-600'}`}>
                                                     {note.contextType}
                                                 </span>
                                                 <span className="text-xs text-slate-500">{contextName}</span>

@@ -135,7 +135,7 @@ const NavItem: React.FC<{
             <div className="flex-1 min-w-0">
                 <span className="block text-sm font-semibold truncate">{label}</span>
                 {description && (
-                    <span className="block text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
+                    <span className="block text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5">
                         {description}
                     </span>
                 )}
@@ -150,7 +150,7 @@ const NavItem: React.FC<{
 // ─── Section Heading (inside the sidebar) ────────────────────────────────
 const SectionHeading: React.FC<{ label: string }> = ({ label }) => (
     <div className="px-3 pt-5 pb-2 first:pt-0">
-        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+        <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
             {label}
         </p>
     </div>
@@ -589,7 +589,7 @@ export const SettingsView: React.FC = () => {
                         <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
                             <div>
                                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Settings</h3>
-                                <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                     {isProperty ? 'Portfolio preferences' : 'Firm preferences'}
                                 </p>
                             </div>
@@ -628,7 +628,7 @@ export const SettingsView: React.FC = () => {
                 <aside className="hidden lg:flex lg:flex-col lg:w-72 xl:w-80 flex-shrink-0 bg-white dark:bg-zinc-900/50 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
                     <div className="px-2 py-4 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
                         <h3 className="px-3 text-sm font-bold text-slate-900 dark:text-white">Navigation</h3>
-                        <p className="px-3 text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                        <p className="px-3 text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
                             Choose a section to configure
                         </p>
                     </div>

@@ -75,7 +75,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
 
     return (
         <div className={`mt-2 p-4 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-3xl border shadow-xl ${pendingOpen ? 'border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/30 animate-pulse' : 'border-white/40 dark:border-zinc-700'} ${isCompleted && !completedResult ? 'opacity-60' : ''}`}>
-            <div className="text-[10px] text-primary-600 dark:text-primary-400 mb-2 font-bold uppercase tracking-widest flex items-center justify-between">
+            <div className="text-2xs text-primary-600 dark:text-primary-400 mb-2 font-bold uppercase tracking-widest flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                     <ZapIcon className="w-2.5 h-2.5" />
                     {pendingOpen
@@ -140,7 +140,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                 <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-zinc-700/50">
                     <button 
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="w-full flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 hover:text-primary-600 transition-colors"
+                        className="w-full flex items-center justify-between text-2xs font-black uppercase tracking-wider text-slate-500 dark:text-zinc-400 hover:text-primary-600 transition-colors"
                     >
                         <span className="flex items-center gap-2">
                             <SparklesIcon className="w-3 h-3 text-primary-500" />
@@ -158,7 +158,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                     {isExpanded && (
                         <div className="mt-2 space-y-2 animate-in slide-in-from-top-1 duration-300">
                             {displayInsights.map((hint, idx) => (
-                                <div key={idx} className={`flex gap-2 p-2 rounded-xl text-[10px] font-medium leading-relaxed ${
+                                <div key={idx} className={`flex gap-2 p-2 rounded-xl text-2xs font-medium leading-relaxed ${
                                     hint.type === 'error' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
                                     hint.type === 'warning' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400' :
                                     'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
@@ -173,7 +173,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
             )}
 
             {args && args.context && (args.context.title || args.context.subCategoryName) && !isExpanded && (
-                <p className="text-[10px] text-center text-slate-400 mt-2 italic px-2">
+                <p className="text-2xs text-center text-slate-400 mt-2 italic px-2">
                     Ref: {args.context.title || args.context.subCategoryName}
                 </p>
             )}

@@ -18,10 +18,10 @@ export const NoteDetails: React.FC<NoteDetailsProps> = ({ note, onEdit, onBack }
             <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-6 custom-scrollbar">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] ${note.type === 'endorsement' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-2xs font-black uppercase tracking-[0.1em] ${note.type === 'endorsement' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400'}`}>
                             {note.type === 'endorsement' ? 'Endorsement' : 'Note'}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <span className="text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             {new Date(note.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                     </div>

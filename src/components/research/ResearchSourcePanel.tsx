@@ -68,7 +68,7 @@ export const ResearchSourcePanel: React.FC<ResearchSourcePanelProps> = ({
                     <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">{sources.length} Sources</span>
                     <button
                         onClick={onToggleSelectAll}
-                        className="text-[10px] font-bold text-primary-600 hover:text-primary-700 uppercase"
+                        className="text-2xs font-bold text-primary-600 hover:text-primary-700 uppercase"
                     >
                         {allSelected ? 'Deselect All' : 'Select All'}
                     </button>
@@ -80,7 +80,7 @@ export const ResearchSourcePanel: React.FC<ResearchSourcePanelProps> = ({
                     if (catSources.length === 0) return null;
                     return (
                         <div key={category}>
-                            <h4 className="px-2 mb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <h4 className="px-2 mb-1.5 text-2xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                 <LargeFolderIcon className="w-3 h-3" /> {category}
                             </h4>
                             <div className="space-y-0.5">
@@ -113,7 +113,7 @@ export const ResearchSourcePanel: React.FC<ResearchSourcePanelProps> = ({
                 {sources.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-40 text-center p-4">
                         <DocumentsIcon className="w-8 h-8 text-slate-300 mb-2" />
-                        <p className="text-[10px] text-slate-400 leading-relaxed">No documents have been added to this case record yet.</p>
+                        <p className="text-2xs text-slate-400 leading-relaxed">No documents have been added to this case record yet.</p>
                     </div>
                 )}
             </div>

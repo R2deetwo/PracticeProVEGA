@@ -289,7 +289,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 </div>
                 <div>
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">Onboarding & Migration</h3>
-                    <p className="text-[10px] text-slate-500 font-medium">Auto-detecting matters and docs from local directories</p>
+                    <p className="text-2xs text-slate-500 font-medium">Auto-detecting matters and docs from local directories</p>
                 </div>
             </div>
 
@@ -307,12 +307,12 @@ export const MatterIngestionWizard: React.FC = () => {
                     return (
                         <div key={s.key} className="flex items-center gap-2">
                             <div className={`
-                                w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all
+                                w-7 h-7 rounded-full flex items-center justify-center text-2xs font-bold transition-all
                                 ${isDone ? 'bg-green-500 text-white' : isActive ? 'bg-primary-600 text-white shadow-md scale-110' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400'}
                             `}>
                                 {isDone ? <CheckCircleIcon className="w-4 h-4" /> : idx + 1}
                             </div>
-                            <span className={`text-[10px] font-bold whitespace-nowrap ${isActive ? 'text-primary-600' : 'text-slate-400'}`}>
+                            <span className={`text-2xs font-bold whitespace-nowrap ${isActive ? 'text-primary-600' : 'text-slate-400'}`}>
                                 {s.label}
                             </span>
                             {idx < 3 && <ChevronRightIcon className="w-3 h-3 text-slate-200" />}
@@ -353,7 +353,7 @@ export const MatterIngestionWizard: React.FC = () => {
                             </div>
                         </label>
 
-                        <p className="mt-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                        <p className="mt-6 text-2xs text-slate-400 font-bold uppercase tracking-widest">
                             Privacy Notice: Data is processed locally before upload.
                         </p>
                     </div>
@@ -372,10 +372,10 @@ export const MatterIngestionWizard: React.FC = () => {
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">ALOA Intelligence at Work</h3>
                         <p className="text-slate-500 font-mono text-xs max-w-xs truncate">Scanning: {files[files.length - 1]?.path.join('/') || 'Analysing directories...'}</p>
                         <div className="mt-8 flex gap-4">
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+                            <div className="flex items-center gap-2 text-2xs font-bold text-slate-400 uppercase">
                                 <FolderIcon className="w-3 h-3" /> {files.length} Files Found
                             </div>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+                            <div className="flex items-center gap-2 text-2xs font-bold text-slate-400 uppercase">
                                 <ArrowPathIcon className="w-3 h-3 animate-spin" /> Auto-Mapping Matters
                             </div>
                         </div>
@@ -392,7 +392,7 @@ export const MatterIngestionWizard: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-amber-800 dark:text-amber-400 uppercase">Manual Validation Required</p>
-                                    <p className="text-[10px] text-amber-700 dark:text-amber-500">Review extraction results before committing to the database. Adjust fields as needed.</p>
+                                    <p className="text-2xs text-amber-700 dark:text-amber-500">Review extraction results before committing to the database. Adjust fields as needed.</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4">
@@ -408,7 +408,7 @@ export const MatterIngestionWizard: React.FC = () => {
                         <div className="flex-grow overflow-y-auto custom-scrollbar p-6">
                             <table className="w-full text-left border-separate border-spacing-y-3">
                                 <thead>
-                                    <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4">
+                                    <tr className="text-2xs font-bold text-slate-400 uppercase tracking-widest px-4">
                                         <th className="pb-2">Matter Title</th>
                                         <th className="pb-2">Primary Client</th>
                                         <th className="pb-2">Type</th>
@@ -426,7 +426,7 @@ export const MatterIngestionWizard: React.FC = () => {
                                                     </div>
                                                     <div className="min-w-0">
                                                         <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{draft.title}</p>
-                                                        <p className="text-[10px] text-slate-500 font-mono">{draft.reference}</p>
+                                                        <p className="text-2xs text-slate-500 font-mono">{draft.reference}</p>
                                                     </div>
                                                 </div>
                                             </td>
@@ -437,7 +437,7 @@ export const MatterIngestionWizard: React.FC = () => {
                                                 </div>
                                             </td>
                                             <td className="p-4">
-                                                <span className="px-2 py-0.5 bg-slate-200 dark:bg-zinc-700 rounded text-[10px] font-bold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
+                                                <span className="px-2 py-0.5 bg-slate-200 dark:bg-zinc-700 rounded text-2xs font-bold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                                                     {draft.type}
                                                 </span>
                                             </td>
@@ -495,7 +495,7 @@ export const MatterIngestionWizard: React.FC = () => {
                             </div>
                             <div className="p-4 bg-primary-50 dark:bg-primary-900/10 rounded-xl border border-primary-100 dark:border-primary-900/30 flex items-center gap-3">
                                 <div className="w-2 h-2 bg-primary-600 rounded-full animate-ping"></div>
-                                <span className="text-[10px] font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest">Processing Index: {progress.current} of {progress.total}</span>
+                                <span className="text-2xs font-bold text-primary-700 dark:text-primary-400 uppercase tracking-widest">Processing Index: {progress.current} of {progress.total}</span>
                             </div>
                         </div>
                     </div>
@@ -515,11 +515,11 @@ export const MatterIngestionWizard: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-12">
                             <div className="p-4 bg-slate-50 dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700">
                                 <p className="text-2xl font-bold text-slate-900 dark:text-white">{draftMatters.length}</p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Matters Created</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Matters Created</p>
                             </div>
                             <div className="p-4 bg-slate-50 dark:bg-zinc-800 rounded-2xl border border-slate-100 dark:border-zinc-700">
                                 <p className="text-2xl font-bold text-slate-900 dark:text-white">{importDocuments ? files.length : 0}</p>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Documents Synced</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Documents Synced</p>
                             </div>
                         </div>
 

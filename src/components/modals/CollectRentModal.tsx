@@ -330,7 +330,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <div className="space-y-4">
                     <div className="p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-2xl border border-slate-100 dark:border-zinc-700 space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Rent Amount</label>
+                            <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Rent Amount</label>
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold"><NairaSymbol /></span>
                                 <input autoComplete="off" data-lpignore="true" 
@@ -344,7 +344,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Date Paid</label>
+                                <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Date Paid</label>
                                 <div className="relative">
                                     <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                     <input autoComplete="off" data-lpignore="true" 
@@ -359,7 +359,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Method</label>
+                                <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Method</label>
                                 <select 
                                     value={paymentMethod}
                                     onChange={e => setPaymentMethod(e.target.value)}
@@ -375,7 +375,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-primary-600 uppercase tracking-widest ml-1">Period Start</label>
+                                <label className="text-2xs font-black text-primary-600 uppercase tracking-widest ml-1">Period Start</label>
                                 <div className="relative">
                                     <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
                                     <input autoComplete="off" data-lpignore="true" 
@@ -387,7 +387,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                                 </div>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-[10px] font-black text-primary-600 uppercase tracking-widest ml-1">Period End</label>
+                                <label className="text-2xs font-black text-primary-600 uppercase tracking-widest ml-1">Period End</label>
                                 <div className="relative">
                                     <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-primary-400" />
                                     <input autoComplete="off" data-lpignore="true" 
@@ -406,7 +406,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                             <OfficeBuildingIcon className="w-4 h-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-bold text-primary-600 uppercase tracking-tight">Property / Unit</p>
+                            <p className="text-2xs font-bold text-primary-600 uppercase tracking-tight">Property / Unit</p>
                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 break-words">{unitDisplayLabel}</p>
                         </div>
                     </div>
@@ -416,15 +416,15 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <div className="bg-slate-900 dark:bg-black rounded-3xl p-6 text-white flex flex-col shadow-xl">
                     <div className="flex items-center gap-2 mb-6 opacity-60">
                         <CalculatorIcon className="w-4 h-4" />
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">Receipt Summary</span>
+                        <span className="text-2xs font-black uppercase tracking-[0.2em]">Receipt Summary</span>
                     </div>
 
                     <div className="space-y-4 flex-grow">
                         {/* Receipt amount — always the FULL amount */}
                         <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Amount Received (Full)</p>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-2">Amount Received (Full)</p>
                             <p className="text-3xl font-black text-white"><NairaSymbol />{formatNaira(amountValue)}</p>
-                            <p className="text-[9px] text-slate-500 mt-1">Receipt reflects full payment — no deductions</p>
+                            <p className="text-3xs text-slate-500 mt-1">Receipt reflects full payment — no deductions</p>
                         </div>
 
                         {/* Management fee breakdown — informational only */}
@@ -433,14 +433,14 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                                 <div className="flex justify-between items-start text-sm mb-2">
                                     <div>
                                         <span className="text-slate-300 font-semibold">Management Fee</span>
-                                        <span className="ml-2 text-[8px] px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded font-bold uppercase">{feePercentage}%</span>
+                                        <span className="ml-2 text-3xs px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded font-bold uppercase">{feePercentage}%</span>
                                     </div>
                                     <span className="font-bold text-primary-400"><NairaSymbol />{formatNaira(feeAmount)}</span>
                                 </div>
-                                <p className="text-[9px] text-slate-500 leading-relaxed">
+                                <p className="text-3xs text-slate-500 leading-relaxed">
                                     Fee is invoiced separately to the landlord. Receipt remains at full amount for proper accounting.
                                 </p>
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10 text-[11px]">
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10 text-2xs">
                                     <span className="text-slate-400">Landlord retains (after fee)</span>
                                     <span className="font-bold text-emerald-400"><NairaSymbol />{formatNaira(amountValue - feeAmount)}</span>
                                 </div>
@@ -450,20 +450,20 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                         {/* Zero-fee properties */}
                         {feePercentage <= 0 && (
                             <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                                <p className="text-[10px] text-emerald-400 font-semibold">No management fee configured</p>
-                                <p className="text-[9px] text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
+                                <p className="text-2xs text-emerald-400 font-semibold">No management fee configured</p>
+                                <p className="text-3xs text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
                             </div>
                         )}
                     </div>
 
                     <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
                         <div className="flex flex-col gap-2">
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                            <div className="flex items-center gap-2 text-2xs text-slate-400">
                                 <UserIcon className="w-3 h-3" />
                                 <span>Client: <strong className="text-white">{owner?.name || 'Unknown'}</strong></span>
                             </div>
                             {tenantName && (
-                                <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                                <div className="flex items-center gap-2 text-2xs text-slate-400">
                                     <UserIcon className="w-3 h-3 opacity-50" />
                                     <span>Tenant: <strong className="text-white/80">{tenantName}</strong></span>
                                 </div>
@@ -479,7 +479,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                         <button
                             onClick={() => handleDownloadTenantReceipt()}
                             type="button"
-                            className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/5"
+                            className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl text-2xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-white/5"
                         >
                             <DownloadIcon className="w-3.5 h-3.5" />
                             Preview Receipt

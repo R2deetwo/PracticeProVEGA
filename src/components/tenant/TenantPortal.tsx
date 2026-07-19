@@ -405,7 +405,7 @@ const TenantPortal: React.FC = () => {
       <div className="flex-shrink-0 sticky top-0 z-20 border-b border-slate-200 dark:border-zinc-800 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] text-slate-400 dark:text-zinc-500 font-medium">
+            <p className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
               {new Date().getHours() < 12 ? 'Good Morning' : new Date().getHours() < 17 ? 'Good Afternoon' : 'Good Evening'},
             </p>
             <h1 className="text-base font-bold text-slate-900 dark:text-white truncate">
@@ -456,7 +456,7 @@ const TenantPortal: React.FC = () => {
               {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
               {tab.badge && tab.badge > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="min-w-[18px] h-[18px] px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                   {tab.badge > 99 ? '99+' : tab.badge}
                 </span>
               )}
@@ -617,14 +617,14 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
       <div className="bg-brand-primary text-white rounded-premium p-5 shadow-premium">
         <div className="flex items-start justify-between mb-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-1">
+            <p className="text-2xs font-bold text-white/60 uppercase tracking-widest mb-1">
               Residents' Portal
             </p>
             <h2 className="text-xl font-black tracking-tight truncate">
               {tenantInfo?.tenantName || currentUser?.name?.split(' ')[0] || 'Resident'}
             </h2>
             {tenantInfo?.primaryPropertyName && (
-              <p className="text-[11px] text-white/50 mt-0.5 truncate">
+              <p className="text-2xs text-white/50 mt-0.5 truncate">
                 {tenantInfo?.primaryUnitName ? `Unit ${tenantInfo.primaryUnitName} · ` : ''}
                 {tenantInfo.primaryPropertyName}
               </p>
@@ -640,7 +640,7 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
         {tenantInfo?.primaryPropertyAddress && (
           <div className="flex items-center gap-2 pt-3 border-t border-white/15">
             <OfficeBuildingIcon className="w-4 h-4 text-white/60 flex-shrink-0" />
-            <p className="text-[11px] text-white/70 truncate">
+            <p className="text-2xs text-white/70 truncate">
               {tenantInfo.primaryPropertyAddress}
             </p>
           </div>
@@ -654,13 +654,13 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
       >
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[10px] font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-widest">
+            <p className="text-2xs font-bold text-emerald-700/70 dark:text-emerald-400/70 uppercase tracking-widest">
               Outstanding Balance
             </p>
             <p className={`text-2xl font-black mt-1 ${hasOutstanding ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-700 dark:text-emerald-300'}`}>
               {formatNaira(outstandingBalance)}
             </p>
-            <p className="text-[11px] text-emerald-600/60 dark:text-emerald-400/60 mt-1">
+            <p className="text-2xs text-emerald-600/60 dark:text-emerald-400/60 mt-1">
               {hasOutstanding ? 'Tap to view breakdown' : 'All caught up'}
             </p>
           </div>
@@ -684,7 +684,7 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${service.color}`}>
                 {service.icon}
               </div>
-              <span className="text-[10px] font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
+              <span className="text-2xs font-semibold text-slate-700 dark:text-zinc-300 text-center leading-tight">
                 {service.label}
               </span>
             </button>
@@ -702,7 +702,7 @@ const DashboardTab: React.FC<{ tenantInfo: any; onNavigate: (tab: TabId) => void
             <BellIcon className="w-4 h-4 text-amber-500" />
             Notices
           </h3>
-          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">View All →</span>
+          <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400">View All →</span>
         </div>
         <p className="text-xs text-slate-500 dark:text-zinc-400">
           Tap to see notices from your property manager
@@ -791,19 +791,19 @@ const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ t
                     <svg className="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                     </svg>
-                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pinned</span>
+                    <span className="text-2xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pinned</span>
                   </div>
                 )}
                 <div className="px-5 py-4">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{notice.title}</h4>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 ${pri.bg} ${pri.text}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold flex-shrink-0 ${pri.bg} ${pri.text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${pri.dot}`} />
                       {pri.label}
                     </span>
                   </div>
                   <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{notice.body}</p>
-                  <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-400 dark:text-zinc-500">
+                  <div className="mt-3 flex items-center gap-3 text-2xs text-slate-400 dark:text-zinc-500">
                     {notice.authorName && (
                       <span>Posted by {notice.authorName}</span>
                     )}
@@ -911,47 +911,47 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month SC</p>
+          <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month SC</p>
           <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
             {formatNaira(currentMonthSC)}
           </p>
           {hasServiceCharges && !currentMonthSC ? (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1 text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
               <CheckIcon className="w-3 h-3" /> Paid
             </span>
           ) : currentMonthSC > 0 ? (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1 text-2xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
               <ExclamationTriangleIcon className="w-3 h-3" /> Due
             </span>
           ) : null}
         </div>
         <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month MV</p>
+          <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Current Month MV</p>
           <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
             {currentMonthMV > 0 ? formatNaira(currentMonthMV) : '—'}
           </p>
           {mvStatus === 'paid' ? (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1 text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
               <CheckIcon className="w-3 h-3" /> Paid
             </span>
           ) : mvStatus === 'pending' ? (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1 text-2xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">
               <ExclamationTriangleIcon className="w-3 h-3" /> Pending
             </span>
           ) : null}
         </div>
         <div className="bg-white dark:bg-zinc-800 rounded-xl p-4 border border-slate-200 dark:border-zinc-700">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Outstanding Balance</p>
+          <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-1">Outstanding Balance</p>
           <p className={`text-2xl font-bold ${outstandingBalance > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
             {outstandingBalance > 0 ? formatNaira(outstandingBalance) : formatNaira(0)}
           </p>
           {outstandingBalance > 0 && (
-            <p className="text-[10px] text-slate-400 mt-1">
+            <p className="text-2xs text-slate-400 mt-1">
               {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length || 0} unpaid {ledgerEntries?.filter((e: any) => e.status === 'pending' || e.status === 'defaulted').length === 1 ? 'entry' : 'entries'}
             </p>
           )}
           {outstandingBalance === 0 && hasLedgerData && (
-            <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1 mt-1 text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
               <CheckIcon className="w-3 h-3" /> All Clear
             </span>
           )}
@@ -984,7 +984,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
                       <tr key={sc._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
                         <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
                           {isMV ? (sc.category === 'Other' ? 'Minimum Vend' : sc.category) : sc.category}
-                          {isMV && <span className="ml-1 text-[9px] text-emerald-500 font-bold">(MV)</span>}
+                          {isMV && <span className="ml-1 text-3xs text-emerald-500 font-bold">(MV)</span>}
                         </td>
                         <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">{formatNaira(sc.amount)}</td>
                         <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
@@ -992,7 +992,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
                         </td>
                         <td className="px-4 py-3 text-center text-slate-500 dark:text-zinc-400 text-xs">{sc.cycle}</td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${
                             sc.serviceChargeStatus === 'PAID_FULLY'
                               ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
                               : sc.serviceChargeStatus === 'PARTIALLY_PAID'
@@ -1042,7 +1042,7 @@ const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ te
                       {formatNaira(entry.amount)}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${
                         entry.status === 'cleared'
                           ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
                           : entry.status === 'defaulted'
@@ -1416,7 +1416,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
     };
     const c = config[status] || config.open;
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${c.bg} ${c.text}`}>
         {status === 'resolved' || status === 'closed' ? <CheckIcon className="w-3 h-3" /> : status === 'cancelled' ? <XCircleIcon className="w-3 h-3" /> : <ExclamationTriangleIcon className="w-3 h-3" />}
         {c.label}
       </span>
@@ -1496,7 +1496,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
               <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
                 Click to upload photos or PDFs
               </p>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+              <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                 JPG, PNG, GIF, WebP, PDF · Max 10MB each
               </p>
             </div>
@@ -1515,7 +1515,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
                   <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
                     <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
                     <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
-                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+                    <span className="text-2xs text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
                     <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
                       <XCircleIcon className="w-4 h-4" />
                     </button>
@@ -1586,7 +1586,7 @@ const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addT
                       {t.images?.length > 0 && <span className="ml-1">· <PaperclipIcon className="w-3 h-3 inline" /> {t.images.length}</span>}
                     </p>
                     {t.cancellationNote && (
-                      <p className="text-[11px] text-rose-500 dark:text-rose-400 mt-1 italic">
+                      <p className="text-2xs text-rose-500 dark:text-rose-400 mt-1 italic">
                         Cancelled: {t.cancellationNote}
                       </p>
                     )}
@@ -1898,14 +1898,14 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
             <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">
               Property Manager
             </h4>
-            <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+            <p className="text-2xs text-slate-500 dark:text-zinc-400">
               {activeConversation.unitId
                 ? `Unit ${tenantInfo?.primaryUnitName || activeConversation.unitId}`
                 : activeConversation.propertyId ? 'Property conversation' : 'General'}
             </p>
           </div>
           {(activeConversation.unreadByParticipant || 0) > 0 && (
-            <span className="min-w-[20px] h-5 px-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+            <span className="min-w-[20px] h-5 px-1.5 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
               {activeConversation.unreadByParticipant}
             </span>
           )}
@@ -1954,10 +1954,10 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                   <div className={`max-w-[85%] ${isMe ? 'order-2' : 'order-1'}`}>
                     {/* Sender label */}
                     <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                      <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
                         {isMe ? 'You' : (msg.senderName || 'Property Manager')}
                       </span>
-                      <span className="text-[10px] text-slate-300 dark:text-zinc-600">
+                      <span className="text-2xs text-slate-300 dark:text-zinc-600">
                         {formatTime(msg.createdAt)}
                       </span>
                     </div>
@@ -2161,7 +2161,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                 </p>
               </div>
               {(conversations[0].unreadByParticipant || 0) > 0 && (
-                <span className="min-w-[20px] h-5 px-1.5 bg-emerald-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                <span className="min-w-[20px] h-5 px-1.5 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                   {conversations[0].unreadByParticipant}
                 </span>
               )}
@@ -2228,14 +2228,14 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                       <span className="text-xs font-bold text-slate-600 dark:text-zinc-300">
                         {msg.senderName || 'Property Manager'}
                       </span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                      <span className={`px-1.5 py-0.5 rounded text-3xs font-bold uppercase ${
                         msg.channel === 'whatsapp' ? 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30' : 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30'
                       }`}>
                         {msg.channel || 'message'}
                       </span>
                     </div>
                     <p className="text-sm text-slate-700 dark:text-zinc-300 break-words">{msg.content}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                       {formatDate(msg.receivedAt)}
                     </p>
                   </div>
@@ -2372,11 +2372,11 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"><CheckIcon className="w-3 h-3" /> Approved</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400"><CheckIcon className="w-3 h-3" /> Approved</span>;
       case 'rejected':
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> Rejected</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400"><XCircleIcon className="w-3 h-3" /> Rejected</span>;
       default:
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"><ExclamationTriangleIcon className="w-3 h-3" /> Pending Review</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400"><ExclamationTriangleIcon className="w-3 h-3" /> Pending Review</span>;
     }
   };
 
@@ -2437,7 +2437,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
               <p className="text-xs text-slate-500 dark:text-zinc-400 font-medium">
                 Click to upload payment receipt or stub
               </p>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+              <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                 JPG, PNG, PDF · Max 10MB each
               </p>
             </div>
@@ -2455,7 +2455,7 @@ const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToas
                   <div key={idx} className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-zinc-800 rounded-lg">
                     <PaperclipIcon className="w-3.5 h-3.5 text-slate-400" />
                     <span className="text-xs text-slate-700 dark:text-zinc-300 flex-1 truncate">{file.name}</span>
-                    <span className="text-[10px] text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
+                    <span className="text-2xs text-slate-400">{(file.size / 1024).toFixed(0)}KB</span>
                     <button onClick={() => removeFile(idx)} className="text-rose-500 hover:text-rose-700">
                       <XCircleIcon className="w-4 h-4" />
                     </button>
@@ -2874,17 +2874,17 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {lease.propertyType && (
-                            <span className="text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
+                            <span className="text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full">
                               {lease.propertyType}
                             </span>
                           )}
                           {(rd.rentAmount || ud.rentAmount) && (
-                            <span className="text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
+                            <span className="text-2xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
                               ₦{(rd.rentAmount || ud.rentAmount || 0).toLocaleString()}/mo
                             </span>
                           )}
                           {(rd.leaseStart || ud.leaseStart) && (
-                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 px-2 py-0.5 rounded-full">
+                            <span className="text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 px-2 py-0.5 rounded-full">
                               From {rd.leaseStart || ud.leaseStart}
                               {(rd.leaseEnd || ud.leaseEnd) ? ` to ${rd.leaseEnd || ud.leaseEnd}` : ''}
                             </span>
@@ -2941,7 +2941,7 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                           ? new Date(consent.termsAcceptedAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                           : 'N/A'}
                       </p>
-                      <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                      <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
                         <CheckIcon className="w-3 h-3" /> Accepted
                       </span>
                     </div>
@@ -2995,12 +2995,12 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                       </p>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {doc.isSharedWithClient && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
                             <CheckIcon className="w-3 h-3" /> Shared
                           </span>
                         )}
                         {doc.isSignatureRequested && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                             <ExclamationTriangleIcon className="w-3 h-3" /> Signature Requested
                           </span>
                         )}
@@ -3071,17 +3071,17 @@ const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToa
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   {proof.status === 'approved' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
                       <CheckIcon className="w-3 h-3" /> Approved
                     </span>
                   )}
                   {proof.status === 'rejected' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400">
                       <XCircleIcon className="w-3 h-3" /> Rejected
                     </span>
                   )}
                   {proof.status === 'pending_review' && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                       <ExclamationTriangleIcon className="w-3 h-3" /> Pending
                     </span>
                   )}

@@ -158,7 +158,7 @@ const PlanCard: React.FC<{
             </div>
 
             {userLimit && (
-                <div className="mb-6 inline-block bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                <div className="mb-6 inline-block bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-2xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
                     {userLimit}
                 </div>
             )}
@@ -225,7 +225,7 @@ const BillingCalculator: React.FC<{
                             <ShieldCheckIcon className="w-5 h-5 text-black" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-amber-400/70 uppercase tracking-[0.2em]">Enterprise</p>
+                            <p className="text-2xs font-black text-amber-400/70 uppercase tracking-[0.2em]">Enterprise</p>
                             <h3 className="text-lg font-black text-white">Projected Billing</h3>
                         </div>
                     </div>
@@ -234,7 +234,7 @@ const BillingCalculator: React.FC<{
                         <div className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
                             <div>
                                 <p className="text-sm font-bold text-white">Enterprise Platform Base</p>
-                                <p className="text-[10px] text-zinc-400">Unlimited users · Full AI suite · All core features</p>
+                                <p className="text-2xs text-zinc-400">Unlimited users · Full AI suite · All core features</p>
                             </div>
                             <p className="font-mono font-bold text-amber-400">₦{(baseRate * multiplier).toLocaleString()}</p>
                         </div>
@@ -246,7 +246,7 @@ const BillingCalculator: React.FC<{
                                 <div key={s} className="flex justify-between items-center p-3 rounded-xl bg-white/5 border border-white/10">
                                     <div>
                                         <p className="text-sm font-bold text-white">{ModalityIcons[m.specialty]} {m.label} Modality</p>
-                                        <p className="text-[10px] text-zinc-400">Specialist dashboards · Statutory forms · AI Expert Mode</p>
+                                        <p className="text-2xs text-zinc-400">Specialist dashboards · Statutory forms · AI Expert Mode</p>
                                     </div>
                                     <p className="font-mono font-bold text-amber-400">₦{(rate * multiplier).toLocaleString()}</p>
                                 </div>
@@ -293,13 +293,13 @@ const BillingCalculator: React.FC<{
                     </div>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-50 dark:bg-zinc-700/30 px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
+                    <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Simulate Growth</span>
                     <div className="flex items-center gap-2">
                         <button onClick={() => setSimulationCount(Math.max(0, simulationCount - 1))} disabled={simulationCount === 0} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 disabled:opacity-30 transition-all font-bold">-</button>
                         <span className={`w-8 text-center font-mono font-bold text-sm ${isSimulating ? 'text-amber-600' : 'text-slate-900 dark:text-white'}`}>+{simulationCount}</span>
                         <button onClick={() => setSimulationCount(Math.min(50, simulationCount + 1))} className="w-6 h-6 flex items-center justify-center rounded-md bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-slate-600 hover:bg-slate-50 transition-all font-bold">+</button>
                     </div>
-                    {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-[10px] font-bold text-primary-600 hover:underline ml-1">Reset</button>}
+                    {isSimulating && <button onClick={() => setSimulationCount(0)} className="text-2xs font-bold text-primary-600 hover:underline ml-1">Reset</button>}
                 </div>
             </div>
             <div className="space-y-4">
@@ -413,23 +413,23 @@ const EnterpriseSection: React.FC<{
                             <svg viewBox="0 0 24 24" className="w-4 h-4 text-black" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                         </div>
                         <div>
-                            <p className="text-[9px] font-black text-amber-400/60 uppercase tracking-[0.2em]">PracticePro</p>
+                            <p className="text-3xs font-black text-amber-400/60 uppercase tracking-[0.2em]">PracticePro</p>
                             <h3 className="text-lg font-black text-white leading-tight">Enterprise</h3>
                         </div>
                     </div>
                     <div className="text-right">
                         <p className="text-2xl font-black text-amber-400">&#x20A6;{totalMonthly.toLocaleString()}<span className="text-zinc-500 text-xs font-normal">/mo</span></p>
-                        <p className="text-[10px] text-zinc-500">{isAnnual ? 'Annual (20% off)' : 'Monthly'}{selectedModalities.length > 0 ? ` · ${selectedModalities.length} module${selectedModalities.length > 1 ? 's' : ''}` : ' · Base'}</p>
+                        <p className="text-2xs text-zinc-500">{isAnnual ? 'Annual (20% off)' : 'Monthly'}{selectedModalities.length > 0 ? ` · ${selectedModalities.length} module${selectedModalities.length > 1 ? 's' : ''}` : ' · Base'}</p>
                     </div>
                 </div>
                 {/* Included */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
                     {['Unlimited users', 'Custom Storage', 'Audit Logs & SSO', 'SLA Guarantee', 'Account manager'].map(f => (
-                        <span key={f} className="text-[10px] font-semibold text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{f}</span>
+                        <span key={f} className="text-2xs font-semibold text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">{f}</span>
                     ))}
                 </div>
                 {/* Modules */}
-                <p className="text-[9px] font-black text-amber-400/50 uppercase tracking-[0.2em] mb-2">Add Practice Modules</p>
+                <p className="text-3xs font-black text-amber-400/50 uppercase tracking-[0.2em] mb-2">Add Practice Modules</p>
                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                     {ENTERPRISE_MODALITIES.map(mod => {
                         const isSelected = selectedModalities.includes(mod.specialty);
@@ -447,8 +447,8 @@ const EnterpriseSection: React.FC<{
                                 )}
                                 <GlassIcon selected={isSelected}>{ModalityIcons[mod.specialty]}</GlassIcon>
                                 <p className={`font-bold text-xs mb-1 ${isSelected ? 'text-amber-300' : 'text-zinc-200'}`}>{mod.label}</p>
-                                <p className="text-[10px] text-zinc-500 leading-relaxed mb-1.5">{mod.description}</p>
-                                <p className={`text-[10px] font-black ${isSelected ? 'text-amber-400' : 'text-zinc-500'}`}>+&#x20A6;{displayPrice.toLocaleString()}/mo</p>
+                                <p className="text-2xs text-zinc-500 leading-relaxed mb-1.5">{mod.description}</p>
+                                <p className={`text-2xs font-black ${isSelected ? 'text-amber-400' : 'text-zinc-500'}`}>+&#x20A6;{displayPrice.toLocaleString()}/mo</p>
                             </button>
                         );
                     })}
@@ -459,7 +459,7 @@ const EnterpriseSection: React.FC<{
                         <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400 flex-shrink-0" fill="currentColor"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
                         <div>
                             <p className="font-black text-white text-xs">You are on the Enterprise Plan</p>
-                            <p className="text-zinc-500 text-[10px]">Contact your account manager to adjust modules or billing.</p>
+                            <p className="text-zinc-500 text-2xs">Contact your account manager to adjust modules or billing.</p>
                         </div>
                     </div>
                 ) : (
@@ -646,7 +646,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                         <button onClick={() => setIsAnnual(false)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${!isAnnual ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Monthly</button>
                         <button onClick={() => setIsAnnual(true)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${isAnnual ? 'bg-white dark:bg-zinc-700 shadow text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700'}`}>Yearly <span className="text-xs text-green-600 ml-1">-20%</span></button>
                     </div>
-                    <span className="text-[10px] text-slate-500 max-w-[250px] text-right mt-1 leading-tight">Billing is processed annually. Contact us to arrange monthly payments.</span>
+                    <span className="text-2xs text-slate-500 max-w-[250px] text-right mt-1 leading-tight">Billing is processed annually. Contact us to arrange monthly payments.</span>
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 mt-2">
                         <span className={viewAsMonthlyCost ? 'font-bold text-slate-700 dark:text-slate-200' : ''}>Show Monthly Avg</span>
                         <div onClick={() => setViewAsMonthlyCost(!viewAsMonthlyCost)} className={`relative w-8 h-4 bg-slate-300 dark:bg-zinc-600 rounded-full cursor-pointer transition-colors ${!viewAsMonthlyCost ? 'bg-primary-500' : ''}`}>

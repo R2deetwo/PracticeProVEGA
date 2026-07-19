@@ -277,11 +277,11 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
                     <div key={field.id}>
                         <label className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider mb-2">
                             {field.label}
-                            {field.required && <span className="text-red-500 text-[10px] font-black">*</span>}
+                            {field.required && <span className="text-red-500 text-2xs font-black">*</span>}
                         </label>
                         {renderField(field)}
                         {errors[field.id] && (
-                            <p className="mt-1 text-[10px] text-red-500 font-semibold flex items-center gap-1">
+                            <p className="mt-1 text-2xs text-red-500 font-semibold flex items-center gap-1">
                                 <XMarkIcon className="w-3 h-3" />
                                 {errors[field.id]}
                             </p>

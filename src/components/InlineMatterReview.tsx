@@ -72,7 +72,7 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
 
     if (reminder && !reminder.dismissed) {
         return (
-            <div className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-sm transition-all group ${
+            <div className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-2xs font-bold shadow-sm transition-all group ${
                 isDue ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
                 isSoon ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
                 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
@@ -109,7 +109,7 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
                 <div className="absolute top-100 mt-1 right-0 z-50 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl p-2 w-40 animate-fade-in-up">
                     {!showCustomDate ? (
                         <>
-                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Review Matter In:</div>
+                            <div className="text-3xs font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">Review Matter In:</div>
                             <div className="flex flex-col gap-0.5">
                                 <button onClick={(e) => setReminder(1, e)} className="text-left px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-700 rounded text-slate-700 dark:text-zinc-200 transition-colors">1 day</button>
                                 <button onClick={(e) => setReminder(7, e)} className="text-left px-2 py-1 text-xs font-medium hover:bg-slate-50 dark:hover:bg-zinc-700 rounded text-slate-700 dark:text-zinc-200 transition-colors">1 week</button>
@@ -120,7 +120,7 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
                         </>
                     ) : (
                         <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
-                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider px-1">Select Date:</div>
+                            <div className="text-3xs font-bold text-slate-400 uppercase tracking-wider px-1">Select Date:</div>
                             <input autoComplete="off" data-lpignore="true"  
                                 type="date" 
                                 value={customDateValue}
@@ -128,8 +128,8 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
                                 className="w-full text-xs px-2 py-1 rounded border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-700 dark:text-zinc-200"
                             />
                             <div className="flex items-center gap-1 mt-1">
-                                <button onClick={(e) => { e.stopPropagation(); setShowCustomDate(false); }} className="flex-1 py-1 text-[10px] font-bold rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">Back</button>
-                                <button onClick={handleCustomDateSubmit} disabled={!customDateValue} className="flex-1 py-1 text-[10px] font-bold rounded bg-primary-600 text-white disabled:opacity-50">Set</button>
+                                <button onClick={(e) => { e.stopPropagation(); setShowCustomDate(false); }} className="flex-1 py-1 text-2xs font-bold rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">Back</button>
+                                <button onClick={handleCustomDateSubmit} disabled={!customDateValue} className="flex-1 py-1 text-2xs font-bold rounded bg-primary-600 text-white disabled:opacity-50">Set</button>
                             </div>
                         </div>
                     )}

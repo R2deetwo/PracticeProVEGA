@@ -66,7 +66,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({ activeId, on
                     <MessageSquareIcon className="w-4 h-4 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <div className="text-xs font-bold truncate">{conv.title}</div>
-                        <div className="text-[10px] opacity-50">{new Date(conv.updatedAt).toLocaleDateString('en-GB')}</div>
+                        <div className="text-2xs opacity-50">{new Date(conv.updatedAt).toLocaleDateString('en-GB')}</div>
                     </div>
                     <button
                         onClick={(e) => {

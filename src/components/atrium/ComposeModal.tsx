@@ -733,7 +733,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 {allRecipients.length > 1 && (
                   <button
                     onClick={selectAll}
-                    className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
+                    className="text-2xs uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors"
                   >
                     {allRecipients.every(r => selectedRecipientIds.includes(r.id)) ? 'Deselect All' : 'Select All'}
                   </button>
@@ -779,7 +779,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                       <button
                         key={tab.key}
                         onClick={() => setRecipientTab(tab.key)}
-                        className={`flex-1 px-2 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                        className={`flex-1 px-2 py-2 text-2xs font-bold uppercase tracking-wider transition-colors ${
                           recipientTab === tab.key
                             ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 bg-primary-50/50 dark:bg-primary-900/10'
                             : 'text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300'
@@ -838,7 +838,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                               </span>
                               <div className="flex-1 min-w-0">
                                 <div className="text-slate-900 dark:text-white truncate">{r.label}</div>
-                                {r.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
+                                {r.tenantPhone && <span className="text-2xs text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
                               </div>
                             </button>
                           );
@@ -889,7 +889,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                               <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 flex-shrink-0" />
                               <div className="flex-1 min-w-0">
                                 <span className="text-xs font-semibold text-slate-700 dark:text-zinc-200 truncate block">{g.shortAddress}</span>
-                                <span className="text-[10px] text-slate-400 dark:text-zinc-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
+                                <span className="text-2xs text-slate-400 dark:text-zinc-500">{g.unitCount} unit{g.unitCount !== 1 ? 's' : ''}</span>
                               </div>
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-slate-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
                             </button>
@@ -919,7 +919,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                                   </span>
                                   <div className="flex-1 min-w-0">
                                     <div className="text-slate-900 dark:text-white truncate text-xs">{r.label}</div>
-                                    {r.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
+                                    {r.tenantPhone && <span className="text-2xs text-slate-400 dark:text-zinc-500 truncate block">{r.tenantPhone}</span>}
                                   </div>
                                 </button>
                               );
@@ -951,7 +951,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-slate-800 dark:text-zinc-200 truncate">{r.tenantName || r.label}</p>
-                            <p className="text-[10px] text-slate-400 truncate">
+                            <p className="text-2xs text-slate-400 truncate">
                               {r.tenantEmail || r.tenantPhone || 'No contact info'}
                             </p>
                           </div>
@@ -964,7 +964,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               )}
 
               {isMultiRecipient && (
-                <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                <p className="text-2xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
                   <Radio className="w-3 h-3" /> Bulk send: each recipient gets a personalized message
                 </p>
               )}
@@ -985,27 +985,27 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               {showFinancials && (
                 <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Rent Amount (₦)</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Rent Amount (₦)</label>
                     <input type="text" value={formatNumberWithCommas(amount)} onChange={e => setAmount(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Service Charge (₦)</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Service Charge (₦)</label>
                     <input type="text" value={formatNumberWithCommas(serviceCharge)} onChange={e => setServiceCharge(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Caution Deposit (₦)</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Caution Deposit (₦)</label>
                     <input type="text" value={formatNumberWithCommas(cautionDeposit)} onChange={e => setCautionDeposit(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Legal Fee (₦)</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Legal Fee (₦)</label>
                     <input type="text" value={formatNumberWithCommas(legalFee)} onChange={e => setLegalFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Agency Fee (₦)</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Agency Fee (₦)</label>
                     <input type="text" value={formatNumberWithCommas(agencyFee)} onChange={e => setAgencyFee(parseFormattedNumber(e.target.value))} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Due Date</label>
+                    <label className="block text-2xs text-slate-500 dark:text-zinc-400 mb-0.5 uppercase tracking-wider font-bold">Due Date</label>
                     <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
                   </div>
                 </div>
@@ -1018,7 +1018,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">Message Content</label>
                 <button 
                   onClick={() => setIsEdited(false)} 
-                  className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40' : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'}`}
+                  className={`text-2xs uppercase font-bold tracking-wider px-2 py-1 rounded transition-colors ${isEdited ? 'text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20 hover:bg-primary-100 dark:hover:bg-primary-900/40' : 'text-slate-400 dark:text-zinc-600 opacity-50 cursor-not-allowed'}`}
                   disabled={!isEdited}
                 >
                   Reset Template
@@ -1061,7 +1061,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 <div className="px-4 pb-3">
                   <div className="flex items-center gap-1 mb-2">
                     <Clock className="w-3 h-3 text-amber-500" />
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400">Recent automated messages</span>
+                    <span className="text-2xs text-amber-600 dark:text-amber-400">Recent automated messages</span>
                   </div>
                   {upcomingLoading ? (
                     <div className="text-xs text-slate-400 dark:text-zinc-500 py-2 text-center">Loading…</div>
@@ -1072,14 +1072,14 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                       {upcomingLogs.map((log: any) => (
                         <div key={log._id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/50">
                           <span className="text-slate-400 dark:text-zinc-500">{getMsgTypeIcon(log.messageType)}</span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel as AutomationChannel]}`}>
+                          <span className={`text-2xs font-bold px-1.5 py-0.5 rounded-full ${CHANNEL_COLORS[log.channel as AutomationChannel]}`}>
                             {log.channel?.toUpperCase()}
                           </span>
                           <span className="text-xs text-slate-900 dark:text-white truncate flex-1">{getMsgTypeLabel(log.messageType)}</span>
-                          <span className="text-[10px] text-slate-400 dark:text-zinc-500 flex-shrink-0">
+                          <span className="text-2xs text-slate-400 dark:text-zinc-500 flex-shrink-0">
                             {log.sentAt ? new Date(log.sentAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                           </span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                          <span className={`text-2xs px-1.5 py-0.5 rounded-full font-bold ${
                             log.status === 'sent' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
                             : log.status === 'simulated' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' 
                             : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -1106,7 +1106,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {selectedRecipients.map(r => (
-                    <span key={r.id} className="text-[10px] px-2 py-0.5 rounded-md bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 truncate max-w-[160px]">
+                    <span key={r.id} className="text-2xs px-2 py-0.5 rounded-md bg-white dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 truncate max-w-[160px]">
                       {r.label}
                     </span>
                   ))}
@@ -1133,8 +1133,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${CHANNEL_COLORS[channel]}`}>{channel.toUpperCase()}</span>
                       <span className="text-xs text-slate-600 dark:text-zinc-300 font-medium">{pm.recipient.label}</span>
-                      {pm.recipient.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantPhone}</span>}
-                      {pm.recipient.tenantEmail && !pm.recipient.tenantPhone && <span className="text-[10px] text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantEmail}</span>}
+                      {pm.recipient.tenantPhone && <span className="text-2xs text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantPhone}</span>}
+                      {pm.recipient.tenantEmail && !pm.recipient.tenantPhone && <span className="text-2xs text-slate-400 dark:text-zinc-500">→ {pm.recipient.tenantEmail}</span>}
                     </div>
                     <p className="text-xs text-slate-700 dark:text-zinc-200 leading-relaxed whitespace-pre-wrap line-clamp-4">{pm.message}</p>
                   </div>

@@ -93,7 +93,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                     {!isUser && !isThinking && message.content && (
                         <button
                             onClick={handleCopy}
-                            className={`mt-1 px-2 py-0.5 rounded-md text-[9px] font-bold transition-all flex items-center gap-1 ${
+                            className={`mt-1 px-2 py-0.5 rounded-md text-3xs font-bold transition-all flex items-center gap-1 ${
                                 copied
                                     ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'
                                     : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 opacity-0 group-hover:opacity-100'
@@ -126,7 +126,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                                 if (!source) return null;
                                 return (
                                     <Tooltip key={index} text={citation.snippet || "Source Reference"}>
-                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-[10px] text-blue-700 dark:text-blue-300 cursor-help">
+                                        <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md text-2xs text-blue-700 dark:text-blue-300 cursor-help">
                                             <span className="font-bold">[{index + 1}]</span>
                                             <span className="truncate max-w-[100px]">{source.name}</span>
                                         </div>
@@ -137,7 +137,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                     )}
 
                     {/* Timestamp — safe formatted */}
-                    <span className="text-[10px] text-slate-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <span className="text-2xs text-slate-400 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {safeFormatTime(message.timestamp)}
                     </span>
                 </div>
@@ -242,7 +242,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
 
             {/* Context pill */}
             <div className="flex-shrink-0 flex justify-center pt-3 pb-1 px-4">
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider border ${selectedSourceIds.length > 0
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-semibold uppercase tracking-wider border ${selectedSourceIds.length > 0
                         ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
                         : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400'
                     }`}>
@@ -271,18 +271,18 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             <p className="text-xs font-bold text-emerald-800 dark:text-emerald-200">
                                 AI-Generated Search Query Ready
                             </p>
-                            <p className="text-[11px] text-slate-600 dark:text-zinc-300 mt-0.5 leading-relaxed">
+                            <p className="text-2xs text-slate-600 dark:text-zinc-300 mt-0.5 leading-relaxed">
                                 {prefillDocumentTitle
                                     ? `From your draft "${prefillDocumentTitle}". `
                                     : ''}
-                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-[9px] font-mono font-bold">Enter</kbd> to run a live web search.
+                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-3xs font-mono font-bold">Enter</kbd> to run a live web search.
                             </p>
                             {prefillContext && (
                                 <details className="mt-1.5">
-                                    <summary className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer hover:underline">
+                                    <summary className="text-2xs font-semibold text-emerald-700 dark:text-emerald-400 cursor-pointer hover:underline">
                                         View source context ({prefillContext.split('\n').length} citation{prefillContext.split('\n').length > 1 ? 's' : ''})
                                     </summary>
-                                    <pre className="mt-1 p-2 bg-white dark:bg-zinc-800/80 rounded text-[9px] text-slate-600 dark:text-zinc-300 whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-zinc-700">
+                                    <pre className="mt-1 p-2 bg-white dark:bg-zinc-800/80 rounded text-3xs text-slate-600 dark:text-zinc-300 whitespace-pre-wrap max-h-32 overflow-y-auto custom-scrollbar border border-slate-200 dark:border-zinc-700">
                                         {prefillContext}
                                     </pre>
                                 </details>
@@ -372,7 +372,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             )}
                         </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 text-center mt-1.5">
+                    <p className="text-2xs text-slate-400 text-center mt-1.5">
                         {prefillQuery && hasAppliedPrefill
                             ? 'Press Enter to run the live web search · Shift+Enter for new line'
                             : 'Shift+Enter for new line'}

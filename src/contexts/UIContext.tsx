@@ -611,9 +611,9 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         setToasts(prev => prev.filter(t => t.id !== id));
     }, []);
 
-    const toggleSidebar = () => setIsSidebarOpen(p => !p);
-    const closeSidebar = () => setIsSidebarOpen(false);
-    const toggleSidebarRetraction = () => setIsSidebarRetracted(p => !p);
+    const toggleSidebar = React.useCallback(() => setIsSidebarOpen(p => !p), []);
+    const closeSidebar = React.useCallback(() => setIsSidebarOpen(false), []);
+    const toggleSidebarRetraction = React.useCallback(() => setIsSidebarRetracted(p => !p), []);
 
     const openEditor = React.useCallback((documentId: string | null = null, context: any = null) => {
         if (context) {
@@ -630,10 +630,10 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         goBack();
     }, [goBack]);
 
-    const toggleCommandPalette = () => setCommandPaletteOpen(p => !p);
-    const closeContextMenu = () => setContextMenu(prev => ({ ...prev, isOpen: false }));
+    const toggleCommandPalette = React.useCallback(() => setCommandPaletteOpen(p => !p), []);
+    const closeContextMenu = React.useCallback(() => setContextMenu(prev => ({ ...prev, isOpen: false })), []);
 
-    const value = {
+    const value = React.useMemo(() => ({
         theme, setTheme,
         fontSize, setFontSize,
         isSidebarOpen, toggleSidebar, closeSidebar,
@@ -658,7 +658,18 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         activePeers: activePeersQuery || [],
         isOnline,
         isSessionLocked, setIsSessionLocked
-    };
+    }), [
+        theme, fontSize, isSidebarOpen, toggleSidebar, closeSidebar,
+        isSidebarRetracted, toggleSidebarRetraction,
+        modal, modalContext, editingId, openModal, closeModal,
+        history, historyIndex, currentHistoryEntry,
+        view, selectedId, navigateTo, goBack, goForward, updateCurrentHistoryEntry,
+        settingsTargetId, searchQuery, toasts, addToast, removeToast,
+        taskStatusFilter, highlightTarget, isMobileSearchOpen, dockedModalType,
+        formInteractionState, activeFormSnapshot, editorState, openEditor, closeEditor,
+        isCommandPaletteOpen, toggleCommandPalette, contextMenu, closeContextMenu,
+        viewState, activePeersQuery, isOnline, isSessionLocked
+    ]);
 
     return (
         <UIContext.Provider value={value}>

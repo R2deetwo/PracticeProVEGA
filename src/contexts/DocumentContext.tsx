@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { Document, NotePage, ResearchNotebook, ResearchSource } from '../types';
 
 export interface DocumentState {
@@ -26,14 +26,14 @@ export const DocumentProvider: React.FC<{ children?: React.ReactNode }> = ({ chi
     const { appState } = useDataState();
     const actions = useDataActions();
     
-    const documentState: DocumentState = {
+    const documentState: DocumentState = useMemo(() => ({
         documents: appState.documents,
         notePages: appState.notePages,
         researchNotebooks: appState.researchNotebooks,
         researchSources: appState.researchSources
-    };
+    }), [appState.documents, appState.notePages, appState.researchNotebooks, appState.researchSources]);
 
-    const documentActions: DocumentActions = {
+    const documentActions: DocumentActions = useMemo(() => ({
         updateDocument: (item) => actions.updateItem('documents', item, 'Document'),
         deleteDocument: (id, name) => actions.deleteItem('documents', id, name || 'Document'),
         handleUpdatePageContent: (id, title, content) => actions.handleUpdatePageContent(id, title, content),
@@ -41,10 +41,12 @@ export const DocumentProvider: React.FC<{ children?: React.ReactNode }> = ({ chi
         handleDeleteNotebook: (id, name) => actions.handleDeleteNotebook(id, name),
         onDeletePage: (id) => actions.deleteItem('notePages', id, 'page'),
         handleAddMatterNote: actions.handleAddMatterNote
-    };
+    }), [actions]);
+
+    const value = useMemo(() => ({ documentState, documentActions }), [documentState, documentActions]);
 
     return (
-        <DocumentContext.Provider value={{ documentState, documentActions }}>
+        <DocumentContext.Provider value={value}>
             {children}
         </DocumentContext.Provider>
     );

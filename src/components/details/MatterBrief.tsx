@@ -13,8 +13,8 @@ import { ProceduralComplianceReport } from './ProceduralComplianceReport';
 
 const SlimDetailItem: React.FC<{ label: string, value: React.ReactNode, icon?: React.ReactNode }> = ({ label, value, icon }) => (
     <div className="flex flex-col justify-center min-w-0">
-        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest truncate mb-0.5 leading-none">{label}</span>
-        <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-zinc-200 truncate w-full leading-tight">
+        <span className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest truncate mb-0.5 leading-none">{label}</span>
+        <div className="flex items-center gap-1 text-2xs font-bold text-slate-700 dark:text-zinc-200 truncate w-full leading-tight">
             {icon && <span className="opacity-60 flex-shrink-0 -mt-0.5 scale-90">{icon}</span>}
             <span className="truncate">{value}</span>
         </div>
@@ -127,7 +127,7 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
                     >
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Activity History</span>
-                            <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-[10px] px-1.5 py-0.5 rounded-full font-bold">{activities.length}</span>
+                            <span className="bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs px-1.5 py-0.5 rounded-full font-bold">{activities.length}</span>
                         </div>
                         <svg className={`w-4 h-4 text-slate-400 transition-transform ${showActivity ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -154,7 +154,7 @@ export const MatterBrief: React.FC<MatterBriefProps> = ({
                         <div className="w-1 h-5 bg-rose-500 rounded-full" />
                         <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">Filed Processes</h3>
                         {processBadgeCount > 0 && (
-                            <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+                            <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-2xs px-1.5 py-0.5 rounded-full font-bold">
                                 {processBadgeCount} pending
                             </span>
                         )}

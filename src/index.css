@@ -186,6 +186,7 @@ html.theme-army-dark {
   --color-primary-700: 50, 72, 52;
   --color-primary-800: 40, 58, 42;
   --color-primary-900: 30, 45, 32;
+  --color-primary-950: 15, 25, 18;
 }
 
 /* ===== Army Green Light (Soft Sage) ===== */
@@ -1531,4 +1532,30 @@ nav,
 .draftpro-ai-pulse {
   animation: draftpro-ai-pulse 2.4s ease-out 1;
   border-radius: 0.5rem;
+}
+
+/* ── Accessibility: global focus-visible + reduced-motion ───────────────
+   These two rules are the user-facing half of the Phase 7 a11y pass.
+   1. `:focus-visible` ensures keyboard users get a clear, high-contrast
+      outline (Tailwind's default reset strips it) without affecting
+      mouse users (who only get the focus ring on keyboard navigation).
+      The green matches primary-600 so the focus indicator is on-brand.
+   2. `prefers-reduced-motion` honors the OS-level accessibility setting:
+      animations and transitions collapse to ~0ms so users with vestibular
+      disorders don't get motion-triggered nausea. scroll-behavior: auto
+      disables smooth-scroll jank. */
+:focus-visible {
+  outline: 2px solid rgb(22 163 74);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

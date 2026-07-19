@@ -160,6 +160,14 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             return;
         }
 
+        const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
+        const fileName = selectedFile.name.toLowerCase();
+        const ext = fileName.substring(fileName.lastIndexOf('.'));
+        if (!allowedExtensions.includes(ext)) {
+            setError(`File type "${ext}" is not allowed. Supported: ${allowedExtensions.join(', ')}`);
+            return;
+        }
+
         setError(null);
         const reader = new FileReader();
         reader.onerror = () => setError("Failed to read file.");
@@ -215,7 +223,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             setError("Please select a folder category.");
             return;
         }
-        if (!file && !content && !isEditing) {
+        if (!file && (!content || !content.trim()) && !isEditing) {
             setError("Please upload a file or save draft content.");
             return;
         }
@@ -395,7 +403,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                     <CheckBadgeIcon className="w-5 h-5 text-emerald-500" />
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">{file.name}</p>
-                                        <p className="text-[10px] text-slate-400">{formatBytes(file.size)}</p>
+                                        <p className="text-2xs text-slate-400">{formatBytes(file.size)}</p>
                                     </div>
                                     <button type="button" onClick={() => setFile(null)} className="text-xs text-rose-500 hover:underline ml-2">Remove</button>
                                 </div>
@@ -408,7 +416,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                                         <span className="text-slate-400"> or </span>
                                         <button type="button" onClick={() => setContent('')} className="text-primary-600 hover:underline font-medium">type content</button>
                                     </div>
-                                    <p className="text-[10px] text-slate-400">PDF, DOCX, PNG, JPG · 10 MB max</p>
+                                    <p className="text-2xs text-slate-400">PDF, DOCX, PNG, JPG · 10 MB max</p>
                                 </div>
                             )}
                         </div>

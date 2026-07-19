@@ -37,7 +37,7 @@ const PlanCard: React.FC<{
         >
             {/* Recommended badge */}
             {tier.recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-[9px] font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap z-10">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-3xs font-black px-4 py-1 rounded-full uppercase tracking-widest shadow-lg whitespace-nowrap z-10">
                     Most Popular
                 </div>
             )}
@@ -45,23 +45,23 @@ const PlanCard: React.FC<{
             <div className="p-5 flex flex-col h-full">
                 {/* Tier name + check */}
                 <div className="flex justify-between items-center mb-3">
-                    <h4 className="font-black text-[10px] uppercase tracking-widest text-slate-400">{tier.label}</h4>
+                    <h4 className="font-black text-2xs uppercase tracking-widest text-slate-400">{tier.label}</h4>
                     {selected && <div className="w-4 h-4 bg-primary-600 rounded-full flex items-center justify-center text-white p-0.5"><CheckIcon className="w-full h-full" /></div>}
                 </div>
 
                 {/* Price */}
                 <div className="mb-4">
                     <p className="text-2xl font-black text-slate-900 tracking-tighter leading-none">{price}</p>
-                    <p className="text-[10px] font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
+                    <p className="text-2xs font-bold text-slate-400 mt-1">{per || (tier.annualPrice === null && tier.monthlyPrice === null ? 'Contact sales' : isAtrium ? '/yr' : '')}</p>
                 </div>
 
                 {/* SCE block */}
                 {sce && (
                     <div className="mb-3 px-3 py-2 rounded-lg bg-emerald-50/80 border border-emerald-100">
-                        <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest">SCE*</p>
+                        <p className="text-3xs font-black text-emerald-600 uppercase tracking-widest">SCE*</p>
                         <div className="flex items-baseline gap-1">
                             <p className="text-xs font-black text-slate-900 leading-tight">{sce}</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase">/tenant</p>
+                            <p className="text-3xs font-bold text-slate-400 uppercase">/tenant</p>
                         </div>
                     </div>
                 )}
@@ -69,7 +69,7 @@ const PlanCard: React.FC<{
                 {/* Features — scrollable if tall */}
                 <ul className="space-y-1.5 flex-grow overflow-y-auto custom-scrollbar text-left pr-1" style={{ maxHeight: '180px' }}>
                     {tier.features.map((f, i) => (
-                        <li key={i} className="text-[10px] text-slate-500 font-medium flex items-start gap-1.5 leading-snug">
+                        <li key={i} className="text-2xs text-slate-500 font-medium flex items-start gap-1.5 leading-snug">
                             <CheckIcon className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />
                             <span className="break-words">{f}</span>
                         </li>
@@ -78,7 +78,7 @@ const PlanCard: React.FC<{
 
                 {/* Setup fee notice */}
                 {tier.requiresSetupFee && (
-                    <p className="text-[8px] text-amber-600 font-black uppercase tracking-widest mt-3 border-t border-slate-100 pt-2">+ ₦150k One-Time Setup Fee</p>
+                    <p className="text-3xs text-amber-600 font-black uppercase tracking-widest mt-3 border-t border-slate-100 pt-2">+ ₦150k One-Time Setup Fee</p>
                 )}
             </div>
         </div>
@@ -226,7 +226,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                             {mode === 'create' ? (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
+                                        <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Firm / Organization Name</label>
                                         <input autoComplete="off" data-lpignore="true" type="text" placeholder="e.g. Adeyemi & Co." value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100 rounded-2xl bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 placeholder:text-slate-300" autoFocus />
                                     </div>
                                     <button onClick={() => setStep(2)} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Select Plan</button>
@@ -234,7 +234,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                             ) : (
                                 <div className="space-y-6">
                                     <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Invite Code</label>
+                                        <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Invite Code</label>
                                         <input autoComplete="off" data-lpignore="true" type="text" placeholder="INV-XXXX" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} className="w-full p-4 text-center font-mono font-bold text-2xl border border-slate-100 rounded-2xl bg-white focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900 placeholder:text-slate-200 uppercase" autoFocus />
                                     </div>
                                     <button onClick={handleJoin} disabled={!inviteCode || isSubmitting} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 flex justify-center disabled:opacity-50 disabled:translate-y-0">
@@ -244,7 +244,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                             )}
 
                             <div className="pt-8 border-t border-slate-50 text-center">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">System Recovery</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-3">System Recovery</p>
                                 <button onClick={handleRecovery} disabled={isRecovering} className="text-xs font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest flex items-center justify-center gap-2 mx-auto transition-colors">
                                     {isRecovering ? <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <RevertIcon className="w-4 h-4" />}
                                     Recover Connection
@@ -271,7 +271,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                                     const name = p === 'legal' ? 'Vega' : p === 'property' ? 'Atrium' : 'Komplete';
                                     const active = product === p;
                                     return (
-                                        <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
+                                        <button key={p} onClick={() => setProduct(p)} className={`px-5 py-2 text-2xs font-black uppercase tracking-widest rounded-full border-2 transition-all ${active ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-slate-200 text-slate-400 hover:border-slate-300'}`}>
                                             {name}
                                         </button>
                                     );
@@ -288,7 +288,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                                 </button>
                                 <div className="flex items-center gap-2">
                                     <span className={`text-xs font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
-                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-[9px] font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
+                                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-3xs font-black uppercase rounded-full border border-emerald-200">Save ~20%</span>
                                 </div>
                             </div>
                         )}
@@ -296,7 +296,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         {/* Atrium annual-only badge */}
                         {isAtrium && (
                             <div className="flex justify-center">
-                                <span className="px-4 py-1.5 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest rounded-full border border-blue-100">
+                                <span className="px-4 py-1.5 bg-blue-50 text-blue-600 text-2xs font-black uppercase tracking-widest rounded-full border border-blue-100">
                                     Annual Billing Only
                                 </span>
                             </div>
@@ -330,7 +330,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         )}
 
                         {isAtrium && (
-                            <div className="text-[10px] text-slate-400 font-bold text-center">
+                            <div className="text-2xs text-slate-400 font-bold text-center">
                                 * SCE: Service Charge Equivalent — estimated monthly cost per tenant unit.
                             </div>
                         )}
@@ -341,15 +341,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                                 <div className="flex items-start gap-3">
                                     <input type="checkbox" id="data-migration" checked={isDataMigration} onChange={e => setIsDataMigration(e.target.checked)} className="mt-0.5 w-4 h-4 rounded border-amber-200 text-amber-600 focus:ring-amber-500" />
                                     <div className="flex-1 min-w-0">
-                                        <label htmlFor="data-migration" className="text-[11px] font-bold text-amber-900 cursor-pointer">
+                                        <label htmlFor="data-migration" className="text-2xs font-bold text-amber-900 cursor-pointer">
                                             Managed Data Migration <span className="font-normal text-amber-600">+₦150k</span>
                                         </label>
                                         <details className="mt-1 group/det">
-                                            <summary className="text-[10px] font-semibold text-amber-500 cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
+                                            <summary className="text-2xs font-semibold text-amber-500 cursor-pointer hover:text-amber-700 transition-colors list-none inline-flex items-center gap-1">
                                                 What's included
                                                 <svg className="w-3 h-3 transition-transform group-open/det:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                                             </summary>
-                                            <div className="mt-2 space-y-1.5 text-[10px] text-amber-800 leading-relaxed">
+                                            <div className="mt-2 space-y-1.5 text-2xs text-amber-800 leading-relaxed">
                                                 <p>We digitize your existing property records and upload them into Atrium so you can start immediately.</p>
                                                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2">
                                                     <div className="flex items-center gap-1.5">
@@ -380,7 +380,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                         {/* DPA Agreement */}
                         <div className="max-w-md mx-auto pt-2 flex items-start gap-3">
                             <input autoComplete="off" data-lpignore="true" type="checkbox" id="agree-dpa" checked={hasAgreed} onChange={e => setHasAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 text-primary-600 border-slate-200 rounded focus:ring-primary-500 cursor-pointer transition-all" />
-                            <label htmlFor="agree-dpa" className="text-[11px] text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
+                            <label htmlFor="agree-dpa" className="text-2xs text-slate-400 font-medium leading-relaxed cursor-pointer select-none">
                                 I agree to the <button type="button" onClick={() => navigateTo('dataProcessingAgreement')} className="text-primary-600 hover:underline font-bold">Data Protection Agreement</button> and <button type="button" onClick={() => navigateTo('termsOfService')} className="text-primary-600 hover:underline font-bold">Terms of Service</button>. Data is processed per Nigerian standards.
                             </label>
                         </div>

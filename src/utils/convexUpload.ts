@@ -23,10 +23,32 @@ export async function uploadBlobToConvex(
     generateUploadUrlFn: () => Promise<string>
 ): Promise<string> {
     const postUrl = await generateUploadUrlFn();
-    const res = await fetch(postUrl, {
-        method: 'POST',
-        body: blob,
-    });
+
+    // 2-minute upload timeout. Large PDFs / audio recordings on slow
+    // Nigerian mobile networks can legitimately take a while, but if we
+    // pass 2 minutes the connection is effectively dead and continuing to
+    // wait just leaks an open socket + a hung UI spinner. Aborting lets
+    // the caller surface a clear "Upload timed out" message and retry.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+    let res: Response;
+    try {
+        res = await fetch(postUrl, {
+            method: 'POST',
+            body: blob,
+            signal: controller.signal,
+        });
+    } catch (e: any) {
+        clearTimeout(timeoutId);
+        if (e?.name === 'AbortError') {
+            throw new Error('Upload timed out.');
+        }
+        throw e;
+    }
+
+    clearTimeout(timeoutId);
+
     if (!res.ok) {
         throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
     }

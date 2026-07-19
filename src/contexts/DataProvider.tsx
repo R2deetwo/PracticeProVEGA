@@ -592,8 +592,12 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
 
+    const dataStateValue = React.useMemo(() => ({
+        appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] as string[]
+    }), [appState, isDataLoaded]);
+
     return (
-        <DataStateContext.Provider value={{ appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] }}>
+        <DataStateContext.Provider value={dataStateValue}>
             <DataActionsContext.Provider value={contextActions as unknown as ExtendedDataActions}>
                 {children}
             </DataActionsContext.Provider>

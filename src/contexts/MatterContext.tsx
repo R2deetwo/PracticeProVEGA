@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useCallback } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { Matter, Contact, ClientMessage } from '../types';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -31,13 +31,13 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
     const { currentUser } = useAuth();
     const deleteMatterCascadeMutation = useMutation(api.myFunctions.deleteMatterCascade);
     
-    const matterState: MatterState = {
+    const matterState: MatterState = useMemo(() => ({
         matters: appState.matters,
         contacts: appState.contacts,
         clientMessages: appState.clientMessages
-    };
+    }), [appState.matters, appState.contacts, appState.clientMessages]);
 
-    const matterActions: MatterActions = {
+    const matterActions: MatterActions = useMemo(() => ({
         onAddMatter: actions.onAddMatter,
         updateMatter: (item) => actions.updateItem('matters', item, 'Matter'),
         deleteMatter: async (id, name) => {
@@ -52,10 +52,12 @@ export const MatterProvider: React.FC<{ children?: React.ReactNode }> = ({ child
         handleReopenMatter: actions.handleReopenMatter,
         handleAddContact: actions.handleAddContact,
         handleSendClientMessage: actions.handleSendClientMessage
-    };
+    }), [actions, deleteMatterCascadeMutation, currentUser]);
+
+    const value = useMemo(() => ({ matterState, matterActions }), [matterState, matterActions]);
 
     return (
-        <MatterContext.Provider value={{ matterState, matterActions }}>
+        <MatterContext.Provider value={value}>
             {children}
         </MatterContext.Provider>
     );

@@ -64,7 +64,7 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
 
                     {matter.nextDeadline ? (
                         <div className="mb-2 text-xs bg-slate-50 dark:bg-zinc-700/50 p-1.5 rounded border border-gray-100 dark:border-gray-700">
-                            <span className="font-semibold text-[10px] uppercase text-gray-400 block">Next Deadline</span>
+                            <span className="font-semibold text-2xs uppercase text-gray-400 block">Next Deadline</span>
                             <div className="flex justify-between items-center mt-0.5">
                                 <span className="truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={matter.nextDeadline.title}>{matter.nextDeadline.title}</span>
                                 <span className={`font-bold ${getDueDateColor(matter.nextDeadline.date)}`}>{formatDueDate(matter.nextDeadline.date)}</span>

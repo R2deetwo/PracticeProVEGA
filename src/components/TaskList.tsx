@@ -105,7 +105,7 @@ const TaskRow: React.FC<{
                         <div className="flex items-center -space-x-2">
                             {assignedUsers.map(user => (
                                 <Tooltip key={user.id} text={user.name}>
-                                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-white font-bold text-[9px] ring-2 ring-white dark:ring-zinc-800 ${getUserColor(user.name)}`}>
+                                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-white font-bold text-3xs ring-2 ring-white dark:ring-zinc-800 ${getUserColor(user.name)}`}>
                                         {getInitials(user.name)}
                                     </div>
                                 </Tooltip>
@@ -123,7 +123,7 @@ const TaskRow: React.FC<{
                 {/* Priority Pill - Styled like Status */}
                 <button
                     onClick={(e) => { e.stopPropagation(); onPriorityClick(e, task); }}
-                    className={`px-2.5 py-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColorClass(task.priority)}`}
+                    className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColorClass(task.priority)}`}
                 >
                     {task.priority || 'Medium'}
                     <ChevronDownIcon className="w-3 h-3" />
@@ -135,7 +135,7 @@ const TaskRow: React.FC<{
                 <div className="relative" ref={statusRef}>
                     <button
                         onClick={(e) => { e.stopPropagation(); setIsStatusOpen(!isStatusOpen); }}
-                        className={`px-2.5 py-1 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity
+                        className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity
                         ${task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                 task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                     'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}
@@ -335,11 +335,11 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, users, matters, onViewDetail
                                             <td colSpan={appMode === 'multi' ? 8 : 7} className="px-6 py-2">
                                                 <div className="flex items-center gap-2">
                                                     <div className="h-4 w-1 bg-primary-500 rounded-full" />
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">
+                                                    <span className="text-2xs font-black uppercase tracking-[0.2em] text-slate-500 dark:text-zinc-400">
                                                         {groupBy === 'matter' ? 'Matter: ' : 'Priority: '}
                                                         <span className="text-slate-900 dark:text-white">{group.title}</span>
                                                     </span>
-                                                    <span className="text-[9px] font-bold text-slate-400 ml-2">({group.tasks.length} items)</span>
+                                                    <span className="text-3xs font-bold text-slate-400 ml-2">({group.tasks.length} items)</span>
                                                 </div>
                                             </td>
                                         </tr>

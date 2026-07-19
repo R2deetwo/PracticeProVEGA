@@ -20,6 +20,7 @@ interface ExpenseFormProps {
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddExpense, onUpdateExpense, onClose }) => {
   const { addToast } = useUI();
   const { hasPropertyFeatures } = useProduct();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState('');
@@ -41,8 +42,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
     }
   }, [isEditing, expenseToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!description.trim() || amount <= 0) {
       addToast("Please provide a valid description and amount.", { type: 'info' });
       return;
@@ -58,12 +60,17 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
       billedInInvoiceId: null,
       taxDeductibility: taxAnalysis ? { isDeductible: taxAnalysis.isDeductible, reason: taxAnalysis.reason } : undefined
     };
-    if (isEditing && expenseToEdit) {
-      onUpdateExpense({ ...expenseToEdit, ...expenseData });
-    } else {
-      onAddExpense(expenseData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && expenseToEdit) {
+        onUpdateExpense({ ...expenseToEdit, ...expenseData });
+      } else {
+        onAddExpense(expenseData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   const handleAnalyzeTax = async () => {
@@ -87,7 +94,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                             <Receipt className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                            <p className="text-2xs font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Matter Association</h3>
                         </div>
                     </div>
@@ -115,7 +122,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                             <CalendarIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Finance</p>
+                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Finance</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amount & Date</h3>
                         </div>
                     </div>
@@ -141,14 +148,14 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                                 <Receipt className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-black text-slate-700 dark:text-zinc-300 uppercase tracking-widest leading-none mb-1">Billable Expense</p>
-                                <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">Include in Next Invoice</p>
+                                <p className="text-2xs font-black text-slate-700 dark:text-zinc-300 uppercase tracking-widest leading-none mb-1">Billable Expense</p>
+                                <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">Include in Next Invoice</p>
                             </div>
                             <input autoComplete="off" data-lpignore="true"  type="checkbox" id="isBillable" checked={isBillable} onChange={e => setIsBillable(e.target.checked)} className="hidden" />
                         </label>
 
                         {!taxAnalysis && (
-                            <button type="button" onClick={handleAnalyzeTax} disabled={isAnalyzing} className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-2">
+                            <button type="button" onClick={handleAnalyzeTax} disabled={isAnalyzing} className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-3xs font-black uppercase tracking-widest rounded-xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-2">
                                 <ZapIcon className="w-3.5 h-3.5" />
                                 {isAnalyzing ? 'Analyzing...' : 'Check Tax Status'}
                             </button>
@@ -166,7 +173,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                                         {taxAnalysis.isDeductible ? 'Likely Deductible Asset' : 'Likely Non-Deductible Outlay'}
                                     </p>
                                     <p className="text-sm text-slate-700 dark:text-zinc-300 font-medium leading-relaxed">{taxAnalysis.reason}</p>
-                                    <button type="button" onClick={() => setTaxAnalysis(null)} className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-primary-600 transition-colors">Re-evaluate Logic</button>
+                                    <button type="button" onClick={() => setTaxAnalysis(null)} className="mt-4 text-3xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-600 transition-colors">Re-evaluate Logic</button>
                                 </div>
                             </div>
                         </div>
@@ -178,7 +185,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Expense'}
                 </button>
             </div>

@@ -144,7 +144,7 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         return categories;
     }, [product, appState.contactCategories, appState.documentCategories]);
 
-    const coreState: CoreState = {
+    const coreState: CoreState = React.useMemo(() => ({
         users: appState.users || [],
         chatMessages: appState.chatMessages || [],
         firmDetails: appState.firmDetails,
@@ -174,9 +174,9 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         serviceCharges: appState.serviceCharges || [],
         leadsPipeline: appState.leadsPipeline || [],
         automationLogs: appState.automationLogs || [],
-    };
+    }), [appState, productCategories.contactCategories, productCategories.documentCategories]);
 
-    const coreActions: CoreActions = {
+    const coreActions: CoreActions = React.useMemo(() => ({
         handleUpdateUser: actions.handleUpdateUser,
         handleUpdateFirmDetails: actions.handleUpdateFirmDetails,
         handleMarkNotificationsRead: actions.handleMarkNotificationsRead,
@@ -185,10 +185,12 @@ export const CoreProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleSendMessage: actions.handleSendMessage,
         handleDeleteChat: (id, name) => actions.deleteItem('chatConversations', id, name || 'Chat'),
         deleteItem: (table, id, name) => actions.deleteItem(table as any, id, name || 'Item'),
-    };
+    }), [actions]);
+
+    const value = React.useMemo(() => ({ coreState, coreActions, isDataLoaded }), [coreState, coreActions, isDataLoaded]);
 
     return (
-        <CoreContext.Provider value={{ coreState, coreActions, isDataLoaded }}>
+        <CoreContext.Provider value={value}>
             {children}
         </CoreContext.Provider>
     );

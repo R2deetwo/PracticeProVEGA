@@ -343,7 +343,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                         <input autoComplete="off" data-lpignore="true"  type="file" ref={fileInputRef} hidden onChange={handleLogoUpload} accept="image/*" />
 
                                         <div>
-                                            <label className="text-[10px] uppercase font-bold text-zinc-500">Size (Height)</label>
+                                            <label className="text-2xs uppercase font-bold text-zinc-500">Size (Height)</label>
                                             <input autoComplete="off" data-lpignore="true"  type="range" min="20" max="200" value={localConfig.logo.height} onChange={(e) => handleNestedUpdate('logo', { height: parseInt(e.target.value) })} className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-primary-500 mt-2" />
                                         </div>
                                     </div>
@@ -352,7 +352,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                 {(selectedElement === 'firmName' || selectedElement === 'address') && (
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Content</label>
+                                            <label className="text-2xs uppercase font-bold text-zinc-500 mb-1 block">Content</label>
                                             {selectedElement === 'address' ? (
                                                 <textarea
                                                     value={localConfig.address.text}
@@ -371,7 +371,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
 
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="text-[10px] uppercase font-bold text-zinc-500">Font Size</label>
+                                                <label className="text-2xs uppercase font-bold text-zinc-500">Font Size</label>
                                                 <input autoComplete="off" data-lpignore="true" 
                                                     type="number"
                                                     value={selectedElement === 'firmName' ? localConfig.firmName.fontSize : localConfig.address.fontSize}
@@ -380,7 +380,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                                 />
                                             </div>
                                             <div>
-                                                <label className="text-[10px] uppercase font-bold text-zinc-500">Color</label>
+                                                <label className="text-2xs uppercase font-bold text-zinc-500">Color</label>
                                                 <div className="h-[38px] mt-1 bg-zinc-800 rounded border border-zinc-700 px-1 py-1">
                                                     <input autoComplete="off" data-lpignore="true" 
                                                         type="color"
@@ -406,7 +406,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                         )}
 
                                         <div>
-                                            <label className="text-[10px] uppercase font-bold text-zinc-500">Alignment</label>
+                                            <label className="text-2xs uppercase font-bold text-zinc-500">Alignment</label>
                                             <div className="flex bg-zinc-800 p-1 rounded mt-1">
                                                 {['left', 'center', 'right'].map((align) => (
                                                     <button
@@ -418,7 +418,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                                                     </button>
                                                 ))}
                                             </div>
-                                            <p className="text-[10px] text-zinc-600 mt-1">Controls text alignment within the box.</p>
+                                            <p className="text-2xs text-zinc-600 mt-1">Controls text alignment within the box.</p>
                                         </div>
                                     </div>
                                 )}
@@ -486,7 +486,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
                         >
                             {/* Visual Header Boundary Guide */}
                             <div className="absolute top-0 left-0 right-0 border-b border-blue-400/30 border-dashed pointer-events-none" style={{ height: '150px' }}>
-                                <span className="absolute bottom-1 right-2 text-[10px] text-blue-400/50">Fold Line (Approx)</span>
+                                <span className="absolute bottom-1 right-2 text-2xs text-blue-400/50">Fold Line (Approx)</span>
                             </div>
 
                             {/* --- Draggable Elements --- */}

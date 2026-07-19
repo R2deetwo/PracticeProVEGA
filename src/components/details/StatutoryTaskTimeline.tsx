@@ -39,29 +39,29 @@ const daysUntil = (dateStr?: string | null): number | null => {
 const DeadlineBadge: React.FC<{ days: number | null }> = ({ days }) => {
     if (days === null) return null;
     if (days < 0) return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
             {Math.abs(days)}d overdue
         </span>
     );
     if (days === 0) return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30">
             <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
             Due today
         </span>
     );
     if (days <= 3) return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/20">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/20">
             {days}d left
         </span>
     );
     if (days <= 7) return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/20">
             {days}d left
         </span>
     );
     return (
-        <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+        <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
             {days}d left
         </span>
     );
@@ -94,7 +94,7 @@ const StatusPill: React.FC<{
     return (
         <button
             onClick={(e) => { e.stopPropagation(); onUpdate(next[task.status]); }}
-            className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border transition-all ${cls}`}
+            className={`px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider border transition-all ${cls}`}
         >
             {label}
         </button>
@@ -133,7 +133,7 @@ const StageHeader: React.FC<{
                     <p className={`text-sm font-bold truncate ${stage.isActive ? 'text-sky-600 dark:text-sky-400' : 'text-slate-700 dark:text-zinc-200'}`}>
                         {stage.stageName}
                     </p>
-                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium shrink-0">
+                    <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium shrink-0">
                         {completedCount}/{stage.tasks.length}
                     </span>
                 </div>
@@ -197,12 +197,12 @@ const TaskCard: React.FC<{
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1">
                     {task.dueDate && <DeadlineBadge days={days} />}
                     {isStatutory && !isDone && (
-                        <span className="text-[9px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        <span className="text-3xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
                             Statutory
                         </span>
                     )}
                     {task.description && (
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[200px]">{task.description}</p>
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate max-w-[200px]">{task.description}</p>
                     )}
                 </div>
             </div>
@@ -338,7 +338,7 @@ export const StatutoryTaskTimeline: React.FC<StatutoryTaskTimelineProps> = ({
             </div>
 
             {/* Legend */}
-            <div className="flex flex-wrap items-center gap-4 text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">
+            <div className="flex flex-wrap items-center gap-4 text-2xs text-slate-400 dark:text-zinc-500 font-semibold">
                 <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-500" /> High priority
                 </span>
@@ -374,7 +374,7 @@ export const StatutoryTaskTimeline: React.FC<StatutoryTaskTimelineProps> = ({
                                 />
                             ))
                         ) : (
-                            <p className="text-[11px] text-slate-400 dark:text-zinc-600 italic pl-1">No tasks in this stage</p>
+                            <p className="text-2xs text-slate-400 dark:text-zinc-600 italic pl-1">No tasks in this stage</p>
                         )}
                     </div>
                 </div>

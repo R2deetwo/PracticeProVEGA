@@ -14,6 +14,7 @@ interface LeadFormProps {
 const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
     const { handleAddLead } = useDataActions();
     const { addToast } = useUI();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [name, setName] = useState(initialContext?.name || '');
     const [email, setEmail] = useState(initialContext?.email || '');
     const [clientType, setClientType] = useState<ContactType>(ContactType.Individual);
@@ -26,14 +27,20 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
         }
     }, [initialContext]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!name.trim() || !email.trim()) {
             addToast("Name and Email are required.", { type: 'info' });
             return;
         }
-        handleAddLead({ name, email }, isClientRequest);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            handleAddLead({ name, email }, isClientRequest);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const commonInputClass = inputModern;
@@ -47,7 +54,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                         <UserGeneratorIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                        <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lead Information</h3>
                     </div>
                 </div>
@@ -85,7 +92,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                         <MailIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
+                        <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Service Details</h3>
                     </div>
                 </div>
@@ -96,11 +103,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
 
                 <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-50 dark:border-zinc-800 pb-3">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Name</span>
+                        <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Client Name</span>
                         <span className="text-sm font-black text-slate-700 dark:text-white">{name}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                        <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Email</span>
                         <span className="text-sm font-black text-primary-600 truncate ml-4">{email}</span>
                     </div>
                 </div>
@@ -118,7 +125,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-3.5 h-3.5" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-3.5 h-3.5" /> {isClientRequest ? 'Confirm Request' : 'Save Lead'}
                 </button>
             </div>

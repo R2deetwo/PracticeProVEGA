@@ -38,6 +38,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const { confirm, ConfirmDialog } = useConfirm();
 
     // Core Fields
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [address, setAddress] = useState(propertyToEdit?.address || '');
     const [category, setCategory] = useState<Property['category']>(propertyToEdit?.category || PropertyCategory.Tenanted);
     const [propertyType, setPropertyType] = useState<Property['propertyType']>(propertyToEdit?.propertyType || 'Residential');
@@ -386,6 +387,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
 
         if (!address.trim()) {
             addToast('Address is required.', { type: 'info' });
@@ -459,6 +461,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             };
         }
 
+        setIsSubmitting(true);
         try {
             const isEditing = !!propertyToEdit;
             const currentUnits = unitsData.slice(0, numberOfUnits);
@@ -525,6 +528,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         } catch (error) {
             console.error("Failed to save property", error);
             addToast("Failed to save property. Please try again.", { type: 'error' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -589,7 +594,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <OfficeBuildingIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
+                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Primary Details</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Address & Category</h3>
                         </div>
                     </div>
@@ -702,7 +707,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 className={commonInputClass}
                                 placeholder="e.g. Block of Flats, Victoria Island"
                             />
-                            <p className="text-[9px] text-slate-400 dark:text-zinc-500 px-1">Used as a fallback when individual unit descriptions are empty. Set specific descriptions per unit below.</p>
+                            <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Used as a fallback when individual unit descriptions are empty. Set specific descriptions per unit below.</p>
                         </div>
                     </div>
                 </div>
@@ -714,7 +719,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <SparklesIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
+                            <p className="text-2xs font-bold text-emerald-600/70 uppercase tracking-widest leading-none mb-0.5">Features</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Amenities</h3>
                         </div>
                     </div>
@@ -748,7 +753,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             ))}
                             {amenities.length === 0 && (
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-2 italic">No amenities listed yet.</p>
+                                <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest px-2 italic">No amenities listed yet.</p>
                             )}
                         </div>
                     </div>
@@ -761,7 +766,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <ZapIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-amber-600/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
+                            <p className="text-2xs font-bold text-amber-600/70 uppercase tracking-widest leading-none mb-0.5">Alerts</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Automation</h3>
                         </div>
                     </div>
@@ -790,7 +795,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <CalculatorIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-teal-600/70 uppercase tracking-widest leading-none mb-0.5">Fees</p>
+                            <p className="text-2xs font-bold text-teal-600/70 uppercase tracking-widest leading-none mb-0.5">Fees</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Minimum Vend / Estate Fees</h3>
                         </div>
                     </div>
@@ -837,7 +842,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <GavelIconLarge className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">Legal</p>
+                                <p className="text-2xs font-bold text-rose-600/70 uppercase tracking-widest leading-none mb-0.5">Legal</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Dispute Details</h3>
                             </div>
                         </div>
@@ -869,7 +874,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">
                                                 {(appState.matters || []).find(m => m.id === linkedMatterId)?.title || 'Matter Not Found'}
                                             </p>
-                                            <p className="text-[10px] text-slate-500 uppercase tracking-tighter">Connected for Legal Management</p>
+                                            <p className="text-2xs text-slate-500 uppercase tracking-tighter">Connected for Legal Management</p>
                                         </div>
                                     </div>
                                     <button 
@@ -914,7 +919,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <CalculatorIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-blue-600/70 uppercase tracking-widest leading-none mb-0.5">Sale Details</p>
+                                <p className="text-2xs font-bold text-blue-600/70 uppercase tracking-widest leading-none mb-0.5">Sale Details</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Listing Info</h3>
                             </div>
                         </div>
@@ -949,7 +954,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <CalendarIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
+                                <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Rental Details</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lease & Rent Configuration</h3>
                             </div>
                         </div>
@@ -999,7 +1004,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     className={commonInputClass}
                                     placeholder="e.g. 4-Bedroom Maisonette with BQ"
                                 />
-                                <p className="text-[9px] text-slate-400 dark:text-zinc-500 px-1">Describe this specific unit's style, layout, or features. {autoSyncUnits && activeUnitIndex === 0 && unitsData.length > 1 ? 'Auto-copied to other units.' : ''}</p>
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Describe this specific unit's style, layout, or features. {autoSyncUnits && activeUnitIndex === 0 && unitsData.length > 1 ? 'Auto-copied to other units.' : ''}</p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
@@ -1061,7 +1066,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             placeholder="0.00"
                                         />
                                     </div>
-                                    <p className="text-[9px] text-slate-400 pl-1">For the current billing period</p>
+                                    <p className="text-3xs text-slate-400 pl-1">For the current billing period</p>
                                 </div>
                             </div>
 
@@ -1098,7 +1103,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Legal Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
                                     <div className="relative rounded-xl shadow-xs">
@@ -1136,7 +1141,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Agency Fee (%)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
                                     <div className="relative rounded-xl shadow-xs">
@@ -1171,7 +1176,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <label className={labelClass}>Caution Deposit (<NairaSymbol />)</label>
                                         <label className="flex items-center gap-1.5 cursor-pointer group/na">
                                             <input type="checkbox" checked={unitsData[activeUnitIndex].isCautionNA} onChange={e => updateUnit(activeUnitIndex, 'isCautionNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-[10px] font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
+                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tighter">N/A</span>
                                         </label>
                                     </div>
                                     <input autoComplete="off" data-lpignore="true" 
@@ -1189,10 +1194,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
                                 <div className="flex justify-between items-center">
                                     <div>
-                                        <p className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
+                                        <p className="text-2xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
                                             Total Tenancy Package
                                         </p>
-                                        <p className="text-[10px] text-slate-500 dark:text-zinc-500">
+                                        <p className="text-2xs text-slate-500 dark:text-zinc-500">
                                             Total payable by the tenant (Rent + Fees + Caution + Service)
                                         </p>
                                     </div>
@@ -1200,7 +1205,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <p className="text-base font-black text-emerald-700 dark:text-emerald-300">
                                             ₦{totalPayable.toLocaleString('en-NG')}
                                         </p>
-                                        <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
+                                        <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tighter">
                                             {unitsData[activeUnitIndex]?.rentFrequency === 'Monthly' ? 'Per Month' : 'Per Annum'}
                                         </p>
                                     </div>
@@ -1261,7 +1266,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         />
                                     </div>
                                     {!unitsData[activeUnitIndex].occupantFirstName && !unitsData[activeUnitIndex].occupantLastName && unitsData[activeUnitIndex].tenantName && (
-                                        <p className="text-[10px] text-amber-600 mt-1">Current legacy name: {unitsData[activeUnitIndex].tenantName} (Please fill first/last name to update)</p>
+                                        <p className="text-2xs text-amber-600 mt-1">Current legacy name: {unitsData[activeUnitIndex].tenantName} (Please fill first/last name to update)</p>
                                     )}
                                 </div>
                                 <div className="space-y-2 group">
@@ -1309,7 +1314,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                                 max={100}
                                                 placeholder="0"
                                             />
-                                            <span className="px-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l border-slate-100 dark:border-zinc-700 flex items-center">%</span>
+                                            <span className="px-3 text-2xs font-black text-slate-400 uppercase tracking-widest border-l border-slate-100 dark:border-zinc-700 flex items-center">%</span>
                                         </div>
                                     </div>
                                 )}
@@ -1321,7 +1326,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         onChange={e => updateUnit(activeUnitIndex, 'isPeriodicReviewEnabled', e.target.checked)}
                                         className="rounded border-slate-200 text-primary-600 focus:ring-primary-500"
                                     />
-                                    <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest">Enable Periodic Review</span>
+                                    <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-widest">Enable Periodic Review</span>
                                 </label>
                             </div>
 
@@ -1343,14 +1348,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <UploadIcon className="w-3.5 h-3.5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold text-slate-600/70 uppercase tracking-widest leading-none mb-0.5">Media</p>
+                                <p className="text-2xs font-bold text-slate-600/70 uppercase tracking-widest leading-none mb-0.5">Media</p>
                                 <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Photos & Documents</h3>
                             </div>
                         </div>
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2"
+                            className="text-2xs font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2"
                         >
                             Upload Files
                         </button>
@@ -1369,7 +1374,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 {img.type.startsWith('image/') ? (
                                     <img src={img.dataUrl} alt="Prop" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                 ) : (
-                                    <div className="w-full h-full flex flex-col items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-2xs font-black text-slate-400 uppercase tracking-widest">
                                         <OfficeBuildingIcon className="w-6 h-6 mb-1 opacity-20" />
                                         PDF DOC
                                     </div>
@@ -1385,7 +1390,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         )) : (
                             <div className="col-span-full py-8 sm:py-12 border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-3xl text-center">
                                 <OfficeBuildingIcon className="w-8 h-8 mx-auto text-slate-200 dark:text-zinc-800 mb-2" />
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No photos yet</p>
+                                <p className="text-2xs font-black text-slate-400 uppercase tracking-widest">No photos yet</p>
                             </div>
                         )}
                     </div>
@@ -1408,7 +1413,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 }} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                     <SaveIcon className="w-4 h-4" /> Save Property
                 </button>
             </div>

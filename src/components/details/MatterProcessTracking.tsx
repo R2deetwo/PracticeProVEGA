@@ -149,7 +149,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
             {isEnterpriseMatter && (
                 <div className="flex items-center gap-3">
                     <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-700" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">{isProperty ? 'Tracked Processes' : 'Filed Processes'}</span>
+                    <span className="text-2xs font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">{isProperty ? 'Tracked Processes' : 'Filed Processes'}</span>
                     <div className="h-px flex-1 bg-slate-200 dark:bg-zinc-700" />
                 </div>
             )}
@@ -307,7 +307,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                             {/* Related Document */}
                                             {process.relatedDocumentId && documents && (
                                                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-zinc-700/50">
-                                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Attached Document</div>
+                                                    <div className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-2">Attached Document</div>
                                                     {(() => {
                                                         const doc = documents.find(d => d.id === process.relatedDocumentId);
                                                         if (!doc) return <div className="text-xs text-slate-500 italic">Document no longer available</div>;
@@ -321,7 +321,7 @@ const MatterProcessTracking: React.FC<MatterProcessTrackingProps> = ({ matter, o
                                                                 </div>
                                                                 <div>
                                                                     <div className="text-xs font-bold text-slate-700 dark:text-zinc-200">{doc.title}</div>
-                                                                    <div className="text-[10px] text-slate-500">{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</div>
+                                                                    <div className="text-2xs text-slate-500">{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</div>
                                                                 </div>
                                                                 <ChevronRightIcon className="w-4 h-4 text-slate-400 ml-2" />
                                                             </div>

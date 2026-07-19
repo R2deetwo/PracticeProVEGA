@@ -48,7 +48,7 @@ function applyScale(scale: number) {
     document.documentElement.style.setProperty('--portal-font-scale', String(scale));
     // Set the root font-size so rem-based sizing scales with the user's
     // preference. Tailwind's text-xs/text-sm/text-base/etc. all use rem,
-    // so they scale automatically. Explicit pixel sizes (text-[10px]) are
+    // so they scale automatically. Explicit pixel sizes (text-2xs) are
     // intentionally fixed for badges/labels and don't scale — that's
     // acceptable because they're decorative, not body text.
     document.documentElement.style.fontSize = `${16 * scale}px`;
@@ -86,7 +86,7 @@ export const PortalFontSizeControl: React.FC<{ className?: string }> = ({ classN
             </button>
             <button
                 onClick={reset}
-                className="px-1.5 sm:px-2 py-2 sm:py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors min-w-[36px] text-center border-x border-slate-100 dark:border-zinc-700"
+                className="px-1.5 sm:px-2 py-2 sm:py-2.5 text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors min-w-[36px] text-center border-x border-slate-100 dark:border-zinc-700"
                 aria-label={`Reset text size (currently ${pct}%)`}
                 title="Reset to 100%"
             >

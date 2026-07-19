@@ -163,14 +163,13 @@ export function makeDraftKey(title: string): string {
  *   - On MOBILE: return false immediately — caller falls back to
  *     in-place navigateTo (correct on mobile, no tabs).
  *
- * @returns 'new-tab' | 'existing-tab' | 'in-place' (mobile only)
- *          Never returns 'in-place' on desktop — that was the regression.
+ * @returns 'new-tab' | 'existing-tab' | 'in-place' (mobile only) | 'blocked' (desktop popup blocked)
  */
 export function openDraftProNewTab(
     draftKey: string,
     title: string,
     prompt?: string,
-): 'new-tab' | 'existing-tab' | 'in-place' {
+): 'new-tab' | 'existing-tab' | 'in-place' | 'blocked' {
     if (typeof window === 'undefined') return 'in-place';
 
     // Mobile: in-place is correct (no tabs on mobile)
@@ -219,10 +218,11 @@ export function openDraftProNewTab(
     }
 
     // Desktop: BOTH strategies failed (popup blocked).
-    // DO NOT fall back to in-place navigation — that was the regression.
-    // Return 'in-place' only so the caller can show a toast, but log it.
-    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. NOT navigating in-place on desktop.');
-    return 'in-place';
+    // DO NOT fall back to in-place navigation — that was the regression
+    // (it destroyed the ALOA chat session when the popup blocker kicked in).
+    // Return 'blocked' so callers can show a "popup blocked" toast.
+    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. Returning "blocked".');
+    return 'blocked';
 }
 
 /**

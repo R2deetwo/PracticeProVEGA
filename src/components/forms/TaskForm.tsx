@@ -49,6 +49,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
   const { isProperty } = useProduct();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -114,8 +115,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
     }
   }, [isEditing, taskToEdit, initialContext, currentUser.id, appMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!title.trim()) {
       addToast('Task title is required.', { type: 'info' });
       return;
@@ -132,12 +134,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
       priority,
     };
 
-    if (isEditing && onUpdateTask && taskToEdit) {
-      onUpdateTask({ ...taskToEdit, ...taskData });
-    } else if (onAddTask) {
-      onAddTask(taskData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdateTask && taskToEdit) {
+        onUpdateTask({ ...taskToEdit, ...taskData });
+      } else if (onAddTask) {
+        onAddTask(taskData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   const handleUserToggle = (userId: string) => {
@@ -235,7 +242,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     key={p}
                     type="button"
                     onClick={() => setPriority(p)}
-                    className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${priority === p ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                    className={`px-3 py-1.5 text-3xs font-black uppercase tracking-widest rounded-lg transition-all ${priority === p ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                   >
                     {p}
                   </button>
@@ -282,12 +289,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 {selectedUsers.length === 0 && <p className="text-xs text-slate-400 font-bold uppercase tracking-widest px-1 opacity-60 italic">No personnel assigned yet</p>}
                 {selectedUsers.map(user => (
                   <div key={user.id} className="flex items-center gap-3 bg-white dark:bg-zinc-900 shadow-sm border border-slate-100 dark:border-zinc-800 rounded-2xl pl-2 pr-4 py-2 text-xs font-bold animate-in zoom-in-95 duration-200 group/user">
-                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-white text-[11px] font-black shadow-sm ${getUserColor(user.name || 'User')} `}>
+                    <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-white text-2xs font-black shadow-sm ${getUserColor(user.name || 'User')} `}>
                       {getInitials(user.name || 'U')}
                     </div>
                     <div className="flex flex-col text-left">
                         <span className="text-slate-800 dark:text-zinc-200 leading-none">{user.name || 'Unknown'}</span>
-                        <span className="text-[9px] text-slate-400 uppercase tracking-tight">{user.role || 'Member'}</span>
+                        <span className="text-3xs text-slate-400 uppercase tracking-tight">{user.role || 'Member'}</span>
                     </div>
                     <button type="button" onClick={() => handleUserToggle(user.id)} className="ml-2 text-slate-300 hover:text-rose-500 transition-colors bg-slate-50 dark:bg-zinc-800 p-1.5 rounded-lg opacity-0 group-hover/user:opacity-100 transform translate-x-1 group-hover/user:translate-x-0 transition-all">
                       <XIcon className="w-3.5 h-3.5" />
@@ -297,7 +304,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
               </div>
 
               <div className="relative group/delegate">
-                <select onChange={e => handleUserToggle(e.target.value)} className="w-full pl-4 pr-12 py-4 text-[10px] font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
+                <select onChange={e => handleUserToggle(e.target.value)} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
                   <option value="" disabled>+ Delegate to Personnel</option>
                   {assignableUsers.filter(u => !assignedUsers.has(u.id)).map(user => (
                     <option key={user.id} value={user.id}>{user.name || 'Unknown User'} ({user.role})</option>
@@ -316,7 +323,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>
-          <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+          <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
               <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Task'}
           </button>
       </div>

@@ -222,7 +222,7 @@ const ChatWindow: React.FC<{
                             <iframe src={`${dataUrl}#toolbar=0&navpanes=0&scrollbar=0`} className="w-full h-full pointer-events-none opacity-50" title="PDF Preview"></iframe>
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/5 hover:bg-transparent transition-colors">
                                 <PdfIcon className="w-12 h-12 text-red-500 drop-shadow-md mb-2" />
-                                <span className="bg-black/50 text-white text-[10px] px-2 py-0.5 rounded truncate max-w-[90%]">{fileName}</span>
+                                <span className="bg-black/50 text-white text-2xs px-2 py-0.5 rounded truncate max-w-[90%]">{fileName}</span>
                                 <a
                                     href={dataUrl}
                                     download={fileName}
@@ -248,7 +248,7 @@ const ChatWindow: React.FC<{
                             </div>
                             <div className="min-w-0">
                                 <p className={`font-bold text-sm truncate ${isMe ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{fileName}</p>
-                                <p className={`text-[10px] uppercase font-bold ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>Document</p>
+                                <p className={`text-2xs uppercase font-bold ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>Document</p>
                             </div>
                         </div>
                         <a
@@ -380,7 +380,7 @@ const ChatWindow: React.FC<{
                 {Object.keys(groupedMessages).map(dateStr => (
                     <div key={dateStr}>
                         <div className="flex justify-center mb-4 sticky top-0 z-10">
-                            <span className="bg-slate-200/80 dark:bg-zinc-700/80 backdrop-blur-sm text-slate-600 dark:text-slate-300 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                            <span className="bg-slate-200/80 dark:bg-zinc-700/80 backdrop-blur-sm text-slate-600 dark:text-slate-300 text-2xs font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                                 {new Date(dateStr).toDateString() === new Date().toDateString() ? 'Today' : dateStr}
                             </span>
                         </div>
@@ -412,7 +412,7 @@ const ChatWindow: React.FC<{
                                         <div className="w-8 flex-shrink-0 mr-2 flex flex-col justify-end">
                                             <div
                                                 title={author?.name}
-                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[10px] shadow-sm ${avatarColor}`}
+                                                className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-2xs shadow-sm ${avatarColor}`}
                                             >
                                                 {getInitials(author?.name)}
                                             </div>
@@ -421,7 +421,7 @@ const ChatWindow: React.FC<{
                                     {!isMe && isSequence && <div className="w-10" />}
 
                                     <div className={`max-w-[85%] sm:max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                        {!isMe && !isSequence && <span className="text-[10px] font-bold text-slate-500 ml-1 mb-1">{author?.name}</span>}
+                                        {!isMe && !isSequence && <span className="text-2xs font-bold text-slate-500 ml-1 mb-1">{author?.name}</span>}
                                         <div
                                             className={`relative text-sm shadow-sm transition-all duration-200 px-4 py-2.5 ${isMe
                                                 ? 'bg-primary-600 text-white rounded-2xl rounded-tr-none shadow-primary-500/10'
@@ -432,13 +432,13 @@ const ChatWindow: React.FC<{
                                         </div>
 
                                         <div className="flex items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <span className="text-[9px] text-slate-400">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            <span className="text-3xs text-slate-400">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                             {isMe && (
                                                 <>
                                                     <div title={msg.status} onClick={() => msg.status === 'failed' && onRetry(msg.id)}>
                                                         <MessageStatusIcon status={msg.status} />
                                                     </div>
-                                                    {msg.status === 'failed' && <span onClick={() => onRetry(msg.id)} className="text-[9px] text-red-500 font-bold cursor-pointer hover:underline">Retry</span>}
+                                                    {msg.status === 'failed' && <span onClick={() => onRetry(msg.id)} className="text-3xs text-red-500 font-bold cursor-pointer hover:underline">Retry</span>}
 
                                                     <button
                                                         onClick={() => {
@@ -453,7 +453,7 @@ const ChatWindow: React.FC<{
                                                                 confirmButtonClass: 'bg-red-600 hover:bg-red-700'
                                                             });
                                                         }}
-                                                        className="text-[9px] text-red-400 hover:text-red-600 cursor-pointer hover:underline"
+                                                        className="text-3xs text-red-400 hover:text-red-600 cursor-pointer hover:underline"
                                                     >
                                                         Delete
                                                     </button>
@@ -746,11 +746,11 @@ const CommsView: React.FC = () => {
                                     <div className="flex justify-between items-baseline mb-0.5">
                                         <h4 className={`font-semibold text-sm truncate ${selectedId === c.id ? 'text-primary-700 dark:text-primary-400' : (hasUnread ? 'text-slate-900 dark:text-white font-bold' : 'text-slate-900 dark:text-white')}`}>{displayName}</h4>
                                         {/* Badge Logic */}                                        {hasUnread ? (
-                                            <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ml-2">
+                                            <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm ml-2">
                                                 {unreadCount > 9 ? '9+' : unreadCount}
                                             </span>
                                         ) : lastMsg && (
-                                            <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">{c._isSystem ? timeAgo(lastMsg.timestamp) : timeAgo(lastMsg.timestamp)}</span>
+                                            <span className="text-2xs text-slate-400 flex-shrink-0 ml-2">{c._isSystem ? timeAgo(lastMsg.timestamp) : timeAgo(lastMsg.timestamp)}</span>
                                         )}
                                     </div>
                                     <div className="flex items-center justify-between mt-0.5">
@@ -828,17 +828,17 @@ const CommsView: React.FC = () => {
                                             <div key={item._id} className="space-y-4">
                                                 {/* Timestamp header per item for chat linearity */}
                                                 <div className="flex justify-center my-4">
-                                                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-zinc-800/50 px-3 py-1 rounded-full">{new Date(item.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                                    <span className="text-2xs font-bold text-slate-400 bg-slate-100 dark:bg-zinc-800/50 px-3 py-1 rounded-full">{new Date(item.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                                                 </div>
 
                                                 {/* User's Message Bubble (Right Side) */}
                                                 <div className="flex w-full mb-2 justify-end animate-fade-in-up">
                                                     <div className="flex max-w-[85%] md:max-w-[75%] gap-2.5 flex-row-reverse">
-                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 bg-primary-600 text-white font-bold text-[10px]">
+                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 bg-primary-600 text-white font-bold text-2xs">
                                                             {getInitials(item.userName)}
                                                         </div>
                                                         <div className="flex flex-col items-end group">
-                                                            {item.title && <span className="text-[10px] font-bold text-slate-400 mb-1 px-1">[{item.type || 'Feedback'}] {item.title}</span>}
+                                                            {item.title && <span className="text-2xs font-bold text-slate-400 mb-1 px-1">[{item.type || 'Feedback'}] {item.title}</span>}
                                                             <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-primary-600 text-white rounded-tr-sm">
                                                                 <span className="whitespace-pre-wrap break-words">{item.message}</span>
                                                             </div>
@@ -854,7 +854,7 @@ const CommsView: React.FC = () => {
                                                                 <SparklesIcon className="w-4 h-4" />
                                                             </div>
                                                             <div className="flex flex-col items-start group">
-                                                                <span className="text-[10px] font-bold text-slate-500 mb-1 px-1">PracticePro Team</span>
+                                                                <span className="text-2xs font-bold text-slate-500 mb-1 px-1">PracticePro Team</span>
                                                                 <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm">
                                                                     <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: parseAloaMarkdown(item.adminReply) }} />
                                                                 </div>

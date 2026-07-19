@@ -175,13 +175,13 @@ const TrustAccountTab: React.FC = () => {
                                         {tx.clientName && <span className="text-xs text-slate-400 truncate">· {tx.clientName}</span>}
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{tx.description}</p>
-                                    <p className="text-[10px] text-slate-400">{new Date(tx.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                                    <p className="text-2xs text-slate-400">{new Date(tx.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
                                 </div>
                                 <div className="text-right flex-shrink-0">
                                     <div className={`text-sm font-bold ${tx.type === 'deposit' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                                         {tx.type === 'deposit' ? '+' : '−'}<NairaSymbol className="text-xs" />{formatNaira(tx.amount)}
                                     </div>
-                                    <div className="text-[10px] text-slate-400">Bal: <NairaSymbol className="text-[8px]" />{formatNaira(tx.balanceAfter)}</div>
+                                    <div className="text-2xs text-slate-400">Bal: <NairaSymbol className="text-3xs" />{formatNaira(tx.balanceAfter)}</div>
                                 </div>
                                 <button
                                     onClick={async () => {
@@ -253,7 +253,7 @@ const TrustTransactionForm: React.FC<{
             </h4>
 
             <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Amount (₦)</label>
+                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Amount (₦)</label>
                 <input
                     type="text"
                     value={amount}
@@ -264,7 +264,7 @@ const TrustTransactionForm: React.FC<{
             </div>
 
             <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Linked Matter (optional)</label>
+                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Linked Matter (optional)</label>
                 <select
                     value={matterId}
                     onChange={(e) => setMatterId(e.target.value)}
@@ -278,7 +278,7 @@ const TrustTransactionForm: React.FC<{
             </div>
 
             <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Description</label>
+                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Description</label>
                 <input
                     type="text"
                     value={description}
@@ -289,7 +289,7 @@ const TrustTransactionForm: React.FC<{
             </div>
 
             <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Reference (optional)</label>
+                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Reference (optional)</label>
                 <input
                     type="text"
                     value={reference}

@@ -58,7 +58,7 @@ const DemoProductSwitcher: React.FC = () => {
                 <button
                     onClick={() => setIsExpanded(prev => !prev)}
                     className={`
-                        flex items-center gap-1.5 px-3 py-1 rounded-b-xl text-[10px] font-bold uppercase tracking-wider 
+                        flex items-center gap-1.5 px-3 py-1 rounded-b-xl text-2xs font-bold uppercase tracking-wider 
                         shadow-lg transition-all duration-200 border-b border-l border-r
                         ${currentProduct === 'atrium'
                             ? 'bg-emerald-600 text-white border-emerald-700'
@@ -86,7 +86,7 @@ const DemoProductSwitcher: React.FC = () => {
                     <div className="pointer-events-auto absolute top-8 left-4 right-4 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden z-10 animate-slide-in-up">
                         <div className="p-4 border-b border-slate-100 dark:border-zinc-800">
                             <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest">Switch Demo Mode</p>
-                            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Preview different product experiences</p>
+                            <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Preview different product experiences</p>
                         </div>
                         <div className="p-3 space-y-2">
                             {/* Vega option */}
@@ -103,7 +103,7 @@ const DemoProductSwitcher: React.FC = () => {
                                 </div>
                                 <div className="flex-1 text-left">
                                     <p className={`text-sm font-bold ${currentProduct === 'vega' ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-800 dark:text-white'}`}>Vega OS</p>
-                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400">Matters, billing, legal research</p>
+                                    <p className="text-2xs text-slate-500 dark:text-zinc-400">Matters, billing, legal research</p>
                                 </div>
                                 {currentProduct === 'vega' && (
                                     <div className="w-2 h-2 rounded-full bg-indigo-500 flex-shrink-0" />
@@ -124,7 +124,7 @@ const DemoProductSwitcher: React.FC = () => {
                                 </div>
                                 <div className="flex-1 text-left">
                                     <p className={`text-sm font-bold ${currentProduct === 'atrium' ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-white'}`}>Atrium OS</p>
-                                    <p className="text-[10px] text-slate-500 dark:text-zinc-400">Properties, revenue monitor, tenants</p>
+                                    <p className="text-2xs text-slate-500 dark:text-zinc-400">Properties, revenue monitor, tenants</p>
                                 </div>
                                 {currentProduct === 'atrium' && (
                                     <div className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
@@ -132,7 +132,7 @@ const DemoProductSwitcher: React.FC = () => {
                             </button>
                         </div>
                         <div className="px-3 pb-3">
-                            <p className="text-center text-[9px] text-slate-400 dark:text-zinc-600 uppercase tracking-wider">
+                            <p className="text-center text-3xs text-slate-400 dark:text-zinc-600 uppercase tracking-wider">
                                 Demo mode — data is simulated
                             </p>
                         </div>

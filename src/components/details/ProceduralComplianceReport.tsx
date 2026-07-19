@@ -36,7 +36,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                         <ZapIcon className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 dark:text-zinc-500 leading-none mb-2 flex items-center gap-2">
+                        <p className="text-2xs font-black uppercase tracking-[0.25em] text-slate-500 dark:text-zinc-500 leading-none mb-2 flex items-center gap-2">
                              Legal Processes
                         </p>
                         <p className="text-sm font-black text-slate-800 dark:text-zinc-100 flex items-center gap-2">
@@ -49,7 +49,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                 </div>
                 <button 
                     onClick={() => setExpanded(!expanded)}
-                    className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${
+                    className={`px-5 py-2.5 rounded-xl text-2xs font-black uppercase tracking-widest transition-all border shadow-sm ${
                         criticalCount > 0 
                             ? 'bg-rose-600 text-white border-rose-700 hover:bg-rose-700 hover:shadow-rose-500/30' 
                             : 'bg-primary-600 text-white border-primary-700 hover:bg-primary-700 hover:shadow-primary-500/30'
@@ -78,7 +78,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                                     }`}>
                                         {w.severity === 'DONE' ? <ShieldCheckIcon className="w-4 h-4" /> : i + 1}
                                     </div>
-                                    <span className={`text-[9px] font-black uppercase tracking-tight px-2 py-1 rounded-lg ${
+                                    <span className={`text-3xs font-black uppercase tracking-tight px-2 py-1 rounded-lg ${
                                         w.severity === 'DONE' ? 'bg-emerald-500 text-white' :
                                         w.severity === 'CRITICAL' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
                                     }`}>
@@ -90,7 +90,7 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                                     <p className={`text-[12px] font-bold leading-snug ${w.severity === 'DONE' ? 'text-white' : 'text-slate-800 dark:text-zinc-200'}`}>
                                         {w.message}
                                     </p>
-                                    <p className={`text-[10px] font-medium ${w.severity === 'DONE' ? 'text-emerald-100' : 'text-slate-500 dark:text-zinc-400'}`}>
+                                    <p className={`text-2xs font-medium ${w.severity === 'DONE' ? 'text-emerald-100' : 'text-slate-500 dark:text-zinc-400'}`}>
                                         {w.severity === 'DONE' ? 'Compliant Process' : 'Procedural Action Required'}
                                     </p>
                                 </div>
@@ -109,12 +109,12 @@ export const ProceduralComplianceReport: React.FC<ProceduralComplianceReportProp
                                                     autoStartDrafting: true
                                                 });
                                             }}
-                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all shadow-sm"
+                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-2xs font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all shadow-sm"
                                         >
                                             <SparklesIcon className="w-3 h-3" />
                                             Draft Now
                                         </button>
-                                        <span className="text-[10px] font-bold text-slate-400 group-hover/card:text-slate-600 transition-colors uppercase pr-1">
+                                        <span className="text-2xs font-bold text-slate-400 group-hover/card:text-slate-600 transition-colors uppercase pr-1">
                                             {w.severity.toLowerCase()}
                                         </span>
                                     </div>

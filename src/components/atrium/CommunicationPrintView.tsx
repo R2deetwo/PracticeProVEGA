@@ -142,13 +142,13 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
               <h1 className="text-xl font-black text-slate-900 tracking-tight print:text-2xl">{firmName}</h1>
               {firmAddress && <p className="text-xs text-slate-500 mt-0.5 print:text-sm">{firmAddress}</p>}
               <div className="flex gap-4 mt-1">
-                {firmPhone && <p className="text-[10px] text-slate-400 print:text-xs">Tel: {firmPhone}</p>}
-                {firmEmail && <p className="text-[10px] text-slate-400 print:text-xs">Email: {firmEmail}</p>}
+                {firmPhone && <p className="text-2xs text-slate-400 print:text-xs">Tel: {firmPhone}</p>}
+                {firmEmail && <p className="text-2xs text-slate-400 print:text-xs">Email: {firmEmail}</p>}
               </div>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold print:text-xs">Communication Record</p>
-              <p className="text-[10px] text-slate-400 print:text-xs">
+              <p className="text-2xs text-slate-400 uppercase tracking-widest font-bold print:text-xs">Communication Record</p>
+              <p className="text-2xs text-slate-400 print:text-xs">
                 Generated: {new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}
               </p>
             </div>
@@ -159,11 +159,11 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
         <div className="px-8 py-4 print:px-12 print:py-6 bg-slate-50 border-b border-slate-200">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-0.5 print:text-[10px]">Tenant / Recipient</p>
+              <p className="text-3xs text-slate-400 uppercase tracking-widest font-bold mb-0.5 print:text-2xs">Tenant / Recipient</p>
               <p className="text-sm font-bold text-slate-800 print:text-base">{tenantName || tenantContact || 'All Tenants'}</p>
             </div>
             <div>
-              <p className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-0.5 print:text-[10px]">Unit / Property</p>
+              <p className="text-3xs text-slate-400 uppercase tracking-widest font-bold mb-0.5 print:text-2xs">Unit / Property</p>
               <p className="text-sm font-bold text-slate-800 print:text-base">{unitLabel || unitId || 'All Units'}</p>
             </div>
           </div>
@@ -199,31 +199,31 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
                   {/* Content */}
                   <div className="flex-1 min-w-0 pb-2">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                      <span className={`text-2xs font-black uppercase tracking-wider px-2 py-0.5 rounded ${
                         comm.direction === 'outbound'
                           ? 'bg-emerald-100 text-emerald-700 print:bg-emerald-50'
                           : 'bg-blue-100 text-blue-700 print:bg-blue-50'
                       }`}>
                         {DIRECTION_LABELS[comm.direction] || comm.direction}
                       </span>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 print:bg-slate-50">
+                      <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 print:bg-slate-50">
                         {CHANNEL_LABELS[comm.channel] || comm.channel}
                       </span>
                       {comm.messageType && comm.messageType !== 'custom' && (
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-2xs text-slate-400">
                           ({formatMessageType(comm.messageType)})
                         </span>
                       )}
                       {comm.status && comm.direction === 'outbound' && (
                         <span
-                          className="text-[10px] font-semibold"
+                          className="text-2xs font-semibold"
                           style={{ color: STATUS_COLORS[comm.status] || '#64748b' }}
                         >
                           [{comm.status}]
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-400 mb-1.5 print:text-xs">
+                    <p className="text-2xs text-slate-400 mb-1.5 print:text-xs">
                       {formatDate(comm.timestamp)}
                       {comm.direction === 'outbound' && comm.recipient && (
                         <span> &middot; To: {comm.recipient}</span>
@@ -247,11 +247,11 @@ export const CommunicationPrintView: React.FC<CommunicationPrintViewProps> = ({
 
         {/* Footer */}
         <div className="px-8 py-4 print:px-12 print:py-6 border-t border-slate-200 bg-slate-50">
-          <p className="text-[9px] text-slate-400 print:text-[10px]">
+          <p className="text-3xs text-slate-400 print:text-2xs">
             This document is a record of all communications between {firmName} and {tenantName || tenantContact || 'the tenant'}.
             It was auto-generated by PracticePro Atrium OS on {new Date().toLocaleString()}.
           </p>
-          <p className="text-[9px] text-slate-300 mt-1 print:text-[10px]">
+          <p className="text-3xs text-slate-300 mt-1 print:text-2xs">
             Page 1 of 1
           </p>
         </div>

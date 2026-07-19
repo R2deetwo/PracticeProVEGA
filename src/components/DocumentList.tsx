@@ -31,7 +31,7 @@ const getFileIcon = (fileName: string, mimeType?: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase() || '';
 
     if (extension === 'pdf' || mimeType === 'application/pdf') {
-        return <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 font-bold text-[10px] flex items-center justify-center w-9 h-9">PDF</div>;
+        return <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 font-bold text-2xs flex items-center justify-center w-9 h-9">PDF</div>;
     }
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) || mimeType?.startsWith('image/')) {
         return <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400 flex items-center justify-center w-9 h-9"><ImageIcon className="w-5 h-5" /></div>;
@@ -40,7 +40,7 @@ const getFileIcon = (fileName: string, mimeType?: string) => {
         return <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400 flex items-center justify-center w-9 h-9"><ChartBarIcon className="w-5 h-5" /></div>;
     }
     if (['doc', 'docx'].includes(extension) || mimeType?.includes('word')) {
-        return <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 font-bold text-[10px] flex items-center justify-center w-9 h-9">DOC</div>;
+        return <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 font-bold text-2xs flex items-center justify-center w-9 h-9">DOC</div>;
     }
 
     return <div className="p-2 bg-slate-100 dark:bg-zinc-700 rounded-lg text-slate-500 dark:text-zinc-400 flex items-center justify-center w-9 h-9"><DocumentIcon className="w-5 h-5" /></div>;
@@ -110,7 +110,7 @@ const DocumentRow: React.FC<{
                             <span>{new Date(doc.dateFiled).toLocaleDateString('en-GB')}</span>
                             {doc.file && <span>• {formatBytes(doc.file.size)}</span>}
                             {doc.isCourtProcess && (
-                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
+                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-tighter border ${doc.litigationStatus === 'acknowledged' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30' :
                                     doc.litigationStatus === 'served' ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30' :
                                         doc.litigationStatus === 'filed' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/30' :
                                             'bg-slate-50 text-slate-700 border-slate-200 dark:bg-zinc-800'
@@ -254,7 +254,7 @@ const MatterGroup: React.FC<{
                 >
                     <ChevronDownIcon className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
                     <span className="font-bold text-sm text-slate-700 dark:text-zinc-200 truncate">{matterTitle}</span>
-                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-2xs text-slate-400 bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded-full font-bold">
                         {documents.length}
                     </span>
                 </button>
@@ -572,7 +572,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                             title="Open DraftPro Editor"
                             className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
                         >
-                            <SparklesIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DraftPro</span> <span className="opacity-60 font-normal text-[9px] hidden sm:inline">β</span>
+                            <SparklesIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">DraftPro</span> <span className="opacity-60 font-normal text-3xs hidden sm:inline">β</span>
                         </button>
                         {/* Upload — icon only on small screens, full label on larger screens */}
                         <button
@@ -722,7 +722,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
 
                                             {groupedDocuments.unassigned.length > 0 && (
                                                 <div className="mt-4">
-                                                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-2 px-1">Unassigned {terminology.matters}</h4>
+                                                    <h4 className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-2 px-1">Unassigned {terminology.matters}</h4>
                                                     <div className="space-y-1">
                                                         {groupedDocuments.unassigned.map(doc => (
                                                             <DocumentRow

@@ -36,7 +36,7 @@ const SourceCard: React.FC<{
         }
         if (source.type === 'pdf') {
             return (
-                <div className={`${iconBaseClass} ${isSelected ? 'bg-blue-600 text-white' : 'bg-red-100 dark:bg-red-900/30 text-red-600'} font-bold text-[8px] tracking-tighter`}>
+                <div className={`${iconBaseClass} ${isSelected ? 'bg-blue-600 text-white' : 'bg-red-100 dark:bg-red-900/30 text-red-600'} font-bold text-3xs tracking-tighter`}>
                     PDF
                 </div>
             );
@@ -78,10 +78,10 @@ const SourceCard: React.FC<{
             {getIcon()}
 
             <div className="min-w-0 flex-grow">
-                <p className={`font-semibold text-[11px] truncate leading-tight ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-slate-800 dark:text-white'}`} title={source.name}>
+                <p className={`font-semibold text-2xs truncate leading-tight ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-slate-800 dark:text-white'}`} title={source.name}>
                     {source.name}
                 </p>
-                <p className={`text-[9px] mt-0.5 ${isSelected ? 'text-blue-600/70 dark:text-blue-400/70' : 'text-slate-400/80 dark:text-zinc-500/80'}`}>
+                <p className={`text-3xs mt-0.5 ${isSelected ? 'text-blue-600/70 dark:text-blue-400/70' : 'text-slate-400/80 dark:text-zinc-500/80'}`}>
                     {source.type === 'web' ? 'Website' : source.type === 'pdf' ? 'PDF' : 'Note'}
                 </p>
             </div>
@@ -181,7 +181,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
             <div className="px-3 pt-3 pb-2 border-b border-slate-200 dark:border-zinc-700">
                 <button
                     onClick={onBack}
-                    className="flex items-center text-[10px] font-bold text-slate-500 hover:text-blue-600 transition-colors mb-2 uppercase tracking-wider"
+                    className="flex items-center text-2xs font-bold text-slate-500 hover:text-blue-600 transition-colors mb-2 uppercase tracking-wider"
                 >
                     <ChevronRightIcon className="w-3 h-3 rotate-180 mr-1" /> Notebooks
                 </button>
@@ -190,7 +190,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
                         Sources <span className="text-slate-400">({sources.length})</span>
                     </h3>
                     {selectedSourceIds.length > 0 && (
-                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
+                        <span className="text-2xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded-full">
                             {selectedSourceIds.length} active
                         </span>
                     )}
@@ -221,7 +221,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
                     )}
                 </div>
                 {isSearching && (
-                    <p className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
+                    <p className="text-3xs text-slate-400 mt-1 flex items-center gap-1">
                         <span className="w-2 h-2 border border-slate-400 border-t-transparent rounded-full animate-spin" />
                         Searching the web...
                     </p>
@@ -232,16 +232,16 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
             {showResults && !isSearching && (
                 <div className="px-3 py-2 max-h-64 overflow-y-auto custom-scrollbar border-b border-slate-200 dark:border-zinc-700">
                     {searchResults.length === 0 ? (
-                        <p className="text-[10px] text-slate-400 text-center py-3">No results found. Try a different query.</p>
+                        <p className="text-2xs text-slate-400 text-center py-3">No results found. Try a different query.</p>
                     ) : (
                         <>
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mb-2">{searchResults.length} web results — click + to add as source</p>
+                            <p className="text-3xs font-bold uppercase tracking-wider text-slate-400 mb-2">{searchResults.length} web results — click + to add as source</p>
                             {searchResults.map((result, i) => (
                                 <div key={i} className="group flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-zinc-800 transition-colors mb-1">
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-[11px] font-semibold text-slate-700 dark:text-zinc-200 truncate">{result.title}</p>
-                                        <p className="text-[9px] text-slate-400 truncate">{result.url}</p>
-                                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{result.snippet}</p>
+                                        <p className="text-2xs font-semibold text-slate-700 dark:text-zinc-200 truncate">{result.title}</p>
+                                        <p className="text-3xs text-slate-400 truncate">{result.url}</p>
+                                        <p className="text-2xs text-slate-500 dark:text-zinc-400 line-clamp-2 mt-0.5">{result.snippet}</p>
                                     </div>
                                     <button
                                         onClick={() => handleAddSourceFromSearch(result)}
@@ -270,7 +270,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
 
             {/* Selection hint */}
             {sources.length > 0 && (
-                <p className="px-3 pb-1 text-[9px] text-slate-400 dark:text-zinc-600">
+                <p className="px-3 pb-1 text-3xs text-slate-400 dark:text-zinc-600">
                     Click to select · AI will focus on selected sources
                 </p>
             )}
@@ -293,7 +293,7 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
                 {sources.length === 0 && !isLoading ? (
                     <div className="flex flex-col items-center justify-center h-40 text-slate-400 dark:text-zinc-500 text-center">
                         <p className="text-xs font-medium">No sources yet</p>
-                        <p className="text-[10px] mt-1">Upload PDFs, text files,<br />or add URLs above.</p>
+                        <p className="text-2xs mt-1">Upload PDFs, text files,<br />or add URLs above.</p>
                     </div>
                 ) : (
                     sources.map(source => (

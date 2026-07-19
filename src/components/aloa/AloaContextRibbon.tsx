@@ -48,7 +48,7 @@ export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({
                     </span>
                 </div>
                 {contextStatus && (
-                    <span className={`px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-full bg-white dark:bg-zinc-900 ${agentColorClass} shadow-sm border ${agentBorderClass} shrink-0 whitespace-nowrap`}>
+                    <span className={`px-2.5 py-0.5 text-2xs font-bold uppercase tracking-wider rounded-full bg-white dark:bg-zinc-900 ${agentColorClass} shadow-sm border ${agentBorderClass} shrink-0 whitespace-nowrap`}>
                         {contextStatus}
                     </span>
                 )}
@@ -73,7 +73,7 @@ export const AloaContextRibbon: React.FC<AloaContextRibbonProps> = ({
                                 {action.label}
                             </p>
                             {action.description && (
-                                <p className={`text-[11px] leading-tight ${action.isPrimary ? 'text-slate-600 dark:text-zinc-400' : 'text-slate-500 dark:text-zinc-500'}`}>
+                                <p className={`text-2xs leading-tight ${action.isPrimary ? 'text-slate-600 dark:text-zinc-400' : 'text-slate-500 dark:text-zinc-500'}`}>
                                     {action.description}
                                 </p>
                             )}

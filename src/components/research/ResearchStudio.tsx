@@ -70,7 +70,7 @@ const CompactAudioPlayer: React.FC<{ items: StudioAnalysisResult[]; sourceCount:
                 {isPlaying ? <PauseIcon className="w-4 h-4" /> : <PlayIcon className="w-4 h-4 ml-0.5" />}
             </button>
             <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold tracking-wider text-indigo-400 uppercase mb-1">Deep Dive</p>
+                <p className="text-2xs font-bold tracking-wider text-indigo-400 uppercase mb-1">Deep Dive</p>
                 <p className="text-xs font-semibold text-white truncate">
                     {items.length > 0 ? items[0].title : `Audio Briefing · ${sourceCount} sources`}
                 </p>
@@ -91,7 +91,7 @@ const CompactAudioPlayer: React.FC<{ items: StudioAnalysisResult[]; sourceCount:
                     );
                 })}
             </div>
-            <span className="text-[10px] text-zinc-500 w-10 text-right">{isPlaying ? 'Playing' : 'Ready'}</span>
+            <span className="text-2xs text-zinc-500 w-10 text-right">{isPlaying ? 'Playing' : 'Ready'}</span>
         </div>
     );
 };
@@ -121,14 +121,14 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
                 >
                     <SparklesIcon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                     <span className="font-semibold text-xs text-slate-800 dark:text-white truncate">{item.title}</span>
-                    <span className="text-[10px] text-slate-400 flex-shrink-0">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-2xs text-slate-400 flex-shrink-0">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <ChevronRightIcon className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                 </button>
                 <div className="flex items-center gap-1 ml-2">
-                    <button onClick={onSendToDraft} title="Send to DraftPro" className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-100 transition-colors">
+                    <button onClick={onSendToDraft} title="Send to DraftPro" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded hover:bg-indigo-100 transition-colors">
                         DraftPro (Beta)
                     </button>
-                    <button onClick={onSave} title="Save as document" className="flex items-center gap-1 px-2 py-1 text-[10px] font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
+                    <button onClick={onSave} title="Save as document" className="flex items-center gap-1 px-2 py-1 text-2xs font-semibold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded hover:bg-slate-50 transition-colors">
                         <DownloadIcon className="w-3 h-3" /> Save
                     </button>
                     <button onClick={onDelete} title="Dismiss" className="p-1 text-slate-400 hover:text-red-500 transition-colors rounded">
@@ -227,7 +227,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                     >
                         Add Your First Source
                     </button>
-                    <button onClick={onClose} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">
+                    <button onClick={onClose} className="text-2xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">
                         Dismiss
                     </button>
                 </div>
@@ -245,7 +245,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                     </div>
                     <div>
                         <h2 className="text-sm font-bold text-slate-800 dark:text-white leading-tight">Strategy Studio</h2>
-                        <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Advanced Tools</p>
+                        <p className="text-3xs uppercase font-bold text-slate-400 tracking-wider">Advanced Tools</p>
                     </div>
                 </div>
                 <button
@@ -265,7 +265,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
 
                     {/* Tool Chips */}
                     <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">Insight Generators</p>
+                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">Insight Generators</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {ANALYSIS_TOOLS.map(tool => {
                                 const Icon = tool.icon;
@@ -285,7 +285,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs font-bold leading-tight truncate">{tool.name}</p>
-                                            <p className="text-[10px] opacity-70 leading-tight truncate">{tool.description}</p>
+                                            <p className="text-2xs opacity-70 leading-tight truncate">{tool.description}</p>
                                         </div>
                                     </button>
                                 );
@@ -296,7 +296,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                     {/* Results */}
                     {generatedItems.length > 0 && (
                         <div ref={resultsRef} className="space-y-2">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Analysis Results</p>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Analysis Results</p>
                             {loadingType && (
                                 <div className="animate-pulse bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
                                     <div className="h-2.5 bg-slate-200 dark:bg-zinc-700 rounded w-1/3 mb-2" />

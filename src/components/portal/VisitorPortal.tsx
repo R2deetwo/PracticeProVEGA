@@ -193,7 +193,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 
                     {/* Visitor Name */}
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visitor Name</label>
+                        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visitor Name</label>
                         <input
                             type="text"
                             value={visitorName}
@@ -205,7 +205,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 
                     {/* Visitor Phone */}
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visitor Phone Number</label>
+                        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visitor Phone Number</label>
                         <input
                             type="tel"
                             value={visitorPhone}
@@ -213,13 +213,13 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             placeholder="+234 801 234 5678"
                             className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
-                        <p className="text-[10px] text-slate-400 mt-1">Required for portal delivery. Include country code.</p>
+                        <p className="text-2xs text-slate-400 mt-1">Required for portal delivery. Include country code.</p>
                     </div>
 
                     {/* Visit Date + Expiry */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visit Date</label>
+                            <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Visit Date</label>
                             <input
                                 type="date"
                                 value={visitDate}
@@ -228,7 +228,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Valid For</label>
+                            <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Valid For</label>
                             <select
                                 value={expiryWindow}
                                 onChange={(e) => setExpiryWindow(parseInt(e.target.value))}
@@ -243,7 +243,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
 
                     {/* Delivery Mode Selector */}
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Delivery Method</label>
+                        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">Delivery Method</label>
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={() => setDeliveryMethod('client_share')}
@@ -257,7 +257,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                     <ShareIcon className={`w-4 h-4 ${deliveryMethod === 'client_share' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
                                     <span className={`text-xs font-bold ${deliveryMethod === 'client_share' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-zinc-300'}`}>Share via My WhatsApp</span>
                                 </div>
-                                <p className="text-[10px] text-slate-500 dark:text-zinc-400">Opens WhatsApp on your phone. No cost.</p>
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400">Opens WhatsApp on your phone. No cost.</p>
                             </button>
                             <button
                                 onClick={() => setDeliveryMethod('portal_api')}
@@ -271,7 +271,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                     <SendIcon className={`w-4 h-4 ${deliveryMethod === 'portal_api' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`} />
                                     <span className={`text-xs font-bold ${deliveryMethod === 'portal_api' ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-600 dark:text-zinc-300'}`}>Send from Portal</span>
                                 </div>
-                                <p className="text-[10px] text-slate-500 dark:text-zinc-400">We send it directly. Uses WhatsApp quota.</p>
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400">We send it directly. Uses WhatsApp quota.</p>
                             </button>
                         </div>
                     </div>
@@ -280,7 +280,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     <div className="bg-slate-50 dark:bg-zinc-900 rounded-xl p-3 flex items-start gap-2">
                         <MapPinIcon className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Auto-filled Address</p>
+                            <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Auto-filled Address</p>
                             <p className="text-xs text-slate-700 dark:text-zinc-300">
                                 {propertyName}{unitName ? ` · ${unitName}` : ''}{propertyAddress ? ` · ${propertyAddress}` : ''}
                             </p>
@@ -322,7 +322,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                         <span className="font-bold text-slate-900 dark:text-white text-sm">{token.visitorName}</span>
                                         <span className="text-lg font-black tracking-widest text-emerald-600 dark:text-emerald-400">{token.tokenCode}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400">
+                                    <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400">
                                         <ClockIcon className="w-3 h-3" />
                                         <span>Expires {new Date(token.expiresAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                                         {token.deliveryMethod === 'portal_api' && (
@@ -332,7 +332,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                 </div>
                                 <button
                                     onClick={() => handleRevoke(token._id, token.visitorName)}
-                                    className="ml-2 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg text-[10px] font-bold hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors flex-shrink-0"
+                                    className="ml-2 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded-lg text-2xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors flex-shrink-0"
                                 >
                                     Revoke
                                 </button>
@@ -351,11 +351,11 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             <div key={token._id} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors">
                                 <div className="min-w-0 flex-1">
                                     <span className="text-sm font-medium text-slate-900 dark:text-white">{token.visitorName}</span>
-                                    <span className="text-[10px] text-slate-400 ml-2">{new Date(token.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                                    <span className="text-2xs text-slate-400 ml-2">{new Date(token.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <span className="text-sm font-mono font-bold text-slate-600 dark:text-zinc-300">{token.tokenCode}</span>
-                                    <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold ${
+                                    <span className={`text-3xs px-2 py-0.5 rounded-full font-bold ${
                                         token.status === 'used' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                         token.status === 'expired' ? 'bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400' :
                                         token.status === 'revoked' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :

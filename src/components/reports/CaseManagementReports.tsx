@@ -224,7 +224,7 @@ const CaseloadByUserChart: React.FC<{
                                 <button
                                     onClick={() => setActiveGhost(item)}
                                     title="Reassign matters from removed user"
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2 py-0.5 text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 rounded-full hover:bg-amber-200 dark:hover:bg-amber-900/50"
                                 >
                                     <UserRemovedIcon className="w-3 h-3" />
                                     Removed — Reassign

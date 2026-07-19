@@ -25,7 +25,7 @@ const getFileIcon = (fileName: string, mimeType?: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase() || '';
 
     if (extension === 'pdf' || mimeType === 'application/pdf') {
-        return <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 font-bold text-[10px] flex items-center justify-center w-9 h-9">PDF</div>;
+        return <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg text-red-600 dark:text-red-400 font-bold text-2xs flex items-center justify-center w-9 h-9">PDF</div>;
     }
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension) || mimeType?.startsWith('image/')) {
         return <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg text-purple-600 dark:text-purple-400 flex items-center justify-center w-9 h-9"><ImageIcon className="w-5 h-5" /></div>;
@@ -34,7 +34,7 @@ const getFileIcon = (fileName: string, mimeType?: string) => {
         return <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg text-green-600 dark:text-green-400 flex items-center justify-center w-9 h-9"><ChartBarIcon className="w-5 h-5" /></div>;
     }
     if (['doc', 'docx'].includes(extension) || mimeType?.includes('word')) {
-        return <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 font-bold text-[10px] flex items-center justify-center w-9 h-9">DOC</div>;
+        return <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg text-blue-600 dark:text-blue-400 font-bold text-2xs flex items-center justify-center w-9 h-9">DOC</div>;
     }
 
     return <div className="p-2 bg-slate-100 dark:bg-zinc-700 rounded-lg text-slate-500 dark:text-zinc-400 flex items-center justify-center w-9 h-9"><DocumentIcon className="w-5 h-5" /></div>;
@@ -492,7 +492,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
                                         {documentState.documents.some(d => d.title === file.name && d.matterId) && (
                                             <Tooltip text="Already in Matter">
                                                 <div className="p-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-900 cursor-help">
-                                                    <span className="text-[10px] font-bold px-1">SAVED</span>
+                                                    <span className="text-2xs font-bold px-1">SAVED</span>
                                                 </div>
                                             </Tooltip>
                                         )}

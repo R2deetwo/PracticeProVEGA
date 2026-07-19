@@ -61,7 +61,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
             <div ref={buttonRef} className="relative flex items-center gap-2 flex-wrap p-2 border border-slate-300 dark:border-zinc-600 bg-slate-50 dark:bg-zinc-800/50 rounded-lg min-h-[42px]">
                 {selectedUsers.map(user => (
                     <div key={user.id} className="flex items-center gap-2 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 rounded-full px-2 py-1 text-sm shadow-sm">
-                        <div className={`h-5 w-5 rounded-full flex items-center justify-center text-white font-bold text-[9px] ${getUserColor(user.name)}`}>
+                        <div className={`h-5 w-5 rounded-full flex items-center justify-center text-white font-bold text-3xs ${getUserColor(user.name)}`}>
                             {getInitials(user.name)}
                         </div>
                         <span className="font-medium text-slate-700 dark:text-zinc-200">{user.name}</span>
@@ -91,7 +91,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.name)}`}>{getInitials(user.name)}</div>
                                     <div className="flex flex-col">
                                         <span className="text-sm font-semibold text-slate-800 dark:text-white">{user.name}</span>
-                                        <span className="text-[10px] text-slate-500 dark:text-zinc-400">{user.role}</span>
+                                        <span className="text-2xs text-slate-500 dark:text-zinc-400">{user.role}</span>
                                     </div>
                                 </label>
                             ))}

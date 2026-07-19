@@ -29,7 +29,7 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
             <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center bg-white dark:bg-zinc-900 shadow-sm z-10">
                 <h3 className="font-bold text-sm text-slate-800 dark:text-white uppercase tracking-wider">Strategy Studio</h3>
                 <div className="w-5 h-5 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                    <span className="text-[10px] font-bold text-primary-600">{results.length}</span>
+                    <span className="text-2xs font-bold text-primary-600">{results.length}</span>
                 </div>
             </div>
 
@@ -53,7 +53,7 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700/50 flex items-center justify-between bg-slate-50/50 dark:bg-zinc-900/30">
                                 <div className="flex items-center gap-2">
                                     {getTypeIcon(result.type)}
-                                    <span className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tighter truncate max-w-[150px]">
+                                    <span className="text-2xs font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-tighter truncate max-w-[150px]">
                                         {result.title}
                                     </span>
                                 </div>
@@ -72,12 +72,12 @@ export const StrategyStudioPanel: React.FC<StrategyStudioPanelProps> = ({
                                     {result.content}
                                 </div>
                                 <div className="mt-4 flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-400">
+                                    <span className="text-2xs text-slate-400">
                                         {new Date(result.timestamp).toLocaleDateString('en-GB')}
                                     </span>
                                     <button
                                         onClick={() => onSaveToCase(result)}
-                                        className="text-[10px] font-bold text-primary-600 hover:underline flex items-center gap-1"
+                                        className="text-2xs font-bold text-primary-600 hover:underline flex items-center gap-1"
                                     >
                                         <EditIcon className="w-3 h-3" /> Full Analysis
                                     </button>

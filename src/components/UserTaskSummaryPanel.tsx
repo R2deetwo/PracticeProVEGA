@@ -37,7 +37,7 @@ const FilterPill: React.FC<{
                 <span className={`text-xs font-semibold truncate max-w-[100px] ${isActive ? 'text-primary-800 dark:text-primary-200' : 'text-slate-700 dark:text-zinc-300'}`}>
                     {label}
                 </span>
-                <div className="flex gap-2 text-[9px] leading-none">
+                <div className="flex gap-2 text-3xs leading-none">
                     <span className="text-slate-500 dark:text-zinc-400 font-medium">{activeCount} Active</span>
                     {overdueCount > 0 && (
                         <span className="text-red-500 font-bold">{overdueCount} Late</span>
@@ -72,7 +72,7 @@ const UserTaskSummaryPanel: React.FC<UserTaskSummaryPanelProps> = ({ allTasks, u
                         <FilterPill
                             key="__all_pill__"
                             label="All Users"
-                            avatar={<div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 dark:bg-zinc-700 flex-shrink-0 text-[10px] font-bold text-slate-600 dark:text-zinc-300">ALL</div>}
+                            avatar={<div className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-200 dark:bg-zinc-700 flex-shrink-0 text-2xs font-bold text-slate-600 dark:text-zinc-300">ALL</div>}
                             activeCount={allFirmTasks.total}
                             overdueCount={allFirmTasks.overdue}
                             isActive={activeFilter === '__all__'}
@@ -85,7 +85,7 @@ const UserTaskSummaryPanel: React.FC<UserTaskSummaryPanelProps> = ({ allTasks, u
                             <FilterPill
                                 key={user.id}
                                 label={user.id === currentUser.id ? 'My Tasks' : user.name.split(' ')[0]}
-                                avatar={<div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 ${getUserColor(user.id)}`}>{getInitials(user.name)}</div>}
+                                avatar={<div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-2xs flex-shrink-0 ${getUserColor(user.id)}`}>{getInitials(user.name)}</div>}
                                 activeCount={total}
                                 overdueCount={overdue}
                                 isActive={activeFilter === (user.id === currentUser.id ? '__currentUser__' : user.id)}

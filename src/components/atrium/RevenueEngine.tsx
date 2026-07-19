@@ -93,13 +93,13 @@ const RevenueEngine: React.FC = () => {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-none">Revenue Monitor</h1>
-              <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 uppercase tracking-widest font-medium landscape-hide">Atrium · Property OS</p>
+              <p className="text-3xs sm:text-2xs text-slate-500 mt-0.5 uppercase tracking-widest font-medium landscape-hide">Atrium · Property OS</p>
             </div>
           </div>
           {criticalCount > 0 && (
             <div className="flex items-center gap-2 bg-rose-950/60 border border-rose-800 rounded-xl px-2.5 py-1.5 flex-shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-              <span className="text-[10px] sm:text-xs font-bold text-rose-400">{criticalCount} Critical</span>
+              <span className="text-2xs sm:text-xs font-bold text-rose-400">{criticalCount} Critical</span>
             </div>
           )}
         </div>
@@ -107,7 +107,7 @@ const RevenueEngine: React.FC = () => {
         {/* Stats — 4-col on desktop, 2x2 on mobile, more compact */}
         <div className="px-3 sm:px-6 pb-2 sm:pb-3 grid grid-cols-2 sm:grid-cols-4 gap-2 landscape-compact-stats min-w-0">
           <div className="bg-slate-900 border border-emerald-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
-            <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Collected</p>
+            <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Collected</p>
             <p className="text-sm sm:text-base font-black text-emerald-400">
               ₦{((coreState.ledgerEntries || []).filter(e => {
                 const d = new Date(e.timestamp || Date.now());
@@ -117,17 +117,17 @@ const RevenueEngine: React.FC = () => {
             </p>
           </div>
           <div className="bg-slate-900 border border-amber-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
-            <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Outstanding</p>
+            <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Outstanding</p>
             <p className="text-sm sm:text-base font-black text-amber-400">
               ₦{((coreState.ledgerEntries || []).filter(e => e.status === 'pending').reduce((s, e) => s + (e.amount || 0), 0) || 0).toLocaleString('en-NG', { notation: 'compact', maximumFractionDigits: 1 })}
             </p>
           </div>
           <div className="bg-slate-900 border border-rose-900/40 rounded-xl p-2 sm:p-2.5 min-w-0">
-            <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Defaults</p>
+            <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Defaults</p>
             <p className="text-sm sm:text-base font-black text-rose-400">{criticalCount}</p>
           </div>
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-2 sm:p-2.5 min-w-0">
-            <p className="text-[7px] sm:text-[8px] text-slate-500 uppercase tracking-widest font-bold mb-0.5">Vacant</p>
+            <p className="text-[7px] sm:text-3xs text-slate-500 uppercase tracking-widest font-bold mb-0.5">Vacant</p>
             <p className="text-sm sm:text-base font-black text-slate-300">{activePipeline}</p>
           </div>
         </div>
@@ -154,7 +154,7 @@ const RevenueEngine: React.FC = () => {
                 <span className="hidden sm:block">{tab.label}</span>
                 <span className="sm:hidden">{tab.shortLabel}</span>
                 {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                  <span className={`text-3xs font-black px-1.5 py-0.5 rounded-full ${
                     tab.id === 'defaulters' ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-300'
                   }`}>
                     {tab.badge}

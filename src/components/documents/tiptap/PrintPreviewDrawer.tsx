@@ -148,7 +148,7 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
             </svg>
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Print Preview</h3>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate max-w-[200px]">{title}</p>
+              <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate max-w-[200px]">{title}</p>
             </div>
           </div>
           <button
@@ -182,7 +182,7 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
             DOCX
           </button>
           <div className="flex-1" />
-          <span className="text-[10px] text-slate-400 dark:text-zinc-500">A4 · 12pt Times New Roman · 1" margins</span>
+          <span className="text-2xs text-slate-400 dark:text-zinc-500">A4 · 12pt Times New Roman · 1" margins</span>
         </div>
 
         {/* Preview iframe */}

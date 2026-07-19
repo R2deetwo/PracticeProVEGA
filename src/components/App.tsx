@@ -25,14 +25,20 @@ import { DocumentList } from './DocumentList';
 import { CalendarView } from './CalendarView';
 import { BillingView } from './BillingView';
 import { BillingMonitorView } from './BillingMonitorView';
-import ReportingView from './ReportingView';
+// Lazy-loaded top-level views to keep the initial bundle small.
+// Each of these is a full screen (ReportingView, ResearchView, AloaXView,
+// TimelineView) or a heavy editor (WordProcessor pulls in TipTap + ProseMirror).
+// They're wrapped in <React.Suspense fallback={<GenericSkeleton />}> at each
+// usage site so navigation shows a skeleton instead of a blank frame while
+// the chunk loads.
+const ReportingView = React.lazy(() => import('./ReportingView'));
+const WordProcessor = React.lazy(() => import('./documents/WordProcessor').then(m => ({ default: m.WordProcessor })));
+const ResearchView = React.lazy(() => import('./ResearchView'));
+const AloaXView = React.lazy(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
+const TimelineView = React.lazy(() => import('./TimelineView'));
 import ComplianceView from './ComplianceView';
 import SettingsView from './settings/SettingsView';
 import MessagesView from './MessagesView';
-import { WordProcessor } from './documents/WordProcessor';
-import ResearchView from './ResearchView';
-import { AloaXView } from './indexer/AloaXView';
-import TimelineView from './TimelineView';
 import CommandPalette from './CommandPalette';
 import ContextMenu from './ContextMenu';
 import { SplitMasterDetail } from './layout/SplitMasterDetail';
@@ -354,10 +360,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             );
 
             case 'calendar': return <ViewWrapper><CalendarView /></ViewWrapper>;
-            case 'timeline': return <ViewWrapper><TimelineView /></ViewWrapper>;
+            case 'timeline': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TimelineView /></React.Suspense></ViewWrapper>;
             case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
             case 'billingMonitor': return <ViewWrapper><BillingMonitorView /></ViewWrapper>;
-            case 'reporting': return <ViewWrapper><ReportingView /></ViewWrapper>;
+            case 'reporting': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReportingView /></React.Suspense></ViewWrapper>;
             case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
 
             case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
@@ -365,9 +371,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
 
-            case 'editor': return <WordProcessor />;
-            case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ResearchView /></FeatureGuard></ViewWrapper>;
-            case 'indexer': return <ViewWrapper><AloaXView /></ViewWrapper>;
+            case 'editor': return <React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense>;
+            case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
+            case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
             case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>;
             case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
             case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
@@ -449,11 +455,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                         Return to Admin Session
                     </button>
                     {originalUser ? (
-                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-4">
                             You'll be returned to <strong>{originalUser.email}</strong> ({originalUser.role}).
                         </p>
                     ) : (
-                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-4">
                             Restoring your admin session… (if this takes more than a few seconds, refresh the page)
                         </p>
                     )}
@@ -464,6 +470,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     return (
         <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 pt-safe`}>
+            {/* Skip-to-main link: visually hidden until focused. Lets keyboard
+                + screen-reader users jump straight to the primary content area
+                instead of tabbing through the entire sidebar/header each time. */}
+            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[10000] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-bold">Skip to main content</a>
             {/* Screenshot deterrent overlay — shows a black screen when the
                 window loses focus or PrintScreen is pressed. Best-effort only. */}
             {showScreenshotOverlay && (
@@ -481,7 +491,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     h-14 (3.5rem = 56px). We use a CSS media query via the
                     'pb-14 md:pb-0' class which applies 56px padding on
                     screens < 768px (md breakpoint) and 0 on desktop. */}
-                <main className="flex-1 relative overflow-hidden min-h-0">
+                <main id="main-content" className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
                         <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0 min-h-0">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
@@ -489,7 +499,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                             </ErrorBoundary>
                             {view === 'indexer' && (
                                 <ViewWrapper>
-                                    <AloaXView />
+                                    <React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense>
                                 </ViewWrapper>
                             )}
                         </div>
@@ -771,7 +781,7 @@ export const App: React.FC = () => {
             : 'vega';
         if (url.searchParams.get('app') !== expectedApp) {
             url.searchParams.set('app', expectedApp);
-            window.history.replaceState({}, '', url.toString());
+            window.history.replaceState(window.history.state, '', url.toString());
         }
     }, [currentUser, product, view]);
 
@@ -1191,7 +1201,7 @@ export const App: React.FC = () => {
                         </div>
 
                         <div className="mt-10 pt-8 border-t border-slate-50 dark:border-zinc-800 w-full">
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Account Reference</p>
+                            <p className="text-2xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Account Reference</p>
                             <p className="text-xs font-mono text-slate-300 dark:text-zinc-700">{currentUser.id}</p>
                         </div>
                     </div>

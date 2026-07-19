@@ -45,7 +45,7 @@ const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; cl
 
 /** Pill badge */
 const Pill: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest border ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-widest border ${className}`}>
         {children}
     </span>
 );
@@ -88,7 +88,7 @@ const NavBar: React.FC<{
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary-500 transition-colors pl-3 border-l border-slate-200 dark:border-white/10"
+                        className="hidden md:flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-500 transition-colors pl-3 border-l border-slate-200 dark:border-white/10"
                     >
                         <ArrowLeftIcon className="w-3 h-3" />
                         All Products
@@ -170,7 +170,7 @@ const NavBar: React.FC<{
                 >
                     Demo
                 </button>
-                <PrimaryButton onClick={onSignup} className="!px-3 !py-1.5 !rounded-lg !text-[11px] ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
+                <PrimaryButton onClick={onSignup} className="!px-3 !py-1.5 !rounded-lg !text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
                     Get Started Free
                 </PrimaryButton>
             </div>
@@ -204,7 +204,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <div className="mt-4 flex items-center gap-3">
                             <button
                                 onClick={() => setActiveProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
-                                className="text-[10px] font-bold uppercase tracking-widest text-primary-500 hover:text-primary-400 flex items-center gap-1.5 py-1 px-2 rounded-lg border border-primary-500/20 hover:bg-primary-500/5 transition-all"
+                                className="text-2xs font-bold uppercase tracking-widest text-primary-500 hover:text-primary-400 flex items-center gap-1.5 py-1 px-2 rounded-lg border border-primary-500/20 hover:bg-primary-500/5 transition-all"
                             >
                                 Switch to {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">→</span>
                             </button>
@@ -319,7 +319,7 @@ const HubHero: React.FC<{
                 {/* Corporate badge */}
                 <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-10 ${isDark ? 'bg-white/[0.04] border border-white/[0.08]' : 'bg-slate-900/[0.03] border border-slate-900/[0.08]'}`}>
                     <Logo className="w-4 h-4 text-primary-500" />
-                    <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>PracticePro · Nigeria</span>
+                    <span className={`text-2xs font-black uppercase tracking-[0.25em] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>PracticePro · Nigeria</span>
                 </div>
 
                 <h1 className={`text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl ${isDark ? 'text-white' : 'text-slate-900'}`}>
@@ -350,8 +350,8 @@ const HubHero: React.FC<{
                                 <ScalesIcon className="w-5 h-5 text-amber-400" />
                             </div>
                             <div className="flex items-center gap-2 mb-2.5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-500">Vega</span>
-                                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
+                                <span className="text-2xs font-black uppercase tracking-[0.22em] text-amber-500">Vega</span>
+                                <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
                             </div>
                             <h3 className="text-lg font-bold text-white mb-2.5">For Law Firms</h3>
                             <p className="text-sm text-slate-500 leading-[1.75]">
@@ -376,8 +376,8 @@ const HubHero: React.FC<{
                                 <OfficeBuildingIcon className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div className="flex items-center gap-2 mb-2.5">
-                                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-500">Atrium</span>
-                                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
+                                <span className="text-2xs font-black uppercase tracking-[0.22em] text-emerald-500">Atrium</span>
+                                <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
                             </div>
                             <h3 className="text-lg font-bold text-white mb-2.5">For Property Managers</h3>
                             <p className="text-sm text-slate-500 leading-[1.75]">
@@ -415,7 +415,7 @@ const HubHero: React.FC<{
                 </div>
 
                 {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
-                <p className={`text-[10px] mt-12 tracking-wide ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
+                <p className={`text-2xs mt-12 tracking-wide ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
@@ -624,7 +624,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                                     <h4 className={`text-base font-bold mb-2 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
                                         {item.title}
                                         {item.badge && (
-                                            <span className="ml-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50">
+                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50">
                                                 {item.badge}
                                             </span>
                                         )}
@@ -739,7 +739,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         </button>
                         <div className="flex items-center gap-2">
                             <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Annual</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase rounded-full border border-emerald-200 dark:border-emerald-800">
+                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-2xs font-black uppercase rounded-full border border-emerald-200 dark:border-emerald-800">
                                 Save 20%
                             </span>
                         </div>
@@ -764,7 +764,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             }`}
                     >
                         {plan.highlighted && (
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-full shadow-xl z-20 whitespace-nowrap">
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-2xs font-black uppercase tracking-[0.2em] rounded-full shadow-xl z-20 whitespace-nowrap">
                                 Most Popular
                             </div>
                         )}
@@ -781,12 +781,12 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         {/* Tenant Contribution Section (Atrium Only) */}
                         {!isVega && (
                             <div className={`mb-8 p-4 rounded-2xl border ${plan.highlighted ? 'bg-white/5 border-white/10 dark:bg-slate-50 dark:border-slate-200' : 'bg-slate-50 border-slate-100 dark:bg-white/5 dark:border-white/5'}`}>
-                                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400 dark:text-blue-600' : 'text-blue-600 dark:text-blue-400'}`}>Service Charge Equiv.</p>
+                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400 dark:text-blue-600' : 'text-blue-600 dark:text-blue-400'}`}>Service Charge Equiv.</p>
                                 <div className="flex items-baseline gap-1">
                                     <span className={`text-lg font-bold ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.tenantContribution}</span>
-                                    <span className={`text-[10px] ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
+                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
                                 </div>
-                                <p className={`text-[9px] mt-1 leading-tight ${plan.highlighted ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>Cost benefit for the manager to pass on to the estate.</p>
+                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>Cost benefit for the manager to pass on to the estate.</p>
                             </div>
                         )}
 
@@ -800,7 +800,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                     <span className={`text-sm leading-snug ${plan.highlighted ? 'text-slate-200 dark:text-slate-700' : 'text-slate-700 dark:text-slate-300'}`}>
                                         {f.text}
                                         {f.note && (
-                                            <span className="ml-2 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                                                 {f.note}
                                             </span>
                                         )}

@@ -89,7 +89,7 @@ const Tooltip: React.FC<TooltipProps> = ({ text, children, className, checkForTr
       {isVisible && createPortal(
         <div 
           ref={portalRef}
-          className={`fixed z-[9999] pointer-events-none px-3 py-2 text-[11px] font-medium text-white bg-slate-800 dark:bg-zinc-600 rounded-lg shadow-xl animate-fade-in border border-white/10 dark:border-white/5 ${allowWrap ? 'max-w-[260px] whitespace-normal' : 'whitespace-nowrap max-w-[260px]'}`}
+          className={`fixed z-[9999] pointer-events-none px-3 py-2 text-2xs font-medium text-white bg-slate-800 dark:bg-zinc-600 rounded-lg shadow-xl animate-fade-in border border-white/10 dark:border-white/5 ${allowWrap ? 'max-w-[260px] whitespace-normal' : 'whitespace-nowrap max-w-[260px]'}`}
           style={{ 
             top: coords.top, 
             left: coords.left,

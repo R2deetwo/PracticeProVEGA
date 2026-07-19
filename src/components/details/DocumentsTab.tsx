@@ -144,7 +144,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 {/* New Indicator */}
                 {isNew && (
                     <div className="absolute top-2 right-2 flex items-center gap-1">
-                        <span className="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">New</span>
+                        <span className="text-3xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">New</span>
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse" />
                     </div>
                 )}
@@ -159,13 +159,13 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 {/* Text Area with Tooltip */}
                 <div className="w-full text-center px-1 pb-1">
                     <Tooltip text={doc.title}>
-                        <p className="text-[10px] font-bold text-slate-700 dark:text-zinc-300 leading-tight break-all">
+                        <p className="text-2xs font-bold text-slate-700 dark:text-zinc-300 leading-tight break-all">
                             {doc.title}
                         </p>
                     </Tooltip>
                     <div className="flex items-center justify-center gap-2 mt-1.5">
-                        <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{extension}</span>
-                        {doc.file?.size && <span className="text-[8px] text-slate-400 dark:text-zinc-500 font-medium">{formatBytes(doc.file.size)}</span>}
+                        <span className="text-3xs text-slate-400 dark:text-zinc-500 font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">{extension}</span>
+                        {doc.file?.size && <span className="text-3xs text-slate-400 dark:text-zinc-500 font-medium">{formatBytes(doc.file.size)}</span>}
                     </div>
                 </div>
 
@@ -221,7 +221,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                                     </div>
                                     <div className="text-left">
                                         <div className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600">DraftPro Editor</div>
-                                        <div className="text-[10px] text-slate-500">Edit directly in browser</div>
+                                        <div className="text-2xs text-slate-500">Edit directly in browser</div>
                                     </div>
                                 </button>
 
@@ -234,7 +234,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                                     </div>
                                     <div className="text-left">
                                         <div className="font-bold text-slate-700 dark:text-slate-300">External App</div>
-                                        <div className="text-[10px] text-slate-500">Download to edit locally</div>
+                                        <div className="text-2xs text-slate-500">Download to edit locally</div>
                                     </div>
                                 </button>
                             </div>
