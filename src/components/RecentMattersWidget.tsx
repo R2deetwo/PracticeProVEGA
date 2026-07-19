@@ -123,8 +123,8 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                 {activitiesToShow.length > 0 ? (
                                     <ul className="space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-3 ml-1">
                                         {activitiesToShow.map(activity => {
-                                            const userDisplay = activity.userId === 'system'
-                                                ? 'System'
+                                            const userDisplay = activity.userId === 'system' || activity.userName === 'PracticePro'
+                                                ? 'PracticePro'
                                                 : (activity.userId === currentUser.id ? 'You' : activity.userName);
                                             
                                             let displayText = `${userDisplay} ${activity.action}`.trim();

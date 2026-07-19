@@ -264,7 +264,7 @@ const BADGES = [
     { label: 'NDPA 2023 Compliant', Icon: ScalesIcon },
     { label: 'TLS 1.3 Encrypted', Icon: LockClosedIcon },
     { label: 'Data Encrypted at Rest*', Icon: KeyIcon },
-    { label: 'SOC 2 Principles', Icon: ShieldCheckIcon }
+    
 ];
 
 const TrustBadgesStrip: React.FC = () => (

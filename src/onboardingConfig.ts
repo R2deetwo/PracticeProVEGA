@@ -59,7 +59,7 @@ const vegaTourSteps: TourStep[] = [
   },
   {
     target: '[data-tour-id="aloa-fab"]',
-    title: 'Meet ALOA®',
+    title: 'Meet ALOA™',
     content: 'Your AI Paralegal is always one click away. Tap here to draft documents, summarize briefs, or navigate the app using voice or text.',
     placement: 'top',
     mobilePlacement: 'top',

@@ -177,8 +177,8 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                     <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
                         <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
                     </div>
-                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Payment Confirmed</h3>
-                    <p className="text-slate-500 dark:text-zinc-400 mb-6">Your firm will verify the transfer and update the invoice status.</p>
+                    <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Payment Reported</h3>
+                    <p className="text-slate-500 dark:text-zinc-400 mb-6">Your payment has been reported as made. Your firm will verify the bank transfer and update the invoice status to "Paid" once confirmed.</p>
                     <button
                         onClick={handleFinish}
                         className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-lg transition-all"

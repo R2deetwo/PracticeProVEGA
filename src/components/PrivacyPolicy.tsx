@@ -29,7 +29,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Privacy Policy</h1>
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO LEGAL TECHNOLOGIES LIMITED</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
-                            <span>Effective Date: January 1, 2026</span>
+                            <span>Effective Date: July 19, 2026</span>
                             <span>Last Updated: February 24, 2026</span>
                         </div>
                     </div>
@@ -85,8 +85,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <p>
                                     <strong>Company Name:</strong> PracticePro Legal Technologies Limited<br />
                                     <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway. Lagos State<br />
-                                    <strong>Email:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprovega@gmail.com</a><br />
-                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 no-underline hover:underline">practiceprovega@gmail.com</a>
+                                    <strong>Email:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a><br />
+                                    <strong>Data Protection Officer (DPO):</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>
                                 </p>
                                 <p>
                                     For matters related to User account information, billing, and platform usage, PracticePro is the Data Controller. For {isVega ? 'client' : 'tenant'} data entered into the Platform by {isVega ? 'legal practitioners' : 'property managers'}, the individual {isVega ? 'lawyer or law firm' : 'manager or firm'} is the Data Controller, and PracticePro is the Data Processor.
@@ -252,7 +252,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                     <h3 className="text-xl font-bold">5.1 ARIA™ AI Processing</h3>
                                     <p>ARIA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting capabilities' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting capabilities'}. When you use ARIA™ features, your data (including {isProperty ? 'property data' : 'case facts'}, document content, and queries) is processed as follows:</p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>AI Service Provider:</strong> We use Google's Gemini API (via Google Cloud Vertex AI) to power ARIA™'s natural language processing and generation capabilities.</li>
+                                        <li><strong>AI Service Provider:</strong> AI features (such as ALOA™ and ARIA™) are powered by Google's Gemini API. <strong>Important:</strong> Each firm supplies its own Google AI Studio API key, which is stored locally in the user's browser and transmitted directly from the browser to Google's servers. PracticePro does not transmit, store, or have access to your API key or the content of your AI queries on its servers. The firm (as Controller) contracts directly with Google for AI processing. PracticePro is not a sub-processor for AI-related data flows.</li>
                                         <li><strong>Data Transmission:</strong> When you submit a query, upload a document for analysis, or request AI-generated content, that data is securely transmitted to Google's API for processing.</li>
                                         <li><strong>Processing Purpose:</strong> The data is processed solely to generate the requested output and is returned to you through the Platform.</li>
                                         <li><strong>No Model Training:</strong> Under our agreements with Google, your data is not used to train Google's public AI models. We have configured our API usage and contractual arrangements to prohibit the use of your data for model training purposes.</li>
@@ -329,7 +329,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">8. Your Rights Under NDPR and NDPA</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Under the Nigerian data protection framework, you have the right to access, rectify, or request erasure of your data. You may object to or restrict processing, request your data in a portable format, and withdraw consent. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC). To exercise these rights, please contact our Data Protection Officer at practiceprovega@gmail.com.
+                                    Under the Nigerian data protection framework, you have the right to access, rectify, or request erasure of your data. You may object to or restrict processing, request your data in a portable format, and withdraw consent. You also have the right to lodge a complaint with the Nigeria Data Protection Commission (NDPC). To exercise these rights, please contact our Data Protection Officer at dpo@practicepro.ng.
                                 </p>
                             </div>
                         </section>
@@ -380,8 +380,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-6">
                                     <p>
                                         <strong>PracticePro Legal Technologies Limited</strong><br />
-                                        <strong>Data Protection Officer:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 hover:underline">practiceprovega@gmail.com</a><br />
-                                        <strong>General Inquiries:</strong> <a href="mailto:practiceprovega@gmail.com" className="text-primary-600 hover:underline">practiceprovega@gmail.com</a>
+                                        <strong>Data Protection Officer:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a><br />
+                                        <strong>General Inquiries:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a>
                                     </p>
                                 </div>
                             </div>

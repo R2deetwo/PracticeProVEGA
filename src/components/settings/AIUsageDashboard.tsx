@@ -60,7 +60,7 @@ const AGENT_CONFIG: Record<string, { label: string; color: string; icon: React.R
     icon: <Bot className="w-3.5 h-3.5" />,
   },
   ALOA: {
-    label: 'ALOA®',
+    label: 'ALOA™',
     color: 'text-emerald-400',
     icon: <Cpu className="w-3.5 h-3.5" />,
   },
@@ -377,7 +377,7 @@ const EmptyState: React.FC = () => (
     </div>
     <h3 className="text-lg font-bold text-white mb-2">No AI Usage Recorded Yet</h3>
     <p className="text-sm text-gray-500 max-w-sm">
-      Usage metrics will appear here once your team starts interacting with AI agents like ARIA, ALOA®, or ALDIA.
+      Usage metrics will appear here once your team starts interacting with AI agents like ARIA, ALOA™, or ALDIA.
     </p>
   </div>
 );

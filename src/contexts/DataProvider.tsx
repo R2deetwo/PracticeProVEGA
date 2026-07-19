@@ -225,11 +225,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         },
         logActivity: (action: string, targetType: any, targetId?: string, targetName?: string, matterId?: string) => {
             if (!currentUser || !currentUser.firmId) return;
-            const activity = { 
-                id: uuidv4(), 
-                firmId: currentUser.firmId as string, 
-                userId: currentUser.id as string, 
-                userName: currentUser.name || 'System', 
+            const activity = {
+                id: uuidv4(),
+                firmId: currentUser.firmId as string,
+                userId: currentUser.id as string,
+                // Use the user's name; never show "System" — it's confusing.
+                // If the user has no name set, show "PracticePro" as the actor.
+                userName: currentUser.name || 'PracticePro',
                 action, 
                 targetType, 
                 targetId, 
@@ -365,21 +367,22 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleClearState,
         handleRunDocumentAnalysis,
         handleApplyCustomStageChecklist,
-        // Stubs for remaining interface requirements
+        // Stubs for remaining interface requirements — labeled as "coming soon"
+        // to avoid misleading users with fake success toasts.
         handleDeleteAllChats: () => addToast("Chats cleared.", { type: 'success' }),
         restoreFromLocalBackup: async () => addToast("Restored from backup.", { type: 'success' }),
         handleRestoreBackup: async (key: string) => addToast(`Restored backup: ${key}`, { type: 'success' }),
-        handleExportData: async () => addToast("Exporting data...", { type: 'info' }),
+        handleExportData: async () => addToast("Data export is coming soon. Contact support if you need your data now.", { type: 'info' }),
         handleResetPracticeData: async () => handlePurgeData(),
         handleRenamePage: (id: string, title: string) => baseActions.updateItem('notePages', { id, title }, 'Page'),
         registerBroadcastHandler: (h: any) => {},
         handleRemoteAction: (p: any) => {},
         ensureUserInState: async (u: any) => {},
-        handleSyncGoogleContacts: async () => addToast("Google Contacts synced.", { type: 'success' }),
-        handleToggleBookmarkCase: (id: string) => addToast("Bookmark updated.", { type: 'success' }),
+        handleSyncGoogleContacts: async () => addToast("Google Contacts sync is coming soon.", { type: 'info' }),
+        handleToggleBookmarkCase: (id: string) => addToast("Case bookmarking is coming soon.", { type: 'info' }),
         handleUpdateClientActionItem: async (matterId: string, itemId: string, completed: boolean) => addToast("Action item updated.", { type: 'success' }),
         handleSaveEmailAsDocument: (email: any) => addToast("Email saved as document.", { type: 'success' }),
-        handleInviteExternalCounsel: (invite: any) => addToast("Invitation sent.", { type: 'success' }),
+        handleInviteExternalCounsel: async (invite: any) => addToast("External counsel invitations are coming soon.", { type: 'info' }),
         handleUpdatePageContent: async (id: string, title: string, content: string) => baseActions.updateItem('notePages', { id, title, content }, 'Page'),
         handleDeleteNotebook: async (id: string, name: string) => baseActions.deleteItem('noteNotebooks', id, name),
         handleRestoreItem: async (item: any) => baseActions.addItem(item.type, item.data, item.name),
