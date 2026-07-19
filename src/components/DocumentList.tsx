@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Document, Matter, Contact, DocumentCategory, User, UserRole, ModalType } from '../types';
-import { DocumentIcon, PlusIcon, SearchIcon, LargeFolderIcon, EditIcon, TrashIcon, DownloadIcon, EyeIcon, ShareIcon, UserUploadIcon, ChevronDownIcon, UploadIcon, ChartBarIcon, ImageIcon, SparklesIcon, ComputerDesktopIcon, UserCircleIcon, OfficeBuildingIcon } from '../constants';
+import { DocumentIcon, PlusIcon, SearchIcon, LargeFolderIcon, EditIcon, TrashIcon, DownloadIcon, EyeIcon, ShareIcon, UserUploadIcon, ChevronDownIcon, UploadIcon, ChartBarIcon, ImageIcon, SparklesIcon, ComputerDesktopIcon, UserCircleIcon, OfficeBuildingIcon, ArrowsExpandIcon } from '../constants';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
@@ -13,6 +13,7 @@ import { formatBytes } from '../utils/formatting';
 import Tooltip from './Tooltip';
 import { LocalDocumentManager } from './LocalDocumentManager';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
+import DocumentPreviewModal from './documents/DocumentPreviewModal';
 
 interface DocumentListProps {
     documents: Document[];
@@ -53,11 +54,12 @@ const DocumentRow: React.FC<{
     onEdit: (doc: Document) => void;
     onShare: (doc: Document) => void;
     onDelete: (doc: Document) => void;
+    onQuickFullScreenPreview?: (doc: Document) => void;
     users: User[];
     selected?: boolean;
     selectionMode?: boolean;
     onToggleSelect?: (id: string) => void;
-}> = ({ doc, onViewDetails, onDownload, onEdit, onShare, onDelete, users, selected, selectionMode, onToggleSelect }) => {
+}> = ({ doc, onViewDetails, onDownload, onEdit, onShare, onDelete, onQuickFullScreenPreview, users, selected, selectionMode, onToggleSelect }) => {
     const uploader = doc.uploadedBy ? users.find(u => u.id === doc.uploadedBy) : null;
     const uploadedByClient = uploader?.role === UserRole.Client;
     const fileName = doc.file?.name || doc.title;
@@ -124,6 +126,19 @@ const DocumentRow: React.FC<{
                     </div>
                 </div>
 
+                {/* Quick full-screen preview — icon-only, always visible, sits LEFT of the kebab menu */}
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (onQuickFullScreenPreview) onQuickFullScreenPreview(doc);
+                    }}
+                    className="flex items-center justify-center w-7 h-7 my-auto rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-zinc-700 transition-colors flex-shrink-0"
+                    aria-label="Open in immersive reader"
+                    title="Open in immersive reader mode"
+                >
+                    <EyeIcon className="w-4 h-4" />
+                </button>
+
                 {/* Kebab menu — shown on ALL screen sizes (not just mobile) */}
                 <button
                     onClick={(e) => { e.stopPropagation(); setShowBottomSheet(true); }}
@@ -160,6 +175,19 @@ const DocumentRow: React.FC<{
 
                         {/* Action items */}
                         <div className="py-2">
+                            <button
+                                onClick={() => { setShowBottomSheet(false); if (onQuickFullScreenPreview) onQuickFullScreenPreview(doc); }}
+                                className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                                <div className="w-9 h-9 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                    <ArrowsExpandIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div className="text-left">
+                                    <span className="block text-sm font-semibold text-slate-700 dark:text-zinc-200">Full Screen Preview</span>
+                                    <span className="block text-3xs text-slate-400">Opens document in immersive reader mode</span>
+                                </div>
+                            </button>
+
                             <button
                                 onClick={() => { setShowBottomSheet(false); onViewDetails(doc.id); }}
                                 className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
@@ -238,11 +266,12 @@ const MatterGroup: React.FC<{
     onEdit: any,
     onShare: any,
     onDelete: any,
+    onQuickFullScreenPreview?: (doc: Document) => void,
     onUpload: (matterId: string) => void,
     selectedIds?: Set<string>,
     selectionMode?: boolean,
     onToggleSelect?: (id: string) => void,
-}> = ({ matterTitle, matterId, documents, onViewDetails, onDownload, onEdit, onShare, onDelete, onUpload, selectedIds, selectionMode, onToggleSelect }) => {
+}> = ({ matterTitle, matterId, documents, onViewDetails, onDownload, onEdit, onShare, onDelete, onQuickFullScreenPreview, onUpload, selectedIds, selectionMode, onToggleSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -283,11 +312,12 @@ const MatterGroup: React.FC<{
                             onEdit={onEdit}
                             onShare={onShare}
                             onDelete={onDelete}
+                            onQuickFullScreenPreview={onQuickFullScreenPreview}
                             selected={selectedIds?.has(doc.id)}
                             selectionMode={selectionMode}
                             onToggleSelect={onToggleSelect}
                         />
-                    ))}
+                    ))} 
                 </div>
             )}
         </div>
@@ -316,6 +346,19 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
     const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'my'>(
         currentUser?.role === UserRole.Admin ? 'all' : 'my'
     );
+
+    // ─── Quick full-screen preview ───────────────────────────────────
+    // Renders the document in the immersive DocumentPreviewModal without
+    // requiring a full route navigation. Falls back to the detail view if
+    // the document has neither inline content nor an attached file.
+    const [quickPreviewDoc, setQuickPreviewDoc] = useState<Document | null>(null);
+    const onQuickFullScreenPreview = useCallback((doc: Document) => {
+        if (!doc?.content && !doc?.file) {
+            onViewDetails(doc.id);
+            return;
+        }
+        setQuickPreviewDoc(doc);
+    }, []);
 
     // ─── Multi-select state ─────────────────────────────────────────
     const [selectionMode, setSelectionMode] = useState(false);
@@ -713,6 +756,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                     onEdit={handleEditDoc}
                                                     onShare={(d: any) => openModal('shareDocument', d.id)}
                                                     onDelete={handleDelete}
+                                                    onQuickFullScreenPreview={onQuickFullScreenPreview}
                                                     onUpload={triggerUpload}
                                                     selectedIds={selectedIds}
                                                     selectionMode={selectionMode}
@@ -734,6 +778,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                                 onEdit={handleEditDoc}
                                                                 onShare={(d) => openModal('shareDocument', d.id)}
                                                                 onDelete={handleDelete}
+                                                                onQuickFullScreenPreview={onQuickFullScreenPreview}
                                                                 selected={selectedIds.has(doc.id)}
                                                                 selectionMode={selectionMode}
                                                                 onToggleSelect={toggleSelect}
@@ -755,6 +800,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                                     onEdit={handleEditDoc}
                                                     onShare={(d) => openModal('shareDocument', d.id)}
                                                     onDelete={handleDelete}
+                                                    onQuickFullScreenPreview={onQuickFullScreenPreview}
                                                     selected={selectedIds.has(doc.id)}
                                                     selectionMode={selectionMode}
                                                     onToggleSelect={toggleSelect}
@@ -776,6 +822,16 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                     )}
                 </div>
             </div>
+
+            {/* ─── Quick full-screen preview modal ─── */}
+            {quickPreviewDoc && (
+                <DocumentPreviewModal
+                    html={quickPreviewDoc.content}
+                    fileUrl={quickPreviewDoc.file?.dataUrl || undefined}
+                    title={quickPreviewDoc.title || 'Untitled Document'}
+                    onClose={() => setQuickPreviewDoc(null)}
+                />
+            )}
         </div>
     );
 };

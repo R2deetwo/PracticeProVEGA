@@ -8,20 +8,22 @@ import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useDataActions } from '../../contexts/DataContext';
-import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon } from '../../constants'; // Fixed path
+import { DownloadIcon, DocumentIcon, EditIcon, ShieldCheckIcon, GavelIconLarge, LockClosedIcon, CheckCircleIcon, SparklesIcon, InfoIcon, CheckBadgeIcon, ClockIcon, ScalesIcon, ChevronRightIcon, ArrowsExpandIcon } from '../../constants'; // Fixed path
 import { Breadcrumbs } from '../Breadcrumbs';
 import Tooltip from '../Tooltip';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { sanitize } from '../../utils/sanitization';
 import ErrorBoundary from '../ErrorBoundary';
 import BacklinksPanel from '../BacklinksPanel';
+import PdfViewer from '../documents/PdfViewer';
+import HtmlPagePreview from '../documents/HtmlPagePreview';
+import DocumentPreviewModal from '../documents/DocumentPreviewModal';
 
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId } : "skip");
     const lastUrlRef = React.useRef<string | null>(null);
+    const blobUrlRef = React.useRef<string | null>(null);
     const [blobUrl, setBlobUrl] = useState<string | null>(null);
-    const [viewMode, setViewMode] = useState<'fit' | 'portrait'>('fit');
 
     const activeUrl = file?.dataUrl || (storageUrl as string) || lastUrlRef.current;
 
@@ -33,36 +35,71 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     }, [file?.dataUrl, storageUrl]);
 
     useEffect(() => {
-        if (activeUrl && file?.type === 'application/pdf') {
-            // Only update if current blobUrl is missing or invalid for this activeUrl
-            if (activeUrl.startsWith('blob:')) {
-                setBlobUrl(activeUrl);
-            } else if (activeUrl.startsWith('data:')) {
-                fetch(activeUrl)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setBlobUrl(url);
-                    })
-                    .catch(e => console.error("Error creating blob from data URL", e));
-            } else if (activeUrl.startsWith('http')) {
-                fetch(activeUrl)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setBlobUrl(url);
-                    })
-                    .catch(e => {
-                        console.error("Error creating blob from remote URL", e);
-                        setBlobUrl(activeUrl);
-                    });
+        if (!activeUrl || file?.type !== 'application/pdf') return;
+
+        let cancelled = false;
+        const abortController = new AbortController();
+
+        // Revoke the previous blob URL so we don't leak memory when the
+        // underlying file changes (rapid tab switches, file replacements, etc.)
+        if (blobUrlRef.current) {
+            try {
+                URL.revokeObjectURL(blobUrlRef.current);
+            } catch {
+                /* noop */
             }
+            blobUrlRef.current = null;
         }
+
+        if (activeUrl.startsWith('blob:')) {
+            // Already a blob URL — no fetch needed
+            if (!cancelled) setBlobUrl(activeUrl);
+        } else if (activeUrl.startsWith('data:') || activeUrl.startsWith('http')) {
+            fetch(activeUrl, { signal: abortController.signal })
+                .then(res => res.blob())
+                .then(blob => {
+                    if (cancelled) return; // race: a newer fetch was triggered
+                    const url = URL.createObjectURL(blob);
+                    blobUrlRef.current = url;
+                    setBlobUrl(url);
+                })
+                .catch(e => {
+                    if (cancelled || abortController.signal.aborted) return;
+                    console.error("Error creating blob from URL", e);
+                    // Fall back to the raw URL — let the PdfViewer try to load it
+                    setBlobUrl(activeUrl);
+                });
+        }
+
         return () => {
-            // We don't revoke here to prevent flickering on quick re-renders
-            // Browser will clean up when the page/session ends or we can add manual cleanup if memory becomes an issue
+            cancelled = true;
+            abortController.abort();
         };
     }, [activeUrl, file?.type]);
+
+    // Cleanup blob URL on unmount
+    useEffect(() => {
+        return () => {
+            if (blobUrlRef.current) {
+                try {
+                    URL.revokeObjectURL(blobUrlRef.current);
+                } catch {
+                    /* noop */
+                }
+                blobUrlRef.current = null;
+            }
+        };
+    }, []);
+
+    const handleDownload = () => {
+        if (!file) return;
+        const link = document.createElement('a');
+        link.href = blobUrl || activeUrl;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     if (!file) return <div className="p-8 text-center text-slate-400 italic">No file attached.</div>;
 
@@ -96,56 +133,12 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
 
     if (isPdf && blobUrl) {
         return (
-            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800">
-                {/* PDF toolbar — like a top PDF reader */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                            <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>
-                        </div>
-                        <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{file.name}</p>
-                            <p className="text-2xs text-slate-400">PDF Document</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <button
-                            onClick={() => setViewMode(viewMode === 'fit' ? 'portrait' : 'fit')}
-                            className="px-3 py-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
-                            title={viewMode === 'fit' ? 'Switch to portrait view' : 'Switch to fit-width view'}
-                        >
-                            {viewMode === 'fit' ? 'Fit' : 'Portrait'}
-                        </button>
-                        <a
-                            href={blobUrl}
-                            download={file.name}
-                            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-2xs font-bold transition-colors flex items-center gap-1"
-                        >
-                            <DownloadIcon className="w-3 h-3" />
-                            Download
-                        </a>
-                    </div>
-                </div>
-                {/* PDF viewer area */}
-                <div className="flex-1 overflow-hidden bg-slate-200/50 dark:bg-zinc-900/30 flex items-center justify-center p-4">
-                    <div className={`w-full transition-all duration-300 ease-in-out ${viewMode === 'portrait' ? 'max-w-[550px]' : 'max-w-5xl'} h-full bg-white dark:bg-zinc-800 rounded-lg shadow-2xl overflow-hidden border border-slate-300 dark:border-zinc-700`}>
-                        <object
-                            data={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`}
-                            type="application/pdf"
-                            className="w-full h-full"
-                        >
-                            <iframe src={`${blobUrl}#navpanes=0&toolbar=0&view=${viewMode === 'portrait' ? 'Fit' : 'FitH'}`} className="w-full h-full border-none" title="PDF Preview"></iframe>
-                            <div className="flex flex-col items-center justify-center h-full text-slate-500 p-8 text-center bg-white dark:bg-zinc-800">
-                                <DocumentIcon className="w-12 h-12 mb-4 opacity-20" />
-                                <p className="font-bold mb-2">Browser Preview Unavailable</p>
-                                <p className="text-sm mb-4">Your browser doesn't support direct PDF embedding.</p>
-                                <a href={blobUrl} download={file.name} className="px-5 py-2 bg-primary-600 text-white rounded-lg font-bold shadow-md hover:bg-primary-700 transition-all">
-                                    Download to view
-                                </a>
-                            </div>
-                        </object>
-                    </div>
-                </div>
+            <div className="flex-1 flex flex-col bg-slate-100 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 h-[80vh] min-h-[600px]">
+                <PdfViewer
+                    fileUrl={blobUrl}
+                    title={file.name}
+                    onDownload={handleDownload}
+                />
             </div>
         );
     }
@@ -163,184 +156,6 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
             <a href={activeUrl} download={file.name} className="px-6 py-3 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all">
                 <DownloadIcon className="w-5 h-5" /> Download for Full Access
             </a>
-        </div>
-    );
-};
-
-// ─── HTML Page Preview — page-by-page navigation like a real PDF reader ──
-// Shows ONE page at a time. User navigates with prev/next buttons or keyboard
-// arrows. No scrolling through multiple pages. Includes zoom (50%–200%).
-const HtmlPagePreview: React.FC<{ html: string; title: string }> = ({ html, title }) => {
-    const [zoom, setZoom] = useState(100);
-    const [currentPage, setCurrentPage] = useState(0); // 0-indexed
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    // Split content into pages based on page-break markers
-    const pages = useMemo(() => {
-        const cleanHtml = sanitize(html);
-        // Split on page-break divs
-        const parts = cleanHtml.split(/<div[^>]*data-type="page-break"[^>]*><\/div>|<div[^>]*class="[^"]*page-break[^"]*"[^>]*><\/div>|<div[^>]*style="[^"]*page-break[^"]*"[^>]*><\/div>/i);
-        // If there's only one part (no page breaks), we still treat it as page 1
-        return parts.filter(p => p.trim());
-    }, [html]);
-
-    const pageCount = pages.length || 1;
-    const safeCurrentPage = Math.min(currentPage, pageCount - 1);
-
-    // Keyboard navigation
-    useEffect(() => {
-        const handleKey = (e: KeyboardEvent) => {
-            // Guard: don't hijack arrow keys / space when the user is typing
-            // in an input, textarea, or contenteditable region. Without this,
-            // pressing space to type a space in a search box would advance
-            // the page instead — a particularly nasty UX bug because the
-            // input might be inside a child of the same containerRef.
-            const target = e.target as HTMLElement;
-            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) return;
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                setCurrentPage(p => Math.max(0, p - 1));
-            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
-                e.preventDefault();
-                setCurrentPage(p => Math.min(pageCount - 1, p + 1));
-            }
-        };
-        const el = containerRef.current;
-        el?.addEventListener('keydown', handleKey);
-        return () => el?.removeEventListener('keydown', handleKey);
-    }, [pageCount]);
-
-    const goToPage = (page: number) => {
-        setCurrentPage(Math.max(0, Math.min(pageCount - 1, page)));
-    };
-
-    const pageCss = `
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        .page-sheet {
-            font-family: 'Times New Roman', serif;
-            font-size: 12pt;
-            line-height: 1.5;
-            color: #1a1a1a;
-        }
-        .page-sheet h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
-        .page-sheet h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
-        .page-sheet h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
-        .page-sheet p { margin: 0 0 8pt; text-align: justify; }
-        .page-sheet ul, .page-sheet ol { margin: 0 0 8pt; padding-left: 20pt; }
-        .page-sheet li { margin-bottom: 4pt; }
-        .page-sheet table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-        .page-sheet td, .page-sheet th { border: 1px solid #ccc; padding: 4pt 8pt; }
-        .page-sheet th { background: #f5f5f5; font-weight: bold; }
-        .page-sheet strong { font-weight: bold; }
-        .page-sheet em { font-style: italic; }
-        .page-sheet u { text-decoration: underline; }
-        .page-sheet sup { font-size: 0.7em; vertical-align: super; }
-    `;
-
-    return (
-        <div ref={containerRef} tabIndex={0} className="flex flex-col h-full bg-slate-200 dark:bg-zinc-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 outline-none">
-            {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 shadow-sm flex-shrink-0">
-                {/* Left: file info */}
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                        <DocumentIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{title}</p>
-                        <p className="text-2xs text-slate-400">Page {safeCurrentPage + 1} of {pageCount}</p>
-                    </div>
-                </div>
-
-                {/* Center: page navigation */}
-                <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                        onClick={() => goToPage(0)}
-                        disabled={safeCurrentPage === 0}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="First page"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" /></svg>
-                    </button>
-                    <button
-                        onClick={() => goToPage(safeCurrentPage - 1)}
-                        disabled={safeCurrentPage === 0}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Previous page (←)"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
-                    </button>
-                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 w-14 text-center">
-                        {safeCurrentPage + 1} / {pageCount}
-                    </span>
-                    <button
-                        onClick={() => goToPage(safeCurrentPage + 1)}
-                        disabled={safeCurrentPage >= pageCount - 1}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Next page (→)"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
-                    </button>
-                    <button
-                        onClick={() => goToPage(pageCount - 1)}
-                        disabled={safeCurrentPage >= pageCount - 1}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
-                        title="Last page"
-                    >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5m6-15l7.5 7.5-7.5 7.5" /></svg>
-                    </button>
-                </div>
-
-                {/* Right: zoom controls */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button
-                        onClick={() => setZoom(z => Math.max(50, z - 25))}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
-                        title="Zoom out"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" /></svg>
-                    </button>
-                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 w-9 text-center">{zoom}%</span>
-                    <button
-                        onClick={() => setZoom(z => Math.min(200, z + 25))}
-                        className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
-                        title="Zoom in"
-                    >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    </button>
-                </div>
-            </div>
-
-            {/* Single page display area — shows ONE page at a time */}
-            <div className="flex-1 overflow-auto bg-slate-300/40 dark:bg-zinc-900/30 flex items-start justify-center p-4">
-                <style>{pageCss}</style>
-                <div
-                    className="bg-white shadow-2xl border border-slate-300 transition-all duration-200 flex-shrink-0"
-                    style={{
-                        width: '210mm',
-                        minHeight: '297mm',
-                        padding: '25mm',
-                        transform: `scale(${zoom / 100})`,
-                        transformOrigin: 'top center',
-                    }}
-                >
-                    <div
-                        className="page-sheet"
-                        dangerouslySetInnerHTML={{ __html: pages[safeCurrentPage] || '<p style="color:#94a3b8;text-align:center;padding:40px;">No content on this page.</p>' }}
-                    />
-                    {/* Page number */}
-                    <div style={{ position: 'absolute', bottom: '10mm', right: '25mm', fontSize: '9pt', color: '#94a3b8', fontWeight: 600 }}>
-                        Page {safeCurrentPage + 1} of {pageCount}
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom hint */}
-            <div className="flex-shrink-0 px-4 py-1.5 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-center">
-                <p className="text-3xs text-slate-400 dark:text-zinc-500">
-                    Use ← → arrow keys or the buttons above to navigate pages
-                </p>
-            </div>
         </div>
     );
 };
@@ -459,6 +274,14 @@ const DocumentDetailViewContent: React.FC = () => {
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
     const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'mentions'>(isProperty ? 'details' : 'details');
+    const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
+
+    // Close the full-screen preview whenever the selected document changes.
+    // Without this, navigating from one document to another while the modal
+    // is open would leave the modal showing the *previous* document's content.
+    useEffect(() => {
+        setShowFullScreenPreview(false);
+    }, [selectedId]);
 
     // ─── Null-state guard ─────────────────────────────────────────────
     // If no document is selected or the ID is stale/deleted, show a safe
@@ -550,6 +373,20 @@ const DocumentDetailViewContent: React.FC = () => {
                             <Tooltip text="Edit Document Metadata">
                                 <button onClick={() => openModal('editDocument', document.id)} className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 transition-colors"><EditIcon className="w-5 h-5" /></button>
                             </Tooltip>
+                            {(document.content || document.file) && (
+                                <Tooltip text="Open in immersive full-screen reader">
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('details');
+                                            setShowFullScreenPreview(true);
+                                        }}
+                                        className="p-2.5 rounded-xl bg-slate-900 dark:bg-zinc-900 hover:bg-slate-700 dark:hover:bg-zinc-700 text-white transition-colors flex items-center justify-center"
+                                        aria-label="Full screen preview"
+                                    >
+                                        <ArrowsExpandIcon className="w-5 h-5" />
+                                    </button>
+                                </Tooltip>
+                            )}
                             <button onClick={() => openModal('shareDocument', document.id)} className="px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-black shadow-lg shadow-primary-500/20 transition-all active:scale-95">Share</button>
                         </div>
                     </div>
@@ -577,7 +414,11 @@ const DocumentDetailViewContent: React.FC = () => {
                 {activeTab === 'details' && (
                     <div className="flex-1 overflow-hidden p-4">
                         {document.content ? (
-                            <HtmlPagePreview html={document.content} title={document.title} />
+                            <HtmlPagePreview
+                                html={document.content}
+                                title={document.title}
+                                onRequestFullScreen={() => setShowFullScreenPreview(true)}
+                            />
                         ) : (
                             <FileViewer file={document.file} />
                         )}
@@ -851,6 +692,16 @@ const DocumentDetailViewContent: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* ─── Full-screen immersive preview overlay ─── */}
+            {showFullScreenPreview && (document.content || document.file) && (
+                <DocumentPreviewModal
+                    html={document.content}
+                    fileUrl={document.file?.dataUrl || undefined}
+                    title={document.title}
+                    onClose={() => setShowFullScreenPreview(false)}
+                />
+            )}
         </div>
     );
 };
