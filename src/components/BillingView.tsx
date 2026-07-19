@@ -289,6 +289,7 @@ export const BillingView: React.FC = () => {
         const ledgerEntries = (coreState as any).ledgerEntries || [];
         const serviceCharges = (coreState as any).serviceCharges || [];
 
+        // Legal-side KPIs (invoices)
         const paidThisMonth = invoices.filter(i => {
             if (i.status !== InvoiceStatus.Paid || !i.paidDate) return false;
             const d = new Date(i.paidDate);
@@ -300,6 +301,7 @@ export const BillingView: React.FC = () => {
             .filter(i => i.status === InvoiceStatus.Unpaid || i.status === InvoiceStatus.Overdue || i.status === InvoiceStatus.Sent)
             .reduce((s, i) => s + (i.total_amount || i.subTotal || 0), 0);
 
+        // Property-side KPIs (ledger + service charges)
         const propertyCollected = ledgerEntries
             .filter((e: any) => e.status === 'cleared')
             .reduce((s: number, e: any) => s + (e.amount || 0), 0);
@@ -310,13 +312,33 @@ export const BillingView: React.FC = () => {
 
         const criticalDefaulters = serviceCharges.filter((d: any) => d.isDefaulter && (d.daysOverdue ?? 0) > 14).length;
 
+        // ─── Filter KPIs by product scope ───────────────────────────
+        // Legal: show only invoice-based numbers
+        // Property: show only ledger/service-charge numbers
+        // Combined: show the sum of both
+        if (productScope === 'legal') {
+            return {
+                collected: paidThisMonth,
+                outstanding: outstanding,
+                defaults: 0,
+                invoiceCount: invoices.length,
+            };
+        } else if (productScope === 'property') {
+            return {
+                collected: propertyCollected,
+                outstanding: propertyOutstanding,
+                defaults: criticalDefaulters,
+                invoiceCount: 0,
+            };
+        }
+        // Combined (default)
         return {
             collected: paidThisMonth + propertyCollected,
             outstanding: outstanding + propertyOutstanding,
             defaults: criticalDefaulters,
             invoiceCount: invoices.length,
         };
-    }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges]);
+    }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges, productScope]);
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">

@@ -1213,12 +1213,17 @@ ${sourceList}
 
     // Load/Sync content when it changes (especially from AI Drafting)
     useEffect(() => {
-        if (editor && initialContent !== undefined) {
-            const currentHTML = editor.getHTML();
-            if (currentHTML !== initialContent && (currentHTML === '<p></p>' || initialContent.length > currentHTML.length || !contentLoadedRef.current)) {
-                editor.commands.setContent(initialContent);
-                contentLoadedRef.current = true;
-                setIsSaved(true);
+        if (editor && !editor.isDestroyed && initialContent !== undefined) {
+            try {
+                const currentHTML = editor.getHTML();
+                if (currentHTML !== initialContent && (currentHTML === '<p></p>' || initialContent.length > currentHTML.length || !contentLoadedRef.current)) {
+                    editor.commands.setContent(initialContent);
+                    contentLoadedRef.current = true;
+                    setIsSaved(true);
+                }
+            } catch (err) {
+                // Editor schema not ready yet — skip this sync cycle
+                console.warn('[DraftPro] Content sync skipped — editor not ready:', err);
             }
         }
     }, [editor, initialContent]);
@@ -1248,7 +1253,7 @@ ${sourceList}
     }, [editor]); // Re-run when editor is ready
 
     const handleManualSave = useCallback(() => {
-        if (editor) {
+        if (editor && !editor.isDestroyed) {
             try {
                 onSave?.(editor.getHTML());
                 setIsSaved(true);
@@ -1633,7 +1638,7 @@ ${allCites.map((c: any) => {
     }, [editor, isSaved, onTitleChange, addToast]);
 
     const handlePrint = useCallback(() => {
-        if (!editor) return;
+        if (!editor || editor.isDestroyed) return;
         let hasPlaceholders = false;
         editor.state.doc.descendants((node) => {
             if (node.type.name === 'legalPlaceholder') hasPlaceholders = true;
@@ -1893,6 +1898,7 @@ ${allCites.map((c: any) => {
     // Opens ALOA/ARIA with context about the current document and the
     // specific placeholder the user needs help with.
     const handleAiHelpForPlaceholder = (label: string) => {
+        if (!editor || editor.isDestroyed) return;
         // Assign this invocation a unique ID. After every await below, we
         // check whether `myRequestId` still matches `aiHelpRequestIdRef.current`.
         // If the user clicked another placeholder (or re-clicked this one) in

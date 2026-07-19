@@ -653,7 +653,14 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                     Select
                                 </button>
                             ) : (
-                                <>
+                                <div className="flex items-center gap-2 w-full">
+                                    <button
+                                        onClick={clearSelection}
+                                        className="p-1 rounded hover:bg-white/20 text-primary-600 dark:text-primary-400 transition-colors"
+                                        title="Exit selection"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
                                     <button
                                         onClick={selectAll}
                                         className="text-xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
@@ -678,7 +685,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                     >
                                         Cancel
                                     </button>
-                                </>
+                                </div>
                             )}
                         </div>
                     </div>
