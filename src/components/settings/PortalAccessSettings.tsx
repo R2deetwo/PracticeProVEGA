@@ -106,7 +106,7 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   };
   const c = cfg[status] || cfg.pending;
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${c.bg} ${c.text}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${c.bg} ${c.text}`}>
       {status === 'pending' && <ClockIcon className="w-3 h-3" />}
       {status === 'accepted' && <CheckIcon className="w-3 h-3" />}
       {status === 'expired' && <ExclamationTriangleIcon className="w-3 h-3" />}
@@ -122,20 +122,20 @@ const ChannelBadge: React.FC<{ channel?: string }> = ({ channel }) => {
   const ch = channel || 'email';
   if (ch === 'whatsapp') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">
         <DeviceMobileIcon className="w-2.5 h-2.5" /> WhatsApp
       </span>
     );
   }
   if (ch === 'both') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400">
         <MailIcon className="w-2.5 h-2.5" /> Email + WhatsApp
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400">
       <MailIcon className="w-2.5 h-2.5" /> Email
     </span>
   );
@@ -145,13 +145,13 @@ const ChannelBadge: React.FC<{ channel?: string }> = ({ channel }) => {
 const PortalTypeBadge: React.FC<{ portalType: string }> = ({ portalType }) => {
   if (portalType === 'resident') {
     return (
-      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400">
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400">
         <OfficeBuildingIcon className="w-2.5 h-2.5" /> Resident
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400">
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400">
       <UsersIcon className="w-2.5 h-2.5" /> Client
     </span>
   );
@@ -440,7 +440,7 @@ const InviteForm: React.FC<{
             }`}
           />
           {isProperty && isNameAutoFilled && (
-            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
+            <p className="text-2xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
               This name is from the property's tenant record and will be used as the official name on the portal.
               Edit only if the tenant record is incorrect.
             </p>
@@ -480,7 +480,7 @@ const InviteForm: React.FC<{
                 ))}
               </select>
               {relatedId && (
-                <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+                <p className="text-2xs text-primary-600 dark:text-primary-400 mt-1 font-medium">
                   Name, email, and phone will be auto-filled from the selected tenant record.
                 </p>
               )}
@@ -498,7 +498,7 @@ const InviteForm: React.FC<{
                 ))}
               </select>
               {relatedId && (
-                <p className="text-[10px] text-primary-600 dark:text-primary-400 mt-1 font-medium">
+                <p className="text-2xs text-primary-600 dark:text-primary-400 mt-1 font-medium">
                   Name, email, and phone will be auto-filled from the selected client record.
                 </p>
               )}
@@ -593,7 +593,7 @@ const InviteList: React.FC<{
           >
             {tab.label}
             {(statusCounts as any)[tab.key] > 0 && (
-              <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] ${
+              <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-3xs ${
                 filterStatus === tab.key
                   ? 'bg-primary-100 dark:bg-primary-800/40 text-primary-600 dark:text-primary-300'
                   : 'bg-slate-200 dark:bg-zinc-600 text-slate-500 dark:text-zinc-400'
@@ -1271,7 +1271,7 @@ export const PortalAccessSettings: React.FC = () => {
             {/* Grace period + Default expiry */}
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Grace Period (minutes)</label>
+                <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Grace Period (minutes)</label>
                 <select
                   value={portalSettings?.vmsGracePeriodMinutes ?? 30}
                   onChange={(e) => updateSettings({ firmId, vmsGracePeriodMinutes: parseInt(e.target.value) })}
@@ -1284,7 +1284,7 @@ export const PortalAccessSettings: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Default Validity</label>
+                <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Default Validity</label>
                 <select
                   value={portalSettings?.vmsDefaultExpiryHours ?? 6}
                   onChange={(e) => updateSettings({ firmId, vmsDefaultExpiryHours: parseInt(e.target.value) })}
@@ -1299,7 +1299,7 @@ export const PortalAccessSettings: React.FC = () => {
             </div>
 
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800/30">
-              <p className="text-[11px] text-blue-700 dark:text-blue-400 leading-relaxed">
+              <p className="text-2xs text-blue-700 dark:text-blue-400 leading-relaxed">
                 <strong>How it works:</strong> Residents generate 6-digit codes from their portal. Gatekeepers verify codes at the gate using the Gatekeeper Interface. Notifications are sent via WhatsApp when enabled.
               </p>
             </div>
@@ -1492,12 +1492,12 @@ const PortalUsersList: React.FC<{ coreState: any }> = ({ coreState }) => {
                 <td className="py-2 font-medium text-slate-700 dark:text-zinc-300">{user.name || '—'}</td>
                 <td className="py-2 text-slate-500 dark:text-zinc-400">{user.email || '—'}</td>
                 <td className="py-2">
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
+                  <span className="px-2 py-0.5 rounded-full text-2xs font-bold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400">
                     {user.role === 'Client' ? 'Client' : 'Resident'}
                   </span>
                 </td>
                 <td className="py-2">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     Active
                   </span>

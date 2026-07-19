@@ -485,7 +485,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         <div className={`relative flex flex-col h-full animate-fade-in bg-white dark:bg-zinc-950`}>
             
             {!window.isSecureContext && window.location.hostname !== 'localhost' && viewMode === 'compose' && (
-                <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-[10px] font-bold text-center py-2 px-4 shadow-sm animate-fade-in">
+                <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-2xs font-bold text-center py-2 px-4 shadow-sm animate-fade-in">
                     <WarningIcon className="w-4 h-4 inline-block -mt-1" /> VOICE DISABLED: Microphone requires HTTPS (Secure Connection)
                 </div>
             )}
@@ -637,21 +637,21 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                     className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'property' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
                                     <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'property' ? 'text-primary-600' : 'text-slate-400'}`} />
-                                    <span className="font-bold text-[10px] sm:text-sm tracking-tight text-center">Specific Property</span>
+                                    <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Specific Property</span>
                                 </button>
                                 <button
                                     onClick={() => setDestinationType('matter')}
                                     className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'matter' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
                                     <SparklesIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'matter' ? 'text-primary-600' : 'text-slate-400'}`} />
-                                    <span className="font-bold text-[10px] sm:text-sm tracking-tight text-center">Specific Matter</span>
+                                    <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Specific Matter</span>
                                 </button>
                                 <button
                                     onClick={() => setDestinationType('notebook')}
                                     className={`p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col gap-2 sm:gap-3 ${destinationType === 'notebook' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/10' : 'border-slate-100 dark:border-zinc-900 bg-slate-50/50 dark:bg-zinc-900/50'}`}
                                 >
                                     <FolderIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${destinationType === 'notebook' ? 'text-primary-600' : 'text-slate-400'}`} />
-                                    <span className="font-bold text-[10px] sm:text-sm tracking-tight text-center">Personal Notebook</span>
+                                    <span className="font-bold text-2xs sm:text-sm tracking-tight text-center">Personal Notebook</span>
                                 </button>
                             </div>
 
@@ -674,8 +674,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                             </div>
                                         </div>
                                         <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>General Note</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Task / Log</button>
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>General Note</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Task / Log</button>
                                         </div>
                                     </div>
                                 ) : destinationType === 'matter' ? (
@@ -695,8 +695,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                             </div>
                                         </div>
                                         <div className="flex p-1 bg-slate-100 dark:bg-zinc-900 rounded-[20px]">
-                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>Memo</button>
-                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Endorsement</button>
+                                            <button onClick={() => setNoteType('user')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'user' ? 'bg-white dark:bg-zinc-800 shadow-sm text-primary-600' : 'text-slate-400'}`}>Memo</button>
+                                            <button onClick={() => setNoteType('endorsement')} className={`flex-1 py-3 rounded-2xl text-2xs uppercase font-black tracking-widest transition-all ${noteType === 'endorsement' ? 'bg-white dark:bg-zinc-800 shadow-sm text-amber-600' : 'text-slate-400'}`}>Endorsement</button>
                                         </div>
                                     </div>
                                 ) : (
@@ -735,7 +735,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                                 </button>
                                 <button
                                     onClick={() => setViewMode('compose')}
-                                    className="w-full mt-4 py-4 text-slate-400 font-bold text-[10px] uppercase tracking-widest hover:text-slate-600 transition-colors"
+                                    className="w-full mt-4 py-4 text-slate-400 font-bold text-2xs uppercase tracking-widest hover:text-slate-600 transition-colors"
                                 >
                                     Back to Editor
                                 </button>

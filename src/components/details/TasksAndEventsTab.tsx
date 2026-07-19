@@ -132,7 +132,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
         <button
             key={id}
             onClick={onClick}
-            className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all ${
+            className={`px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                 active
                     ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
                     : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
@@ -177,7 +177,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                         <div className="relative shrink-0" ref={el => { dropdownRefs.current[task.id] = el; }}>
                                             <button
                                                 onClick={e => { e.stopPropagation(); setOpenDropdownId(openDropdownId === task.id ? null : task.id); }}
-                                                className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded border transition-colors flex items-center gap-1.5 ${getStatusBadgeClass(task.status)}`}
+                                                className={`px-2 py-1 text-2xs font-bold uppercase tracking-wider rounded border transition-colors flex items-center gap-1.5 ${getStatusBadgeClass(task.status)}`}
                                             >
                                                 {task.status.replace('_', ' ')}
                                                 <ChevronDownIcon className="w-2.5 h-2.5" />
@@ -188,7 +188,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                                         <button
                                                             key={status}
                                                             onClick={e => { e.stopPropagation(); handleStatusChange(task.id, status); }}
-                                                            className="block w-full text-left px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-primary-600 transition-colors"
+                                                            className="block w-full text-left px-4 py-2 text-2xs font-bold uppercase tracking-wider text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-primary-600 transition-colors"
                                                         >
                                                             {status.replace('_', ' ')}
                                                         </button>
@@ -197,7 +197,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                             )}
                                         </div>
                                     </div>
-                                        <div className="flex justify-between items-center text-[10px] text-slate-500 dark:text-zinc-400 font-medium">
+                                        <div className="flex justify-between items-center text-2xs text-slate-500 dark:text-zinc-400 font-medium">
                                         <div className="flex items-center gap-1.5">
                                             <CalendarIcon className="w-3.5 h-3.5" />
                                             {task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB') : 'No due date'}
@@ -260,20 +260,20 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="min-w-0">
                                             <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{event.title}</p>
-                                            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-medium mt-0.5">
+                                            <div className="flex items-center gap-1.5 text-2xs text-slate-500 dark:text-zinc-400 font-medium mt-0.5">
                                                 <CalendarIcon className="w-3.5 h-3.5" />
                                                 {new Date(event.date).toLocaleDateString('en-GB')}
-                                                {isRecurring && <span className="text-[9px] bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 px-1 rounded">RECURRING</span>}
+                                                {isRecurring && <span className="text-3xs bg-primary-50 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 px-1 rounded">RECURRING</span>}
                                             </div>
                                         </div>
                                         <button
                                             onClick={e => { e.stopPropagation(); handleViewInCalendar(event); }}
-                                            className="text-[10px] font-bold text-primary-600 hover:underline"
+                                            className="text-2xs font-bold text-primary-600 hover:underline"
                                         >
                                             Calendar View
                                         </button>
                                     </div>
-                                    <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium italic">
+                                    <div className="flex justify-between items-center text-2xs text-slate-400 font-medium italic">
                                         <span className="truncate">{event.court || 'No location set'}</span>
                                         <div className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 flex gap-1 transition-opacity">
                                             <Tooltip text="Edit">

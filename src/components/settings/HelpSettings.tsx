@@ -151,7 +151,7 @@ export const HelpSettings: React.FC = () => {
                             <div className="space-y-6">
                                 <div className="p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/50 rounded-xl">
                                     <h4 className="font-bold text-lg text-blue-800 dark:text-blue-400 flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-[10px] uppercase tracking-wider">Portal</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-2xs uppercase tracking-wider">Portal</span>
                                         {isProperty ? "Residents' Portal Overview" : 'Client Portal Overview'}
                                     </h4>
                                     <p className="text-sm text-blue-700 dark:text-blue-300 mt-2 leading-relaxed">
@@ -376,7 +376,7 @@ export const HelpSettings: React.FC = () => {
                             <div className="space-y-6">
                                 <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-xl">
                                     <h4 className="font-bold text-lg text-amber-800 dark:text-amber-400 flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[10px] uppercase tracking-wider">Beta</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-2xs uppercase tracking-wider">Beta</span>
                                         What is a Beta Feature?
                                     </h4>
                                     <p className="text-sm text-amber-700 dark:text-amber-300 mt-2 leading-relaxed">

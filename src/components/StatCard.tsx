@@ -72,7 +72,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
 
             {/* Text content — fluid, min-w-0 prevents overflow push */}
             <div className="relative z-10 flex flex-col justify-center min-w-0 flex-1 gap-0.5">
-                <p className="text-[10px] sm:text-[11px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis mb-0">{title}</p>
+                <p className="text-2xs sm:text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap overflow-hidden text-ellipsis mb-0">{title}</p>
                 <div
                     ref={containerRef}
                     className={`text-sm sm:text-lg lg:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight ${scrollOnOverflow && isRevealed ? 'overflow-hidden whitespace-nowrap' : ''}`}
@@ -80,7 +80,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, colorClass, onC
                     {valueContent}
                 </div>
                 {subtitle && (
-                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 truncate">{subtitle}</p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 truncate">{subtitle}</p>
                 )}
                 {isSensitive && (
                     <button

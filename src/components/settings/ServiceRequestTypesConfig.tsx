@@ -130,17 +130,17 @@ const TypeRow: React.FC<{
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-bold text-slate-800 dark:text-zinc-200 truncate">{label}</p>
             {isDefault && (
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
+              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-slate-100 text-slate-500 dark:bg-zinc-700 dark:text-zinc-400">
                 Default
               </span>
             )}
             {!isActive && (
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+              <span className="px-1.5 py-0.5 rounded-full text-3xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
                 Hidden
               </span>
             )}
-            <span className="text-[10px] text-slate-400 dark:text-zinc-500">·</span>
-            <span className="text-[10px] text-slate-500 dark:text-zinc-400">{category}</span>
+            <span className="text-2xs text-slate-400 dark:text-zinc-500">·</span>
+            <span className="text-2xs text-slate-500 dark:text-zinc-400">{category}</span>
           </div>
           {description && (
             <p className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">{description}</p>
@@ -172,7 +172,7 @@ const TypeRow: React.FC<{
         <div className="border-t border-slate-100 dark:border-zinc-800 p-4 bg-slate-50/50 dark:bg-zinc-800/30 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Label</label>
+              <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Label</label>
               <input
                 value={label}
                 onChange={e => setLabel(e.target.value)}
@@ -180,7 +180,7 @@ const TypeRow: React.FC<{
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Icon (emoji)</label>
+              <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Icon (emoji)</label>
               <input
                 value={icon}
                 onChange={e => setIcon(e.target.value)}
@@ -191,7 +191,7 @@ const TypeRow: React.FC<{
             </div>
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Description (optional)</label>
+            <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Description (optional)</label>
             <input
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -201,7 +201,7 @@ const TypeRow: React.FC<{
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Category</label>
+              <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Category</label>
               <select
                 value={category}
                 onChange={e => setCategory(e.target.value)}
@@ -213,7 +213,7 @@ const TypeRow: React.FC<{
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Default Priority</label>
+              <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Default Priority</label>
               <select
                 value={defaultPriority}
                 onChange={e => setDefaultPriority(e.target.value as any)}
@@ -337,7 +337,7 @@ const NewTypeForm: React.FC<{
       <h4 className="text-sm font-bold text-slate-800 dark:text-zinc-200">New Request Type</h4>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Label *</label>
+          <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Label *</label>
           <input
             value={label}
             onChange={e => setLabel(e.target.value)}
@@ -347,7 +347,7 @@ const NewTypeForm: React.FC<{
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Icon (emoji)</label>
+          <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Icon (emoji)</label>
           <input
             value={icon}
             onChange={e => setIcon(e.target.value)}
@@ -358,7 +358,7 @@ const NewTypeForm: React.FC<{
         </div>
       </div>
       <div>
-        <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Description (optional)</label>
+        <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Description (optional)</label>
         <input
           value={description}
           onChange={e => setDescription(e.target.value)}
@@ -368,7 +368,7 @@ const NewTypeForm: React.FC<{
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Category</label>
+          <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Category</label>
           <select
             value={category}
             onChange={e => setCategory(e.target.value)}
@@ -380,7 +380,7 @@ const NewTypeForm: React.FC<{
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Default Priority</label>
+          <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Default Priority</label>
           <select
             value={defaultPriority}
             onChange={e => setDefaultPriority(e.target.value as any)}
@@ -501,13 +501,13 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
         {!isExpanded && totalCount > 0 && (
           <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
             {(allTypes || []).filter((t: any) => t.isActive !== false).slice(0, 3).map((t: any) => (
-              <span key={t._id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
+              <span key={t._id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300">
                 <span>{t.icon || '📋'}</span>
                 {t.label}
               </span>
             ))}
             {activeCount > 3 && (
-              <span className="text-[10px] text-slate-400">+{activeCount - 3} more</span>
+              <span className="text-2xs text-slate-400">+{activeCount - 3} more</span>
             )}
           </div>
         )}

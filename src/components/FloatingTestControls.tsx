@@ -350,7 +350,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
                                     <button 
                                         key={plan}
                                         onClick={() => handlePlanChange(plan)}
-                                        className={`px-2 py-1 text-[10px] rounded border ${currentPlan === plan ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-zinc-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-zinc-600'}`}
+                                        className={`px-2 py-1 text-2xs rounded border ${currentPlan === plan ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-zinc-700 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-zinc-600'}`}
                                     >
                                         {plan}
                                     </button>
@@ -388,7 +388,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
                                     {diag.status === 'pass' ? <CheckCircleIcon className="w-4 h-4"/> : <DismissIcon className="w-4 h-4"/>}
                                     <span className="text-xs font-bold">{diag.name}</span>
                                 </div>
-                                <span className="text-[10px] opacity-80">{diag.msg}</span>
+                                <span className="text-2xs opacity-80">{diag.msg}</span>
                             </div>
                         ))}
                     </div>

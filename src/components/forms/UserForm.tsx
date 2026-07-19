@@ -83,7 +83,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
             </div>
             <div>
               <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Invite a Team Member</h3>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed max-w-sm mx-auto">
+              <p className="text-2xs font-medium text-slate-500 dark:text-zinc-400 mt-2 leading-relaxed max-w-sm mx-auto">
                 Share this invite code so they can join your {isProperty ? 'portfolio' : 'firm'}. They'll authenticate using their email address.
               </p>
             </div>

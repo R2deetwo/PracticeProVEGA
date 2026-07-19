@@ -205,7 +205,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
                 </p>
                 {/* Ledger vs Invoice explainer */}
                 <div className="mt-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40">
-                    <p className="text-[11px] text-emerald-700 dark:text-emerald-300 leading-relaxed">
+                    <p className="text-2xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
                         <strong>Atrium Ledger</strong> tracks rent & service charges for this property.
                         Formal <strong>Invoices</strong> (for {isProperty ? 'professional fees' : 'professional/legal fees'}) are managed separately in Billing.
                     </p>
@@ -230,7 +230,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
                             ['defaulted', 'Defaulted', 'border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300', <XCircle className="w-3.5 h-3.5" />]
                         ] as const).map(([val, label, activeClass, icon]) => (
                             <button key={val as string} type="button" onClick={() => setStatus(val as any)}
-                                className={`py-2 rounded-xl border text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                className={`py-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                                     status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
                                 }`}>{icon} {label as string}</button>
                         ))}

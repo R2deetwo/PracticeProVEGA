@@ -40,7 +40,7 @@ const ContactCard: React.FC<{ contact: Contact, onViewDetails: (id: string) => v
                     <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{contact.email || contact.phone || 'No contact info'}</p>
                 </div>
             </div>
-            <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 whitespace-nowrap">
+            <span className="px-2 py-0.5 text-2xs font-medium rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 whitespace-nowrap">
                 {contact.category || 'General'}
             </span>
         </div>

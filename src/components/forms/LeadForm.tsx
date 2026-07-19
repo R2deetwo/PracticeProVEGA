@@ -54,7 +54,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                         <UserGeneratorIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
+                        <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Details</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Lead Information</h3>
                     </div>
                 </div>
@@ -92,7 +92,7 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
                         <MailIcon className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                        <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
+                        <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Request</p>
                         <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Service Details</h3>
                     </div>
                 </div>
@@ -103,11 +103,11 @@ const LeadForm: React.FC<LeadFormProps> = ({ onClose, initialContext }) => {
 
                 <div className="p-3 sm:p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-indigo-100/50 dark:border-indigo-900/30 shadow-sm space-y-3">
                     <div className="flex justify-between items-center border-b border-slate-50 dark:border-zinc-800 pb-3">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Client Name</span>
+                        <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Client Name</span>
                         <span className="text-sm font-black text-slate-700 dark:text-white">{name}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</span>
+                        <span className="text-2xs font-black text-slate-400 uppercase tracking-widest">Email</span>
                         <span className="text-sm font-black text-primary-600 truncate ml-4">{email}</span>
                     </div>
                 </div>

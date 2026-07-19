@@ -69,7 +69,7 @@ const IntegrationSettings: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-             <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-full ${
+             <span className={`text-2xs font-black uppercase px-2 py-1 rounded-full ${
                status === 'connected' ? 'bg-emerald-500/20 text-emerald-400' : 
                status === 'simulated' ? 'bg-amber-500/20 text-amber-400' : 
                'bg-slate-800 text-slate-500'
@@ -100,7 +100,7 @@ const IntegrationSettings: React.FC = () => {
               {editingConfig.isActive && (
                 <div className="space-y-3 animate-slide-down">
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider">Account ID</label>
+                    <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Account ID</label>
                     <input 
                       type="text" 
                       value={editingConfig.accountId || ''} 
@@ -110,7 +110,7 @@ const IntegrationSettings: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] text-slate-500 mb-1 uppercase tracking-wider">Connected Phone</label>
+                    <label className="block text-2xs text-slate-500 mb-1 uppercase tracking-wider">Connected Phone</label>
                     <input 
                       type="text" 
                       value={editingConfig.connectedPhone || ''} 
@@ -120,7 +120,7 @@ const IntegrationSettings: React.FC = () => {
                     />
                   </div>
                   <div className="bg-amber-900/10 border border-amber-900/30 rounded-xl p-3">
-                    <p className="text-[10px] text-amber-500/80 leading-relaxed italic">
+                    <p className="text-2xs text-amber-500/80 leading-relaxed italic">
                       API Keys are configured by the PracticePro administrator during the initial onboarding session for security.
                     </p>
                   </div>

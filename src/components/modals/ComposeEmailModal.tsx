@@ -222,7 +222,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
 
                     {isAttaching && (
                         <div className="absolute bottom-full left-0 mb-2 w-72 bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden z-50 animate-fade-in">
-                            <div className="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
+                            <div className="px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">
                                 Attach from Matter
                             </div>
                             <div className="max-h-56 overflow-y-auto custom-scrollbar">

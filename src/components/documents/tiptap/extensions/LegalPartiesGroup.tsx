@@ -63,7 +63,7 @@ const LegalPartiesGroupComponent: React.FC<any> = ({ node, updateAttributes }) =
                     onChange={e => updateAttributes({ label: e.target.value })}
                     placeholder="DESIGNATION"
                 />
-                <div className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 uppercase mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="text-2xs font-medium text-slate-400 dark:text-zinc-500 uppercase mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     Designation
                 </div>
             </div>

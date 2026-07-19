@@ -152,19 +152,19 @@ const BillingMonitorNotDeployedFallback: React.FC = () => {
             {/* KPI cards — show zeros so the page layout is consistent */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Staged</p>
+                    <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Staged</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
                 <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Queued</p>
+                    <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Queued</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
                 <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Sent</p>
+                    <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Sent</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
                 <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Failed</p>
+                    <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Failed</p>
                     <p className="text-2xl font-black text-slate-900 dark:text-white">0</p>
                 </div>
             </div>
@@ -302,7 +302,7 @@ const BillingMonitorInner: React.FC = () => {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all flex items-center gap-1.5 ${
+                            className={`shrink-0 px-3 py-1.5 rounded-full text-2xs font-bold transition-all flex items-center gap-1.5 ${
                                 isActive
                                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
                                     : 'bg-white dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700'
@@ -310,7 +310,7 @@ const BillingMonitorInner: React.FC = () => {
                         >
                             {tab.label}
                             <span
-                                className={`px-1.5 py-0.5 rounded-full text-[9px] ${
+                                className={`px-1.5 py-0.5 rounded-full text-3xs ${
                                     isActive ? 'bg-white/20' : 'bg-slate-100 dark:bg-zinc-700'
                                 }`}
                             >
@@ -405,7 +405,7 @@ const KpiCard: React.FC<{
         }`}
     >
         <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+            <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
                 {label}
             </span>
             <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />
@@ -415,7 +415,7 @@ const KpiCard: React.FC<{
             {icon && <div className="text-slate-400 dark:text-zinc-500">{icon}</div>}
         </div>
         {subtitle && (
-            <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-1 font-medium">{subtitle}</p>
+            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 font-medium">{subtitle}</p>
         )}
     </div>
 );
@@ -444,13 +444,13 @@ const OutboxRow: React.FC<{
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${meta.color}`}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-3xs font-bold uppercase tracking-wider ${meta.color}`}
                             >
                                 {meta.icon}
                                 {meta.label}
                             </span>
                             {entry.frequency && (
-                                <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium uppercase tracking-wider">
+                                <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium uppercase tracking-wider">
                                     {entry.frequency}
                                 </span>
                             )}
@@ -458,7 +458,7 @@ const OutboxRow: React.FC<{
                         <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
                             {entry.cycleLabel || entry.matterTitle || 'Retainer Invoice'}
                         </p>
-                        <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                        <div className="flex items-center gap-3 mt-1 text-2xs text-slate-500 dark:text-zinc-400">
                             <span>{entry.clientName || 'Unknown client'}</span>
                             <span>•</span>
                             <span>
@@ -470,7 +470,7 @@ const OutboxRow: React.FC<{
                             </span>
                         </div>
                         {entry.failureReason && (
-                            <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
+                            <p className="mt-1.5 text-2xs text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
                                 <ExclamationTriangleIcon className="w-3 h-3 shrink-0" />
                                 <span className="truncate">{entry.failureReason}</span>
                             </p>
@@ -480,7 +480,7 @@ const OutboxRow: React.FC<{
                         <p className="text-base font-black text-slate-900 dark:text-white">
                             {formatNaira(entry.totalAmount ?? 0)}
                         </p>
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">
                             {new Date(entry.scheduledFor).toLocaleDateString('en-NG', {
                                 day: 'numeric',
                                 month: 'short',
@@ -561,7 +561,7 @@ const ActionButton: React.FC<{
                 onClick();
             }}
             disabled={loading}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[32px] ${variantClasses[variant]}`}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-2xs font-bold uppercase tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[32px] ${variantClasses[variant]}`}
         >
             {loading ? <ArrowPathIcon className="w-3 h-3 animate-spin" /> : icon}
             <span className="hidden sm:inline">{label}</span>
@@ -597,7 +597,7 @@ const OutboxDetailDrawer: React.FC<{
                 <div className="sticky top-0 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 px-5 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${meta.color}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${meta.color}`}
                         >
                             {meta.icon}
                             {meta.label}
@@ -617,7 +617,7 @@ const OutboxDetailDrawer: React.FC<{
                 <div className="p-5 space-y-4">
                     {/* Cycle Info */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
                             Cycle
                         </p>
                         {editing && canEdit ? (
@@ -632,7 +632,7 @@ const OutboxDetailDrawer: React.FC<{
                                 {entry.cycleLabel || entry.matterTitle || 'Retainer Invoice'}
                             </p>
                         )}
-                        <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500 dark:text-zinc-400">
+                        <div className="flex items-center gap-3 mt-2 text-2xs text-slate-500 dark:text-zinc-400">
                             <span>
                                 Frequency:{' '}
                                 <strong className="text-slate-700 dark:text-zinc-300">
@@ -650,12 +650,12 @@ const OutboxDetailDrawer: React.FC<{
 
                     {/* Client Info */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
                             Client
                         </p>
                         <div className="space-y-2">
                             <div>
-                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                <label className="text-2xs text-slate-500 dark:text-zinc-400">
                                     Name
                                 </label>
                                 {editing && canEdit ? (
@@ -672,7 +672,7 @@ const OutboxDetailDrawer: React.FC<{
                                 )}
                             </div>
                             <div>
-                                <label className="text-[10px] text-slate-500 dark:text-zinc-400">
+                                <label className="text-2xs text-slate-500 dark:text-zinc-400">
                                     Email
                                 </label>
                                 {editing && canEdit ? (
@@ -704,7 +704,7 @@ const OutboxDetailDrawer: React.FC<{
 
                     {/* Line Items */}
                     <div className="p-3 bg-slate-50 dark:bg-zinc-900/40 rounded-xl border border-slate-200 dark:border-zinc-700">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-2">
                             Line Items
                         </p>
                         <div className="space-y-1.5">
@@ -720,11 +720,11 @@ const OutboxDetailDrawer: React.FC<{
                             ))}
                         </div>
                         <div className="mt-2 pt-2 border-t border-slate-200 dark:border-zinc-700 space-y-1">
-                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                            <div className="flex items-center justify-between text-2xs text-slate-500 dark:text-zinc-400">
                                 <span>Subtotal</span>
                                 <span>{formatNaira(entry.subTotal ?? 0)}</span>
                             </div>
-                            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                            <div className="flex items-center justify-between text-2xs text-slate-500 dark:text-zinc-400">
                                 <span>VAT (7.5%)</span>
                                 <span>{formatNaira(entry.taxAmount ?? 0)}</span>
                             </div>
@@ -738,7 +738,7 @@ const OutboxDetailDrawer: React.FC<{
                     {/* Failure Reason */}
                     {entry.failureReason && (
                         <div className="p-3 bg-rose-50 dark:bg-rose-900/20 rounded-xl border border-rose-200 dark:border-rose-800/30">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1 flex items-center gap-1">
+                            <p className="text-2xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-1 flex items-center gap-1">
                                 <ExclamationTriangleIcon className="w-3 h-3" />
                                 Failure Reason
                             </p>
@@ -749,7 +749,7 @@ const OutboxDetailDrawer: React.FC<{
                     )}
 
                     {/* Timestamps */}
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-500 dark:text-zinc-400">
+                    <div className="grid grid-cols-2 gap-2 text-2xs text-slate-500 dark:text-zinc-400">
                         <div>
                             Staged:{' '}
                             <strong>{new Date(entry.stagedAt).toLocaleString('en-NG')}</strong>
@@ -785,7 +785,7 @@ const OutboxDetailDrawer: React.FC<{
                 <div className="sticky bottom-0 bg-white dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 px-5 py-3 flex items-center justify-between gap-2">
                     <button
                         onClick={onViewMatter}
-                        className="text-[11px] font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200"
+                        className="text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200"
                     >
                         View Matter →
                     </button>
@@ -804,7 +804,7 @@ const OutboxDetailDrawer: React.FC<{
                                     }
                                 }}
                                 disabled={isLoading}
-                                className="flex items-center gap-1.5 px-3 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-3 py-2 text-2xs font-bold uppercase tracking-wider rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-all disabled:opacity-50"
                             >
                                 <PencilIcon className="w-3 h-3" />
                                 {editing ? 'Save' : 'Edit'}
@@ -814,7 +814,7 @@ const OutboxDetailDrawer: React.FC<{
                             <button
                                 onClick={() => onAction('approve', entry._id)}
                                 disabled={isLoading}
-                                className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-4 py-2 text-2xs font-bold uppercase tracking-wider rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-all disabled:opacity-50"
                             >
                                 <CheckCircleIcon className="w-3 h-3" />
                                 Approve & Send Now
@@ -824,7 +824,7 @@ const OutboxDetailDrawer: React.FC<{
                             <button
                                 onClick={() => onAction('retry', entry._id)}
                                 disabled={isLoading}
-                                className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-all disabled:opacity-50"
+                                className="flex items-center gap-1.5 px-4 py-2 text-2xs font-bold uppercase tracking-wider rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-all disabled:opacity-50"
                             >
                                 <ArrowPathIcon className="w-3 h-3" />
                                 Retry Send

@@ -23,7 +23,7 @@ interface BillingSummaryWidgetProps {
 // Modified Stat component to handle overflow
 const Stat: React.FC<{ label: string; value: React.ReactNode; rawValue?: string }> = ({ label, value, rawValue }) => (
     <div className="bg-slate-50 dark:bg-zinc-800/50 p-3 rounded-lg overflow-hidden border border-slate-100 dark:border-zinc-700 shadow-sm">
-        <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-500 truncate tracking-widest">{label}</p>
+        <p className="text-2xs font-bold uppercase text-slate-400 dark:text-zinc-500 truncate tracking-widest">{label}</p>
         <Tooltip text={rawValue || ""}>
             <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5 truncate flex items-center gap-1">
                 {value}
@@ -212,7 +212,7 @@ const BillingSummaryWidget: React.FC<BillingSummaryWidgetProps> = ({ matter, tim
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
                                             <p className="text-sm font-bold text-slate-800 dark:text-white">{invoice.invoiceNumber}</p>
-                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${invoice.status === 'Paid' ? 'bg-green-100 text-green-700' : invoice.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${invoice.status === 'Paid' ? 'bg-green-100 text-green-700' : invoice.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                                 {invoice.status}
                                             </span>
                                         </div>

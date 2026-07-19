@@ -46,7 +46,7 @@ const PIIShieldBadge: React.FC<PIIShieldBadgeProps> = ({ result, onDismiss }) =>
                     >
                         <span className="text-emerald-600 dark:text-emerald-400 font-bold">{result.totalStripped}</span>
                         PII item{result.totalStripped > 1 ? 's' : ''} stripped
-                        <span className="text-emerald-500 dark:text-emerald-500 text-[10px]">
+                        <span className="text-emerald-500 dark:text-emerald-500 text-2xs">
                             ({types.join(', ')})
                         </span>
                         <svg className={`w-3 h-3 transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -69,10 +69,10 @@ const PIIShieldBadge: React.FC<PIIShieldBadgeProps> = ({ result, onDismiss }) =>
                 {/* Expanded details */}
                 {expanded && (
                     <div className="mt-1 bg-white dark:bg-zinc-800 border border-emerald-100 dark:border-emerald-800/30 rounded-lg p-3 shadow-sm space-y-1.5">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">What was removed before AI processing</p>
+                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">What was removed before AI processing</p>
                         {result.found.map((item, i) => (
                             <div key={i} className="flex items-center gap-2 text-xs">
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-[9px] font-bold flex-shrink-0">
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 text-3xs font-bold flex-shrink-0">
                                     {item.type}
                                 </span>
                                 <span className="font-mono text-slate-400 dark:text-zinc-500 line-through">{maskValue(item.original)}</span>
@@ -82,7 +82,7 @@ const PIIShieldBadge: React.FC<PIIShieldBadgeProps> = ({ result, onDismiss }) =>
                                 <span className="font-mono text-emerald-600 dark:text-emerald-400">{item.replacement}</span>
                             </div>
                         ))}
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 pt-1 border-t border-slate-100 dark:border-zinc-700">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 pt-1 border-t border-slate-100 dark:border-zinc-700">
                             Your private data was removed before sending to Google's AI. The AI never sees the original values.
                         </p>
                     </div>

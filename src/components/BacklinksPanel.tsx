@@ -101,12 +101,12 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, n
         <div className="px-4 py-3 bg-indigo-50/50 dark:bg-indigo-900/10 border-b border-slate-200 dark:border-zinc-700 text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
           <p className="font-semibold text-slate-700 dark:text-zinc-200 mb-1.5">How bidirectional backlinks work</p>
           <p className="mb-2">
-            In any note, type <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-[11px]">[[</code> followed by a name, then close with <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-[11px]">]]</code>. The note will appear here automatically.
+            In any note, type <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-2xs">[[</code> followed by a name, then close with <code className="px-1.5 py-0.5 rounded bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-mono text-2xs">]]</code>. The note will appear here automatically.
           </p>
-          <div className="bg-white dark:bg-zinc-800 rounded-lg p-2.5 font-mono text-[11px] text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
+          <div className="bg-white dark:bg-zinc-800 rounded-lg p-2.5 font-mono text-2xs text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700">
             Example: [[{exampleLabel}]]
           </div>
-          <p className="mt-2 text-[11px] text-slate-400 dark:text-zinc-500">
+          <p className="mt-2 text-2xs text-slate-400 dark:text-zinc-500">
             You can link to matters, contacts, properties, or documents. The link works both ways — clicking it in the note takes you to the entity, and this panel shows every note that mentions this {entityNoun}.
           </p>
         </div>
@@ -135,7 +135,7 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, n
                 <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                   {note.title || 'Untitled Note'}
                 </p>
-                <p className="text-[10px] text-slate-400 dark:text-zinc-500">
+                <p className="text-2xs text-slate-400 dark:text-zinc-500">
                   {note.updatedAt ? new Date(note.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
                   {' · '}
                   <span className="capitalize">{link.type}</span>: {link.label}
@@ -152,7 +152,7 @@ const BacklinksPanel: React.FC<BacklinksPanelProps> = ({ entityId, entityType, n
           <p className="text-xs text-slate-400 dark:text-zinc-500 mb-2">
             No notes mention this {entityNoun} yet.
           </p>
-          <p className="text-[11px] text-slate-400 dark:text-zinc-500">
+          <p className="text-2xs text-slate-400 dark:text-zinc-500">
             Type <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 font-mono">[[{exampleLabel}]]</code> in any note to create a link.
           </p>
         </div>

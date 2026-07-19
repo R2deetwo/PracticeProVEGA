@@ -241,8 +241,8 @@ const ToolbarGroup: React.FC<{ label?: string; children: React.ReactNode; classN
         ? 'bg-gradient-to-b from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border-l border-blue-200/50 dark:border-blue-800/30'
         : '';
     const labelClass = variant === 'ai'
-        ? 'text-[8px] uppercase font-bold text-blue-600 dark:text-blue-400 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5'
-        : 'text-[8px] uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5';
+        ? 'text-3xs uppercase font-bold text-blue-600 dark:text-blue-400 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5'
+        : 'text-3xs uppercase font-bold text-slate-400 dark:text-zinc-500 tracking-tight leading-none h-[11px] flex items-center justify-center pb-0.5';
     return (
     <div className={`flex flex-col border-r border-slate-200 dark:border-zinc-800 px-1 last:border-r-0 ${variantClass} ${className}`}>
         {/* Buttons area — items-end so all groups align at the bottom */}
@@ -295,7 +295,7 @@ const ToolbarBtn: React.FC<{
       `}
         >
             <Icon className="w-3.5 h-3.5" />
-            {size === 'lg' && label && <span className="text-[8px] font-medium leading-none">{label}</span>}
+            {size === 'lg' && label && <span className="text-3xs font-medium leading-none">{label}</span>}
         </button>
     );
 };
@@ -2009,7 +2009,7 @@ ${allCites.map((c: any) => {
                     />
 
                     {!isSaved && (
-                        <div className="flex items-center gap-1 text-[9px] text-amber-500 font-bold uppercase tracking-widest bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
+                        <div className="flex items-center gap-1 text-3xs text-amber-500 font-bold uppercase tracking-widest bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
                             <span className="w-1 h-1 bg-amber-500 rounded-full animate-pulse" />
                             Unsaved
                         </div>
@@ -2201,7 +2201,7 @@ ${allCites.map((c: any) => {
                                         <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
                                         {/* Position */}
-                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Position</p>
+                                        <p className="px-3 py-1 text-2xs uppercase font-bold text-slate-400">Position</p>
                                         {([
                                             { val: 'bottom-center', label: 'Bottom Center' },
                                             { val: 'bottom-right', label: 'Bottom Right' },
@@ -2220,7 +2220,7 @@ ${allCites.map((c: any) => {
                                         <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
                                         {/* Format */}
-                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Format</p>
+                                        <p className="px-3 py-1 text-2xs uppercase font-bold text-slate-400">Format</p>
                                         {([
                                             { val: 'page-of', label: 'Page 1 of 5' },
                                             { val: 'page-only', label: 'Page 1' },
@@ -2239,7 +2239,7 @@ ${allCites.map((c: any) => {
                                         <div className="border-t border-slate-200 dark:border-zinc-700 my-1" />
 
                                         {/* Start from */}
-                                        <p className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">Start from</p>
+                                        <p className="px-3 py-1 text-2xs uppercase font-bold text-slate-400">Start from</p>
                                         <div className="flex items-center gap-2 px-3 py-1.5">
                                             <button
                                                 onClick={() => setPageNumberConfig(prev => ({ ...prev, startFrom: Math.max(1, prev.startFrom - 1) }))}
@@ -2266,7 +2266,7 @@ ${allCites.map((c: any) => {
                             {/* Font Family Selector */}
                             <div className="relative group">
                                 <select
-                                    className="w-full text-[11px] h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none appearance-none pr-4"
+                                    className="w-full text-2xs h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none appearance-none pr-4"
                                     onChange={(e) => editor?.chain().focus().setFontFamily(e.target.value).run()}
                                     value={editor?.getAttributes('textStyle').fontFamily || "'Times New Roman', serif"}
                                     disabled={!editor}
@@ -2280,7 +2280,7 @@ ${allCites.map((c: any) => {
                                 {/* Font Size Selector */}
                                 <div className="relative">
                                     <select
-                                        className="w-14 text-[11px] h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none appearance-none pr-4"
+                                        className="w-14 text-2xs h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none appearance-none pr-4"
                                         onChange={(e) => (editor?.chain().focus() as any).setFontSize(`${e.target.value}pt`).run()}
                                         value={(editor?.getAttributes('textStyle').fontSize || '12pt').replace('pt', '')}
                                         disabled={!editor}
@@ -2325,7 +2325,7 @@ ${allCites.map((c: any) => {
                             </div>
                             <button
                                 onMouseDown={e => { e.preventDefault(); editor?.chain().focus().unsetHighlight().run(); }}
-                                className="text-[8px] text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 font-medium"
+                                className="text-3xs text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 font-medium"
                                 title="Remove Highlight"
                                 disabled={!editor}
                             >
@@ -2373,7 +2373,7 @@ ${allCites.map((c: any) => {
                             </div>
                             <div className="relative group mt-auto">
                                 <select
-                                    className="w-24 text-[10px] h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none"
+                                    className="w-24 text-2xs h-6 bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded px-1 outline-none"
                                     onChange={(e) => {
                                         const level = parseInt(e.target.value);
                                         if (level === 0) editor?.chain().focus().setParagraph().run();
@@ -2658,7 +2658,7 @@ ${allCites.map((c: any) => {
             {/* ── Bottom Status Bar ──────────────────────────────────────────
                 Slim status bar with word/char count + zoom controls.
                 Keeps the ribbon thin by moving these readouts here. */}
-            <div className="flex-shrink-0 h-7 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between px-4 text-[10px] text-slate-500 dark:text-zinc-500 no-print">
+            <div className="flex-shrink-0 h-7 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between px-4 text-2xs text-slate-500 dark:text-zinc-500 no-print">
                 <div className="flex items-center gap-4">
                     <span className="font-medium">
                         {editor?.storage.characterCount.words() || 0} words
@@ -2874,7 +2874,7 @@ ${allCites.map((c: any) => {
                                     </svg>
                                     Insert Citations into Document Footer
                                 </button>
-                                <p className="text-[10px] text-slate-500 dark:text-zinc-400 text-center">
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 text-center">
                                     Hover a source for actions · Citations referenced as [{citationRegistry.getAll().map((c: any) => c.number).join('], [')}]
                                 </p>
                             </div>
@@ -3142,8 +3142,8 @@ ${allCites.map((c: any) => {
                                 return (
                                     <form id="fill-placeholders-form" className="space-y-4" onSubmit={e => { e.preventDefault(); processFill(); }}>
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-[10px] text-slate-400">{uniqueLabels.length} placeholder{uniqueLabels.length !== 1 ? 's' : ''}</span>
-                                            <button type="button" onClick={handleAutoFill} className="text-[10px] font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
+                                            <span className="text-2xs text-slate-400">{uniqueLabels.length} placeholder{uniqueLabels.length !== 1 ? 's' : ''}</span>
+                                            <button type="button" onClick={handleAutoFill} className="text-2xs font-bold px-2 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-md hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
                                                 ⚡ Auto-fill from matter
                                             </button>
                                         </div>
@@ -3156,8 +3156,8 @@ ${allCites.map((c: any) => {
                                                     <div key={cat}>
                                                         <div className="flex items-center gap-1.5 mb-2">
                                                             <span className={`w-2 h-2 rounded-full ${meta.color.replace('text-', 'bg-')}`}></span>
-                                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{meta.name}</span>
-                                                            <span className="text-[10px] text-slate-300">({labels.length})</span>
+                                                            <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider">{meta.name}</span>
+                                                            <span className="text-2xs text-slate-300">({labels.length})</span>
                                                         </div>
                                                         <div className="space-y-2">
                                                             {labels.map(label => {
@@ -3195,7 +3195,7 @@ ${allCites.map((c: any) => {
                                                                         />
                                                                     )}
                                                                     {aiHelpResult[label] && (
-                                                                        <p className="text-[10px] text-violet-500 dark:text-violet-400">AI suggested — edit or accept</p>
+                                                                        <p className="text-2xs text-violet-500 dark:text-violet-400">AI suggested — edit or accept</p>
                                                                     )}
                                                                 </div>
                                                                 );
@@ -3216,7 +3216,7 @@ ${allCites.map((c: any) => {
                             {activeModal === 'save_template' && (
                                 <div className="space-y-4">
                                     <div className="bg-primary-50 dark:bg-primary-900/20 p-3 rounded-lg border border-primary-100 dark:border-primary-800 mb-2">
-                                        <p className="text-[11px] text-primary-700 dark:text-primary-300 leading-relaxed">
+                                        <p className="text-2xs text-primary-700 dark:text-primary-300 leading-relaxed">
                                             Save this document as a reusable template. The content, formatting, and all <strong>[PLACEHOLDER]</strong> fields will be preserved. Next time you need a similar document, {getAssistantName(isProperty)} can start from this template instead of drafting from scratch — just ask "{getAssistantName(isProperty)}, draft a document using my [template name] template."
                                         </p>
                                     </div>
@@ -3286,7 +3286,7 @@ ${allCites.map((c: any) => {
                             {activeModal === 'redraft' && (
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                                        <p className="text-[11px] text-blue-700 dark:text-blue-300 leading-relaxed">
+                                        <p className="text-2xs text-blue-700 dark:text-blue-300 leading-relaxed">
                                             {getAssistantName(isProperty)} will regenerate the entire document from scratch using the original prompt. Your current content will be replaced. Add specific instructions below to guide the improvement — e.g. <em>"make it more formal", "add a termination clause", "shorten the recitals"</em>.
                                         </p>
                                     </div>
@@ -3333,7 +3333,7 @@ ${allCites.map((c: any) => {
                                             <span>Number Paragraphs</span>
                                         </label>
                                     </div>
-                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500">More formatting rules (suit title format, double spacing, justification, naira formatting, date formatting, paragraph indentation) coming soon.</p>
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500">More formatting rules (suit title format, double spacing, justification, naira formatting, date formatting, paragraph indentation) coming soon.</p>
                                     <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-zinc-800">
                                         <button onClick={() => setActiveModal(null)} className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
                                         <button onClick={() => {
@@ -3618,18 +3618,18 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
             <div className="p-2.5">
                 <div className="flex items-start gap-2">
                     {/* Citation number badge — slimmer, more muted */}
-                    <span className="flex-shrink-0 w-5 h-5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded text-[10px] font-bold flex items-center justify-center mt-0.5">
+                    <span className="flex-shrink-0 w-5 h-5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded text-2xs font-bold flex items-center justify-center mt-0.5">
                         {cite.number}
                     </span>
 
                     <div className="flex-1 min-w-0">
                         {/* Citation text — slightly smaller, more readable */}
-                        <p className="text-[11px] font-medium text-slate-800 dark:text-zinc-100 leading-relaxed pr-1">{cite.text}</p>
+                        <p className="text-2xs font-medium text-slate-800 dark:text-zinc-100 leading-relaxed pr-1">{cite.text}</p>
 
                         {/* Metadata row — compact */}
                         <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             {/* Classification badge — shows the citation class */}
-                            <span className={`text-[8px] font-bold uppercase tracking-wider px-1 py-0.5 rounded ${
+                            <span className={`text-3xs font-bold uppercase tracking-wider px-1 py-0.5 rounded ${
                                 classification.citationClass === 'statute' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300' :
                                 classification.citationClass === 'case_law' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300' :
                                 classification.citationClass === 'constitutional' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300' :
@@ -3640,12 +3640,12 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                             </span>
                             {/* Pinpoint — shows the specific section/clause if extracted */}
                             {classification.pinpoint && (
-                                <span className="text-[8px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">
+                                <span className="text-3xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1 py-0.5 rounded">
                                     {classification.pinpoint}
                                 </span>
                             )}
                             {cite.jurisdiction && (
-                                <span className="text-[8px] font-medium text-slate-400 dark:text-zinc-500">
+                                <span className="text-3xs font-medium text-slate-400 dark:text-zinc-500">
                                     {cite.jurisdiction}
                                 </span>
                             )}
@@ -3679,7 +3679,7 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         onClick={(e) => e.stopPropagation()}
-                                        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-slate-50 dark:bg-zinc-700/50 text-slate-600 dark:text-zinc-300 rounded text-[9px] font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors border border-slate-200 dark:border-zinc-700"
+                                        className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-slate-50 dark:bg-zinc-700/50 text-slate-600 dark:text-zinc-300 rounded text-3xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors border border-slate-200 dark:border-zinc-700"
                                         title="Open source URL in a new tab"
                                     >
                                         <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3691,7 +3691,7 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onSendToResearch(cite); }}
                                     disabled={isGeneratingQuery}
-                                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded text-[9px] font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800/50 disabled:opacity-60 disabled:cursor-wait"
+                                    className="flex-1 flex items-center justify-center gap-1 px-1.5 py-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 rounded text-3xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-200 dark:border-emerald-800/50 disabled:opacity-60 disabled:cursor-wait"
                                     title="Generate a research query and open Research in a new tab"
                                 >
                                     {isGeneratingQuery ? (
@@ -3723,10 +3723,10 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                     {/* Completeness warnings — show in expanded view */}
                     {issues.length > 0 && (
                         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded p-1.5">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Citation Completeness</p>
+                            <p className="text-3xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Citation Completeness</p>
                             <ul className="space-y-0.5">
                                 {issues.map((issue, i) => (
-                                    <li key={i} className="text-[9px] text-amber-700 dark:text-amber-300 flex items-start gap-1">
+                                    <li key={i} className="text-3xs text-amber-700 dark:text-amber-300 flex items-start gap-1">
                                         <span className="text-amber-500 mt-0.5">⚠</span>
                                         <span className="flex-1">{issue.message}</span>
                                     </li>
@@ -3736,7 +3736,7 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                     )}
 
                     {loading && (
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400 py-1">
+                        <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400 py-1">
                             <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -3746,13 +3746,13 @@ const CitationCard: React.FC<CitationCardProps> = ({ cite, onSendToResearch, isG
                     )}
 
                     {error && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 py-1">{error}</p>
+                        <p className="text-2xs text-amber-600 dark:text-amber-400 py-1">{error}</p>
                     )}
 
                     {insight && (
                         <div className="bg-slate-50 dark:bg-zinc-900/50 rounded p-2 max-h-40 overflow-y-auto custom-scrollbar">
-                            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Source Content</p>
-                            <p className="text-[10px] text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{insight}</p>
+                            <p className="text-3xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Source Content</p>
+                            <p className="text-2xs text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{insight}</p>
                         </div>
                     )}
                 </div>

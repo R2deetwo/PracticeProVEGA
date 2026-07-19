@@ -237,7 +237,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                     </div>
 
                     <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA' : 'ATRIUM'} · Data Processing Agreement v1.0 · © 2026 PracticePro Legal Technologies Limited
                         </p>
                     </div>

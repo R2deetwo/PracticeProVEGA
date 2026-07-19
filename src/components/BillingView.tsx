@@ -335,14 +335,14 @@ export const BillingView: React.FC = () => {
             <div className="sticky top-0 z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Financials</h2>
-                    <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                    <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                         {isUnified ? 'Unified revenue & billing — Legal + Property' : isProperty ? 'Property revenue & billing' : 'Legal billing & invoices'}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => openModal('newInvoice')}
-                        className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-wider"
+                        className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-2xs sm:text-xs font-bold uppercase tracking-wider"
                     >
                         <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" /> New
                     </button>
@@ -353,19 +353,19 @@ export const BillingView: React.FC = () => {
                 {/* KPI Strip — unified across legal + property */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
                     <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Collected</p>
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Collected</p>
                         <p className="text-lg font-black text-emerald-600 dark:text-emerald-400">{formatNaira(kpiData.collected)}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-amber-200 dark:border-amber-800/30 shadow-sm">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Outstanding</p>
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Outstanding</p>
                         <p className="text-lg font-black text-amber-600 dark:text-amber-400">{formatNaira(kpiData.outstanding)}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-rose-200 dark:border-rose-800/30 shadow-sm">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Defaults</p>
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Defaults</p>
                         <p className="text-lg font-black text-rose-600 dark:text-rose-400">{kpiData.defaults}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-sm">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Invoices</p>
+                        <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">Invoices</p>
                         <p className="text-lg font-black text-slate-900 dark:text-white">{kpiData.invoiceCount}</p>
                     </div>
                 </div>
@@ -385,7 +385,7 @@ export const BillingView: React.FC = () => {
                             >
                                 {tab.label}
                                 {tab.productTag && (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                    <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider ${
                                         tab.productTag === 'Legal'
                                             ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                                             : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
@@ -394,7 +394,7 @@ export const BillingView: React.FC = () => {
                                     </span>
                                 )}
                                 {tab.id === 'monitor' && (
-                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                                    <span className="px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                                         Premium
                                     </span>
                                 )}

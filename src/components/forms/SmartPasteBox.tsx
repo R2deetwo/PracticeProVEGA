@@ -35,12 +35,12 @@ const SmartPasteBox: React.FC<SmartPasteBoxProps> = ({ onExtract }) => {
     return (
         <div className="mt-6 pt-6 border-t border-slate-100 dark:border-zinc-800">
             <details className="group">
-                <summary className="flex items-center gap-2 cursor-pointer text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest hover:text-primary-600 transition-colors list-none">
+                <summary className="flex items-center gap-2 cursor-pointer text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest hover:text-primary-600 transition-colors list-none">
                     <ClipboardIcon className="w-3.5 h-3.5" />
                     <span>Or Paste Contact Details</span>
                 </summary>
                 <div className="mt-4 space-y-3">
-                    <p className="text-[10px] text-slate-400 dark:text-zinc-500">Paste an email signature or business card text here to auto-fill fields.</p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500">Paste an email signature or business card text here to auto-fill fields.</p>
                     <textarea
                         placeholder="Paste text containing name, email, phone, address..."
                         value={pastedText}
@@ -52,7 +52,7 @@ const SmartPasteBox: React.FC<SmartPasteBoxProps> = ({ onExtract }) => {
                         type="button"
                         onClick={handleExtract}
                         disabled={isExtracting || !pastedText.trim()}
-                        className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
+                        className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white text-2xs font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20"
                     >
                         <SparklesIcon className="w-3.5 h-3.5" />
                         {isExtracting ? 'Extracting...' : 'Extract Info'}

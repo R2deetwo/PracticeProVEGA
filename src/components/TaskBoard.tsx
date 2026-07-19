@@ -86,7 +86,7 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
 
                     {matter && (
                         <div className="mb-2">
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 max-w-full truncate">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 max-w-full truncate">
                                 {matter.title}
                             </span>
                         </div>
@@ -97,7 +97,7 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
                             <div className="flex-grow h-1 bg-slate-100 dark:bg-zinc-700 rounded-full overflow-hidden">
                                 <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
                             </div>
-                            <span className="text-[9px] text-slate-400 font-medium">{completedItems}/{totalItems}</span>
+                            <span className="text-3xs text-slate-400 font-medium">{completedItems}/{totalItems}</span>
                         </div>
                     )}
 
@@ -105,7 +105,7 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
                         <div className="flex items-center -space-x-1.5 pl-1 relative z-10">
                             {appMode === 'multi' && assigned.length > 0 ? assigned.slice(0, 3).map(user => (
                                 <Tooltip key={user.id} text={user.name || 'User'}>
-                                    <div className={`h-5 w-5 rounded-full ring-1 ring-white dark:ring-zinc-800 flex items-center justify-center text-white font-bold text-[8px] ${getUserColor(user.name)}`}>
+                                    <div className={`h-5 w-5 rounded-full ring-1 ring-white dark:ring-zinc-800 flex items-center justify-center text-white font-bold text-3xs ${getUserColor(user.name)}`}>
                                         {getInitials(user.name)}
                                     </div>
                                 </Tooltip>
@@ -115,12 +115,12 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
                                 </div>
                             )}
                             {assigned.length > 3 && (
-                                <span className="ml-1 text-[8px] font-bold text-slate-400">+{assigned.length - 3}</span>
+                                <span className="ml-1 text-3xs font-bold text-slate-400">+{assigned.length - 3}</span>
                             )}
                         </div>
 
                         {task.dueDate && (
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${getDateBadgeClass(task.dueDate)}`}>
+                            <span className={`text-3xs font-bold px-1.5 py-0.5 rounded ${getDateBadgeClass(task.dueDate)}`}>
                                 {formatDueDate(task.dueDate)}
                             </span>
                         )}
@@ -151,7 +151,7 @@ const TaskColumn: React.FC<{
                 <h4 className="font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${status === 'todo' ? 'bg-slate-400' : status === 'in_progress' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
                     {title}
-                    <span className="bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 px-1.5 py-0.5 rounded text-[10px]">{tasks.length}</span>
+                    <span className="bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 px-1.5 py-0.5 rounded text-2xs">{tasks.length}</span>
                 </h4>
                 <button onClick={() => openModal('newTask', undefined, { status })} className="p-1 rounded hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-500">
                     <PlusIcon className="w-3.5 h-3.5" />

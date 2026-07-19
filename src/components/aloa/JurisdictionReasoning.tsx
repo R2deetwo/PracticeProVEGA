@@ -72,7 +72,7 @@ const JurisdictionReasoning: React.FC<JurisdictionReasoningProps> = ({ court, ju
           </svg>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide leading-tight">
+          <p className="text-2xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide leading-tight">
             Jurisdictional Analysis {locked && '· 🔒 Locked'}
           </p>
           <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300 truncate">
@@ -93,11 +93,11 @@ const JurisdictionReasoning: React.FC<JurisdictionReasoningProps> = ({ court, ju
         <div className="px-3 pb-3 pt-1 border-t border-indigo-200/50 dark:border-indigo-800/30">
           <div className="mt-2 space-y-2">
             <div>
-              <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-0.5">Selected Court</p>
+              <p className="text-3xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-0.5">Selected Court</p>
               <p className="text-xs text-slate-700 dark:text-zinc-300 font-medium">{court}</p>
             </div>
             <div>
-              <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-0.5">Reasoning</p>
+              <p className="text-3xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-0.5">Reasoning</p>
               <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">{reasoning}</p>
             </div>
 
@@ -116,7 +116,7 @@ const JurisdictionReasoning: React.FC<JurisdictionReasoningProps> = ({ court, ju
 
             {/* Locked indicator */}
             {locked && (
-              <p className="mt-2 text-[10px] text-slate-500 dark:text-zinc-500 italic flex items-center gap-1">
+              <p className="mt-2 text-2xs text-slate-500 dark:text-zinc-500 italic flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                 </svg>
@@ -129,7 +129,7 @@ const JurisdictionReasoning: React.FC<JurisdictionReasoningProps> = ({ court, ju
               <div className="mt-3 p-3 bg-white dark:bg-zinc-800 rounded-lg border border-indigo-200 dark:border-indigo-700 space-y-3">
                 <p className="text-xs font-bold text-slate-700 dark:text-zinc-300">Select a different court:</p>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">State</label>
+                  <label className="text-2xs font-bold text-slate-500 uppercase tracking-wide block mb-1">State</label>
                   <select
                     value={selectedState}
                     onChange={(e) => setSelectedState(e.target.value)}
@@ -141,7 +141,7 @@ const JurisdictionReasoning: React.FC<JurisdictionReasoningProps> = ({ court, ju
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide block mb-1">Court Tier</label>
+                  <label className="text-2xs font-bold text-slate-500 uppercase tracking-wide block mb-1">Court Tier</label>
                   <select
                     value={selectedCourtTier}
                     onChange={(e) => setSelectedCourtTier(e.target.value as any)}

@@ -310,7 +310,7 @@ const DocumentDetailViewContent: React.FC = () => {
                     {document.isCourtProcess && (
                         <div className="mt-1 flex items-center gap-2">
                             <Tooltip text="This document is part of a formal court process.">
-                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-800 rounded-md">Court Process</span>
+                                <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-2xs font-black uppercase tracking-widest border border-indigo-200 dark:border-indigo-800 rounded-md">Court Process</span>
                             </Tooltip>
                         </div>
                     )}
@@ -323,12 +323,12 @@ const DocumentDetailViewContent: React.FC = () => {
                 <div className="flex flex-col items-end gap-2">
                     {document.isCourtProcess && !isLocal && (
                         <div className="flex flex-col items-end">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
+                            <span className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1.5 mr-1">Update Status</span>
                             <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-xl p-1 border border-slate-200 dark:border-zinc-700 shadow-sm transition-all focus-within:ring-2 focus-within:ring-primary-500/20">
                                 <Tooltip text="Document is still being drafted">
                                     <button
                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'draft' })}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'draft' || !document.litigationStatus ? 'bg-white dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 shadow-sm border border-slate-200/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         Draft
                                     </button>
@@ -336,7 +336,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                 <Tooltip text="Formally filed with the court">
                                     <button
                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'filed' })}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'filed' ? 'bg-white dark:bg-zinc-700 text-orange-600 shadow-sm border border-orange-100 dark:border-orange-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         Filed
                                     </button>
@@ -344,7 +344,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                 <Tooltip text="Served on the opposing party">
                                     <button
                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'served' })}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'served' ? 'bg-white dark:bg-zinc-700 text-blue-600 shadow-sm border border-blue-100 dark:border-blue-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         Served
                                     </button>
@@ -352,7 +352,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                 <Tooltip text="Proof of Service Filed">
                                     <button
                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: 'acknowledged' })}
-                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`px-3 py-1.5 text-2xs font-black uppercase tracking-widest rounded-lg transition-all ${document.litigationStatus === 'acknowledged' ? 'bg-white dark:bg-zinc-700 text-green-600 shadow-sm border border-green-100 dark:border-green-900/50' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         Proof of Service
                                     </button>
@@ -451,14 +451,14 @@ const DocumentDetailViewContent: React.FC = () => {
                                                         `bg-white dark:bg-zinc-800 border-dashed border-slate-200 dark:border-zinc-700`
                                                     }`}>
                                                     <div className="flex items-center justify-between mb-2">
-                                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isCurrent ? `text-${step.color}-600 dark:text-${step.color}-400` : 'text-slate-400'}`}>Step {idx + 1}</span>
+                                                        <span className={`text-2xs font-black uppercase tracking-widest ${isCurrent ? `text-${step.color}-600 dark:text-${step.color}-400` : 'text-slate-400'}`}>Step {idx + 1}</span>
                                                         {isPast && <CheckCircleIcon className="w-5 h-5 text-green-500" />}
                                                     </div>
                                                     <h5 className={`font-bold text-sm mb-1 ${isCurrent ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{step.label}</h5>
-                                                    <p className="text-[10px] leading-tight text-slate-500">{step.desc}</p>
+                                                    <p className="text-2xs leading-tight text-slate-500">{step.desc}</p>
                                                     <button
                                                         onClick={() => documentActions.updateDocument({ ...document, litigationStatus: step.id as any })}
-                                                        className={`mt-3 w-full py-1.5 text-[10px] font-bold rounded-lg transition-all ${isCurrent ? `bg-${step.color}-600 text-white` : `bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600`}`}
+                                                        className={`mt-3 w-full py-1.5 text-2xs font-bold rounded-lg transition-all ${isCurrent ? `bg-${step.color}-600 text-white` : `bg-slate-100 dark:bg-zinc-700 text-slate-600 hover:bg-slate-200 dark:hover:bg-zinc-600`}`}
                                                     >
                                                         {isCurrent ? 'Current Stage' : isPast ? 'Revert to Stage' : 'Mark as Done'}
                                                     </button>
@@ -629,7 +629,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                                 </p>
                                                 <div className="flex items-center gap-1.5 py-1 px-3 bg-white dark:bg-zinc-800 rounded-full w-fit border border-green-100 dark:border-green-900">
                                                     <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className="text-[10px] font-black uppercase text-green-600 tracking-tighter">Verified Agent</span>
+                                                    <span className="text-2xs font-black uppercase text-green-600 tracking-tighter">Verified Agent</span>
                                                 </div>
                                             </section>
 
@@ -652,7 +652,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                                         <span className="text-xs font-bold text-slate-400 uppercase block mb-2">Detected Nigerian PII</span>
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {document.dataProtectionAnalysis?.identifiedPii?.map((pii, idx) => (
-                                                                <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-900 rounded text-[10px] text-slate-600 dark:text-zinc-400 font-bold border border-slate-200 dark:border-zinc-700">
+                                                                <span key={idx} className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-900 rounded text-2xs text-slate-600 dark:text-zinc-400 font-bold border border-slate-200 dark:border-zinc-700">
                                                                     {pii}
                                                                 </span>
                                                             )) || <span className="text-xs text-slate-400 italic">None detected</span>}

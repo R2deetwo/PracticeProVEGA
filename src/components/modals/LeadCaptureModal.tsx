@@ -90,7 +90,7 @@ const LeadCaptureModal: React.FC = () => {
                     <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     </div>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal">
+                    <p className="text-2xs text-slate-500 dark:text-slate-400 leading-normal">
                         <strong>Instant Access:</strong> No credit card or password required. Your data is encrypted in compliance with NDPA 2023 standards.
                     </p>
                 </div>

@@ -240,7 +240,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                                         onChange={() => handleToggleUser(user.id)}
                                         className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                                     />
-                                    <div className={`h-6 w-6 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-[10px] ${getUserColor(user.id)}`}>
+                                    <div className={`h-6 w-6 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-2xs ${getUserColor(user.id)}`}>
                                         {getInitials(user.name)}
                                     </div>
                                     <span className="text-sm text-slate-700 dark:text-slate-200">{user.name}</span>

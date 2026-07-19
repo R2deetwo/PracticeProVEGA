@@ -428,7 +428,7 @@ const SetupPassword: React.FC = () => {
                                     disabled
                                     className="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] text-slate-400 text-sm cursor-not-allowed"
                                 />
-                                <p className="text-[10px] text-slate-600 mt-1">This is locked to your invitation email</p>
+                                <p className="text-2xs text-slate-600 mt-1">This is locked to your invitation email</p>
                             </div>
 
                             {/* Password */}
@@ -459,7 +459,7 @@ const SetupPassword: React.FC = () => {
                                                 <div key={i} className={`h-1 flex-1 rounded-full ${i <= strength.score ? strength.color : 'bg-slate-700'} transition-all`} />
                                             ))}
                                         </div>
-                                        <p className="text-[10px] text-slate-500">{strength.label}</p>
+                                        <p className="text-2xs text-slate-500">{strength.label}</p>
                                     </div>
                                 )}
                             </div>
@@ -491,7 +491,7 @@ const SetupPassword: React.FC = () => {
                                     </button>
                                 </div>
                                 {confirmPassword && confirmPassword === password && (
-                                    <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
+                                    <p className="text-2xs text-emerald-400 mt-1 flex items-center gap-1">
                                         <CheckCircleIcon className="w-3 h-3" /> Passwords match
                                     </p>
                                 )}
@@ -648,15 +648,15 @@ const SetupPassword: React.FC = () => {
                     <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-6">
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <ShieldCheckIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">NDPA 2023</span>
+                            <span className="text-2xs font-semibold uppercase tracking-wider">NDPA 2023</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <LockClosedIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">AES-256</span>
+                            <span className="text-2xs font-semibold uppercase tracking-wider">AES-256</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-slate-500">
                             <ShieldCheckIcon className="w-3.5 h-3.5" />
-                            <span className="text-[10px] font-semibold uppercase tracking-wider">PBKDF2</span>
+                            <span className="text-2xs font-semibold uppercase tracking-wider">PBKDF2</span>
                         </div>
                     </div>
                 </div>

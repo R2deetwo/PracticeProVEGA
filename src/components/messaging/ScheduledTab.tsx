@@ -106,7 +106,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
             <div className="bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Channel</label>
+                  <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Channel</label>
                   <select
                     value={scheduleForm.channel}
                     onChange={(e) => setScheduleForm(prev => ({ ...prev, channel: e.target.value as any }))}
@@ -118,7 +118,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Message Type</label>
+                  <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Message Type</label>
                   <select
                     value={scheduleForm.messageType}
                     onChange={(e) => setScheduleForm(prev => ({ ...prev, messageType: e.target.value }))}
@@ -130,7 +130,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Send At</label>
+                  <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Send At</label>
                   <input
                     type="datetime-local"
                     value={scheduleForm.scheduledFor}
@@ -187,21 +187,21 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${CHANNEL_STYLES[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
+                        <span className={`px-1.5 py-0.5 rounded text-3xs font-bold uppercase ${CHANNEL_STYLES[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
                           {msg.channel}
                         </span>
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">
+                        <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">
                           {MSG_TYPE_LABELS[msg.messageType] || msg.messageType}
                         </span>
                         {msg.status === 'pending' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Pending</span>
+                          <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Pending</span>
                         )}
                         {msg.status === 'sent' && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Sent</span>
+                          <span className="px-1.5 py-0.5 rounded text-3xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Sent</span>
                         )}
                       </div>
                       <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
-                      <p className="text-[10px] text-slate-400 mt-1">
+                      <p className="text-2xs text-slate-400 mt-1">
                         {msg.scheduledFor ? new Date(msg.scheduledFor).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : 'No date set'}
                       </p>
                     </div>

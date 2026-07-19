@@ -203,7 +203,7 @@ class ConvexErrorBoundary extends Component<Props, State> {
                 {/* Status Badge */}
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-full mb-10">
                     <div className={`w-2 h-2 rounded-full animate-pulse ${isConvexError ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-slate-300">
+                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-300">
                         {isConvexError ? 'Syncing Status: Retrying...' : 'App Status: Error (manual retry required)'}
                     </span>
                 </div>
@@ -226,7 +226,7 @@ class ConvexErrorBoundary extends Component<Props, State> {
 
                     <button
                         onClick={() => { localStorage.clear(); window.location.reload(); }}
-                        className="mt-4 text-[11px] font-bold text-slate-500 hover:text-rose-400 uppercase tracking-widest transition-colors"
+                        className="mt-4 text-2xs font-bold text-slate-500 hover:text-rose-400 uppercase tracking-widest transition-colors"
                     >
                         Hard Reset Local State
                     </button>
@@ -238,25 +238,25 @@ class ConvexErrorBoundary extends Component<Props, State> {
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full bg-slate-600"></div>
-                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Engine Error Log</span>
+                                <span className="text-2xs font-bold text-slate-500 uppercase tracking-wider">Engine Error Log</span>
                             </div>
                             <button
                                 onClick={this.handleCopyError}
-                                className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-white transition-colors px-2 py-1 rounded border border-slate-700 hover:border-slate-500"
+                                className="flex items-center gap-1 text-2xs font-bold text-slate-400 hover:text-white transition-colors px-2 py-1 rounded border border-slate-700 hover:border-slate-500"
                             >
                                 {this.copiedToClipboard ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                                 {this.copiedToClipboard ? 'Copied!' : 'Copy'}
                             </button>
                         </div>
-                        <p className="font-mono text-[10px] text-slate-500 break-all opacity-80 leading-relaxed">
+                        <p className="font-mono text-2xs text-slate-500 break-all opacity-80 leading-relaxed">
                             {errorMessage}
                         </p>
                         {this.state.componentStack && (
                             <details className="mt-2">
-                                <summary className="text-[10px] font-bold text-slate-600 hover:text-slate-400 cursor-pointer uppercase tracking-wider">
+                                <summary className="text-2xs font-bold text-slate-600 hover:text-slate-400 cursor-pointer uppercase tracking-wider">
                                     Component Stack (click to expand)
                                 </summary>
-                                <pre className="font-mono text-[9px] text-slate-600 break-all whitespace-pre-wrap mt-2 max-h-48 overflow-y-auto">
+                                <pre className="font-mono text-3xs text-slate-600 break-all whitespace-pre-wrap mt-2 max-h-48 overflow-y-auto">
                                     {this.state.componentStack}
                                 </pre>
                             </details>

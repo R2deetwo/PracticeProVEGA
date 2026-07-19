@@ -20,7 +20,7 @@ export const parseAloaMarkdown = (text: string): string => {
     // 1. Interactive Citations [Source Name]
     // Transform [Source Name] into a pill
     html = html.replace(/\[([^\]]+)\]/g, (match, p1) => {
-        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 mx-0.5 shadow-sm" title="Citation reference">${p1}</span>`;
+        return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 mx-0.5 shadow-sm" title="Citation reference">${p1}</span>`;
     });
 
     // Process blocks of text separated by double newlines
@@ -94,7 +94,7 @@ export const parseAloaMarkdown = (text: string): string => {
                             data-task-title="${content.replace(/"/g, '&quot;')}"
                         >
                             ${content}
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md ${badgeBg} text-[8px] font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity">${badgeText}</span>
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded-md ${badgeBg} text-3xs font-black uppercase tracking-tighter opacity-0 group-hover/task:opacity-100 transition-opacity">${badgeText}</span>
                         </span>
                     </li>`;
                 }

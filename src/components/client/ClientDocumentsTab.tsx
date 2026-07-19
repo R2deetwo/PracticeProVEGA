@@ -99,7 +99,7 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
                                 <div className="flex-grow min-w-0">
                                     <div className="flex items-center gap-2">
                                         <p className="font-semibold text-slate-800 dark:text-white truncate">{doc.title}</p>
-                                        {isNew(doc.dateFiled) && !uploadedByClient && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-200 flex-shrink-0">NEW</span>}
+                                        {isNew(doc.dateFiled) && !uploadedByClient && <span className="px-1.5 py-0.5 text-2xs font-bold rounded-full bg-primary-100 text-primary-700 dark:bg-primary-800 dark:text-primary-200 flex-shrink-0">NEW</span>}
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
                                         {uploadedByClient ? `Uploaded by you` : `Shared by ${coreState.firmDetails.name}`} on {new Date(doc.dateFiled).toLocaleDateString('en-GB')}

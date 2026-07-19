@@ -449,9 +449,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         onChange={(e) => setPageInput(e.target.value)}
                         onBlur={() => goToPage(parseInt(pageInput) || currentPage)}
                         onKeyDown={(e) => e.key === 'Enter' && goToPage(parseInt(pageInput) || currentPage)}
-                        className="w-10 h-7 text-center text-[11px] font-bold bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded border-none outline-none"
+                        className="w-10 h-7 text-center text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-zinc-200 rounded border-none outline-none"
                     />
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap px-1">
+                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap px-1">
                         / {numPages}
                     </span>
                     <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= numPages} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed" title="Next (→)">
@@ -487,13 +487,13 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                     </button>
                     <button
                         onClick={handleFit}
-                        className={`px-2 h-7 rounded text-[9px] font-bold transition-colors ${isFitMode ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}
+                        className={`px-2 h-7 rounded text-3xs font-bold transition-colors ${isFitMode ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300'}`}
                         title="Fit to page (Ctrl 0)"
                     >
                         Fit
                     </button>
                     {/* Single zoom indicator: either "Fit" OR percent, never both */}
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 w-10 text-center hidden sm:inline">{zoomLabel}</span>
+                    <span className="text-3xs font-bold text-slate-400 dark:text-zinc-500 w-10 text-center hidden sm:inline">{zoomLabel}</span>
                     <button onClick={handleZoomIn} className="w-7 h-7 rounded hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 flex items-center justify-center" title="Zoom in (Ctrl +)">
                         <ZoomIn className="w-3.5 h-3.5" />
                     </button>
@@ -582,10 +582,10 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                                     <img src={thumbUrls[n]} alt={`Page ${n}`} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full bg-slate-100 dark:bg-zinc-700 animate-pulse flex items-center justify-center">
-                                        <span className="text-[10px] font-bold text-slate-400">{n}</span>
+                                        <span className="text-2xs font-bold text-slate-400">{n}</span>
                                     </div>
                                 )}
-                                <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/70 text-white text-[9px] font-bold text-center">
+                                <div className="absolute bottom-0 left-0 right-0 px-1 py-0.5 bg-black/70 text-white text-3xs font-bold text-center">
                                     {n}
                                 </div>
                             </button>
@@ -596,7 +596,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
 
             {/* ─── Footer hint (full-screen only) ─── */}
             {isFullScreen && (
-                <div className="shrink-0 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-[9px] text-slate-400 dark:text-zinc-500 flex items-center justify-between">
+                <div className="shrink-0 px-2 py-0.5 bg-slate-100 dark:bg-zinc-800 border-t border-slate-200 dark:border-zinc-700 text-3xs text-slate-400 dark:text-zinc-500 flex items-center justify-between">
                     <span className="hidden sm:inline">← → navigate • Ctrl +/− zoom • F thumbnails • R reading • Ctrl 0 fit</span>
                     <span className="sm:hidden">Swipe to navigate • Pinch to zoom</span>
                     {onClose && (

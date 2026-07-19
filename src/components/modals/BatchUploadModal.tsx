@@ -146,7 +146,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         <div className="space-y-6">
             <div className="text-center font-sans">
                 <div className="flex items-center justify-center gap-2 mb-1">
-                    <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded uppercase tracking-widest flex items-center gap-1">
+                    <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-2xs font-bold rounded uppercase tracking-widest flex items-center gap-1">
                         <SparklesIcon className="w-3 h-3" /> Smart Indexing
                     </span>
                 </div>
@@ -167,7 +167,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-center mb-1.5">
                                 <p className="text-sm font-bold truncate text-slate-800 dark:text-zinc-100">{item.file.name}</p>
-                                <span className={`text-[10px] font-bold uppercase tracking-wider ${item.status === 'completed' ? 'text-green-600 dark:text-green-400' :
+                                <span className={`text-2xs font-bold uppercase tracking-wider ${item.status === 'completed' ? 'text-green-600 dark:text-green-400' :
                                     item.status === 'failed' ? 'text-red-500' : 'text-primary-500 animate-pulse'
                                     }`}>
                                     {item.status === 'uploading' ? (item.progress < 50 ? 'Initializing...' : 'Indexing Content...') :
@@ -182,7 +182,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
                                     style={{ width: `${item.progress}%` }}
                                 />
                             </div>
-                            {item.error && <p className="text-[10px] text-red-500 mt-1 font-medium">{item.error}</p>}
+                            {item.error && <p className="text-2xs text-red-500 mt-1 font-medium">{item.error}</p>}
                         </div>
 
                         <div className="flex items-center gap-1">
@@ -226,7 +226,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
             </div>
 
             <div className="flex flex-col items-end gap-3 pt-2">
-                {!isDone && <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest italic leading-none">Indexing continues so long as you do not close your browser tab.</p>}
+                {!isDone && <p className="text-2xs text-slate-400 font-bold uppercase tracking-widest italic leading-none">Indexing continues so long as you do not close your browser tab.</p>}
                 <button
                     onClick={onClose}
                     className={`px-8 py-2.5 rounded-xl font-bold transition-all ${isDone

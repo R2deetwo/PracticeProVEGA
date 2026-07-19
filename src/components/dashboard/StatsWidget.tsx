@@ -79,7 +79,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                     </div>
                     <div className="flex flex-col justify-center min-w-0 pl-3 flex-1">
                         <div className="flex items-center gap-2 mb-0.5">
-                            <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap truncate">{label}</p>
+                            <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider whitespace-nowrap truncate">{label}</p>
                             {showTabs && (
                                 <div
                                     className="flex items-center gap-0.5 bg-slate-100 dark:bg-zinc-800 rounded-full p-0.5"
@@ -87,13 +87,13 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                                 >
                                     <button
                                         onClick={() => setActiveTab('invoices')}
-                                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'invoices' ? 'bg-yellow-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         INV
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('rent')}
-                                        className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
+                                        className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full transition-all ${activeTab === 'rent' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'}`}
                                     >
                                         RENT
                                     </button>

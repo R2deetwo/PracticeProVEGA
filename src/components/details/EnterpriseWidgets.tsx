@@ -60,7 +60,7 @@ const WidgetCard: React.FC<{ title: string; subtitle?: string; icon: React.React
             </div>
             <div>
                 <h3 className="text-white font-black tracking-tight leading-tight">{title}</h3>
-                {subtitle && <p className="text-amber-400/70 text-[10px] uppercase tracking-[0.15em] font-bold">{subtitle}</p>}
+                {subtitle && <p className="text-amber-400/70 text-2xs uppercase tracking-[0.15em] font-bold">{subtitle}</p>}
             </div>
         </div>
         <div className="p-5 backdrop-blur-md">
@@ -71,7 +71,7 @@ const WidgetCard: React.FC<{ title: string; subtitle?: string; icon: React.React
 
 const DataPoint: React.FC<{ label: string; value: string | React.ReactNode }> = ({ label, value }) => (
     <div className="flex flex-col">
-        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{label}</span>
+        <span className="text-2xs font-bold text-zinc-500 uppercase tracking-widest mb-1">{label}</span>
         <span className="text-sm font-semibold text-zinc-100">{value || <span className="text-zinc-700 italic">Not specified</span>}</span>
     </div>
 );
@@ -152,7 +152,7 @@ const CorporateGovernanceTracker: React.FC<{ data?: any }> = ({ data }) => {
             </div>
             <div className="flex items-center gap-4 p-3 bg-white/5 rounded-xl border border-white/10">
                 <div className="flex-1">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">CAMA Annual Returns Due</p>
+                    <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest mb-1">CAMA Annual Returns Due</p>
                     <p className={`text-lg font-black ${data.annualReturnsStatus === 'Overdue' ? 'text-red-400' : 'text-zinc-200'}`}>{data.annualReturnsDueDate || 'Not set'}</p>
                 </div>
                 <div className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider ${data.annualReturnsStatus === 'Overdue' ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
@@ -179,17 +179,17 @@ const TaxDisputeLedger: React.FC<{ data?: any }> = ({ data }) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 bg-red-500/5 rounded-xl border border-red-500/10">
                 <div>
-                    <p className="text-[10px] font-bold text-red-400/70 uppercase tracking-widest mb-1">Disputed Liability</p>
+                    <p className="text-2xs font-bold text-red-400/70 uppercase tracking-widest mb-1">Disputed Liability</p>
                     <p className="text-xl font-black text-red-400">₦{formatNaira(data.disputedTaxLiability || 0)}</p>
                 </div>
                 <div>
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Penalties + Interest</p>
+                    <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Penalties + Interest</p>
                     <p className="text-lg font-bold text-zinc-300">₦{formatNaira((data.penaltyAmount || 0) + (data.interestAmount || 0))}</p>
                 </div>
                 <div className="border-l border-red-500/20 pl-3">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">TAT Appeal Deadline</p>
+                    <p className="text-2xs font-bold text-zinc-500 uppercase tracking-widest mb-1">TAT Appeal Deadline</p>
                     <p className="text-sm font-bold text-zinc-200">{data.objectionDeadline || 'Pending Assessment'}</p>
-                    <p className="text-[10px] text-red-400 mt-1">30-day statutory limit active</p>
+                    <p className="text-2xs text-red-400 mt-1">30-day statutory limit active</p>
                 </div>
             </div>
         </WidgetCard>
@@ -218,15 +218,15 @@ const RealEstateTitleMatrix: React.FC<{ data?: any }> = ({ data }) => {
                 <div className="relative flex justify-between">
                     <div className="flex flex-col items-center">
                         <div className={`w-4 h-4 rounded-full border-4 ring-2 ring-zinc-900 z-10 ${data.stampDutyStatus === 'Paid' ? 'bg-amber-400 border-amber-400' : 'bg-zinc-800 border-zinc-700'}`} />
-                        <p className={`text-[10px] font-bold mt-2 uppercase tracking-wide ${data.stampDutyStatus === 'Paid' ? 'text-amber-400' : 'text-zinc-500'}`}>Stamping</p>
+                        <p className={`text-2xs font-bold mt-2 uppercase tracking-wide ${data.stampDutyStatus === 'Paid' ? 'text-amber-400' : 'text-zinc-500'}`}>Stamping</p>
                     </div>
                     <div className="flex flex-col items-center">
                         <div className={`w-4 h-4 rounded-full border-4 ring-2 ring-zinc-900 z-10 ${data.governorConsentStatus === 'Approved' ? 'bg-amber-400 border-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'bg-white border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.5)] animate-pulse' : 'bg-zinc-800 border-zinc-700')}`} />
-                        <p className={`text-[10px] font-bold mt-2 uppercase tracking-wide ${data.governorConsentStatus === 'Approved' ? 'text-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'text-white' : 'text-zinc-500')}`}>Gov. Consent</p>
+                        <p className={`text-2xs font-bold mt-2 uppercase tracking-wide ${data.governorConsentStatus === 'Approved' ? 'text-amber-400' : (data.governorConsentStatus?.includes('Applied') ? 'text-white' : 'text-zinc-500')}`}>Gov. Consent</p>
                     </div>
                     <div className="flex flex-col items-center">
                         <div className={`w-4 h-4 rounded-full border-4 ring-2 ring-zinc-900 z-10 ${data.registrationStatus === 'Registered' ? 'bg-amber-400 border-amber-400' : 'bg-zinc-800 border-zinc-700'}`} />
-                        <p className={`text-[10px] font-bold mt-2 uppercase tracking-wide ${data.registrationStatus === 'Registered' ? 'text-amber-400' : 'text-zinc-500'}`}>Registration</p>
+                        <p className={`text-2xs font-bold mt-2 uppercase tracking-wide ${data.registrationStatus === 'Registered' ? 'text-amber-400' : 'text-zinc-500'}`}>Registration</p>
                     </div>
                 </div>
             </div>

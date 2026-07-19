@@ -105,7 +105,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
             <div className="grid grid-cols-4 gap-2">
               {TYPE_OPTIONS.map(opt => (
                 <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, type: opt.value }))}
-                  className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-[10px] font-bold transition-all ${
+                  className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border text-2xs font-bold transition-all ${
                     form.type === opt.value
                       ? 'bg-emerald-600 border-emerald-500 text-white'
                       : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
@@ -135,7 +135,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
                 ['defaulted', 'Defaulted', 'border-rose-600 bg-rose-900/30 text-rose-300', <XCircle className="w-3.5 h-3.5" />]
               ] as const).map(([val, label, activeClass, icon]) => (
                 <button key={val as string} type="button" onClick={() => setForm(f => ({ ...f, status: val as LedgerEntryStatus }))}
-                  className={`py-2 px-2 rounded-xl border text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 ${
+                  className={`py-2 px-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     form.status === val ? activeClass : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
                   }`}>{icon} {label as string}</button>
               ))}
@@ -143,7 +143,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
           </div>
 
           {/* Advanced toggle */}
-          <button type="button" onClick={() => setShowAdvanced(v => !v)} className="text-[10px] text-slate-500 hover:text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1">
+          <button type="button" onClick={() => setShowAdvanced(v => !v)} className="text-2xs text-slate-500 hover:text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1">
             {showAdvanced ? '▾' : '▸'} Advanced options
           </button>
           {showAdvanced && (
@@ -189,7 +189,7 @@ const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: num
             <div className="w-full rounded-sm bg-emerald-500/80 transition-all" style={{ height: `${(v.income / max) * 60}px` }} title={`Income: ₦${v.income.toLocaleString()}`} />
             {v.risk > 0 && <div className="w-full rounded-sm bg-rose-500/60" style={{ height: `${(v.risk / max) * 60}px` }} title={`At Risk: ₦${v.risk.toLocaleString()}`} />}
           </div>
-          <span className="text-[8px] text-slate-600 font-medium">{month.slice(5)}</span>
+          <span className="text-3xs text-slate-600 font-medium">{month.slice(5)}</span>
         </div>
       ))}
     </div>
@@ -331,7 +331,7 @@ const LedgerManager: React.FC = () => {
             <span className="text-xs text-slate-500 uppercase tracking-wider">Total Income</span>
           </div>
           <p className="text-2xl font-black text-emerald-400">₦{formatLargeNumber(cashFlow?.totalIncome ?? 0)}</p>
-          <p className="text-[10px] text-slate-600 mt-1">{cashFlow?.totalTransactions ?? 0} transactions</p>
+          <p className="text-2xs text-slate-600 mt-1">{cashFlow?.totalTransactions ?? 0} transactions</p>
         </div>
         <div className="bg-slate-900 border border-rose-900/30 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -339,7 +339,7 @@ const LedgerManager: React.FC = () => {
             <span className="text-xs text-slate-500 uppercase tracking-wider">Revenue at Risk</span>
           </div>
           <p className="text-2xl font-black text-rose-400">₦{formatLargeNumber(cashFlow?.revenueAtRisk ?? 0)}</p>
-          <p className="text-[10px] text-slate-600 mt-1">Pending + Defaulted</p>
+          <p className="text-2xs text-slate-600 mt-1">Pending + Defaulted</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -360,13 +360,13 @@ const LedgerManager: React.FC = () => {
           className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-emerald-500 w-56"
         />
         {(['all', 'rent', 'service_charge', 'penalty', 'deposit'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${filterType === t ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterType === t ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
             {t === 'all' ? 'All Types' : TYPE_LABELS[t]}
           </button>
         ))}
         <div className="h-4 w-px bg-slate-800" />
         {(['all', 'cleared', 'pending', 'defaulted'] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${filterStatus === s ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+          <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterStatus === s ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
             {s === 'all' ? 'All Status' : s}
           </button>
         ))}
@@ -400,19 +400,19 @@ const LedgerManager: React.FC = () => {
                         <p className="text-sm font-bold text-white truncate">
                           {getUnitLabel(entry.unitId)} — {entry.description || TYPE_LABELS[entry.type]}
                         </p>
-                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${TYPE_COLORS[entry.type]}`}>
+                        <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${TYPE_COLORS[entry.type]}`}>
                           {TYPE_LABELS[entry.type]}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-[10px] text-slate-500">{formatTs(entry.timestamp)}</p>
+                        <p className="text-2xs text-slate-500">{formatTs(entry.timestamp)}</p>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between md:justify-end gap-4 border-t border-slate-800 md:border-0 pt-3 md:pt-0">
                     <div className="flex items-center gap-3">
-                      <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[entry.status]}`}>
+                      <span className={`text-3xs font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[entry.status]}`}>
                         {entry.status}
                       </span>
                       <span className={`font-black text-base tabular-nums ${entry.status === 'cleared' ? 'text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-400' : 'text-amber-400'}`}>

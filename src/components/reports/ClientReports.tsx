@@ -25,7 +25,7 @@ const BarChart: React.FC<{ data: { label: string; value: number }[]; color: stri
                         <div className="flex-grow bg-slate-200 dark:bg-zinc-700 rounded-full h-4">
                             <Tooltip text={fullValueText}>
                                 <div
-                                    className={`h-4 rounded-full ${color} flex items-center justify-end pr-2 text-white text-[10px] font-bold overflow-hidden whitespace-nowrap`}
+                                    className={`h-4 rounded-full ${color} flex items-center justify-end pr-2 text-white text-2xs font-bold overflow-hidden whitespace-nowrap`}
                                     style={{ width: `${(item.value / maxValue) * 100}%` }}
                                 >
                                     <NairaSymbol/>{formatNaira(item.value)}

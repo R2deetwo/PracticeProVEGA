@@ -56,7 +56,7 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
                   >
                     {/* Circle Container - Fixed Height */}
                     <div className="h-8 flex items-center justify-center mb-1">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold transition-all duration-300 ${colorClass}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-2xs font-bold transition-all duration-300 ${colorClass}`}>
                         {isLoading ? (
                           <LoadingSpinner />
                         ) : isCompleted ? (
@@ -70,7 +70,7 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
                     </div>
 
                     {/* Label */}
-                    <p title={stage} className={`text-[9px] font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
+                    <p title={stage} className={`text-3xs font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
                       {stage}
                     </p>
                   </div>

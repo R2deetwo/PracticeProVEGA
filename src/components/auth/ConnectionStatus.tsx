@@ -155,7 +155,7 @@ const ConnectionStatus: React.FC = () => {
             return (
                 <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors group">
                     <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-                    <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest hidden sm:inline">Online</span>
+                    <span className="text-2xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest hidden sm:inline">Online</span>
                 </div>
             );
         }
@@ -166,7 +166,7 @@ const ConnectionStatus: React.FC = () => {
             return (
                 <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
                     <div className="w-2 h-2 bg-slate-400 dark:bg-zinc-500 rounded-full"></div>
-                    <span className="text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest hidden sm:inline">Offline</span>
+                    <span className="text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest hidden sm:inline">Offline</span>
                 </div>
             );
         }
@@ -175,7 +175,7 @@ const ConnectionStatus: React.FC = () => {
             return (
                 <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 transition-colors">
                     <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                    <span className="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Offline Mode</span>
+                    <span className="text-2xs font-black text-amber-700 dark:text-amber-400 uppercase tracking-widest">Offline Mode</span>
                 </div>
             );
         }
@@ -183,7 +183,7 @@ const ConnectionStatus: React.FC = () => {
         return (
             <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition-colors">
                 <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                <span className="text-[10px] font-black text-purple-700 dark:text-purple-400 uppercase tracking-widest">Setup Needed</span>
+                <span className="text-2xs font-black text-purple-700 dark:text-purple-400 uppercase tracking-widest">Setup Needed</span>
             </div>
         );
     };
@@ -237,7 +237,7 @@ const ConnectionStatus: React.FC = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">
                                     Type "{firmToDelete.displayName}" to confirm:
                                 </label>
                                 <input autoComplete="off" data-lpignore="true" 
@@ -286,7 +286,7 @@ const ConnectionStatus: React.FC = () => {
                                     </div>
 
                                     <div className="border-t border-slate-100 dark:border-zinc-700 pt-3">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Workspaces</p>
+                                        <p className="text-2xs font-bold text-slate-400 uppercase mb-2">Workspaces</p>
                                         {displayFirms.length > 0 ? (
                                             <div className="space-y-2">
                                                 {displayFirms.map((firm: any) => (
@@ -294,12 +294,12 @@ const ConnectionStatus: React.FC = () => {
                                                         <span className="text-xs font-bold truncate max-w-[140px]" title={firm.name}>{firm.displayName}</span>
 
                                                         {firm.status === 'Linked' ? (
-                                                            <span className="text-[10px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">Active</span>
+                                                            <span className="text-2xs text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded">Active</span>
                                                         ) : (
                                                             <div className="flex items-center gap-1">
                                                                 <button
                                                                     onClick={() => handleConnectFirm(firm.id)}
-                                                                    className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                                                                    className="text-2xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
                                                                 >
                                                                     Connect
                                                                 </button>
@@ -347,7 +347,7 @@ const ConnectionStatus: React.FC = () => {
                 title="Click to troubleshoot connection"
             >
                 <div className="relative mb-0.5">{triggerIcon}</div>
-                <span className={`text-[8px] font-bold uppercase tracking-tighter ${status === 'offline' ? 'text-amber-700' : 'text-purple-800'}`}>
+                <span className={`text-3xs font-bold uppercase tracking-tighter ${status === 'offline' ? 'text-amber-700' : 'text-purple-800'}`}>
                     {triggerLabel}
                 </span>
             </button>

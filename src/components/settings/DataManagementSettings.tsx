@@ -297,10 +297,10 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="font-bold text-slate-900 dark:text-white">{f.name}</p>
-                                        <p className="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Product: {f.product || 'Vega'}</p>
+                                        <p className="text-2xs text-slate-500 uppercase tracking-widest mt-1">Product: {f.product || 'Vega'}</p>
                                     </div>
                                     {f.id === currentUser?.firmId && (
-                                        <span className="px-2 py-0.5 bg-primary-600 text-white text-[9px] font-black rounded-full uppercase tracking-widest">Active</span>
+                                        <span className="px-2 py-0.5 bg-primary-600 text-white text-3xs font-black rounded-full uppercase tracking-widest">Active</span>
                                     )}
                                 </div>
                                 
@@ -362,7 +362,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
                                     <tr key={item.id} className="hover:bg-slate-100 dark:hover:bg-zinc-800/50 transition-colors">
                                         <td className="px-4 py-3 font-bold text-slate-800 dark:text-zinc-200">{item.itemName}</td>
                                         <td className="px-4 py-3">
-                                            <span className="text-[10px] px-2 py-0.5 bg-slate-200 dark:bg-zinc-700 rounded text-slate-600 dark:text-zinc-400 font-black uppercase tracking-widest">{item.itemType}</span>
+                                            <span className="text-2xs px-2 py-0.5 bg-slate-200 dark:bg-zinc-700 rounded text-slate-600 dark:text-zinc-400 font-black uppercase tracking-widest">{item.itemType}</span>
                                         </td>
                                         <td className="px-4 py-3 text-slate-500 dark:text-zinc-500 text-xs">{new Date(item.archivedAt).toLocaleDateString('en-GB')}</td>
                                         <td className="px-4 py-3 text-right">
@@ -523,7 +523,7 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
 
                                     return (
                                         <tr key={itemId !== 'MISSING' ? itemId : Math.random()} className="hover:bg-slate-100 dark:hover:bg-zinc-800/50">
-                                            <td className="px-4 py-2 font-mono text-[10px] text-slate-400 select-all" title={itemId}>{itemId}</td>
+                                            <td className="px-4 py-2 font-mono text-2xs text-slate-400 select-all" title={itemId}>{itemId}</td>
                                             <td className="px-4 py-2 font-medium text-slate-700 dark:text-zinc-300 truncate max-w-[300px]">
                                                 {itemName === 'Corrupted Item' && item?.address ? (
                                                     item.address

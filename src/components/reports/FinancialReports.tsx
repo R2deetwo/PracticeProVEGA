@@ -35,10 +35,10 @@ const RevenueVelocityChart: React.FC<{ data: { month: string; value: number }[] 
                         </div>
                     </div>
                     {/* Tooltip */}
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg pointer-events-none">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-2xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 shadow-lg pointer-events-none">
                         <NairaSymbol />{formatLargeNumber(item.value)}
                     </div>
-                    <span className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 font-medium truncate w-full text-center">{item.month}</span>
+                    <span className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 font-medium truncate w-full text-center">{item.month}</span>
                 </div>
             ))}
         </div>
@@ -94,7 +94,7 @@ const BarChart: React.FC<{ data: { label: string; value: number }[]; color: stri
                             className={`h-full rounded-full ${color} transition-all duration-1000 ease-out relative group-hover:opacity-90`}
                             style={{ width: `${(item.value / maxValue) * 100}%` }}
                         >
-                            {item.value > 0 && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity"><NairaSymbol />{formatLargeNumber(item.value)}</span>}
+                            {item.value > 0 && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-3xs text-white font-bold opacity-0 group-hover:opacity-100 transition-opacity"><NairaSymbol />{formatLargeNumber(item.value)}</span>}
                         </div>
                     </div>
                     <span className="font-bold w-28 text-left text-slate-700 dark:text-slate-300"><NairaSymbol />{formatNaira(item.value)}</span>

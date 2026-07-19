@@ -54,7 +54,7 @@ const CommandPalette: React.FC = () => {
 
         // System
         { id: 'sys-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, type: 'System', icon: theme === 'dark' ? <SunIcon /> : <MoonIcon />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
-        { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-[10px]">|||</div>, action: () => toggleSidebar() },
+        { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-2xs">|||</div>, action: () => toggleSidebar() },
     ], [navigateTo, openModal, theme, setTheme, toggleSidebar]);
 
     // 2. Dynamic Data Search Index
@@ -239,7 +239,7 @@ const CommandPalette: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded ${index === selectedIndex ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-zinc-700 text-slate-500'}`}>
+                                    <span className={`text-2xs font-bold uppercase tracking-wider px-2 py-1 rounded ${index === selectedIndex ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-zinc-700 text-slate-500'}`}>
                                         {result.type}
                                     </span>
                                 </button>

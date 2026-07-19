@@ -123,15 +123,15 @@ const AccountRecoverySettings: React.FC = () => {
                                     <div className="flex items-center gap-2 mb-1">
                                         <h4 className="font-bold text-slate-900 dark:text-white">{user.name}</h4>
                                         {user.isVerified ? (
-                                            <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 text-[10px] py-0.5 px-2 rounded-full border">Verified</span>
+                                            <span className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 text-2xs py-0.5 px-2 rounded-full border">Verified</span>
                                         ) : (
-                                            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 text-[10px] py-0.5 px-2 rounded-full border">Unverified</span>
+                                            <span className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 text-2xs py-0.5 px-2 rounded-full border">Unverified</span>
                                         )}
-                                        <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 text-[10px] py-0.5 px-2 capitalize rounded-full border">{user.product || 'legal'}</span>
+                                        <span className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 text-2xs py-0.5 px-2 capitalize rounded-full border">{user.product || 'legal'}</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 mt-2">
                                         <div><strong>Email:</strong> {user.email}</div>
-                                        <div><strong>Token ID:</strong> <span className="font-mono text-[10px]">{user.tokenIdentifier}</span></div>
+                                        <div><strong>Token ID:</strong> <span className="font-mono text-2xs">{user.tokenIdentifier}</span></div>
                                         <div><strong>Firm ID:</strong> {user.firmId || <span className="text-red-400">None</span>}</div>
                                         <div><strong>Created:</strong> {new Date(user._creationTime).toLocaleDateString("en-GB")}</div>
                                     </div>

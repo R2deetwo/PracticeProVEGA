@@ -180,7 +180,7 @@ const ContactSalesDrawer: React.FC<{
                                         className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
-                                {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
+                                {errors.email && <p className="text-2xs text-red-500 mt-1">{errors.email}</p>}
                             </div>
 
                             {/* Full Name */}
@@ -199,7 +199,7 @@ const ContactSalesDrawer: React.FC<{
                                         className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.name ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
-                                {errors.name && <p className="text-[11px] text-red-500 mt-1">{errors.name}</p>}
+                                {errors.name && <p className="text-2xs text-red-500 mt-1">{errors.name}</p>}
                             </div>
 
                             {/* Firm / Company Name */}
@@ -235,7 +235,7 @@ const ContactSalesDrawer: React.FC<{
                                         className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
-                                {errors.message && <p className="text-[11px] text-red-500 mt-1">{errors.message}</p>}
+                                {errors.message && <p className="text-2xs text-red-500 mt-1">{errors.message}</p>}
                             </div>
 
                             {/* Submit error */}
@@ -246,7 +246,7 @@ const ContactSalesDrawer: React.FC<{
                             )}
 
                             {/* Privacy note */}
-                            <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-relaxed">
+                            <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
                                 Your information is processed securely in accordance with our Privacy Policy and the Nigeria Data Protection Act 2023. We will never share your data with third parties.
                             </p>
 

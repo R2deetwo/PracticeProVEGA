@@ -44,14 +44,14 @@ const ActionCard: React.FC<{
 
     return (
         <div className={`mt-2 p-2 bg-slate-50 dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700 ${isCompleted ? 'opacity-50' : ''}`}>
-            <div className="text-[9px] text-primary-600 dark:text-primary-400 mb-1.5 font-bold uppercase tracking-widest flex justify-between items-center">
+            <div className="text-3xs text-primary-600 dark:text-primary-400 mb-1.5 font-bold uppercase tracking-widest flex justify-between items-center">
                 <span>Action Available</span>
                 {isCompleted && <span className="text-emerald-500 font-black">DONE</span>}
             </div>
             <button
                 onClick={onExecute}
                 disabled={isCompleted}
-                className={`w-full py-1.5 rounded-lg text-[10px] font-bold transition-all ${isCompleted ? 'bg-slate-100 dark:bg-zinc-800 text-slate-400' : 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm'}`}
+                className={`w-full py-1.5 rounded-lg text-2xs font-bold transition-all ${isCompleted ? 'bg-slate-100 dark:bg-zinc-800 text-slate-400' : 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm'}`}
             >
                 {isCompleted ? 'Completed' : label}
             </button>
@@ -384,7 +384,7 @@ export const MiniAloa: React.FC = () => {
                     `}>
                         <AloaIcon className="w-3.5 h-3.5 text-white" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+                    <span className="text-2xs font-black uppercase tracking-[0.2em] text-white/90">
                         {isLoading ? 'Processing' : `${getAssistantName(isProperty)} Mini`}
                     </span>
                 </div>
@@ -425,7 +425,7 @@ export const MiniAloa: React.FC = () => {
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-30 mt-4">
                         <AloaIcon className="w-10 h-10 text-slate-400 dark:text-zinc-600 mb-3" />
-                        <p className="text-[10px] uppercase font-black tracking-widest text-slate-500">Awaiting Query</p>
+                        <p className="text-2xs uppercase font-black tracking-widest text-slate-500">Awaiting Query</p>
                     </div>
                 )}
                 {messages.map((msg) => (
@@ -468,7 +468,7 @@ export const MiniAloa: React.FC = () => {
                     </div>
                 ))}
                 {isLoading && miniStatus && (
-                    <p className="text-[9px] font-medium text-primary-600 dark:text-primary-400 px-1 animate-pulse">{miniStatus}</p>
+                    <p className="text-3xs font-medium text-primary-600 dark:text-primary-400 px-1 animate-pulse">{miniStatus}</p>
                 )}
                 <div ref={messagesEndRef} />
             </div>
@@ -481,7 +481,7 @@ export const MiniAloa: React.FC = () => {
                     <div className="flex items-center px-1">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]" />
-                            <span className="text-[9px] font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-tighter">{preferredModel}</span>
+                            <span className="text-3xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-tighter">{preferredModel}</span>
                         </div>
                     </div>
 

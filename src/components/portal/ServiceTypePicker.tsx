@@ -148,7 +148,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                     {selectedOption.label}
                                 </p>
                                 {selectedOption.description && (
-                                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
                                         {selectedOption.description}
                                     </p>
                                 )}
@@ -217,7 +217,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                                     {opt.label}
                                                 </p>
                                                 {opt.description && (
-                                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 truncate">
+                                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
                                                         {opt.description}
                                                     </p>
                                                 )}
@@ -289,7 +289,7 @@ export const ServiceTypePicker: React.FC<ServiceTypePickerProps> = ({
                                                     {opt.label}
                                                 </p>
                                                 {opt.description && (
-                                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
+                                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5">
                                                         {opt.description}
                                                     </p>
                                                 )}

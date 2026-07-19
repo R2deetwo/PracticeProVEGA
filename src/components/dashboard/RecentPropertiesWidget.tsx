@@ -72,7 +72,7 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                         {activeCategory} Properties
                     </h3>
                 </div>
-                <button onClick={() => onNavigateToDetail('properties', null)} className="text-[10px] font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit">All</button>
+                <button onClick={() => onNavigateToDetail('properties', null)} className="text-2xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit">All</button>
             </div>
             
             <div className="flex-grow overflow-y-auto relative min-h-0">
@@ -113,12 +113,12 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                                             <>{property.rentalDetails?.unitName || property.description || 'Unit'}</>
                                         )}
                                     </div>
-                                    <div className="text-[11px] text-slate-500 dark:text-zinc-400 font-medium truncate mt-0.5">
+                                    <div className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate mt-0.5">
                                         {property.address}
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                    <div className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                                    <div className={`px-2 py-0.5 rounded text-3xs font-black uppercase tracking-wider ${
                                         property.status === 'Occupied' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
                                         property.status === 'Vacant' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
                                         'bg-slate-100 text-slate-500 dark:bg-zinc-800 dark:text-zinc-400'
@@ -126,7 +126,7 @@ const RecentPropertiesWidget: React.FC<RecentPropertiesWidgetProps> = ({ propert
                                         {property.status}
                                     </div>
                                     {property.rentalDetails?.rentAmount ? (
-                                        <div className="text-[10px] text-primary-600 dark:text-primary-400 font-bold mt-1">
+                                        <div className="text-2xs text-primary-600 dark:text-primary-400 font-bold mt-1">
                                             <NairaSymbol />{formatNaira(property.rentalDetails.rentAmount)}
                                         </div>
                                     ) : null}

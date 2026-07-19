@@ -404,12 +404,12 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <CurrencyDollarIcon className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Rent Due</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Next Rent Due</p>
                                 <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     {nextRentDueDate ? new Date(nextRentDueDate).toLocaleDateString('en-GB') : 'Not Set'}
                                 </p>
                                 {nextRentDueDate && daysLeft !== null && daysLeft <= 30 && (
-                                    <p className="text-[10px] text-orange-500 font-bold mt-0.5">Due Soon</p>
+                                    <p className="text-2xs text-orange-500 font-bold mt-0.5">Due Soon</p>
                                 )}
                             </div>
                         </div>
@@ -430,14 +430,14 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                                     Days Left <PencilSquareIcon className="w-3 h-3" />
                                 </p>
                                 <p className={`text-base sm:text-lg font-bold mt-0.5 ${daysLeft !== null && daysLeft < 0 ? 'text-red-500' : daysLeft !== null && daysLeft < 90 ? 'text-orange-500' : 'text-slate-900 dark:text-white'}`}>
                                     {daysLeft !== null ? (daysLeft < 0 ? `${Math.abs(daysLeft)} Overdue` : `${daysLeft} Days`) : 'N/A'}
                                 </p>
                                 {property.rentalDetails?.leaseEnd && (
-                                    <p className="text-[10px] text-slate-500 mt-0.5">Ends: {property.rentalDetails.leaseEnd}</p>
+                                    <p className="text-2xs text-slate-500 mt-0.5">Ends: {property.rentalDetails.leaseEnd}</p>
                                 )}
                             </div>
                         </div>
@@ -448,11 +448,11 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <ClockIcon className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rent Review</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Rent Review</p>
                                 <p className={`text-base sm:text-lg font-bold mt-0.5 ${isReviewUpcoming ? 'text-amber-500' : 'text-slate-900 dark:text-white'}`}>
                                     {rentReviewDate ? new Date(rentReviewDate).toLocaleDateString('en-GB') : 'Not Set'}
                                 </p>
-                                {isReviewUpcoming && <p className="text-[10px] text-amber-500 font-black animate-pulse uppercase mt-0.5">Review Due</p>}
+                                {isReviewUpcoming && <p className="text-2xs text-amber-500 font-black animate-pulse uppercase mt-0.5">Review Due</p>}
                             </div>
                         </div>
                     </>
@@ -465,7 +465,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <CurrencyDollarIcon className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Target Price</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Target Price</p>
                                 <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     <NairaSymbol />{formatNaira(property.saleDetails?.targetPrice || property.value || 0)}
                                 </p>
@@ -476,7 +476,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                 <CalendarIcon className="w-5 h-5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Listing Age</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Listing Age</p>
                                 <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5 truncate">
                                     {property.saleDetails?.listingDate ? `${Math.ceil((new Date().getTime() - new Date(property.saleDetails.listingDate).getTime()) / (1000 * 3600 * 24))} Days` : 'N/A'}
                                 </p>
@@ -491,7 +491,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                         <WrenchIcon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Maintenance</p>
+                        <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Maintenance</p>
                         <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-0.5">
                             {activeMaintenanceCount} {activeMaintenanceCount === 1 ? 'Task' : 'Tasks'}
                         </p>
@@ -552,7 +552,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                         <div className="flex-1 bg-slate-50 dark:bg-zinc-900/40 p-3 rounded-lg border border-slate-100 dark:border-zinc-800 shadow-sm transition-all hover:border-slate-300 dark:hover:border-zinc-600">
                                             <div className="flex items-center justify-between gap-2 mb-1">
                                                 <span className="font-bold text-xs text-slate-800 dark:text-zinc-100 capitalize">{event.type.replace('_', ' ')}</span>
-                                                <time className="font-mono text-[10px] uppercase font-bold text-slate-400">{event.date}</time>
+                                                <time className="font-mono text-2xs uppercase font-bold text-slate-400">{event.date}</time>
                                             </div>
                                             <p className="text-xs text-slate-500 dark:text-zinc-400 leading-tight">{event.description}</p>
                                             {event.amount && <p className="mt-1.5 text-xs font-black text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(event.amount)}</p>}
@@ -636,15 +636,15 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                     return (
                                         <div key={stage.id} className="space-y-3">
                                             <div className={`px-3 py-2 rounded-lg border ${stage.color} flex items-center justify-between`}>
-                                                <span className="text-[10px] font-black uppercase tracking-widest">{stage.label}</span>
-                                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/50 dark:bg-black/20">{items.length}</span>
+                                                <span className="text-2xs font-black uppercase tracking-widest">{stage.label}</span>
+                                                <span className="text-2xs font-bold px-1.5 py-0.5 rounded-md bg-white/50 dark:bg-black/20">{items.length}</span>
                                             </div>
 
                                             <div className="space-y-3">
                                                 {items.map(record => (
                                                     <div key={record.id} className="group p-3 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm hover:border-primary-500 transition-all">
                                                         <div className="flex justify-between items-start mb-2">
-                                                            <div className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter ${
+                                                            <div className={`px-1.5 py-0.5 rounded text-3xs font-black uppercase tracking-tighter ${
                                                                 record.priority === 'emergency' ? 'bg-red-500 text-white' :
                                                                 record.priority === 'high' ? 'bg-orange-500 text-white' :
                                                                 record.priority === 'medium' ? 'bg-blue-500 text-white' :
@@ -656,7 +656,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                                 {record.taskId && (
                                                                     <div className="w-2 h-2 rounded-full bg-blue-500" title="Task Linked" />
                                                                 )}
-                                                                <span className="text-[10px] font-bold text-slate-400">{record.date}</span>
+                                                                <span className="text-2xs font-bold text-slate-400">{record.date}</span>
                                                             </div>
                                                         </div>
                                                         
@@ -668,8 +668,8 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                                     <WrenchIcon className="w-3 h-3 text-slate-400" />
                                                                 </div>
                                                                 <div className="min-w-0">
-                                                                    <p className="text-[10px] font-bold text-slate-700 dark:text-zinc-300 truncate">{record.vendorName || 'No Vendor'}</p>
-                                                                    <p className="text-[9px] text-slate-400 truncate">{record.vendorPhone || 'No contact info'}</p>
+                                                                    <p className="text-2xs font-bold text-slate-700 dark:text-zinc-300 truncate">{record.vendorName || 'No Vendor'}</p>
+                                                                    <p className="text-3xs text-slate-400 truncate">{record.vendorPhone || 'No contact info'}</p>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -678,7 +678,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                                             {!record.taskId && stage.id !== 'fulfilled' && (
                                                                 <button 
                                                                     onClick={() => handleConvertToTask(record)}
-                                                                    className="text-[9px] font-bold text-blue-600 hover:underline"
+                                                                    className="text-3xs font-bold text-blue-600 hover:underline"
                                                                 >
                                                                     Convert to Task
                                                                 </button>
@@ -758,11 +758,11 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Period Start</label>
+                                            <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period Start</label>
                                             <input autoComplete="off" data-lpignore="true"  type="date" name="periodStart" defaultValue={nextRentDueDate || new Date().toISOString().split('T')[0]} className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-black text-primary-600 uppercase tracking-widest mb-1">Period End</label>
+                                            <label className="block text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">Period End</label>
                                             <input autoComplete="off" data-lpignore="true"  type="date" name="periodEnd" className="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800" required />
                                         </div>
                                     </div>

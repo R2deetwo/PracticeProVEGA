@@ -251,7 +251,7 @@ const RuleBuilder: React.FC<{
                     {actionType === 'send_whatsapp' && (
                         <>
                             <textarea value={whatsappMessage} onChange={e => setWhatsappMessage(e.target.value)} placeholder="WhatsApp Message" className={`${inputClass} h-24`} required />
-                            <p className="text-[10px] text-slate-500">Requires integrated WhatsApp Business API.</p>
+                            <p className="text-2xs text-slate-500">Requires integrated WhatsApp Business API.</p>
                         </>
                     )}
 

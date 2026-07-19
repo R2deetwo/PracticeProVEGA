@@ -221,7 +221,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
 
                     {/* Footer */}
                     <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
                             PracticePro {isVega ? 'VEGA • Professional Operations System' : 'ATRIUM • Property OS'} • Portal Terms of Use • Version 1.0 • April 2026
                         </p>
                     </div>

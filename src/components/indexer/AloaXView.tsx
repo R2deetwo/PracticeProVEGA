@@ -238,10 +238,10 @@ const StepIndicator: React.FC<{ status: string; currentChunk?: number; totalChun
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500 ${done ? 'bg-emerald-500 text-white' : active ? 'bg-indigo-600 text-white ring-4 ring-indigo-200 dark:ring-indigo-900 animate-pulse' : 'bg-slate-200 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500'}`}>
                 {done ? '✓' : i + 1}
               </div>
-              <span className={`mt-1 text-[10px] font-medium whitespace-nowrap ${active ? 'text-indigo-600 dark:text-indigo-400' : done ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'}`}>
+              <span className={`mt-1 text-2xs font-medium whitespace-nowrap ${active ? 'text-indigo-600 dark:text-indigo-400' : done ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-500'}`}>
                 {step}
                 {step === 'Extract' && active && currentChunk !== undefined && totalChunks !== undefined && (
-                  <span className="block text-[9px]">{currentChunk + 1}/{totalChunks}</span>
+                  <span className="block text-3xs">{currentChunk + 1}/{totalChunks}</span>
                 )}
               </span>
             </div>
@@ -267,7 +267,7 @@ const TreeNode: React.FC<{ node: ContentNode; onCopy: (txt: string, id: string) 
             <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">{node.title}</span>
           </div>
           <button onClick={() => onCopy(node.full_text || node.title, node.identifier)} 
-            className="text-[10px] bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/item:opacity-100 transition-opacity">
+            className="text-2xs bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/item:opacity-100 transition-opacity">
             {copied === node.identifier ? '✓ Copied' : 'Copy'}
           </button>
         </div>
@@ -286,7 +286,7 @@ const TreeNode: React.FC<{ node: ContentNode; onCopy: (txt: string, id: string) 
         <div className="w-4 h-4 flex items-center justify-center text-slate-400 dark:text-zinc-500 group-open/tree:rotate-90 transition-transform">
           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
         </div>
-        <span className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{node.type} {node.identifier}</span>
+        <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{node.type} {node.identifier}</span>
         <span className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{node.title}</span>
       </summary>
       <div className="ml-4 pl-2 border-l border-slate-200 dark:border-zinc-700 space-y-1 mt-1 pb-1">
@@ -407,7 +407,7 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                                     <span className="text-sm font-semibold text-slate-800 dark:text-zinc-200">{rule.title}</span>
                                   </div>
                                   <button onClick={() => handleCopy(rule.content || `${order.number} Rule ${rule.number}: ${rule.title}`, `r-${order.number}-${rule.number}`)} 
-                                    className="text-[10px] bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/rule:opacity-100 transition-opacity">
+                                    className="text-2xs bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/rule:opacity-100 transition-opacity">
                                     {copied === `r-${order.number}-${rule.number}` ? '✓ Copied' : 'Copy'}
                                   </button>
                                 </div>
@@ -448,10 +448,10 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                                   <div className="min-w-0 flex-1 pr-3">
                                     <span className="text-xs font-bold text-blue-600 dark:text-blue-400 mr-2">Section {section.number}</span>
                                     <span className={`text-sm font-semibold text-slate-800 dark:text-zinc-200 ${section.repealed ? 'line-through' : ''}`}>{section.title}</span>
-                                    {section.repealed && <span className="ml-2 text-[10px] font-bold text-red-500 uppercase">Repealed</span>}
+                                    {section.repealed && <span className="ml-2 text-2xs font-bold text-red-500 uppercase">Repealed</span>}
                                   </div>
                                   <button onClick={() => handleCopy(section.content || `Section ${section.number}: ${section.title}`, `s-${section.number}`)} 
-                                    className="text-[10px] bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/sec:opacity-100 transition-opacity">
+                                    className="text-2xs bg-slate-100 dark:bg-zinc-700 px-2 py-0.5 rounded text-slate-500 hover:text-indigo-600 opacity-0 group-hover/sec:opacity-100 transition-opacity">
                                     {copied === `s-${section.number}` ? '✓ Copied' : 'Copy'}
                                   </button>
                                 </div>
@@ -503,15 +503,15 @@ const DocumentViewer: React.FC<{ doc: IndexedDocument | StoredDoc }> = ({ doc })
                   <div key={item.id} className={`group flex flex-col p-3 rounded-lg border transition-all duration-150 ${item.repealed ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 opacity-60' : 'bg-slate-50 dark:bg-zinc-800/50 border-slate-100 dark:border-zinc-700/50 hover:bg-white dark:hover:bg-zinc-800 hover:shadow-sm'}`}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`flex-shrink-0 text-[10px] font-black px-2 py-0.5 rounded-md ${typeColor[item.type] ?? ''}`}>{typeLabel[item.type] ?? item.type}</span>
+                        <span className={`flex-shrink-0 text-2xs font-black px-2 py-0.5 rounded-md ${typeColor[item.type] ?? ''}`}>{typeLabel[item.type] ?? item.type}</span>
                         <div className="min-w-0">
                           <p className={`text-sm font-bold text-slate-800 dark:text-zinc-100 truncate ${item.repealed ? 'line-through text-slate-400' : ''}`}>{item.citation || item.label}</p>
                           <p className={`text-xs text-slate-900 dark:text-zinc-200 font-medium ${item.repealed ? 'line-through text-slate-400' : ''}`}>{item.text.replace(item.citation || '', '').trim()}</p>
-                          {item.parentLabel && <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-tighter">{item.parentLabel}</p>}
+                          {item.parentLabel && <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-tighter">{item.parentLabel}</p>}
                         </div>
                       </div>
                       <button onClick={() => handleCopy(item.text, item.id)}
-                        className="flex-shrink-0 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:border-indigo-500 hover:text-indigo-600 transition-all">
+                        className="flex-shrink-0 bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:border-indigo-500 hover:text-indigo-600 transition-all">
                         {copied === item.id ? '✓ Copied' : 'Copy'}
                       </button>
                     </div>
@@ -857,9 +857,9 @@ export const AloaXView: React.FC = () => {
                             <p className={`text-sm font-semibold truncate ${isSelected ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-zinc-100'}`}>{doc.fileName.replace(/\.pdf$/i, '')}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <DocTypeBadge type={docType} />
-                              <span className="text-[10px] text-slate-400 dark:text-zinc-500">{doc.totalPages}pp</span>
+                              <span className="text-2xs text-slate-400 dark:text-zinc-500">{doc.totalPages}pp</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">{formatDate(doc.processedAt)}</p>
+                            <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">{formatDate(doc.processedAt)}</p>
                           </div>
                         </div>
                       </button>
@@ -898,7 +898,7 @@ export const AloaXView: React.FC = () => {
                 {progress.currentChunk !== undefined && progress.totalChunks !== undefined && (
                   <div className="text-right">
                     <div className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{progress.currentChunk + 1}<span className="text-sm font-medium text-slate-400">/{progress.totalChunks}</span></div>
-                    <p className="text-[10px] text-slate-400 dark:text-zinc-500">chunks</p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500">chunks</p>
                   </div>
                 )}
               </div>
@@ -912,7 +912,7 @@ export const AloaXView: React.FC = () => {
                   <div className="w-full h-2.5 bg-slate-100 dark:bg-zinc-700 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${progress.percentComplete}%` }} />
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 dark:text-zinc-500 mt-1">
+                  <div className="flex justify-between text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                     <span>Page {progress.currentPage} of {progress.totalPages}</span>
                   </div>
                 </div>
@@ -926,7 +926,7 @@ export const AloaXView: React.FC = () => {
                       const active = i === progress.currentChunk;
                       return (
                         <div key={i} title={`Pages ${i * 15 + 1}–${Math.min((i + 1) * 15, progress.totalPages)}`}
-                          className={`w-6 h-6 rounded-md text-[9px] font-bold flex items-center justify-center transition-all ${done ? 'bg-emerald-500 text-white' : active ? 'bg-indigo-600 text-white animate-pulse ring-2 ring-indigo-300' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400'}`}>
+                          className={`w-6 h-6 rounded-md text-3xs font-bold flex items-center justify-center transition-all ${done ? 'bg-emerald-500 text-white' : active ? 'bg-indigo-600 text-white animate-pulse ring-2 ring-indigo-300' : 'bg-slate-100 dark:bg-zinc-700 text-slate-400'}`}>
                           {done ? '✓' : i + 1}
                         </div>
                       );

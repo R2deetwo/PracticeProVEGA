@@ -268,7 +268,7 @@ const Header: React.FC = React.memo(() => {
                     >
                         <SearchIcon className="w-3.5 h-3.5 mr-2" />
                         <span className="flex-grow text-left">Search...</span>
-                        <kbd className="hidden sm:inline-block px-1.5 text-[10px] font-semibold bg-slate-200 dark:bg-zinc-600 rounded">⌘K</kbd>
+                        <kbd className="hidden sm:inline-block px-1.5 text-2xs font-semibold bg-slate-200 dark:bg-zinc-600 rounded">⌘K</kbd>
                     </button>
                 </div>
 
@@ -337,10 +337,10 @@ const Header: React.FC = React.memo(() => {
                             <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 dark:text-white">Notifications</h3>
-                                    {unreadCount > 0 && <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount} new</span>}
+                                    {unreadCount > 0 && <span className="bg-red-100 text-red-600 text-2xs font-bold px-1.5 py-0.5 rounded-full">{unreadCount} new</span>}
                                 </div>
                                 <div className="flex gap-3 items-center">
-                                    <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !n.isRead).map(n => n.id))} className="text-[10px] font-bold text-primary-600 hover:underline">Mark all read</button>
+                                    <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !n.isRead).map(n => n.id))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>
@@ -368,7 +368,7 @@ const Header: React.FC = React.memo(() => {
                                                         }}
                                                     >
                                                         <p className={`text-sm leading-snug mb-1 ${!notification.isRead ? 'font-bold text-slate-900 dark:text-white' : 'text-slate-600 dark:text-zinc-300'}`}>{notification.message}</p>
-                                                        <p className="text-[10px] font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
+                                                        <p className="text-2xs font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
                                                     </div>
                                                     <button
                                                         onClick={(e) => {
@@ -406,7 +406,7 @@ const Header: React.FC = React.memo(() => {
                 <div className="relative flex items-center gap-3 pl-3 border-l border-slate-200 dark:border-zinc-700" ref={userMenuRef}>
                     <div className="hidden lg:block text-right">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{displayUserName}</p>
-                        <p className="text-[10px] text-slate-500 dark:text-zinc-500 uppercase">{currentUser.role}</p>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-500 uppercase">{currentUser.role}</p>
                     </div>
                     <button
                         onClick={toggleUserMenu}

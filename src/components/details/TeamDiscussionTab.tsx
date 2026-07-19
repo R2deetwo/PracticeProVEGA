@@ -67,7 +67,7 @@ const EndorsementTimelineItem: React.FC<{
                                     {author?.name || 'System'}
                                 </span>
                             </div>
-                            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">
+                            <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
                                 {new Date(note.createdAt || '').toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                             </span>
                         </div>

@@ -83,7 +83,7 @@ const VersionRefreshBanner: React.FC = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold leading-tight">A new version is available.</p>
-            <p className="text-[11px] text-emerald-100 leading-tight mt-0.5">
+            <p className="text-2xs text-emerald-100 leading-tight mt-0.5">
               Refresh to get the latest updates.
             </p>
           </div>

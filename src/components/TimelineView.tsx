@@ -198,7 +198,7 @@ const TimelineView: React.FC = () => {
                                     <React.Fragment key={type}>
                                         {/* Group Header Row */}
                                         <div className="sticky left-0 z-10 w-full flex bg-slate-100/80 dark:bg-zinc-800/90 border-b border-slate-200 dark:border-zinc-800 backdrop-blur-sm">
-                                            <div style={{ width: SIDEBAR_WIDTH }} className="px-4 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate border-r border-slate-200 dark:border-zinc-800">
+                                            <div style={{ width: SIDEBAR_WIDTH }} className="px-4 py-1.5 text-2xs font-bold text-slate-500 uppercase tracking-wider truncate border-r border-slate-200 dark:border-zinc-800">
                                                 {type} ({typeMatters.length})
                                             </div>
                                             <div className="flex-grow"></div> {/* Filler for timeline part */}
@@ -230,8 +230,8 @@ const TimelineView: React.FC = () => {
                                                     >
                                                         <div className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate group-hover:text-primary-600 transition-colors">{matter.title}</div>
                                                         <div className="flex justify-between items-center mt-0.5">
-                                                            <div className="text-[10px] text-slate-400 truncate max-w-[60%]">{clientName}</div>
-                                                            <div className="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-slate-500 dark:text-zinc-500">{matter.stage}</div>
+                                                            <div className="text-2xs text-slate-400 truncate max-w-[60%]">{clientName}</div>
+                                                            <div className="text-3xs px-1.5 py-0.5 bg-slate-100 dark:bg-zinc-800 rounded text-slate-500 dark:text-zinc-500">{matter.stage}</div>
                                                         </div>
                                                     </div>
 
@@ -249,7 +249,7 @@ const TimelineView: React.FC = () => {
                                                             className="absolute top-1/2 -translate-y-1/2 h-5 rounded bg-blue-200/60 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-800/50 flex items-center px-2 overflow-hidden transition-all hover:h-6 hover:bg-blue-300/60"
                                                             style={{ left: barStartX, width: barWidth }}
                                                         >
-                                                            <span className="text-[9px] font-bold text-blue-800 dark:text-blue-200 whitespace-nowrap opacity-75">{matter.stage}</span>
+                                                            <span className="text-3xs font-bold text-blue-800 dark:text-blue-200 whitespace-nowrap opacity-75">{matter.stage}</span>
                                                         </div>
 
                                                         {/* Event Markers */}

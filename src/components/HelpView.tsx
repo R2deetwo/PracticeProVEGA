@@ -274,7 +274,7 @@ const HelpView: React.FC = () => {
                                         <li><strong>Contacts:</strong> Universal across all products — manages {hasLegalFeatures ? ' clients, opposing counsel' : ''}{hasPropertyFeatures ? ' landlords, residents, vendors' : ''} and team members.</li>
                                         <li><strong>Tasks:</strong> Assign, track, and complete tasks on a drag-and-drop board.</li>
                                         <li><strong>Documents:</strong> Upload, organize, and {hasLegalFeatures ? 'analyze' : 'manage'} documents. Link to {hasLegalFeatures && hasPropertyFeatures ? 'matters or properties' : isProperty ? 'properties' : 'matters'}.</li>
-                                        <li><strong>Research Studio <span className="text-[9px] px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> AI-powered workspace for {isProperty ? 'analyzing property documents and generating reports' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
+                                        <li><strong>Research Studio <span className="text-3xs px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> AI-powered workspace for {isProperty ? 'analyzing property documents and generating reports' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
                                         <li><strong>Calendar:</strong> {isProperty ? 'Track inspections, rent reviews, and meetings' : 'Track court dates, filing deadlines, and client meetings'}. Includes property events for Komplete firms.</li>
                                         <li><strong>Messaging:</strong> Unified inbox for team chat, WhatsApp/email from residents, and notices.</li>
                                         <li><strong>DraftPro:</strong> Built-in document editor with AI drafting, watermarks, and formatting tools.</li>
@@ -406,7 +406,7 @@ const HelpView: React.FC = () => {
                             title={
                                 <div className="flex items-center gap-2">
                                     DraftPro Document Editor
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-[9px] text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-3xs text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
                                 </div>
                             }
                             isOpen={isSectionOpen('draftpro-editor')}
@@ -767,21 +767,21 @@ const HelpView: React.FC = () => {
                                     <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-3">Core Workflows</h4>
                                     <div className="space-y-3">
                                         <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg">
-                                            <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center text-blue-600 dark:text-blue-400 text-[10px] font-bold shrink-0">01</div>
+                                            <div className="w-6 h-6 bg-blue-100 dark:bg-blue-900/30 rounded flex items-center justify-center text-blue-600 dark:text-blue-400 text-2xs font-bold shrink-0">01</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">Rent Synchronization</strong>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">Link resident payments to bank statements. The engine automatically reconciles deposits and marks periods as 'Paid' or 'Defaulted'.</p>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg">
-                                            <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-[10px] font-bold shrink-0">02</div>
+                                            <div className="w-6 h-6 bg-emerald-100 dark:bg-emerald-900/30 rounded flex items-center justify-center text-emerald-600 dark:text-emerald-400 text-2xs font-bold shrink-0">02</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">SCE Tracking (Service Charge Equivalent)</strong>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">Break down maintenance and utility costs into the SCE framework. This allows you to justify resident contributions based on real-time operational expenses like security and cleaning.</p>
                                             </div>
                                         </div>
                                         <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg">
-                                            <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center text-purple-600 dark:text-purple-400 text-[10px] font-bold shrink-0">03</div>
+                                            <div className="w-6 h-6 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center text-purple-600 dark:text-purple-400 text-2xs font-bold shrink-0">03</div>
                                             <div>
                                                 <strong className="block text-sm text-slate-900 dark:text-zinc-100">Automated Bridge</strong>
                                                 <p className="text-xs text-slate-500 dark:text-zinc-400">Connect the engine to WhatsApp and SMS. The Atrium Bridge sends rent reminders before due dates and escalating late notices if the grace period expires.</p>
@@ -1051,7 +1051,7 @@ const HelpView: React.FC = () => {
                                     <div className="text-left flex-1">
                                         <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                             Ask {assistantName} about "{searchQuery}"
-                                            <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">AI Help</span>
+                                            <span className="text-3xs uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded">AI Help</span>
                                         </p>
                                         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                             Get a personalized answer from the AI assistant — it knows every feature in PracticePro.

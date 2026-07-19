@@ -454,11 +454,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                         Return to Admin Session
                     </button>
                     {originalUser ? (
-                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-4">
                             You'll be returned to <strong>{originalUser.email}</strong> ({originalUser.role}).
                         </p>
                     ) : (
-                        <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-4">
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-4">
                             Restoring your admin session… (if this takes more than a few seconds, refresh the page)
                         </p>
                     )}
@@ -1206,7 +1206,7 @@ export const App: React.FC = () => {
                         </div>
 
                         <div className="mt-10 pt-8 border-t border-slate-50 dark:border-zinc-800 w-full">
-                            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Account Reference</p>
+                            <p className="text-2xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-widest mb-1">Account Reference</p>
                             <p className="text-xs font-mono text-slate-300 dark:text-zinc-700">{currentUser.id}</p>
                         </div>
                     </div>

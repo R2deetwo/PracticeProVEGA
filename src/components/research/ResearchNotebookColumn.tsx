@@ -56,7 +56,7 @@ export const ResearchNotebookColumn: React.FC<ResearchNotebookColumnProps> = ({ 
                                         <div className="min-w-0">
                                             <p className={`font-semibold text-sm truncate ${isSelected ? 'text-primary-900 dark:text-primary-100' : 'text-slate-700 dark:text-zinc-300'}`}>{nb.name}</p>
                                             {matter && (
-                                                <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-wide">{matter.title}</p>
+                                                <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate mt-0.5 uppercase tracking-wide">{matter.title}</p>
                                             )}
                                         </div>
                                     </button>

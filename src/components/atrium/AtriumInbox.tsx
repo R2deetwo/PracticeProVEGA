@@ -236,7 +236,7 @@ export const AtriumInbox: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">WhatsApp & Email</h2>
-                        <p className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-medium">Residents' Messages & Reminders</p>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 uppercase tracking-widest font-medium">Residents' Messages & Reminders</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -277,7 +277,7 @@ export const AtriumInbox: React.FC = () => {
                     <EnvelopeIcon className="w-3.5 h-3.5" />
                     Inbox
                     {messages.filter(m => !m.isRead).length > 0 && (
-                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">
+                        <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-600 text-white">
                             {messages.filter(m => !m.isRead).length}
                         </span>
                     )}
@@ -293,7 +293,7 @@ export const AtriumInbox: React.FC = () => {
                     <ClockIcon className="w-3.5 h-3.5" />
                     Audit Trail
                     {automationLogs.length > 0 && (
-                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-300">
+                        <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-slate-700 text-slate-300">
                             {automationLogs.length}
                         </span>
                     )}
@@ -326,11 +326,11 @@ export const AtriumInbox: React.FC = () => {
                                                 {msg.senderName || msg.senderContact}
                                             </h4>
                                         </div>
-                                        <span className="text-[10px] text-slate-500 font-medium">
+                                        <span className="text-2xs text-slate-500 font-medium">
                                             {msg.receivedAt ? new Date(msg.receivedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-1.5 text-[10px] mb-2 font-bold tracking-tight">
+                                    <div className="flex items-center gap-1.5 text-2xs mb-2 font-bold tracking-tight">
                                         <span className={`px-1.5 py-0.5 rounded uppercase ${CHANNEL_COLORS[msg.channel as AutomationChannel]}`}>
                                             {msg.channel}
                                         </span>
@@ -350,7 +350,7 @@ export const AtriumInbox: React.FC = () => {
                                     {msg.aiAnalysis && (
                                         <div className="mt-2 flex items-center gap-1">
                                             <SparklesIcon className="w-3 h-3 text-emerald-400" />
-                                            <span className="text-[9px] font-black tracking-widest uppercase text-emerald-400/80">
+                                            <span className="text-3xs font-black tracking-widest uppercase text-emerald-400/80">
                                                 {msg.aiAnalysis?.intent?.replace(/_/g, ' ') || 'ANALYZED'}
                                             </span>
                                         </div>
@@ -371,7 +371,7 @@ export const AtriumInbox: React.FC = () => {
                                     </button>
                                     <div className="flex-1 min-w-0">
                                         <h3 className="text-sm font-bold text-slate-900 dark:text-white">{selectedMessage.senderName || selectedMessage.senderContact}</h3>
-                                        <p className="text-[10px] text-slate-500">{selectedMessage.senderContact}</p>
+                                        <p className="text-2xs text-slate-500">{selectedMessage.senderContact}</p>
                                     </div>
                                     <button
                                         onClick={() => handlePrintForTenant(
@@ -391,10 +391,10 @@ export const AtriumInbox: React.FC = () => {
                                         <div className="flex justify-start mb-6">
                                             <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%] relative group">
                                                 <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
-                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                    <span className="text-2xs font-black text-slate-500 uppercase tracking-widest">
                                                         {selectedMessage.senderName || 'Tenant'}
                                                     </span>
-                                                    <span className="text-[10px] text-slate-600">
+                                                    <span className="text-2xs text-slate-600">
                                                         {selectedMessage.receivedAt ? new Date(selectedMessage.receivedAt).toLocaleString() : ''}
                                                     </span>
                                                 </div>
@@ -427,7 +427,7 @@ export const AtriumInbox: React.FC = () => {
                                                     <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg">
                                                         <SparklesIcon className="w-3.5 h-3.5" />
                                                     </div>
-                                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-emerald-400">ARIA Suggested Reply</h4>
+                                                    <h4 className="text-2xs font-black uppercase tracking-widest text-emerald-400">ARIA Suggested Reply</h4>
                                                 </div>
                                                 <p className="text-sm text-slate-300 mb-4 italic leading-relaxed">
                                                     "{selectedMessage.aiAnalysis.suggestedReply}"
@@ -476,7 +476,7 @@ export const AtriumInbox: React.FC = () => {
                                             <PaperAirplaneIcon className={`w-5 h-5 ${isSending ? 'animate-pulse' : ''}`} />
                                         </button>
                                     </div>
-                                    <p className="text-[9px] text-center text-slate-600 mt-3 uppercase tracking-widest font-black">
+                                    <p className="text-3xs text-center text-slate-600 mt-3 uppercase tracking-widest font-black">
                                         {integrationStatus === 'connected' 
                                             ? `Sending via ${selectedMessage.channel} · ${selectedMessage.senderContact}`
                                             : `Reply via ${selectedMessage.channel} · Offline — replies saved locally`
@@ -519,7 +519,7 @@ export const AtriumInbox: React.FC = () => {
                                     )}
                                     <ChevronDownIcon className={`w-3 h-3 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                                 </button>
-                                <span className="text-[10px] text-slate-500 font-medium">
+                                <span className="text-2xs text-slate-500 font-medium">
                                     {auditTrail.length} {auditTrail.length === 1 ? 'entry' : 'entries'}
                                 </span>
                             </div>
@@ -535,7 +535,7 @@ export const AtriumInbox: React.FC = () => {
                         {showFilters && (
                             <div className="px-4 sm:px-6 pb-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div>
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-1 block">Channel</label>
+                                    <label className="text-3xs text-slate-500 uppercase tracking-widest font-bold mb-1 block">Channel</label>
                                     <select
                                         value={auditFilters.channel}
                                         onChange={e => setAuditFilters(f => ({ ...f, channel: e.target.value }))}
@@ -549,7 +549,7 @@ export const AtriumInbox: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-1 block">Message Type</label>
+                                    <label className="text-3xs text-slate-500 uppercase tracking-widest font-bold mb-1 block">Message Type</label>
                                     <select
                                         value={auditFilters.messageType}
                                         onChange={e => setAuditFilters(f => ({ ...f, messageType: e.target.value }))}
@@ -567,7 +567,7 @@ export const AtriumInbox: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-1 block">From Date</label>
+                                    <label className="text-3xs text-slate-500 uppercase tracking-widest font-bold mb-1 block">From Date</label>
                                     <input
                                         type="date"
                                         value={auditFilters.startDate}
@@ -576,7 +576,7 @@ export const AtriumInbox: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] text-slate-500 uppercase tracking-widest font-bold mb-1 block">To Date</label>
+                                    <label className="text-3xs text-slate-500 uppercase tracking-widest font-bold mb-1 block">To Date</label>
                                     <input
                                         type="date"
                                         value={auditFilters.endDate}
@@ -588,7 +588,7 @@ export const AtriumInbox: React.FC = () => {
                                     <div className="col-span-2 sm:col-span-4 flex justify-end">
                                         <button
                                             onClick={() => setAuditFilters({ channel: '', messageType: '', startDate: '', endDate: '' })}
-                                            className="text-[10px] text-slate-400 hover:text-white font-bold uppercase tracking-wider transition-colors"
+                                            className="text-2xs text-slate-400 hover:text-white font-bold uppercase tracking-wider transition-colors"
                                         >
                                             Clear Filters
                                         </button>
@@ -624,7 +624,7 @@ export const AtriumInbox: React.FC = () => {
                                             {showDateHeader && (
                                                 <div className="flex items-center gap-3 py-3">
                                                     <div className="h-px flex-1 bg-slate-800" />
-                                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{dateStr}</span>
+                                                    <span className="text-2xs font-bold text-slate-500 uppercase tracking-widest">{dateStr}</span>
                                                     <div className="h-px flex-1 bg-slate-800" />
                                                 </div>
                                             )}
@@ -651,25 +651,25 @@ export const AtriumInbox: React.FC = () => {
                                                 {/* Content */}
                                                 <div className="flex-1 min-w-0 bg-slate-900/50 rounded-xl border border-slate-800/50 p-3 group-hover:border-slate-700 transition-colors">
                                                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                                                        <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                                        <span className={`text-3xs font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
                                                             isOutbound
                                                                 ? 'bg-emerald-900/40 text-emerald-400'
                                                                 : 'bg-blue-900/40 text-blue-400'
                                                         }`}>
                                                             {isOutbound ? 'Sent' : 'Received'}
                                                         </span>
-                                                        <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                                                        <span className={`text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                                                             CHANNEL_COLORS[entry.channel as AutomationChannel] || 'text-slate-400 bg-slate-800'
                                                         }`}>
                                                             {CHANNEL_LABELS[entry.channel] || entry.channel}
                                                         </span>
                                                         {entry.messageType && entry.messageType !== 'custom' && (
-                                                            <span className="text-[9px] text-slate-500 font-medium">
+                                                            <span className="text-3xs text-slate-500 font-medium">
                                                                 {formatMessageType(entry.messageType)}
                                                             </span>
                                                         )}
                                                         {entry.status && isOutbound && (
-                                                            <span className={`text-[9px] font-bold ${
+                                                            <span className={`text-3xs font-bold ${
                                                                 entry.status === 'sent' ? 'text-emerald-500' :
                                                                 entry.status === 'failed' ? 'text-rose-500' :
                                                                 'text-amber-500'
@@ -677,12 +677,12 @@ export const AtriumInbox: React.FC = () => {
                                                                 [{entry.status}]
                                                             </span>
                                                         )}
-                                                        <span className="text-[10px] text-slate-600 ml-auto">{timeStr}</span>
+                                                        <span className="text-2xs text-slate-600 ml-auto">{timeStr}</span>
                                                     </div>
                                                     <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap line-clamp-3">
                                                         {entry.content}
                                                     </p>
-                                                    <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-500">
+                                                    <div className="flex items-center gap-3 mt-2 text-2xs text-slate-500">
                                                         {isOutbound && entry.recipient && (
                                                             <span>To: {entry.recipient}</span>
                                                         )}
@@ -703,7 +703,7 @@ export const AtriumInbox: React.FC = () => {
                                                             entry.senderName || undefined,
                                                             entry.unitId || undefined
                                                         )}
-                                                        className="opacity-0 group-hover:opacity-100 mt-2 text-[10px] text-slate-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition-all"
+                                                        className="opacity-0 group-hover:opacity-100 mt-2 text-2xs text-slate-500 hover:text-emerald-400 font-bold flex items-center gap-1 transition-all"
                                                     >
                                                         <PrinterIcon className="w-3 h-3" /> Print this conversation
                                                     </button>

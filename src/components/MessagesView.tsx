@@ -324,10 +324,10 @@ const ChatWindow: React.FC<{
                                 <div className="flex flex-col max-w-[85%] relative">
                                     {/* Sender label + timestamp — shown for both sides */}
                                     <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500">
+                                        <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
                                             {isMe ? 'You' : (author?.name || 'Unknown')}
                                         </span>
-                                        <span className="text-[10px] text-slate-300 dark:text-zinc-600">
+                                        <span className="text-2xs text-slate-300 dark:text-zinc-600">
                                             {msg.timestamp ? timeAgo(msg.timestamp) : ''}
                                         </span>
                                     </div>
@@ -346,7 +346,7 @@ const ChatWindow: React.FC<{
                                             <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>
                                         )}
                                         {isFailed && (
-                                            <button onClick={() => onRetry(msg.id)} className="text-[10px] text-red-400 hover:text-red-300 font-bold ml-2">
+                                            <button onClick={() => onRetry(msg.id)} className="text-2xs text-red-400 hover:text-red-300 font-bold ml-2">
                                                 Retry
                                             </button>
                                         )}
@@ -406,7 +406,7 @@ const MessageContent: React.FC<{ content: string; isAdmin: boolean }> = ({ conte
             {isLong && (
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className={`text-[10px] font-bold mt-0.5 transition-colors ${isAdmin ? 'text-primary-200 hover:text-primary-100' : 'text-primary-600 hover:text-primary-500'}`}
+                    className={`text-2xs font-bold mt-0.5 transition-colors ${isAdmin ? 'text-primary-200 hover:text-primary-100' : 'text-primary-600 hover:text-primary-500'}`}
                 >
                     {expanded ? '▲ Show less' : '▼ See more'}
                 </button>
@@ -473,7 +473,7 @@ const InlineTicketReply: React.FC<{
                     <svg className="w-3.5 h-3.5 text-primary-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                     </svg>
-                    <span className="text-[11px] font-bold text-slate-500 dark:text-zinc-400">
+                    <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400">
                         Replying to this ticket thread
                     </span>
                 </div>
@@ -492,21 +492,21 @@ const InlineTicketReply: React.FC<{
                     className="w-full block box-border bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-base text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none"
                 />
                 <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-2xs text-slate-400">
                         ⌘+Enter to send
                     </span>
                     <div className="flex gap-1.5">
                         <button
                             onClick={onCancel}
                             disabled={sending}
-                            className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
+                            className="px-2.5 py-1 text-2xs font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                         >
                             Cancel
                         </button>
                         <button
                             onClick={handleSend}
                             disabled={!text.trim() || sending}
-                            className="px-3 py-1 text-[11px] font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-600 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+                            className="px-3 py-1 text-2xs font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-600 rounded-lg shadow-sm transition-colors flex items-center gap-1"
                         >
                             {sending ? (
                                 <>
@@ -1206,7 +1206,7 @@ const MessagesView: React.FC = () => {
                         </svg>
                         <span className="hidden sm:inline">Conversations</span>
                         {totalInboxUnread > 0 && (
-                            <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                            <span className="min-w-[18px] h-[18px] bg-red-600 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {totalInboxUnread > 9 ? '9+' : totalInboxUnread}
                             </span>
                         )}
@@ -1233,7 +1233,7 @@ const MessagesView: React.FC = () => {
                         <BellIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">Notices</span>
                         {activeNoticesCount > 0 && (
-                            <span className="min-w-[18px] h-[18px] bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                            <span className="min-w-[18px] h-[18px] bg-amber-500 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {activeNoticesCount > 9 ? '9+' : activeNoticesCount}
                             </span>
                         )}
@@ -1252,7 +1252,7 @@ const MessagesView: React.FC = () => {
                         <ClockIcon className="w-4 h-4" />
                         <span className="hidden sm:inline">Scheduled</span>
                         {pendingScheduled > 0 && (
-                            <span className="min-w-[18px] h-[18px] bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                            <span className="min-w-[18px] h-[18px] bg-amber-500 text-white text-2xs font-bold rounded-full flex items-center justify-center shadow-sm">
                                 {pendingScheduled > 9 ? '9+' : pendingScheduled}
                             </span>
                         )}
@@ -1352,7 +1352,7 @@ const MessagesView: React.FC = () => {
                                                     </svg>
                                                 )}
                                             </span>
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
+                                            <span className={`text-2xs font-bold px-1.5 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
                                                 {f.label}
                                             </span>
                                         </label>
@@ -1377,7 +1377,7 @@ const MessagesView: React.FC = () => {
                                             <button
                                                 key={r.role}
                                                 onClick={() => setRoleFilter(r.role)}
-                                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors ${
+                                                className={`px-2 py-0.5 rounded-full text-2xs font-bold transition-colors ${
                                                     roleFilter === r.role
                                                         ? 'bg-primary-600 text-white'
                                                         : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
@@ -1489,11 +1489,11 @@ const MessagesView: React.FC = () => {
                                                                 {msg.senderName || msg.senderContact}
                                                             </span>
                                                         </div>
-                                                        <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                                        <span className="text-2xs text-slate-400 flex-shrink-0">
                                                             {msg.receivedAt ? new Date(msg.receivedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-[10px] mb-1">
+                                                    <div className="flex items-center gap-1.5 text-2xs mb-1">
                                                         <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${CHANNEL_COLORS[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
                                                             {CHANNEL_LABELS[msg.channel] || msg.channel}
                                                         </span>
@@ -1556,11 +1556,11 @@ const MessagesView: React.FC = () => {
                                                                     {conv.participantName || 'Portal User'}
                                                                 </span>
                                                             </div>
-                                                            <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0">
                                                                 {conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
+                                                        <div className="flex items-center gap-1.5 text-2xs mb-1 flex-wrap">
                                                             {/* Primary type badge — color-coded by conversation kind */}
                                                             <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
                                                                 {typeStyle.label}
@@ -1598,7 +1598,7 @@ const MessagesView: React.FC = () => {
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-[200px]">Client Message</span>
-                                                            <span className="text-[10px] text-slate-400 flex-shrink-0">{msg.timestamp ? timeAgo(msg.timestamp) : ''}</span>
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0">{msg.timestamp ? timeAgo(msg.timestamp) : ''}</span>
                                                         </div>
                                                         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">{msg.content}</p>
                                                     </div>
@@ -1624,7 +1624,7 @@ const MessagesView: React.FC = () => {
                                             </div>
                                             <div className="min-w-0 flex-1">
                                                 <h3 className="font-bold text-slate-900 dark:text-white text-sm truncate">{selectedInboundMsg.senderName || selectedInboundMsg.senderContact}</h3>
-                                                <div className="flex items-center gap-1.5 text-[10px] flex-wrap mt-0.5">
+                                                <div className="flex items-center gap-1.5 text-2xs flex-wrap mt-0.5">
                                                     <span className={`px-1.5 py-0.5 rounded uppercase font-bold flex-shrink-0 ${CHANNEL_COLORS[selectedInboundMsg.channel]}`}>
                                                         {CHANNEL_LABELS[selectedInboundMsg.channel] || selectedInboundMsg.channel}
                                                     </span>
@@ -1645,7 +1645,7 @@ const MessagesView: React.FC = () => {
                                         </div>
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             {selectedInboundMsg._inboxType === 'portal' && selectedInboundMsg.status === 'replied' && (
-                                                <span className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg">
+                                                <span className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-2xs font-bold rounded-lg">
                                                     <CheckIcon className="w-3 h-3" /> Replied
                                                 </span>
                                             )}
@@ -1704,7 +1704,7 @@ const MessagesView: React.FC = () => {
                                                                     {/* Ticket badge — only show if this message originated a ticket */}
                                                                     {(msg.linkedTicketId || msg.linkedRequestId) && (
                                                                         <div className="mb-1.5">
-                                                                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${msg.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
+                                                                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-bold ${msg.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
                                                                                 {msg.linkedTicketId ? '🔧' : '📋'} {msg.requestTypeLabel || (msg.linkedTicketId ? 'Ticket' : 'Request')}
                                                                             </span>
                                                                         </div>
@@ -1746,7 +1746,7 @@ const MessagesView: React.FC = () => {
                                                                                     <select
                                                                                         value={msgTicketRecord.status}
                                                                                         onChange={(e) => handleAdvanceTicket(msgTicketInfo, e.target.value as any)}
-                                                                                        className={`text-[11px] font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                        className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
                                                                                     >
                                                                                         <option value="open">🟡 Received</option>
                                                                                         <option value="in_progress">🔵 In Progress</option>
@@ -1760,7 +1760,7 @@ const MessagesView: React.FC = () => {
                                                                                             const user = coreState.users?.find((u: any) => u.id === e.target.value);
                                                                                             if (user) handleAssignTicket(msgTicketInfo, user.id, user.name || 'Team Member');
                                                                                         }}
-                                                                                        className={`text-[11px] font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
+                                                                                        className={`text-2xs font-bold px-2 py-1 rounded-lg border cursor-pointer ${isAdmin ? 'bg-primary-500/30 text-primary-100 border-primary-400' : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-600'} focus:ring-1 focus:ring-primary-500/30`}
                                                                                     >
                                                                                         <option value="">{msgTicketRecord.assignedTo ? '↻ Reassign' : '👤 Assign…'}</option>
                                                                                         {coreState.users
@@ -1772,7 +1772,7 @@ const MessagesView: React.FC = () => {
                                                                                     </select>
                                                                                 </div>
                                                                             ) : (
-                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
                                                                                     ✕ Cancelled
                                                                                 </span>
                                                                             )}
@@ -1790,7 +1790,7 @@ const MessagesView: React.FC = () => {
                                                                                 {threadReplies.map((reply: any) => {
                                                                                     const replyIsAdmin = reply.senderRole === 'Admin';
                                                                                     return (
-                                                                                        <div key={String(reply._id)} className={`text-[11px] leading-relaxed ${replyIsAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-400'}`}>
+                                                                                        <div key={String(reply._id)} className={`text-2xs leading-relaxed ${replyIsAdmin ? 'text-primary-100' : 'text-slate-600 dark:text-zinc-400'}`}>
                                                                                             <span className="font-bold">{replyIsAdmin ? 'You' : (reply.senderName || 'User')}:</span> {reply.content?.substring(0, 280)}
                                                                                             {reply.content && reply.content.length > 280 && '...'}
                                                                                         </div>
@@ -1823,7 +1823,7 @@ const MessagesView: React.FC = () => {
                                                                                     const ticketId = String(msgTicketId);
                                                                                     setActiveThreadTicketId(prev => prev === ticketId ? null : ticketId);
                                                                                 }}
-                                                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                                                                className={`text-2xs font-bold px-2 py-0.5 rounded-full transition-colors ${
                                                                                     isReplyingToThis
                                                                                         ? 'bg-emerald-500 text-white'
                                                                                         : isAdmin
@@ -1834,7 +1834,7 @@ const MessagesView: React.FC = () => {
                                                                                 {isReplyingToThis ? '✕ Cancel' : '↩ Reply'}
                                                                             </button>
                                                                         ) : <span />}
-                                                                        <span className={`text-[9px] flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                        <span className={`text-3xs flex-shrink-0 ${isAdmin ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                             {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                                             {isAdmin && (msg.isRead ? ' · ✓✓' : ' · ✓')}
                                                                         </span>
@@ -1884,8 +1884,8 @@ const MessagesView: React.FC = () => {
                                                     <div className="flex justify-start mb-4">
                                                         <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
                                                             <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-zinc-700">
-                                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{selectedInboundMsg.senderName || 'Sender'}</span>
-                                                                <span className="text-[10px] text-slate-400">{selectedInboundMsg.receivedAt ? new Date(selectedInboundMsg.receivedAt).toLocaleString() : ''}</span>
+                                                                <span className="text-2xs font-bold text-slate-500 uppercase tracking-widest">{selectedInboundMsg.senderName || 'Sender'}</span>
+                                                                <span className="text-2xs text-slate-400">{selectedInboundMsg.receivedAt ? new Date(selectedInboundMsg.receivedAt).toLocaleString() : ''}</span>
                                                             </div>
                                                             <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.content}</p>
                                                             {selectedInboundMsg.mediaUrl && (
@@ -1901,8 +1901,8 @@ const MessagesView: React.FC = () => {
                                                         <div className="flex justify-end mb-4">
                                                             <div className="bg-primary-600 text-white rounded-2xl rounded-tr-none px-5 py-4 shadow-sm max-w-[85%]">
                                                                 <div className="flex items-center justify-between mb-2 pb-2 border-b border-primary-500">
-                                                                    <span className="text-[10px] font-bold text-primary-200 uppercase tracking-widest">You</span>
-                                                                    <span className="text-[10px] text-primary-200">{selectedInboundMsg.repliedAt ? new Date(selectedInboundMsg.repliedAt).toLocaleString() : ''}</span>
+                                                                    <span className="text-2xs font-bold text-primary-200 uppercase tracking-widest">You</span>
+                                                                    <span className="text-2xs text-primary-200">{selectedInboundMsg.repliedAt ? new Date(selectedInboundMsg.repliedAt).toLocaleString() : ''}</span>
                                                                 </div>
                                                                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedInboundMsg.replyContent}</p>
                                                             </div>
@@ -1916,7 +1916,7 @@ const MessagesView: React.FC = () => {
                                                 <div className="mx-2 md:mx-8 mb-4 bg-primary-50 dark:bg-primary-900/20 rounded-2xl border border-primary-200 dark:border-primary-800 p-4">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <SparklesIcon className="w-3.5 h-3.5 text-primary-500" />
-                                                        <span className="text-[10px] font-bold uppercase tracking-widest text-primary-500">Suggested Reply</span>
+                                                        <span className="text-2xs font-bold uppercase tracking-widest text-primary-500">Suggested Reply</span>
                                                     </div>
                                                     <p className="text-sm text-slate-600 dark:text-slate-300 mb-3 italic">"{selectedInboundMsg.aiAnalysis.suggestedReply}"</p>
                                                     <button
@@ -1963,12 +1963,12 @@ const MessagesView: React.FC = () => {
                                                             not ticket-specific replies. This banner makes it clear. */}
                                                         {activeThreadTicketId && (
                                                             <div className="flex items-center justify-between gap-2 mb-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg w-full box-border">
-                                                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 min-w-0 truncate">
+                                                                <span className="text-2xs font-bold text-emerald-700 dark:text-emerald-400 min-w-0 truncate">
                                                                     ↩ Replying to ticket thread — use the inline composer above
                                                                 </span>
                                                                 <button
                                                                     onClick={() => setActiveThreadTicketId(null)}
-                                                                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 flex-shrink-0"
+                                                                    className="text-2xs font-bold text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 flex-shrink-0"
                                                                 >
                                                                     ✕ Clear
                                                                 </button>

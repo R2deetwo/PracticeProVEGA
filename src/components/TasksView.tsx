@@ -181,19 +181,19 @@ export const TasksView: React.FC = () => {
                             <div className="flex items-center bg-slate-200/50 dark:bg-zinc-800 p-1 rounded-xl border border-slate-200 dark:border-zinc-700 mr-2">
                                 <button
                                     onClick={() => setGroupBy('none')}
-                                    className={`px-2 py-1 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'none' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'none' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     None
                                 </button>
                                 <button
                                     onClick={() => setGroupBy('priority')}
-                                    className={`px-2 py-1 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'priority' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'priority' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     Priority
                                 </button>
                                 <button
                                     onClick={() => setGroupBy('matter')}
-                                    className={`px-2 py-1 text-[9px] font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                    className={`px-2 py-1 text-3xs font-black uppercase tracking-tighter rounded-lg transition-all ${groupBy === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     {isProperty ? 'Property' : 'Matter'}
                                 </button>

@@ -28,11 +28,11 @@ import { getUnitDisplay } from '../../utils/propertyPayload';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full">
-        <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
+        <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5">{label}</p>
         <div className="text-sm font-semibold text-slate-900 dark:text-white leading-snug">
             {value}
         </div>
-        {subText && <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-tight">{subText}</p>}
+        {subText && <p className="text-2xs sm:text-xs text-slate-500 mt-0.5 leading-tight">{subText}</p>}
     </div>
 );
 
@@ -675,7 +675,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <h2 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate leading-none max-w-[160px] sm:max-w-md">{property.address}</h2>
                             </div>
-                            <p className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
+                            <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5 flex gap-1 sm:gap-2 truncate">
                                 {property.propertyType || 'Property'} • {owner?.name || 'Owner'}
                             </p>
                         </div>
@@ -737,7 +737,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                         {allUnits.length > 1 && (
                                             <button 
                                                 onClick={() => setActiveTab('units')}
-                                                className="px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-[10px] font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 transition-all flex items-center gap-1"
+                                                className="px-2 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-2xs font-black text-primary-600 dark:text-primary-400 border border-primary-100 dark:border-primary-800 hover:bg-primary-100 transition-all flex items-center gap-1"
                                             >
                                                 {allUnits.length} Units Found <span className="opacity-50">&rarr;</span>
                                             </button>
@@ -851,7 +851,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                         ) : (
                                             <div className="mt-2 space-y-2">
                                                 <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-100 dark:border-green-900">
-                                                    <p className="text-[10px] text-green-700 dark:text-green-300 font-bold mb-1">{isProperty ? 'Management File Active' : 'Matter Active'} ({linkedMatters.length})</p>
+                                                    <p className="text-2xs text-green-700 dark:text-green-300 font-bold mb-1">{isProperty ? 'Management File Active' : 'Matter Active'} ({linkedMatters.length})</p>
                                                     {linkedMatters.map(m => (
                                                         <p key={m.id} onClick={() => navigateTo('matterDetail', m.id)} className="text-xs text-slate-600 dark:text-zinc-400 truncate hover:text-primary-600 cursor-pointer mb-1 last:mb-0">
                                                             • {m.title}
@@ -860,7 +860,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 </div>
                                                 <button 
                                                     onClick={() => handleInitializeMatter()}
-                                                    className="w-full py-1 text-[9px] font-black uppercase text-slate-400 hover:text-primary-600 transition-colors tracking-tighter"
+                                                    className="w-full py-1 text-3xs font-black uppercase text-slate-400 hover:text-primary-600 transition-colors tracking-tighter"
                                                 >
                                                     + New {isProperty ? 'File' : 'Matter'}
                                                 </button>
@@ -884,7 +884,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${property.automationSettings?.remindLeaseExpiry ? 'bg-green-500' : 'bg-slate-300'}`} />
                                             <div>
                                                 <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Lease Expiry Reminders</p>
-                                                <p className="text-[10px] text-slate-400">{property.automationSettings?.remindLeaseExpiry ? 'Active — alerts 90 days before expiry' : 'Not enabled'}</p>
+                                                <p className="text-2xs text-slate-400">{property.automationSettings?.remindLeaseExpiry ? 'Active — alerts 90 days before expiry' : 'Not enabled'}</p>
                                             </div>
                                         </div>
                                     )}
@@ -893,7 +893,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             <div className={`w-2 h-2 rounded-full flex-shrink-0 ${property.automationSettings?.autoRentDemand ? 'bg-green-500' : 'bg-slate-300'}`} />
                                             <div>
                                                 <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Auto Rent Demands</p>
-                                                <p className="text-[10px] text-slate-400">{property.automationSettings?.autoRentDemand ? 'Active — demands sent on arrears' : 'Not enabled'}</p>
+                                                <p className="text-2xs text-slate-400">{property.automationSettings?.autoRentDemand ? 'Active — demands sent on arrears' : 'Not enabled'}</p>
                                             </div>
                                         </div>
                                     )}
@@ -911,9 +911,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                             <div key={m.id} className="p-2.5 bg-slate-50 dark:bg-zinc-700/30 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors flex items-center justify-between" onClick={() => navigateTo('matterDetail', m.id)}>
                                                 <div>
                                                     <p className="text-xs font-bold text-primary-600">{m.title}</p>
-                                                    <p className="text-[10px] text-slate-500">{m.stage} • {m.type}</p>
+                                                    <p className="text-2xs text-slate-500">{m.stage} • {m.type}</p>
                                                 </div>
-                                                <span className="text-[10px] text-slate-400">&rarr;</span>
+                                                <span className="text-2xs text-slate-400">&rarr;</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1022,7 +1022,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </h4>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Name / Number <span className="text-rose-500">*</span></label>
+                                            <label className="block text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Name / Number <span className="text-rose-500">*</span></label>
                                             <input
                                                 type="text"
                                                 value={newUnitName}
@@ -1034,7 +1034,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Type</label>
+                                            <label className="block text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Type</label>
                                             <select
                                                 value={newUnitType}
                                                 onChange={e => setNewUnitType(e.target.value as 'Residential' | 'Commercial')}
@@ -1094,19 +1094,19 @@ const PropertyDetailViewContent: React.FC = () => {
 
                                                 const renderScBadge = () => {
                                                     if (d.remindersPaused) {
-                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
+                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
                                                     }
                                                     if (scStatus === 'PAID_FULLY' || scStatus === 'PAID' || scStatus === 'paid') {
-                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
+                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>;
                                                     }
                                                     if (scStatus === 'PARTIALLY_PAID') {
                                                         return <>
-                                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
-                                                            {scOutstanding > 0 && <span className="text-[9px] text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
+                                                            <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>
+                                                            {scOutstanding > 0 && <span className="text-3xs text-red-500 dark:text-red-400 font-bold">Bal: ₦{scOutstanding.toLocaleString()}</span>}
                                                         </>;
                                                     }
                                                     if (scStatus === 'UNPAID') {
-                                                        return <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                        return <span className="inline-flex items-center gap-0.5 text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
                                                     }
                                                     return null;
                                                 };
@@ -1118,7 +1118,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     return (
                                                         <div className="flex items-center gap-1 mt-1" title={`Tenancy ${pct}% elapsed — statutory notice window compressing. Consider serving Notice to Quit.`}>
                                                             <Scale className="w-3 h-3 text-orange-500" />
-                                                            <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
+                                                            <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">50%+ Elapsed</span>
                                                         </div>
                                                     );
                                                 };
@@ -1208,9 +1208,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         <div className="flex items-center justify-between mb-2">
                                                             <div className="min-w-0 flex-1 pr-2">
                                                                 <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
-                                                                {d.floor && <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
+                                                                {d.floor && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
                                                             </div>
-                                                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
+                                                            <span className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border ${statusColors[uStatus] || 'bg-slate-50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}>
                                                                 {uStatus}
                                                             </span>
                                                         </div>
@@ -1220,7 +1220,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             {d.tenantName && (
                                                                 <div className="flex items-center gap-1.5 mb-0.5">
                                                                     <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-600 flex items-center justify-center flex-shrink-0">
-                                                                        <span className="text-[8px] font-black text-slate-500 dark:text-zinc-300">{d.tenantName.charAt(0).toUpperCase()}</span>
+                                                                        <span className="text-3xs font-black text-slate-500 dark:text-zinc-300">{d.tenantName.charAt(0).toUpperCase()}</span>
                                                                     </div>
                                                                     <p className="text-slate-800 dark:text-zinc-100 text-xs font-semibold truncate min-w-0">
                                                                         {d.tenantName}
@@ -1231,7 +1231,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             {/* Service Charge — always show if amount > 0 */}
                                                             {scAmount > 0 && (
                                                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">SC</span>
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs">SC</span>
                                                                     <span className="text-slate-700 dark:text-zinc-200">₦{scAmount.toLocaleString()}</span>
                                                                     {renderScBadge()}
                                                                 </div>
@@ -1240,11 +1240,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             {/* Minimum Vend — if property has MV enabled */}
                                                             {minimumVendEnabled && uStatus === 'Occupied' && (
                                                                 <div className="flex items-center gap-1.5">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px]">MV</span>
-                                                                    <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs">MV</span>
+                                                                    <span className="text-3xs font-bold text-slate-600 dark:text-zinc-300">{vendLabel}</span>
                                                                     {(d.serviceChargeStatus as string) === 'PAID_FULLY' || (d.serviceChargeStatus as string) === 'PAID'
-                                                                        ? <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
-                                                                        : <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
+                                                                        ? <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Compliant</span>
+                                                                        : <span className="text-3xs font-black px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Pending</span>
                                                                     }
                                                                 </div>
                                                             )}
@@ -1277,11 +1277,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         }
                                                                     >
                                                                         <Wrench className={`w-3 h-3 ${hasStale ? 'text-rose-500' : 'text-amber-500'}`} />
-                                                                        <span className={`text-[9px] font-black uppercase tracking-wide ${hasStale ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                                        <span className={`text-3xs font-black uppercase tracking-wide ${hasStale ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                                                             {openTickets.length} Open Ticket{openTickets.length > 1 ? 's' : ''}
                                                                         </span>
                                                                         {hasStale && (
-                                                                            <span className="text-[9px] font-bold text-rose-500 dark:text-rose-400 ml-1">
+                                                                            <span className="text-3xs font-bold text-rose-500 dark:text-rose-400 ml-1">
                                                                                 ⚠ Stale
                                                                             </span>
                                                                         )}
@@ -1292,7 +1292,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             {/* Lease end — compact */}
                                                             {d.leaseEnd && (
                                                                 <p className="text-slate-500 dark:text-zinc-400">
-                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-[9px] mr-1">Ends</span>
+                                                                    <span className="font-bold text-slate-400 uppercase tracking-wider text-3xs mr-1">Ends</span>
                                                                     {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
                                                                 </p>
                                                             )}
@@ -1302,28 +1302,28 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 <div className="flex items-center gap-1 mt-0.5">
                                                                     <Scale className="w-3 h-3 text-rose-500" />
                                                                     {eviction.quitNoticeStatus === 'drafted' && (
-                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Drafted</span>
+                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Drafted</span>
                                                                     )}
                                                                     {eviction.quitNoticeStatus === 'served' && (
-                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Served</span>
+                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Served</span>
                                                                     )}
                                                                     {eviction.quitNoticeStatus === 'delivered' && !isSevenDayDue && !isSevenDayUpcoming && (
-                                                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Delivered</span>
+                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Delivered</span>
                                                                     )}
                                                                     {isSevenDayDue && (
-                                                                        <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase animate-pulse">7-Day Notice Due!</span>
+                                                                        <span className="text-3xs font-black text-rose-600 dark:text-rose-400 uppercase animate-pulse">7-Day Notice Due!</span>
                                                                     )}
                                                                     {isSevenDayUpcoming && (
-                                                                        <span className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase">7-Day Due {eviction.sevenDayNoticeDueDate ? new Date(eviction.sevenDayNoticeDueDate).toLocaleDateString('en-GB') : ''}</span>
+                                                                        <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">7-Day Due {eviction.sevenDayNoticeDueDate ? new Date(eviction.sevenDayNoticeDueDate).toLocaleDateString('en-GB') : ''}</span>
                                                                     )}
                                                                     {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Drafted</span>
+                                                                        <span className="text-3xs font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Drafted</span>
                                                                     )}
                                                                     {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                        <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Served</span>
+                                                                        <span className="text-3xs font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Served</span>
                                                                     )}
                                                                     {eviction.sevenDayNoticeStatus === 'delivered' && (
-                                                                        <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase">7-Day: Delivered</span>
+                                                                        <span className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase">7-Day: Delivered</span>
                                                                     )}
                                                                 </div>
                                                             )}
@@ -1333,12 +1333,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2 min-w-0 gap-1">
                                                             {statusBadge ? (
                                                                 <Tooltip text={statusBadge.tooltip} allowWrap>
-                                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
+                                                                    <span className={`text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
                                                                         {statusBadge.label}
                                                                     </span>
                                                                 </Tooltip>
                                                             ) : (
-                                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
+                                                                <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
                                                                     Vacant
                                                                 </span>
                                                             )}
@@ -1357,7 +1357,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             setOpenUnitMenuId(unit.id);
                                                                         }
                                                                     }}
-                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                                                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-all text-slate-600 dark:text-zinc-300 hover:text-primary-600 flex items-center gap-1 text-2xs font-bold uppercase tracking-wider"
                                                                     aria-expanded={menuOpen}
                                                                 >
                                                                     <CogIcon className="w-3.5 h-3.5" />
@@ -1370,7 +1370,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     className="fixed w-52 sm:w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl shadow-xl z-[250] flex flex-col overflow-hidden py-1 max-h-[55vh] overflow-y-auto max-w-[calc(100vw-2rem)]"
                                                                 >
                                                                     <div className="px-3 py-1.5 border-b border-slate-100 dark:border-zinc-700/50 mb-1">
-                                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
+                                                                        <p className="text-3xs font-black text-slate-400 uppercase tracking-tighter">{d.name} — actions</p>
                                                                     </div>
                                                                     
                                                                     {!isFloor ? (
@@ -1379,48 +1379,48 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 <>
                                                                                     {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                                                         <>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 w-full">
                                                                                                 <Receipt className="w-3.5 h-3.5 shrink-0" /> Record payment & receipt
                                                                                             </button>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-3 py-2.5 text-2xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full">
                                                                                                 <Wallet className="w-3.5 h-3.5 shrink-0" /> Ledger-only entry
                                                                                             </button>
-                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
+                                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-left flex items-center gap-2 w-full">
                                                                                                 <Megaphone className="w-3.5 h-3.5 shrink-0" /> Rent Demand
                                                                                             </button>
                                                                                         </>
                                                                                     )}
-                                                                                    <button onClick={() => { setOpenUnitMenuId(null); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
+                                                                                    <button onClick={() => { setOpenUnitMenuId(null); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-3 py-2.5 text-2xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 w-full">
                                                                                         <LogOut className="w-3.5 h-3.5 shrink-0" /> Notice to Quit
                                                                                     </button>
                                                                                 </>
                                                                             ) : (
                                                                                 <>
-                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                    <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Listed' }, 'Property'); addToast('Unit ' + d.name + ' listed to market', { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
                                                                                         <Megaphone className="w-3.5 h-3.5 shrink-0" /> List Unit
                                                                                     </button>
-                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                                    <button onClick={() => { addToast('Viewing recorded for ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
                                                                                         <Eye className="w-3.5 h-3.5 shrink-0" /> Record Viewing
                                                                                     </button>
                                                                                 </>
                                                                             )}
                                                                             
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full">
                                                                                 <Wrench className="w-3.5 h-3.5 shrink-0" /> Log Maintenance
                                                                             </button>
                                                                             
-                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-2xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
                                                                                 <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize {isProperty ? 'Management File' : 'Legal File'}
                                                                             </button>
 
                                                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && coreState.documentTemplates && coreState.documentTemplates.length > 0 && (
                                                                                 <div className="mt-1 pt-1 border-t border-slate-100 dark:border-zinc-700/50">
-                                                                                    <p className="px-3 py-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
+                                                                                    <p className="px-3 py-1 text-3xs font-black text-slate-400 uppercase tracking-widest">Draft from Template</p>
                                                                                     {coreState.documentTemplates.slice(0, 3).map((template: any) => (
                                                                                         <button 
                                                                                             key={template.id} 
                                                                                             onClick={() => { setOpenUnitMenuId(null); handleApplyTemplate(template, unit); }} 
-                                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
+                                                                                            className="px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 text-left flex items-center gap-2 truncate w-full"
                                                                                         >
                                                                                             <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{template.name}</span>
                                                                                         </button>
@@ -1430,10 +1430,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         </>
                                                                     ) : (
                                                                         <>
-                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                            <button onClick={() => { addToast('Managing assets for ' + d.name, { type: 'info' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
                                                                                     <Radio className="w-3.5 h-3.5 shrink-0" /> Manage Floor Assets
                                                                             </button>
-                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
+                                                                            <button onClick={() => { setOpenUnitMenuId(null); handleInitializeMatter(unit); }} className="px-3 py-2.5 text-2xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-left flex items-center gap-2 w-full">
                                                                                 <Scale className="w-3.5 h-3.5 shrink-0" /> Initialize Floor Legal File
                                                                             </button>
                                                                         </>
@@ -1441,12 +1441,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     {/* Status toggle */}
                                                                     <div className="border-t border-slate-100 dark:border-zinc-700/50 mt-1 pt-1">
                                                                         {uStatus !== 'Vacant' && (
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full">
                                                                                 <Eye className="w-3.5 h-3.5 shrink-0" /> Mark as Vacant
                                                                             </button>
                                                                         )}
                                                                         {uStatus === 'Vacant' && (
-                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-[10px] font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
+                                                                            <button onClick={() => { const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); setOpenUnitMenuId(null); }} className="px-3 py-2.5 text-2xs font-bold text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 text-left flex items-center gap-2 w-full">
                                                                                 <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" /> Mark as Occupied
                                                                             </button>
                                                                         )}
@@ -1460,7 +1460,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 } catch (_) {}
                                                                                 navigateTo('atriumEngine');
                                                                             }}
-                                                                            className="px-3 py-2.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
+                                                                            className="px-3 py-2.5 text-2xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2 w-full"
                                                                         >
                                                                             <MessageSquare className="w-3.5 h-3.5 shrink-0" /> Message Tenant
                                                                         </button>
@@ -1472,7 +1472,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 setOpenUnitMenuId(null);
                                                                                 addToast('Unit report generation coming soon', { type: 'info' });
                                                                             }}
-                                                                            className="px-3 py-2.5 text-[10px] font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
+                                                                            className="px-3 py-2.5 text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2 w-full"
                                                                         >
                                                                             <FileDown className="w-3.5 h-3.5 shrink-0" /> Export Unit Report
                                                                         </button>
@@ -1486,7 +1486,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             setOpenUnitMenuPos(null);
                                                                             handleRemoveUnit(unit, d);
                                                                         }}
-                                                                        className="px-3 py-2.5 text-[10px] font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
+                                                                        className="px-3 py-2.5 text-2xs font-bold text-rose-500 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-left flex items-center gap-2 border-t border-slate-100 dark:border-zinc-700/50 w-full"
                                                                     >
                                                                         <Trash2 className="w-3.5 h-3.5 shrink-0" /> Remove Unit
                                                                     </button>
@@ -1509,23 +1509,23 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     </button>
 
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" title="Record Payment & Issue Receipt">
+                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" title="Record Payment & Issue Receipt">
                                                                             <Receipt className="w-3 h-3" /> Pay
                                                                         </button>
                                                                     )}
                                                                     {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800" title="Rent Demand Notice">
+                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800" title="Rent Demand Notice">
                                                                             <Megaphone className="w-3 h-3" /> Demand
                                                                         </button>
                                                                     )}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} title="Message Tenant">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowUnitMessaging(v => !v); setShowFullUnitDetail(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${showUnitMessaging ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600'}`} title="Message Tenant">
                                                                         <MessageSquare className="w-3 h-3" /> Message
                                                                     </button>
-                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" title="Edit Unit">
+                                                                    <button onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id }); }} className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-zinc-600" title="Edit Unit">
                                                                         <EditIcon className="w-3 h-3" /> Edit
                                                                     </button>
                                                                     {/* More button — reveals full detail card */}
-                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-3 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} title="Full unit details & more actions">
+                                                                    <button onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); setShowUnitMessaging(false); }} className={`px-3 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} title="Full unit details & more actions">
                                                                         <CogIcon className="w-3 h-3" /> {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
                                                                 </div>
@@ -1533,40 +1533,40 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                 {/* ── Quick Messaging Strip (inline, compact) ── */}
                                                                 {showUnitMessaging && (
                                                                     <div className="mt-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 p-3 animate-fade-in">
-                                                                        <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">
+                                                                        <p className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-2">
                                                                             Contact {d.tenantName || 'Tenant'}
                                                                         </p>
                                                                         <div className="flex flex-wrap items-center gap-1.5">
                                                                             {tenantPhone && (isGrowthOrAbove || isKompleteFirm) && (
-                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                <button onClick={handleWhatsApp} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg transition-colors">
                                                                                     <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                                                                                 </button>
                                                                             )}
                                                                             {tenantPhone && !isGrowthOrAbove && !isKompleteFirm && (
-                                                                                <button disabled title="WhatsApp requires Growth plan or above" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/40 text-white/50 text-[10px] font-bold rounded-lg cursor-not-allowed relative">
+                                                                                <button disabled title="WhatsApp requires Growth plan or above" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600/40 text-white/50 text-2xs font-bold rounded-lg cursor-not-allowed relative">
                                                                                     <MessageSquare className="w-3.5 h-3.5" /> WhatsApp
                                                                                     <LockClosedIcon className="w-2.5 h-2.5 absolute top-0.5 right-0.5" />
                                                                                 </button>
                                                                             )}
                                                                             {tenantEmail && (
-                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                <button onClick={handleEmailTenant} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-2xs font-bold rounded-lg transition-colors">
                                                                                     <Mail className="w-3.5 h-3.5" /> Email
                                                                                 </button>
                                                                             )}
                                                                             {tenantPhone && (
-                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                                <a href={`tel:${tenantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white text-2xs font-bold rounded-lg transition-colors">
                                                                                     <Phone className="w-3.5 h-3.5" /> Call
                                                                                 </a>
                                                                             )}
-                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold rounded-lg transition-colors">
+                                                                            <button onClick={handleSendPortalMessage} className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-2xs font-bold rounded-lg transition-colors">
                                                                                 <Eye className="w-3.5 h-3.5" /> Portal
                                                                             </button>
-                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-[10px] font-bold rounded-lg transition-colors">
+                                                                            <button onClick={handleOpenCompose} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 text-2xs font-bold rounded-lg transition-colors">
                                                                                 <MessageSquare className="w-3.5 h-3.5 text-emerald-500" /> Compose
                                                                             </button>
                                                                         </div>
                                                                         {!hasContactInfo && (
-                                                                            <p className="text-[10px] text-slate-400 mt-2">No contact info saved — edit the unit to add phone or email.</p>
+                                                                            <p className="text-2xs text-slate-400 mt-2">No contact info saved — edit the unit to add phone or email.</p>
                                                                         )}
                                                                     </div>
                                                                 )}
@@ -1577,17 +1577,17 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         {/* Detail header */}
                                                                         <div className="flex items-start justify-between mb-3">
                                                                             <div>
-                                                                                <p className="text-[9px] font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
+                                                                                <p className="text-3xs font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
                                                                                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">{d.name}</h4>
-                                                                                {d.floor && <p className="text-[10px] text-slate-400">Floor {d.floor}</p>}
+                                                                                {d.floor && <p className="text-2xs text-slate-400">Floor {d.floor}</p>}
                                                                             </div>
                                                                             <div className="flex items-center gap-1.5">
                                                                                 {d.remindersPaused && (
-                                                                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
+                                                                                    <span className="px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
                                                                                         Paused
                                                                                     </span>
                                                                                 )}
-                                                                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
+                                                                                <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 text-slate-600'}`}>
                                                                                     {String(unit.status || 'Vacant')}
                                                                                 </span>
                                                                             </div>
@@ -1597,7 +1597,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mb-3">
                                                                             {d.tenantName && <DetailItem label="Tenant" value={d.tenantName} />}
                                                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
-                                                                                <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
+                                                                                <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-2xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
                                                                             )}
                                                                             {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
                                                                             {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
@@ -1608,9 +1608,9 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                         ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
                                                                                         {(() => {
                                                                                             const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
-                                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-[8px] font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
+                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Paid</span>;
+                                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
+                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>;
                                                                                             return null;
                                                                                         })()}
                                                                                     </>
@@ -1630,7 +1630,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                         <div className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[80px]">
                                                                                             <div className={`h-full rounded-full transition-all ${d.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(d.termProgress * 100)}%` }} />
                                                                                         </div>
-                                                                                        <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
+                                                                                        <span className="text-3xs font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
                                                                                     </div>
                                                                                 } />
                                                                             )}
@@ -1639,11 +1639,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         {/* Secondary actions — less frequent operations */}
                                                                         <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-slate-100 dark:border-zinc-700">
                                                                             {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Ledger-only entry (no receipt)">
+                                                                                <button onClick={(e) => { e.stopPropagation(); openModal('recordRentPayment', null, { unitId: unit.id, unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, firmId: coreState.firmDetails?.id }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Ledger-only entry (no receipt)">
                                                                                     <Wallet className="w-3 h-3" /> Ledger Entry
                                                                                 </button>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
+                                                                            <button onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40" title="Draft Notice to Quit">
                                                                                 <LogOut className="w-3 h-3" /> Quit Notice
                                                                             </button>
 
@@ -1652,57 +1652,57 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 <>
                                                                                     {/* Mark Quit Notice as Served */}
                                                                                     {eviction.quitNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark Quit Notice as Served">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark Quit Notice as Served">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> Mark Served
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark Quit Notice as Delivered — triggers 7-Day scheduling */}
                                                                                     {eviction.quitNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Confirm delivery of Quit Notice">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeDelivered(unit); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Confirm delivery of Quit Notice">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> Mark Delivered
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Draft 7-Day Notice — highlighted when due */}
                                                                                     {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
+                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`px-2.5 py-1.5 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/40'}`} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
                                                                                             <Scale className="w-3 h-3" /> {isSevenDayDue ? '7-Day Notice Due!' : '7-Day Notice'}
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark 7-Day as Served */}
                                                                                     {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark 7-Day Notice as Served">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Mark 7-Day Notice as Served">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> 7-Day Served
                                                                                         </button>
                                                                                     )}
                                                                                     {/* Mark 7-Day as Delivered */}
                                                                                     {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Confirm delivery of 7-Day Notice">
+                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="px-2.5 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-900/40" title="Confirm delivery of 7-Day Notice">
                                                                                             <CheckCircleIcon className="w-3 h-3" /> 7-Day Delivered
                                                                                         </button>
                                                                                     )}
                                                                                 </>
                                                                             )}
                                                                             {canUseEviction && !isEvictionActive && uStatus === 'Occupied' && (
-                                                                                <span className="text-[8px] text-slate-400 italic">Eviction workflow available via Quit Notice</span>
+                                                                                <span className="text-3xs text-slate-400 italic">Eviction workflow available via Quit Notice</span>
                                                                             )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40" title="Initialize Legal/Management File">
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40" title="Initialize Legal/Management File">
                                                                                 <Scale className="w-3 h-3" /> {isProperty ? 'Mgmt File' : 'Legal File'}
                                                                             </button>
-                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Log Maintenance">
+                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-amber-100 dark:hover:bg-amber-900/40" title="Log Maintenance">
                                                                                 <Wrench className="w-3 h-3" /> Maintenance
                                                                             </button>
                                                                             {uStatus !== 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-slate-100 dark:hover:bg-zinc-600" title="Mark as Vacant">
                                                                                     <Eye className="w-3 h-3" /> Vacant
                                                                                 </button>
                                                                             )}
                                                                             {uStatus === 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40" title="Mark as Occupied">
+                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="px-2.5 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-green-100 dark:hover:bg-green-900/40" title="Mark as Occupied">
                                                                                     <CheckCircleIcon className="w-3 h-3" /> Occupied
                                                                                 </button>
                                                                             )}
                                                                             {/* Export Unit Report button removed — not yet implemented. */}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
+                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="px-2.5 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors hover:bg-rose-100 dark:hover:bg-rose-900/40 ml-auto" title="Remove Unit">
                                                                                 <Trash2 className="w-3 h-3" /> Remove
                                                                             </button>
                                                                         </div>
@@ -1792,12 +1792,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                 <table className="w-full text-sm">
                                     <thead className="bg-slate-50 dark:bg-zinc-900/50">
                                         <tr>
-                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit</th>
-                                            <th className="text-left px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tenant</th>
-                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rent</th>
-                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
-                                            <th className="text-center px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">SC Status</th>
-                                            <th className="text-right px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
+                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
+                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Tenant</th>
+                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>
+                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+                                            <th className="text-center px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">SC Status</th>
+                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
@@ -1817,13 +1817,13 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
                                                     <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
                                                     <td className="px-4 py-2.5 text-center">
-                                                        {isPaidFully && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
-                                                        {isPartial && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
-                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-[9px] font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>}
-                                                        {!isPaidFully && !isPartial && !isUnpaid && <span className="text-[10px] text-slate-400">—</span>}
+                                                        {isPaidFully && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
+                                                        {isPartial && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
+                                                        {isUnpaid && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Unpaid</span>}
+                                                        {!isPaidFully && !isPartial && !isUnpaid && <span className="text-2xs text-slate-400">—</span>}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-right">
-                                                        {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-[10px] text-slate-400">—</span>}
+                                                        {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-2xs text-slate-400">—</span>}
                                                     </td>
                                                 </tr>
                                             );
@@ -1918,7 +1918,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <div className="bg-white/60 dark:bg-black/20 rounded-xl border border-emerald-200 dark:border-emerald-900/50 overflow-hidden">
                                             <div className="px-4 py-2 bg-emerald-100/50 dark:bg-emerald-900/20 border-b border-emerald-200 dark:border-emerald-900/50 flex justify-between items-center">
                                                 <span className="text-xs font-bold text-emerald-800 dark:text-emerald-400">Recent Ledger</span>
-                                                <button onClick={() => navigateTo('atriumEngine')} className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
+                                                <button onClick={() => navigateTo('atriumEngine')} className="text-2xs font-bold text-emerald-600 hover:text-emerald-700">View All &rarr;</button>
                                             </div>
                                             <div className="divide-y divide-emerald-100 dark:divide-emerald-900/30">
                                                 {propertyLedgerEntries.map(entry => (
@@ -1927,14 +1927,14 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             <div className={`w-1.5 h-1.5 rounded-full ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
                                                             <div>
                                                                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{entry.description || entry.type}</p>
-                                                                <p className="text-[9px] text-slate-500">{new Date(entry.timestamp).toLocaleDateString("en-GB")}</p>
+                                                                <p className="text-3xs text-slate-500">{new Date(entry.timestamp).toLocaleDateString("en-GB")}</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
                                                             <p className={`text-sm font-bold ${entry.status === 'cleared' ? 'text-emerald-600 dark:text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                                                 ₦{entry.amount.toLocaleString('en-NG')}
                                                             </p>
-                                                            <p className="text-[9px] uppercase font-bold text-slate-400">{entry.status}</p>
+                                                            <p className="text-3xs uppercase font-bold text-slate-400">{entry.status}</p>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -2180,7 +2180,7 @@ const PropertyNoticeBoard: React.FC<{
                                         <button
                                             key={p}
                                             onClick={() => setNewPriority(p)}
-                                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                                            className={`px-2.5 py-1 rounded-lg text-2xs font-bold transition-all ${
                                                 newPriority === p
                                                     ? `${cfg.bg} ${cfg.text} ring-2 ring-offset-1 ring-current`
                                                     : 'bg-slate-100 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:bg-slate-200 dark:hover:bg-zinc-600'
@@ -2237,7 +2237,7 @@ const PropertyNoticeBoard: React.FC<{
                 </div>
             ) : activeNotices.length > 0 ? (
                 <div className="space-y-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">Active Notices ({activeNotices.length})</p>
+                    <p className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">Active Notices ({activeNotices.length})</p>
                     {activeNotices.map((notice: any) => {
                         const pri = priorityConfig[notice.priority] || priorityConfig.normal;
                         return (
@@ -2250,14 +2250,14 @@ const PropertyNoticeBoard: React.FC<{
                                         <svg className="w-3 h-3 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
                                         </svg>
-                                        <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pinned</span>
+                                        <span className="text-2xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pinned</span>
                                     </div>
                                 )}
                                 <div className="px-5 py-4">
                                     <div className="flex items-start justify-between gap-3 mb-2">
                                         <h4 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{notice.title}</h4>
                                         <div className="flex items-center gap-2 flex-shrink-0">
-                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${pri.bg} ${pri.text}`}>
+                                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${pri.bg} ${pri.text}`}>
                                                 <span className={`w-1.5 h-1.5 rounded-full ${pri.dot}`} />
                                                 {pri.label}
                                             </span>
@@ -2278,7 +2278,7 @@ const PropertyNoticeBoard: React.FC<{
                                         </div>
                                     </div>
                                     <p className="text-sm text-slate-600 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap">{notice.body}</p>
-                                    <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-400 dark:text-zinc-500">
+                                    <div className="mt-3 flex items-center gap-3 text-2xs text-slate-400 dark:text-zinc-500">
                                         {notice.authorName && <span>Posted by {notice.authorName}</span>}
                                         <span>{new Date(notice.createdAt).toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
                                         {notice.expiresAt && (
@@ -2305,7 +2305,7 @@ const PropertyNoticeBoard: React.FC<{
             {/* Archived Notices */}
             {archivedNotices.length > 0 && (
                 <details className="group">
-                    <summary className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
+                    <summary className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 cursor-pointer hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">
                         Archived ({archivedNotices.length})
                     </summary>
                     <div className="mt-2 space-y-2">
@@ -2313,7 +2313,7 @@ const PropertyNoticeBoard: React.FC<{
                             <div key={notice._id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 dark:bg-zinc-800/50 rounded-lg opacity-60">
                                 <div className="min-w-0 flex-1">
                                     <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{notice.title}</span>
-                                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 ml-2">
+                                    <span className="text-2xs text-slate-400 dark:text-zinc-500 ml-2">
                                         {new Date(notice.createdAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
                                     </span>
                                 </div>
@@ -2326,7 +2326,7 @@ const PropertyNoticeBoard: React.FC<{
                                             addToast(err.message || 'Failed to restore.', { type: 'error' });
                                         }
                                     }}
-                                    className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                                    className="text-2xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                                 >
                                     Restore
                                 </button>

@@ -87,7 +87,7 @@ const DailyFocusView: React.FC<DailyFocusViewProps> = ({ currentUser }) => {
                     <LightbulbIcon className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col min-w-0">
-                    <span className={`text-[10px] font-black uppercase tracking-wider ${isUrgent ? 'text-orange-600 dark:text-orange-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                    <span className={`text-2xs font-black uppercase tracking-wider ${isUrgent ? 'text-orange-600 dark:text-orange-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
                         {focusItem.label}
                     </span>
                     <span

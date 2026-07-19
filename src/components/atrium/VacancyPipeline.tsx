@@ -58,7 +58,7 @@ function formatDate(ts: number) {
 }
 
 function ScoreBar({ score }: { score?: number }) {
-  if (score === undefined) return <span className="text-[10px] text-slate-600">No score</span>;
+  if (score === undefined) return <span className="text-2xs text-slate-600">No score</span>;
   const pct = Math.min(100, Math.max(0, score));
   const color = pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
   return (
@@ -66,7 +66,7 @@ function ScoreBar({ score }: { score?: number }) {
       <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`text-[10px] font-bold ${pct >= 75 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}</span>
+      <span className={`text-2xs font-bold ${pct >= 75 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}</span>
     </div>
   );
 }
@@ -150,13 +150,13 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-bold text-white">{lead.applicantName}</p>
-          <p className="text-[10px] text-slate-500">{lead.contactInfo}</p>
+          <p className="text-2xs text-slate-500">{lead.contactInfo}</p>
         </div>
         {lead.proposedRent && <span className="text-xs font-black text-emerald-400">₦{formatLargeNumber(lead.proposedRent)}</span>}
       </div>
-      <p className="text-[10px] text-slate-600 truncate">{unitLabel}</p>
+      <p className="text-2xs text-slate-600 truncate">{unitLabel}</p>
       <div className="space-y-1">
-        <p className="text-[9px] text-slate-600 uppercase tracking-wider">Vetting Score</p>
+        <p className="text-3xs text-slate-600 uppercase tracking-wider">Vetting Score</p>
         {editScore ? (
           <div className="flex gap-1">
             <input type="number" min="0" max="100" value={scoreInput} onChange={e => setScoreInput(e.target.value)} className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:ring-1 focus:ring-emerald-500" />
@@ -168,11 +168,11 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
           </div>
         )}
       </div>
-      {lead.notes && <p className="text-[10px] text-slate-600 italic truncate">"{lead.notes}"</p>}
+      {lead.notes && <p className="text-2xs text-slate-600 italic truncate">"{lead.notes}"</p>}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[9px] text-slate-700">{formatDate(lead.createdAt)}</span>
+        <span className="text-3xs text-slate-700">{formatDate(lead.createdAt)}</span>
         {next && (
-          <button onClick={onAdvance} className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors">
+          <button onClick={onAdvance} className="flex items-center gap-1 text-2xs font-bold px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors">
             {STAGE_LABELS[next]} <ChevronRightIcon className="w-3 h-3" />
           </button>
         )}
@@ -257,7 +257,7 @@ const VacancyPipeline: React.FC = () => {
         {STAGES.map(s => (
           <div key={s} className={`border rounded-xl p-3 text-center ${STAGE_COLORS[s]}`}>
             <p className="text-xl sm:text-2xl font-black">{byStage[s].length}</p>
-            <p className="text-[9px] sm:text-[10px] uppercase tracking-wider font-bold mt-0.5 opacity-80">{STAGE_LABELS[s]}</p>
+            <p className="text-3xs sm:text-2xs uppercase tracking-wider font-bold mt-0.5 opacity-80">{STAGE_LABELS[s]}</p>
           </div>
         ))}
       </div>
@@ -265,8 +265,8 @@ const VacancyPipeline: React.FC = () => {
       {/* Progress bar */}
       <div className="flex-shrink-0 px-6 pb-3">
         <div className="flex items-center gap-3 mb-1">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Pipeline Flow</p>
-          <span className="text-[10px] font-bold text-emerald-400">{conversionRate}% conversion rate</span>
+          <p className="text-2xs text-slate-500 uppercase tracking-wider">Pipeline Flow</p>
+          <span className="text-2xs font-bold text-emerald-400">{conversionRate}% conversion rate</span>
         </div>
         <div className="flex h-2 rounded-full overflow-hidden gap-0.5">
           {STAGES.map(s => {

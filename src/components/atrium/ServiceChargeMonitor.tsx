@@ -200,16 +200,16 @@ const ChargeRow: React.FC<{
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{unitLabel}</p>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+            <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${
               isPaidFully ? 'bg-emerald-900/60 text-emerald-300' :
               isPartial ? 'bg-amber-900/60 text-amber-300' :
               isCritical ? 'bg-rose-900/60 text-rose-300' : charge.isDefaulter ? 'bg-amber-900/60 text-amber-300' : 'bg-slate-800 text-slate-500'
             }`}>{charge.isMinimumVend ? 'Min Vend' : charge.category}</span>
             {/* Status badge */}
-            {isPaidFully && <span className="text-[9px] font-bold text-emerald-400">Paid</span>}
-            {isPartial && <span className="text-[9px] font-bold text-amber-400">Partial (₦{(charge.outstandingBalance ?? 0).toLocaleString()} owed)</span>}
-            <span className="text-[10px] text-slate-500">{charge.cycle}</span>
-            {charge.isDefaulter && !isPaidFully && <span className="text-[10px] text-rose-400 font-bold">{charge.daysOverdue ?? 0}d overdue</span>}
+            {isPaidFully && <span className="text-3xs font-bold text-emerald-400">Paid</span>}
+            {isPartial && <span className="text-3xs font-bold text-amber-400">Partial (₦{(charge.outstandingBalance ?? 0).toLocaleString()} owed)</span>}
+            <span className="text-2xs text-slate-500">{charge.cycle}</span>
+            {charge.isDefaulter && !isPaidFully && <span className="text-2xs text-rose-400 font-bold">{charge.daysOverdue ?? 0}d overdue</span>}
           </div>
         </div>
       </div>
@@ -218,8 +218,8 @@ const ChargeRow: React.FC<{
         {/* Amount + outstanding */}
         <div className="text-left sm:text-right flex-shrink-0 sm:w-28">
           <p className="text-xs font-black text-white">₦{charge.amount.toLocaleString('en-NG')}</p>
-          {isPartial && <p className="text-[10px] text-amber-400 font-bold">Bal: ₦{(charge.outstandingBalance ?? 0).toLocaleString()}</p>}
-          <p className={`text-[10px] ${charge.isDefaulter ? 'text-rose-400' : 'text-slate-500'}`}>Due: {formatDate(charge.nextDueDate)}</p>
+          {isPartial && <p className="text-2xs text-amber-400 font-bold">Bal: ₦{(charge.outstandingBalance ?? 0).toLocaleString()}</p>}
+          <p className={`text-2xs ${charge.isDefaulter ? 'text-rose-400' : 'text-slate-500'}`}>Due: {formatDate(charge.nextDueDate)}</p>
         </div>
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
@@ -345,7 +345,7 @@ const ServiceChargeMonitor: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-white tracking-tight">Service Charge Monitor</h2>
-            {critical.length > 0 && <span className="flex items-center gap-1 text-[10px] font-bold bg-rose-900/50 text-rose-400 px-2 py-0.5 rounded-full border border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
+            {critical.length > 0 && <span className="flex items-center gap-1 text-2xs font-bold bg-rose-900/50 text-rose-400 px-2 py-0.5 rounded-full border border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Automated defaulter tracking & enforcement</p>
         </div>
@@ -359,17 +359,17 @@ const ServiceChargeMonitor: React.FC = () => {
         <div className="bg-rose-950/40 border border-rose-800/50 rounded-xl p-4">
           <p className="text-xs text-rose-400 uppercase tracking-wider font-bold mb-1">Revenue at Risk</p>
           <p className="text-2xl sm:text-3xl font-black text-rose-300">₦{formatLargeNumber(revenueAtRisk)}</p>
-          <p className="text-[10px] text-rose-700 mt-1">{defaulters.length} defaulting units</p>
+          <p className="text-2xs text-rose-700 mt-1">{defaulters.length} defaulting units</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Critical Defaults</p>
           <p className="text-2xl sm:text-3xl font-black text-rose-400">{critical.length}</p>
-          <p className="text-[10px] text-slate-600 mt-1">&gt;14 days overdue</p>
+          <p className="text-2xs text-slate-600 mt-1">&gt;14 days overdue</p>
         </div>
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Active Charges</p>
           <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(allCharges || []).filter(c => !c.isDefaulter).length}</p>
-          <p className="text-[10px] text-slate-600 mt-1">on-time payments</p>
+          <p className="text-2xs text-slate-600 mt-1">on-time payments</p>
         </div>
       </div>
 
@@ -445,7 +445,7 @@ const ServiceChargeMonitor: React.FC = () => {
                   />
                 </div>
                 {partialPaymentCharge.serviceChargeStatus === 'PARTIALLY_PAID' && (
-                  <p className="text-[10px] text-amber-400 mt-1">
+                  <p className="text-2xs text-amber-400 mt-1">
                     Outstanding: ₦{(partialPaymentCharge.outstandingBalance ?? 0).toLocaleString()}
                   </p>
                 )}

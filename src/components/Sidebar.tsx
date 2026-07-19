@@ -36,7 +36,7 @@ const NavSection: React.FC<{ title?: string; children: React.ReactNode; isRetrac
     <div className={`mb-2 ${isRetracted ? 'px-1' : 'px-3'}`}>
         {title && (
             <h4 className={`
-                px-1 mb-2 text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-2 transition-all duration-300
+                px-1 mb-2 text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-2 transition-all duration-300
                 ${isRetracted ? 'text-center opacity-40' : 'px-3'}
             `}>
                 {isRetracted ? (title === 'OPERATIONS' ? 'OPS' : 'MENU') : title}
@@ -109,7 +109,7 @@ const NavItemLink: React.FC<{
                 <div className="flex-1 flex items-center justify-between min-w-0">
                     <span className="text-sm truncate flex items-center gap-1.5">{item.text}{locked && <LockClosedIcon className="w-3 h-3 text-slate-400 dark:text-zinc-500" />}</span>
                     {badgeCount > 0 && (
-                        <span className={`ml-2 ${badgeColor} text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm relative z-10`}>
+                        <span className={`ml-2 ${badgeColor} text-white text-3xs font-bold px-1.5 py-0.5 rounded-full shadow-sm relative z-10`}>
                             {badgeCount}
                         </span>
                     )}
@@ -154,7 +154,7 @@ const RevenueEngineNavItem: React.FC<{ setView: any; currentView: any; isSidebar
                 <div className="flex-1 flex items-center justify-between min-w-0">
                     <span className="text-sm truncate">Revenue Monitor</span>
                     {criticalCount > 0 && (
-                        <span className="ml-2 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
+                        <span className="ml-2 bg-rose-600 text-white text-3xs font-bold px-1.5 py-0.5 rounded-full shadow-sm animate-pulse">
                             {criticalCount}
                         </span>
                     )}
@@ -283,7 +283,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                                         <ChevronDownIcon className={`w-3.5 h-3.5 flex-shrink-0 text-slate-400 dark:text-zinc-500 transition-transform duration-200 ${isWorkspaceOpen ? 'rotate-180' : ''}`} />
                                     )}
                                 </h1>
-                                <p className="text-[10px] text-slate-500 dark:text-zinc-500 font-medium uppercase tracking-wider mt-0.5">{isUnified ? 'Komplete ● Unified' : isProperty ? 'Atrium OS' : 'Vega OS'}</p>
+                                <p className="text-2xs text-slate-500 dark:text-zinc-500 font-medium uppercase tracking-wider mt-0.5">{isUnified ? 'Komplete ● Unified' : isProperty ? 'Atrium OS' : 'Vega OS'}</p>
                             </div>
                         </div>
                     ) : (
@@ -301,7 +301,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 {isWorkspaceOpen && !isSidebarRetracted && canUseMultiFirm && (
                     <div className="absolute top-full left-2 right-2 mt-1 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 shadow-xl rounded-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                         <div className="p-1 space-y-0.5">
-                            <p className="px-3 py-2 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Switch Workspace</p>
+                            <p className="px-3 py-2 text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Switch Workspace</p>
 
                             {isLoadingWorkspaces ? (
                                 <div className="px-3 py-2 text-xs text-slate-500 dark:text-zinc-400">Loading...</div>

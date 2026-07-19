@@ -161,7 +161,7 @@ const COURT_OPTIONS: { court: CourtType; label: string }[] = [
 const inputCls =
     'w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-primary-400/60 focus:border-primary-400 dark:focus:border-primary-500 outline-none transition-all';
 const selectCls = `${inputCls} cursor-pointer`;
-const labelCls = 'block text-[10px] font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] mb-1.5 ml-0.5';
+const labelCls = 'block text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-[0.18em] mb-1.5 ml-0.5';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCREEN 0 — Legal Action & Jurisdiction
@@ -222,14 +222,14 @@ const Screen0: React.FC<{
                                 }`}
                             >
                                 <span className="block text-lg mb-1 leading-none">{icon}</span>
-                                <span className={`block text-[11px] font-bold leading-tight ${isSelected ? 'text-primary-700 dark:text-primary-300' : 'text-slate-700 dark:text-zinc-200'}`}>
+                                <span className={`block text-2xs font-bold leading-tight ${isSelected ? 'text-primary-700 dark:text-primary-300' : 'text-slate-700 dark:text-zinc-200'}`}>
                                     {action}
                                 </span>
-                                <span className="block text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 leading-tight">
+                                <span className="block text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 leading-tight">
                                     {desc}
                                 </span>
                                 {usageCount > 0 && !isSelected && (
-                                    <span className="absolute top-1.5 right-1.5 text-[8px] font-bold text-primary-400 dark:text-primary-600">
+                                    <span className="absolute top-1.5 right-1.5 text-3xs font-bold text-primary-400 dark:text-primary-600">
                                         ×{usageCount}
                                     </span>
                                 )}
@@ -258,7 +258,7 @@ const Screen0: React.FC<{
                         <button
                             type="button"
                             onClick={() => setShowExtraCourts(!showExtraCourts)}
-                            className="text-[10px] font-bold text-primary-500 hover:text-primary-600 transition-colors"
+                            className="text-2xs font-bold text-primary-500 hover:text-primary-600 transition-colors"
                         >
                             {showExtraCourts ? 'Hide Appellate/Extra Courts' : 'Show All Courts'}
                         </button>
@@ -283,16 +283,16 @@ const Screen0: React.FC<{
                                             {label}
                                         </span>
                                         {moduleActive ? (
-                                            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                                            <span className="flex items-center gap-1 text-2xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                                 Rules Active
                                             </span>
                                         ) : activeCourts.length === 0 ? (
-                                            <span className="text-[10px] font-medium text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-zinc-700">
+                                            <span className="text-2xs font-medium text-slate-400 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-zinc-700">
                                                 Generic
                                             </span>
                                         ) : (
-                                            <span className="text-[10px] font-medium text-amber-600 dark:amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
+                                            <span className="text-2xs font-medium text-amber-600 dark:amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
                                                 Enquire
                                             </span>
                                         )}
@@ -302,8 +302,8 @@ const Screen0: React.FC<{
                                     {court === CourtType.StateHighCourt && isSelected && (
                                         <div className="mt-3 ml-2 pl-4 border-l-2 border-primary-500/30 space-y-3 animate-in slide-in-from-left-2 duration-300">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Select Judicial Jurisdiction</p>
-                                                <span className="text-[9px] font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded-full border border-primary-100 dark:border-primary-800">Choose State</span>
+                                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Select Judicial Jurisdiction</p>
+                                                <span className="text-3xs font-bold text-primary-500 bg-primary-50 dark:bg-primary-900/20 px-2 py-0.5 rounded-full border border-primary-100 dark:border-primary-800">Choose State</span>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 {STATE_HIGH_COURTS.map(({ state, label: stateLabel, hasActiveModule: stateHasModule }) => {
@@ -313,7 +313,7 @@ const Screen0: React.FC<{
                                                             key={state}
                                                             type="button"
                                                             onClick={() => onChange({ selectedState: state })}
-                                                            className={`flex items-center justify-between px-3 py-2 rounded-xl border text-[11px] font-semibold transition-all shadow-sm ${
+                                                            className={`flex items-center justify-between px-3 py-2 rounded-xl border text-2xs font-semibold transition-all shadow-sm ${
                                                                 stateSelected
                                                                     ? 'border-primary-500 bg-primary-100/50 dark:bg-primary-900/40 text-primary-900 dark:text-white shadow-primary-100 dark:shadow-none'
                                                                     : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/40 text-slate-600 dark:text-zinc-400 hover:border-slate-300 hover:bg-slate-50'
@@ -321,12 +321,12 @@ const Screen0: React.FC<{
                                                         >
                                                             <span>{stateLabel}</span>
                                                             {stateHasModule ? (
-                                                                <span className="flex items-center gap-1 text-[9px] text-emerald-600 dark:text-emerald-400 font-black">
+                                                                <span className="flex items-center gap-1 text-3xs text-emerald-600 dark:text-emerald-400 font-black">
                                                                     <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                                                                     Rules Ready
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-600">✱ Enquire</span>
+                                                                <span className="text-3xs font-bold text-slate-400 dark:text-zinc-600">✱ Enquire</span>
                                                             )}
                                                         </button>
                                                     );
@@ -349,12 +349,12 @@ const Screen0: React.FC<{
                         <div className="flex items-start gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/50">
                             <ShieldCheckIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
                             <div className="flex-1 min-w-0">
-                                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Pursuant to</p>
-                                <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300 leading-tight mt-0.5">
+                                <p className="text-3xs font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-wider">Pursuant to</p>
+                                <p className="text-2xs font-bold text-emerald-800 dark:text-emerald-300 leading-tight mt-0.5">
                                     {activeModule.name}
                                 </p>
                             </div>
-                            <span className="text-[9px] text-emerald-500 dark:text-emerald-600 flex-shrink-0">{activeModule.version}</span>
+                            <span className="text-3xs text-emerald-500 dark:text-emerald-600 flex-shrink-0">{activeModule.version}</span>
                         </div>
                     )}
 
@@ -362,18 +362,18 @@ const Screen0: React.FC<{
                         <div className="grid grid-cols-2 gap-3 sm:gap-4">
                             {/* Required Filings */}
                             <div>
-                                <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                                <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                                     Mandatory Filings
                                 </p>
                                 <ul className="space-y-1">
                                     {rule.requirements.slice(0, 5).map((r: string) => (
-                                        <li key={r} className="flex items-start gap-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
+                                        <li key={r} className="flex items-start gap-1.5 text-2xs text-slate-700 dark:text-zinc-300">
                                             <span className="mt-0.5 w-1 h-1 rounded-full bg-primary-500 flex-shrink-0" />
                                             {r}
                                         </li>
                                     ))}
                                     {rule.requirements.length > 5 && (
-                                        <li className="text-[10px] text-slate-400 dark:text-zinc-500 pl-2.5">
+                                        <li className="text-2xs text-slate-400 dark:text-zinc-500 pl-2.5">
                                             +{rule.requirements.length - 5} more…
                                         </li>
                                     )}
@@ -382,13 +382,13 @@ const Screen0: React.FC<{
 
                             {/* Deadlines */}
                             <div>
-                                <p className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                                <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                                     Key Deadlines
                                 </p>
                                 {Object.keys(rule.deadlines).length > 0 ? (
                                     <div className="space-y-1.5">
                                         {Object.entries(rule.deadlines).slice(0, 3).map(([item, deadline]: [string, any]) => (
-                                            <div key={item} className="text-[11px]">
+                                            <div key={item} className="text-2xs">
                                                 <span className="text-slate-500 dark:text-zinc-400">{item}</span>
                                                 <br />
                                                 <span className="font-bold text-amber-600 dark:text-amber-400">{deadline}</span>
@@ -396,7 +396,7 @@ const Screen0: React.FC<{
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 italic">None specified</p>
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 italic">None specified</p>
                                 )}
                             </div>
                         </div>
@@ -406,7 +406,7 @@ const Screen0: React.FC<{
                             <div className="pt-3 border-t border-slate-200 dark:border-zinc-700">
                                 <div className="flex flex-wrap gap-1.5">
                                     {rule.strategicFlags.slice(0, 2).map((flag: string) => (
-                                        <span key={flag} className="inline-flex items-start gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                                        <span key={flag} className="inline-flex items-start gap-1 px-2 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-2xs text-amber-700 dark:text-amber-400 font-medium">
                                             <InfoIcon className="w-3 h-3 flex-shrink-0 mt-px" />
                                             {flag}
                                         </span>
@@ -439,10 +439,10 @@ const HINT_COLORS: Record<AloaHint['type'], string> = {
 };
 
 const AloaHintBubble: React.FC<{ hint: AloaHint; onDismiss: () => void }> = ({ hint, onDismiss }) => (
-    <div className={`flex gap-2.5 p-3 rounded-xl border text-[11px] leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
+    <div className={`flex gap-2.5 p-3 rounded-xl border text-2xs leading-relaxed font-medium animate-in fade-in slide-in-from-top-1 duration-300 ${HINT_COLORS[hint.type]}`}>
         <span className="text-base flex-shrink-0 mt-px">{hint.icon}</span>
         <div className="flex-1 min-w-0">
-            <span className="text-[9px] font-black uppercase tracking-widest opacity-60 block mb-0.5">ARIA Insight</span>
+            <span className="text-3xs font-black uppercase tracking-widest opacity-60 block mb-0.5">ARIA Insight</span>
             <span>{hint.text}</span>
         </div>
         <button type="button" onClick={onDismiss} className="opacity-40 hover:opacity-100 transition-opacity flex-shrink-0 text-lg leading-none">
@@ -560,20 +560,20 @@ const Screen1: React.FC<{
     const renderPartySection = (side: 'claimants' | 'defendants', roleLabel: string) => (
         <div className="p-3.5 bg-slate-100/50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-inner-sm space-y-2 sm:space-y-3">
             <div className="flex items-center gap-3 px-1">
-                <span className="text-[11px] uppercase font-black tracking-[0.14em] text-slate-500 dark:text-zinc-400 whitespace-nowrap flex-shrink-0">
+                <span className="text-2xs uppercase font-black tracking-[0.14em] text-slate-500 dark:text-zinc-400 whitespace-nowrap flex-shrink-0">
                     {roleLabel}s ({data[side].length})
                 </span>
                 <button 
                   type="button" 
                   onClick={() => addParty(side, roleLabel)} 
-                  className="text-[10px] uppercase font-black text-primary-600 dark:text-primary-400 flex items-center gap-1 hover:text-primary-500 transition-colors whitespace-nowrap"
+                  className="text-2xs uppercase font-black text-primary-600 dark:text-primary-400 flex items-center gap-1 hover:text-primary-500 transition-colors whitespace-nowrap"
                 >
                     <PlusIcon className="w-3.5 h-3.5 flex-shrink-0" /> Add
                 </button>
             </div>
             
             {data[side].length === 0 && (
-                <div className="py-4 text-center text-[10px] uppercase font-bold tracking-[0.1em] text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-xl">
+                <div className="py-4 text-center text-2xs uppercase font-bold tracking-[0.1em] text-slate-400 dark:text-zinc-500 border border-dashed border-slate-300/60 dark:border-zinc-700/60 rounded-xl">
                     No {roleLabel.toLowerCase()}s added
                 </div>
             )}
@@ -582,7 +582,7 @@ const Screen1: React.FC<{
                 {data[side].map((p, idx) => (
                     <div key={p.id} className="flex flex-col gap-2 p-3 bg-white dark:bg-zinc-900 border border-slate-200/50 dark:border-zinc-700 rounded-xl shadow-sm relative group animate-in slide-in-from-top-2 duration-300">
                         <div className="flex gap-2 items-start">
-                            <span className="text-[10px] font-black text-slate-200 dark:text-zinc-700 w-4 mt-2.5 flex-shrink-0">{idx+1}.</span>
+                            <span className="text-2xs font-black text-slate-200 dark:text-zinc-700 w-4 mt-2.5 flex-shrink-0">{idx+1}.</span>
                             <div className="flex-1 min-w-0 space-y-2">
                                 <input
                                     className="w-full bg-transparent border-0 outline-none text-sm font-bold p-0 placeholder-slate-300 dark:placeholder-zinc-600 focus:ring-0 text-slate-900 dark:text-white"
@@ -594,7 +594,7 @@ const Screen1: React.FC<{
                                 />
                                 {p.isRepresentative && (
                                     <input autoComplete="off" data-lpignore="true" 
-                                        className="w-full bg-slate-50 dark:bg-zinc-800/50 border border-amber-100 dark:border-amber-900/30 rounded-lg px-2 py-1.5 text-[10px] placeholder-amber-400/50 outline-none focus:border-amber-400 text-amber-700 dark:text-amber-400 font-bold"
+                                        className="w-full bg-slate-50 dark:bg-zinc-800/50 border border-amber-100 dark:border-amber-900/30 rounded-lg px-2 py-1.5 text-2xs placeholder-amber-400/50 outline-none focus:border-amber-400 text-amber-700 dark:text-amber-400 font-bold"
                                         placeholder="Legal Capacity (e.g. suing as administrator of...)"
                                         value={p.capacity || ''}
                                         onChange={e => updateParty(side, p.id, { capacity: e.target.value })}
@@ -615,7 +615,7 @@ const Screen1: React.FC<{
                             <button 
                                 type="button"
                                 onClick={() => updateParty(side, p.id, { isRepresentative: !p.isRepresentative, capacity: '' })}
-                                className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md border transition-all whitespace-nowrap ${
+                                className={`text-3xs font-black uppercase tracking-wider px-2 py-1 rounded-md border transition-all whitespace-nowrap ${
                                     p.isRepresentative 
                                     ? 'bg-amber-100/50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40' 
                                     : 'text-slate-400 border-slate-100 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 hover:text-slate-500'
@@ -673,7 +673,7 @@ const Screen1: React.FC<{
                 <div className="flex justify-between items-end mb-1.5 ml-0.5">
                     <label className={labelCls} style={{ marginBottom: 0 }}>Suit Name / Title *</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-500">Auto Generate</span>
+                        <span className="text-3xs font-bold text-slate-400 dark:text-zinc-500">Auto Generate</span>
                         <div 
                             className={`w-7 h-4 rounded-full flex items-center p-0.5 cursor-pointer transition-colors ${data.titleAutoGenerated !== false ? 'bg-primary-500' : 'bg-slate-300 dark:bg-zinc-600'}`}
                             onClick={() => {
@@ -701,7 +701,7 @@ const Screen1: React.FC<{
             {/* Firm's Role & Primary Client */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl border border-slate-200 dark:border-zinc-700 flex flex-col">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-[0.1em]">Firm is representing:</p>
+                    <p className="text-2xs font-bold text-slate-500 uppercase mb-2 tracking-[0.1em]">Firm is representing:</p>
                     <div className="flex gap-2 mb-3">
                         {['Claimant', 'Defendant'].map(r => (
                             <button
@@ -733,7 +733,7 @@ const Screen1: React.FC<{
                         if (activeParties.length > 1) {
                             return (
                                 <div className="mt-auto space-y-2 pt-2 border-t border-slate-100 dark:border-zinc-700/50">
-                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Select specific parties:</p>
+                                    <p className="text-3xs font-bold text-slate-400 uppercase tracking-wider mb-1">Select specific parties:</p>
                                     <div className="max-h-[120px] overflow-y-auto custom-scrollbar pr-1 space-y-1">
                                         {activeParties.map(p => {
                                             const isChecked = (data.representedPartyIds || []).includes(p.id);
@@ -780,7 +780,7 @@ const Screen1: React.FC<{
                                 }
                                 onChange({ isCreatingNewClient: isCreating, clientId: '', newClientName: autoName });
                             }}
-                            className="text-[10px] font-bold text-primary-500 hover:underline flex-shrink-0"
+                            className="text-2xs font-bold text-primary-500 hover:underline flex-shrink-0"
                         >
                             {data.isCreatingNewClient ? 'Use Existing' : '+ New Profile'}
                         </button>
@@ -943,7 +943,7 @@ const Screen2: React.FC<{
                                     <p className={`text-sm font-medium truncate ${isSelected ? 'text-primary-700 dark:text-primary-300' : 'text-slate-700 dark:text-zinc-200'}`}>
                                         {u.name}
                                     </p>
-                                    <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate">{u.role}</p>
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">{u.role}</p>
                                 </div>
                                 {isSelected && <CheckIcon className="w-4 h-4 text-primary-500 ml-auto flex-shrink-0" />}
                             </button>
@@ -1011,7 +1011,7 @@ const Screen3: React.FC<{
         // Allow value to be 0 or empty string if explicit
         (value !== undefined && value !== null) ? (
             <div className="flex items-start justify-between py-2 border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
-                <span className="text-[10px] text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{label}</span>
+                <span className="text-2xs text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-semibold">{label}</span>
                 <span className={`text-sm text-right max-w-[60%] ${highlight ? 'font-bold text-primary-600 dark:text-primary-400' : 'text-slate-800 dark:text-zinc-200'}`}>
                     {value}
                 </span>
@@ -1039,7 +1039,7 @@ const Screen3: React.FC<{
                     <ShieldCheckIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
                     <div className="min-w-0">
                         <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{activeModule.name}</p>
-                        <p className="text-[10px] text-emerald-600 dark:text-emerald-500">{activeModule.version} — Active</p>
+                        <p className="text-2xs text-emerald-600 dark:text-emerald-500">{activeModule.version} — Active</p>
                     </div>
                 </div>
             )}
@@ -1289,7 +1289,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                 <div className="flex-shrink-0 px-4 sm:px-6 pt-3 sm:pt-5 pb-3 sm:pb-4 border-b border-slate-100 dark:border-zinc-800">
                     <div className="flex items-start justify-between mb-4">
                         <div>
-                            <p className="text-[10px] font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
+                            <p className="text-2xs font-black text-primary-600 dark:text-primary-400 uppercase tracking-[0.2em] mb-1">
                                 Enterprise Matter Creation
                             </p>
                             <h1 className="text-lg font-bold text-slate-900 dark:text-white">
@@ -1311,7 +1311,7 @@ export const MatterIntakeWizard: React.FC<MatterIntakeWizardProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => i < screen && setScreen(i)}
-                                    className={`text-[9px] font-bold uppercase tracking-wider transition-colors ${
+                                    className={`text-3xs font-bold uppercase tracking-wider transition-colors ${
                                         i === screen
                                             ? 'text-primary-600 dark:text-primary-400'
                                             : i < screen

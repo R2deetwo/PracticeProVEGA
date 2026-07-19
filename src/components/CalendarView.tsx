@@ -151,7 +151,7 @@ const MonthDayCell: React.FC<{
                             key={event.id}
                             id={`event-month-${event.id}`}
                             onClick={(e) => { e.stopPropagation(); onEventClick(event.id, dateStr); }}
-                            className={`px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold truncate transition-all hover:translate-x-0.5 ${colorClass} bg-opacity-10 ${isHighlighted ? `ring-2 ring-offset-1 dark:ring-offset-zinc-900 ${getHighlightRing(highlightColor)}` : ''}`}
+                            className={`px-1.5 py-0.5 rounded-full text-3xs sm:text-2xs font-bold truncate transition-all hover:translate-x-0.5 ${colorClass} bg-opacity-10 ${isHighlighted ? `ring-2 ring-offset-1 dark:ring-offset-zinc-900 ${getHighlightRing(highlightColor)}` : ''}`}
                         >
                             {event.title}
                         </div>
@@ -160,7 +160,7 @@ const MonthDayCell: React.FC<{
 
                 {/* +N more indicator */}
                 {hiddenCount > 0 && (
-                    <div className="text-[9px] text-slate-400 dark:text-zinc-500 font-semibold pl-1.5">
+                    <div className="text-3xs text-slate-400 dark:text-zinc-500 font-semibold pl-1.5">
                         +{hiddenCount} more
                     </div>
                 )}
@@ -183,7 +183,7 @@ const MonthDayCell: React.FC<{
 // ─── Premium Time Slot — muted, centered typography ────────────────────
 const TimeSlot: React.FC<{ time: string; hourHeight: number }> = ({ time, hourHeight }) => (
     <div className="relative flex items-start -mt-[1px]" style={{ height: `${hourHeight}px` }}>
-        <div className="text-[9px] sm:text-[10px] text-right w-10 sm:w-12 pr-1.5 sm:pr-2 text-slate-400 dark:text-zinc-600 select-none font-medium pt-0.5 tracking-wide">{time}</div>
+        <div className="text-3xs sm:text-2xs text-right w-10 sm:w-12 pr-1.5 sm:pr-2 text-slate-400 dark:text-zinc-600 select-none font-medium pt-0.5 tracking-wide">{time}</div>
         <div className="flex-1 border-t border-slate-50 dark:border-zinc-800/40 z-0"></div>
     </div>
 );
@@ -238,11 +238,11 @@ const DiaryEventTile: React.FC<{
         >
             <div className="flex flex-col h-full overflow-hidden">
                 <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[10px] sm:text-[11px] leading-tight truncate flex items-center gap-1">
+                    <p className="font-bold text-2xs sm:text-2xs leading-tight truncate flex items-center gap-1">
                         {hasConflict && <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0 animate-pulse" />}
                         {event.title}
                     </p>
-                    <p className="text-[8px] sm:text-[9px] opacity-60 truncate font-medium mt-0.5">
+                    <p className="text-3xs sm:text-3xs opacity-60 truncate font-medium mt-0.5">
                         {startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                     </p>
                 </div>
@@ -347,13 +347,13 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                     <div className="flex bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5">
                         <button
                             onClick={() => setDiaryLayout('structured')}
-                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${diaryLayout === 'structured' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
+                            className={`px-2.5 py-1 text-2xs font-bold rounded-md transition-all ${diaryLayout === 'structured' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
                         >
                             Overview
                         </button>
                         <button
                             onClick={() => setDiaryLayout('dynamic')}
-                            className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all ${diaryLayout === 'dynamic' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
+                            className={`px-2.5 py-1 text-2xs font-bold rounded-md transition-all ${diaryLayout === 'dynamic' ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-400'}`}
                         >
                             Focus
                         </button>
@@ -396,7 +396,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                                     onClick={() => cat.id === 'deadlines'
                                         ? openModal('newTask', null, { dueDate: selectedDate.toISOString(), openedFrom: 'calendar' })
                                         : openModal('newEvent', null, { date: selectedDate, openedFrom: 'calendar' })}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
                                 >
                                     + Add
                                 </button>
@@ -424,7 +424,7 @@ const DiaryModeView: React.FC<DiaryModeViewProps> = ({ selectedDate, events, tas
                                                 <p className={`text-sm font-bold ${textClass} truncate`}>{item.title}</p>
                                                 {item.location && <p className="text-xs text-slate-500 mt-0.5">{item.location}</p>}
                                                 {item.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{item.description}</p>}
-                                                {item.assignedUsers && item.assignedUsers.length > 0 && <p className="text-[10px] text-slate-400 mt-0.5">Assigned to {item.assignedUsers.length} person{item.assignedUsers.length > 1 ? 's' : ''}</p>}
+                                                {item.assignedUsers && item.assignedUsers.length > 0 && <p className="text-2xs text-slate-400 mt-0.5">Assigned to {item.assignedUsers.length} person{item.assignedUsers.length > 1 ? 's' : ''}</p>}
                                             </div>
                                         </div>
                                     );
@@ -628,7 +628,7 @@ export const CalendarView: React.FC = () => {
                         {/* Weekday headers — muted, premium */}
                         <div className="grid grid-cols-7 border-b border-slate-100 dark:border-zinc-800/50 bg-white dark:bg-zinc-900 sticky top-0 z-20">
                             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                                <div key={day} className="py-2.5 text-center text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-[0.15em] select-none">
+                                <div key={day} className="py-2.5 text-center text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-600 uppercase tracking-[0.15em] select-none">
                                     {day}
                                 </div>
                             ))}
@@ -691,10 +691,10 @@ export const CalendarView: React.FC = () => {
                                         <div key={dayDate.toISOString()} className="flex-1 min-w-[100px] sm:min-w-[120px] relative border-r border-slate-50 dark:border-zinc-800/30 last:border-r-0 min-h-full">
                                             {/* Column header */}
                                             <div className="sticky top-0 z-20 h-10 bg-white dark:bg-zinc-900/95 border-b border-slate-50 dark:border-zinc-800/40 flex flex-col items-center justify-center backdrop-blur-sm">
-                                                <span className={`text-[9px] uppercase font-bold ${isDayToday ? 'text-primary-600' : 'text-slate-400 dark:text-zinc-500'}`}>
+                                                <span className={`text-3xs uppercase font-bold ${isDayToday ? 'text-primary-600' : 'text-slate-400 dark:text-zinc-500'}`}>
                                                     {dayDate.toLocaleDateString('en-GB', { weekday: 'short' })}
                                                 </span>
-                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isDayToday ? 'bg-primary-600 text-white' : 'text-slate-700 dark:text-zinc-300'}`}>
+                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center text-2xs font-bold ${isDayToday ? 'bg-primary-600 text-white' : 'text-slate-700 dark:text-zinc-300'}`}>
                                                     {dayDate.getDate()}
                                                 </div>
                                             </div>
@@ -710,7 +710,7 @@ export const CalendarView: React.FC = () => {
                                                     <div className="absolute w-full border-t border-primary-500/60 top-0 left-0"></div>
                                                     <div className="absolute flex items-center gap-1 -left-1 -top-1.5">
                                                         <div className="w-2.5 h-2.5 bg-primary-500 rounded-full shadow-sm animate-pulse"></div>
-                                                        <span className="text-[8px] font-bold text-primary-600 bg-white dark:bg-zinc-900 px-1 rounded shadow-sm">{currentTimeLabel}</span>
+                                                        <span className="text-3xs font-bold text-primary-600 bg-white dark:bg-zinc-900 px-1 rounded shadow-sm">{currentTimeLabel}</span>
                                                     </div>
                                                 </div>
                                             )}

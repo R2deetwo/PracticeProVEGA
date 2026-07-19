@@ -88,7 +88,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                             <ClockIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Time Entry</p>
+                            <p className="text-2xs font-bold text-primary-600/70 uppercase tracking-widest leading-none mb-0.5">Time Entry</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Activity Details</h3>
                         </div>
                     </div>
@@ -116,7 +116,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                             <BillingIcon className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                            <p className="text-[10px] font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Finances</p>
+                            <p className="text-2xs font-bold text-indigo-600/70 uppercase tracking-widest leading-none mb-0.5">Finances</p>
                             <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Billing Details</h3>
                         </div>
                     </div>
@@ -141,7 +141,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                                 <BillingIcon className="w-3.5 h-3.5" />
                            </div>
                            <div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-tight mb-0.5">Billing</p>
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest leading-tight mb-0.5">Billing</p>
                                 <div className="flex items-center gap-3">
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="billable" checked={billable} onChange={e => setBillable(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer" />
                                     <span className="text-sm font-black text-slate-700 dark:text-white tracking-tight uppercase">Billable</span>
@@ -149,7 +149,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                            </div>
                         </label>
                         <div className="text-right">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Accrued Value</p>
+                          <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Accrued Value</p>
                           <p className="text-2xl font-black text-primary-600 tracking-tighter leading-none"><NairaSymbol />{formatNaira(duration * rate)}</p>
                         </div>
                     </div>

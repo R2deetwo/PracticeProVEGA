@@ -263,7 +263,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                             <div className="flex justify-between items-center mb-0.5">
                                 <label htmlFor="type" className={labelClass}>Activity Type</label>
                                 {onNavigate && (
-                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-[9px] font-black text-primary-600 uppercase tracking-widest hover:underline">Customize</button>
+                                    <button type="button" onClick={() => { onNavigate('settings', null, { settingsTargetId: 'event-type-management' }); onClose(); }} className="text-3xs font-black text-primary-600 uppercase tracking-widest hover:underline">Customize</button>
                                 )}
                             </div>
                             <select id="type" value={type} onChange={e => setType(e.target.value)} className={commonInputClass} required>
@@ -366,12 +366,12 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                                     +
                                                 </button>
                                             </div>
-                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={reminderUnit} onChange={e => setReminderUnit(e.target.value as any)} className="py-1.5 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="minutes">Min</option>
                                                 <option value="hours">Hrs</option>
                                                 <option value="days">Day</option>
                                             </select>
-                                            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-medium">before</span>
+                                            <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">before</span>
                                         </div>
                                     )}
                                 </div>
@@ -388,7 +388,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="recurrenceEnabled" checked={recurrenceEnabled} onChange={e => setRecurrenceEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
                                     {recurrenceEnabled && (
                                         <div className="flex items-center gap-1.5 animate-in slide-in-from-left-2 duration-300">
-                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-[9px] font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
+                                            <select value={recurrenceFrequency} onChange={e => setRecurrenceFrequency(e.target.value as any)} className="py-1 px-2 text-3xs font-black uppercase bg-slate-50 dark:bg-zinc-800 ring-1 ring-slate-200 dark:ring-zinc-700 rounded-lg outline-none">
                                                 <option value="daily">Daily</option>
                                                 <option value="weekly">Weekly</option>
                                                 <option value="monthly">Monthly</option>

@@ -147,7 +147,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
     const Guidance: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
         <div className="flex gap-2 items-start p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-lg">
             <div className="mt-0.5 text-blue-500 dark:text-blue-400">{icon}</div>
-            <p className="text-[11px] font-medium text-blue-800 dark:text-blue-300 leading-relaxed">{text}</p>
+            <p className="text-2xs font-medium text-blue-800 dark:text-blue-300 leading-relaxed">{text}</p>
         </div>
     );
 
@@ -201,7 +201,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
                                 <UploadIcon className="w-6 h-6 text-slate-400 dark:text-zinc-400" />
                             </div>
                             <p className="font-semibold text-slate-700 dark:text-zinc-300 text-sm">Click to upload files</p>
-                            <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-bold">PDF / TXT (Max 10MB each)</p>
+                            <p className="text-2xs text-slate-500 mt-1 uppercase tracking-wider font-bold">PDF / TXT (Max 10MB each)</p>
                         </div>
                     </div>
 

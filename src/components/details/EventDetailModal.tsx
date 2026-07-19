@@ -85,11 +85,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         <div className="flex flex-col gap-1 border-b border-slate-100 dark:border-zinc-700/50 pb-4">
              <div className="flex items-center gap-2 mb-1">
-                <span className={`px-2 py-0.5 text-[10px] font-black uppercase tracking-widest rounded-md ${getEventTypeBadgeClass(eventTypeColor)}`}>
+                <span className={`px-2 py-0.5 text-2xs font-black uppercase tracking-widest rounded-md ${getEventTypeBadgeClass(eventTypeColor)}`}>
                     {event.type}
                 </span>
                 {event.recurrence && (
-                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase tracking-widest rounded-md">
+                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-2xs font-black uppercase tracking-widest rounded-md">
                         RECURRING
                     </span>
                 )}
@@ -105,7 +105,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                     <CalendarIcon className="w-5 h-5" />
                 </div>
                 <div>
-                   <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">DATE</p>
+                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">DATE</p>
                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
                         {safeFormatDate(event.date, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                    </p>
@@ -116,7 +116,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
                     <ClockIcon className="w-5 h-5" />
                 </div>
                 <div>
-                   <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">TIME</p>
+                   <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-0.5">TIME</p>
                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{timeString}</p>
                 </div>
              </div>
@@ -124,7 +124,7 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         {event.description && (
             <div className="space-y-2">
-                <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">NOTES</p>
+                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] px-1">NOTES</p>
                 <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl text-sm text-slate-700 dark:text-slate-300 shadow-sm leading-relaxed italic">
                     {event.description}
                 </div>
@@ -134,11 +134,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         {event.matterTitle && (
             <div className="p-4 glass-premium rounded-2xl flex items-center justify-between border-l-4 border-l-primary-500">
                 <div className="min-w-0">
-                    <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1">ASSOCIATED MATTER</p>
+                    <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em] mb-1">ASSOCIATED MATTER</p>
                     <p className="text-sm font-bold text-slate-800 dark:text-white truncate pr-4">{event.matterTitle}</p>
                 </div>
                 {openedFrom === 'calendar' && event.matterId && onNavigateToMatter && (
-                     <button type="button" onClick={() => onNavigateToMatter(event.matterId!, event.id)} className="px-3 py-1 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all">
+                     <button type="button" onClick={() => onNavigateToMatter(event.matterId!, event.id)} className="px-3 py-1 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 rounded-lg text-3xs font-black uppercase tracking-widest hover:bg-primary-600 hover:text-white transition-all">
                         OPEN
                     </button>
                 )}
@@ -147,8 +147,8 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
 
         <div className="space-y-3">
             <div className="flex justify-between items-center px-1">
-                <p className="text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em]">ASSIGNED TEAM</p>
-                <button onClick={onAssign} className="text-[10px] font-black text-primary-600 hover:underline uppercase tracking-widest">ASSIGN NEW</button>
+                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-[0.2em]">ASSIGNED TEAM</p>
+                <button onClick={onAssign} className="text-2xs font-black text-primary-600 hover:underline uppercase tracking-widest">ASSIGN NEW</button>
             </div>
             <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl flex items-center justify-between">
                 {assignedUsers.length > 0 ? (
@@ -173,11 +173,11 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         {isCourtEvent && (
             <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50/50 dark:bg-zinc-800/20 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-700">
                 <div>
-                     <p className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">COURT</p>
+                     <p className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">COURT</p>
                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{event.court || 'N/A'}</p>
                 </div>
                 <div>
-                     <p className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">DIVISION</p>
+                     <p className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">DIVISION</p>
                      <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{event.judicialDivision || 'N/A'}</p>
                 </div>
             </div>
@@ -186,25 +186,25 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         <div className="flex justify-between items-center py-2 px-1">
             <div className="flex gap-4">
                <div>
-                  <p className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">REMINDER</p>
-                  <p className="text-[10px] font-bold text-slate-600 dark:text-zinc-400">{formatReminder(event.reminder)}</p>
+                  <p className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">REMINDER</p>
+                  <p className="text-2xs font-bold text-slate-600 dark:text-zinc-400">{formatReminder(event.reminder)}</p>
                </div>
                <div>
-                  <p className="text-[9px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">RECURRENCE</p>
-                  <p className="text-[10px] font-bold text-slate-600 dark:text-zinc-400 capitalize">{event.recurrence ? `${event.recurrence.frequency} pattern` : 'Single instance'}</p>
+                  <p className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1">RECURRENCE</p>
+                  <p className="text-2xs font-bold text-slate-600 dark:text-zinc-400 capitalize">{event.recurrence ? `${event.recurrence.frequency} pattern` : 'Single instance'}</p>
                </div>
             </div>
         </div>
        
         <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:flex-nowrap justify-between gap-3">
-            <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
+            <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
             <div className="flex flex-1 justify-end items-center gap-2 w-full sm:w-auto">
                 {event.date && openedFrom !== 'calendar' && onNavigateToCalendar && (
-                    <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
+                    <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
                         View in Calendar
                     </button>
                 )}
-                <button type="button" onClick={onEdit} className="px-6 py-2.5 flex-1 sm:flex-none bg-primary-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">Edit Event Details</button>
+                <button type="button" onClick={onEdit} className="px-6 py-2.5 flex-1 sm:flex-none bg-primary-600 text-white rounded-xl font-black text-2xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">Edit Event Details</button>
             </div>
         </div>
     </div>

@@ -71,7 +71,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                         {/* Bank Name */}
                         <div className="flex items-center justify-between group">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Bank</p>
+                                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase">Bank</p>
                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{bankName}</p>
                             </div>
                             <button
@@ -86,7 +86,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                         {/* Account Number */}
                         <div className="flex items-center justify-between group">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Account Number</p>
+                                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase">Account Number</p>
                                 <p className="text-sm font-mono font-bold text-slate-900 dark:text-white tracking-wider">{accountNumber}</p>
                             </div>
                             <button
@@ -101,7 +101,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                         {/* Account Name */}
                         <div className="flex items-center justify-between group">
                             <div>
-                                <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Account Name</p>
+                                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase">Account Name</p>
                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{accountName}</p>
                             </div>
                             <button
@@ -117,7 +117,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                         <div className="pt-3 border-t border-slate-200 dark:border-zinc-700">
                             <div className="flex items-center justify-between group">
                                 <div>
-                                    <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase">Amount</p>
+                                    <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase">Amount</p>
                                     <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400"><NairaSymbol />{formatNaira(amount)}</p>
                                 </div>
                                 <button
@@ -158,7 +158,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
                     </div>
 
                     {/* Honest Disclaimer */}
-                    <p className="text-[10px] text-center text-slate-400 dark:text-zinc-600 leading-relaxed">
+                    <p className="text-2xs text-center text-slate-400 dark:text-zinc-600 leading-relaxed">
                         Transfer to the account above, then confirm. Your plan activates after verification. Online card payments coming soon.
                     </p>
                 </div>
