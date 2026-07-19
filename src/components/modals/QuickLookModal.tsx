@@ -9,7 +9,21 @@ const QuickLookModal: React.FC = () => {
     const item = modalContext?.item;
     const type = modalContext?.type as 'Matter' | 'Task' | 'Contact';
 
-    if (!item) return null;
+    // P1 FIX: Was `return null` which opened a blank modal. Now shows
+    // a proper empty state so the user understands what happened.
+    if (!item) {
+        return (
+            <div className="p-8 text-center">
+                <p className="text-sm text-slate-500 dark:text-zinc-400">No item selected.</p>
+                <button
+                    onClick={closeModal}
+                    className="mt-4 px-4 py-2 text-xs font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-zinc-800 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
+                >
+                    Close
+                </button>
+            </div>
+        );
+    }
 
     const handleOpenFull = () => {
         closeModal();

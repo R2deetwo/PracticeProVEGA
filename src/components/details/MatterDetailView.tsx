@@ -297,6 +297,7 @@ const MatterDetailViewContent: React.FC = () => {
                     onGoBack();
                 } catch (err: any) {
                     console.error('[MatterDetailView] Delete failed:', err);
+                    addToast(`Failed to delete matter: ${err.message}`, { type: 'error' });
                     // Keep modal open so user sees the error
                 }
             },

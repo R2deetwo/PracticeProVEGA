@@ -50,6 +50,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     const { addToast } = useUI();
   const { isProperty } = useProduct();
   const [title, setTitle] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [assignedUsers, setAssignedUsers] = useState<Set<string>>(new Set());
@@ -114,8 +115,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
     }
   }, [isEditing, taskToEdit, initialContext, currentUser.id, appMode]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!title.trim()) {
       addToast('Task title is required.', { type: 'info' });
       return;
@@ -132,12 +134,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
       priority,
     };
 
-    if (isEditing && onUpdateTask && taskToEdit) {
-      onUpdateTask({ ...taskToEdit, ...taskData });
-    } else if (onAddTask) {
-      onAddTask(taskData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdateTask && taskToEdit) {
+        onUpdateTask({ ...taskToEdit, ...taskData });
+      } else if (onAddTask) {
+        onAddTask(taskData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   const handleUserToggle = (userId: string) => {
@@ -316,7 +323,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
           <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
               <XIcon className="w-4 h-4" /> Cancel
           </button>
-          <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+          <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
               <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Task'}
           </button>
       </div>

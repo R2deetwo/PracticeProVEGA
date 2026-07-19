@@ -1270,6 +1270,8 @@ ${sourceList}
             setIsSaved(true);
         } catch (e) {
             console.error('[DraftPro] save before leave failed:', e);
+            // P1 FIX: Was silent — user had no idea their draft wasn't saved
+            addToast('Could not save your draft before leaving. Please save manually.', { type: 'warning' });
         }
         const cb = pendingNav?.onConfirm;
         setPendingNav(null);

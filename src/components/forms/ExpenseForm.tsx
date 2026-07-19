@@ -21,6 +21,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
   const { addToast } = useUI();
   const { hasPropertyFeatures } = useProduct();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState('');
   const [isBillable, setIsBillable] = useState(true);
@@ -41,8 +42,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
     }
   }, [isEditing, expenseToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!description.trim() || amount <= 0) {
       addToast("Please provide a valid description and amount.", { type: 'info' });
       return;
@@ -58,12 +60,17 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
       billedInInvoiceId: null,
       taxDeductibility: taxAnalysis ? { isDeductible: taxAnalysis.isDeductible, reason: taxAnalysis.reason } : undefined
     };
-    if (isEditing && expenseToEdit) {
-      onUpdateExpense({ ...expenseToEdit, ...expenseData });
-    } else {
-      onAddExpense(expenseData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && expenseToEdit) {
+        onUpdateExpense({ ...expenseToEdit, ...expenseData });
+      } else {
+        onAddExpense(expenseData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   const handleAnalyzeTax = async () => {
@@ -178,7 +185,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ matter, expenseToEdit, onAddE
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Expense'}
                 </button>
             </div>

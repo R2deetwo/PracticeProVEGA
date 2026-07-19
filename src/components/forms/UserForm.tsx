@@ -18,6 +18,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
     const { addToast } = useUI();
     const { isProperty } = useProduct();
   const [name, setName] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<UserRole>(UserRole.Paralegal);
   const [standards, setStandards] = useState({
@@ -40,8 +41,9 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
     }
   }, [isEditing, userToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim() || !email.trim()) {
       addToast("Please provide a name and email.", { type: 'info' });
       return;
@@ -55,12 +57,17 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
       showProTips: userToEdit?.showProTips ?? true,
       professionalStandards: role === UserRole.Lawyer ? standards : undefined, // Updated check
     };
-    if (isEditing && userToEdit) {
-      onUpdateUser({ ...userToEdit, ...userData });
-    } else {
-      onAddUser(userData as Omit<User, 'id'>);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && userToEdit) {
+        onUpdateUser({ ...userToEdit, ...userData });
+      } else {
+        onAddUser(userData as Omit<User, 'id'>);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputModern;
@@ -156,7 +163,7 @@ const UserForm: React.FC<UserFormProps> = ({ userToEdit, onAddUser, onUpdateUser
         <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-5 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">
           Cancel
         </button>
-        <button type="submit" className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
+        <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
           <SaveIcon className="w-3.5 h-3.5" /> Save
         </button>
       </div>

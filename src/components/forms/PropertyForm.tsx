@@ -39,6 +39,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
     // Core Fields
     const [address, setAddress] = useState(propertyToEdit?.address || '');
+    // P1 FIX: isSubmitting state to prevent double-submit
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [category, setCategory] = useState<Property['category']>(propertyToEdit?.category || PropertyCategory.Tenanted);
     const [propertyType, setPropertyType] = useState<Property['propertyType']>(propertyToEdit?.propertyType || 'Residential');
     const [description, setDescription] = useState(propertyToEdit?.description || '');
@@ -386,6 +388,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return; // P1 FIX: prevent double-submit
 
         if (!address.trim()) {
             addToast('Address is required.', { type: 'info' });
@@ -459,6 +462,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             };
         }
 
+        setIsSubmitting(true);
         try {
             const isEditing = !!propertyToEdit;
             const currentUnits = unitsData.slice(0, numberOfUnits);
@@ -525,6 +529,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         } catch (error) {
             console.error("Failed to save property", error);
             addToast("Failed to save property. Please try again.", { type: 'error' });
+        } finally {
+            setIsSubmitting(false);
         }
     };
 

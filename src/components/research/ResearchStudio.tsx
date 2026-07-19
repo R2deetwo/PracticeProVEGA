@@ -185,8 +185,19 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
             };
             handleSaveAnalysisResult(newItem);
             setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Analysis failed:', error);
+            // P1 FIX: Show error to user instead of silent console.error
+            const errorItem: StudioAnalysisResult = {
+                id: `error-${Date.now()}`,
+                type: loadingType || 'summary',
+                title: 'Analysis Failed',
+                content: error?.message || 'An error occurred during analysis. Please try again.',
+                timestamp: new Date().toISOString(),
+                sources: [],
+                isError: true,
+            };
+            handleSaveAnalysisResult(errorItem);
         } finally {
             setLoadingType(null);
         }

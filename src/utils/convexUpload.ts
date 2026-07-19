@@ -14,24 +14,49 @@
 /**
  * Upload a Blob to Convex storage.
  *
+ * P1 FIX: Added 2-minute timeout. Was hanging forever on slow networks.
+ *
  * @param blob The file data as a Blob
  * @param generateUploadUrlFn The Convex mutation function (from useMutation)
  * @returns The storageId string
  */
+const UPLOAD_TIMEOUT_MS = 120_000; // 2 minutes
+
 export async function uploadBlobToConvex(
     blob: Blob,
     generateUploadUrlFn: () => Promise<string>
 ): Promise<string> {
     const postUrl = await generateUploadUrlFn();
-    const res = await fetch(postUrl, {
-        method: 'POST',
-        body: blob,
-    });
-    if (!res.ok) {
-        throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
+
+    // P1 FIX: Add timeout so uploads don't hang forever
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), UPLOAD_TIMEOUT_MS);
+
+    try {
+        const res = await fetch(postUrl, {
+            method: 'POST',
+            body: blob,
+            signal: timeoutController.signal,
+        });
+        if (!res.ok) {
+            // Read error details if available
+            let errorDetail = '';
+            try {
+                const errBody = await res.json();
+                errorDetail = errBody?.message || errBody?.error || '';
+            } catch { /* ignore */ }
+            throw new Error(`Upload failed: ${res.status} ${res.statusText}${errorDetail ? ` — ${errorDetail}` : ''}`);
+        }
+        const { storageId } = await res.json();
+        return storageId;
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new Error(`Upload timed out after ${UPLOAD_TIMEOUT_MS / 1000}s. Check your network connection and try again.`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
-    const { storageId } = await res.json();
-    return storageId;
 }
 
 /**
@@ -49,22 +74,35 @@ export function getStorageFileUrl(storageId: string): string {
  * Download a file from Convex storage by its storageId.
  * Fetches the file and triggers a browser download.
  *
+ * P1 FIX: Added 2-minute timeout.
+ *
  * @param storageId The storageId from Convex storage
  * @param filename The name to save the file as
  */
 export async function downloadFromConvex(storageId: string, filename: string): Promise<void> {
     const url = getStorageFileUrl(storageId);
-    const res = await fetch(url);
-    if (!res.ok) {
-        throw new Error(`Failed to download: ${res.status}`);
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), UPLOAD_TIMEOUT_MS);
+    try {
+        const res = await fetch(url, { signal: timeoutController.signal });
+        if (!res.ok) {
+            throw new Error(`Failed to download: ${res.status}`);
+        }
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+        if (err?.name === 'AbortError') {
+            throw new Error(`Download timed out after ${UPLOAD_TIMEOUT_MS / 1000}s.`);
+        }
+        throw err;
+    } finally {
+        clearTimeout(timeoutId);
     }
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
 }

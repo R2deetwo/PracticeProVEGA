@@ -40,6 +40,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     const { addToast } = useUI();
     const { isProperty } = useProduct();
     const [title, setTitle] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [description, setDescription] = useState('');
     const [matterId, setMatterId] = useState<string>('');
     const [type, setType] = useState<EventTypeString>(eventTypes[0]?.name || '');
@@ -183,8 +184,9 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
         if (!isNaN(newDate.getTime())) setEndDate(newDate);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!title) {
             addToast("Please provide an event title.", { type: 'info' });
             return;
@@ -221,13 +223,18 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
             recurrence: recurrenceEnabled ? { frequency: recurrenceFrequency, endDate: recurrenceEndDate || undefined } : undefined,
         };
 
-        if (isEditing && onUpdateEvent) {
-            onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
-        } else {
-            onSave(eventData);
-            localStorage.removeItem('draft_newEvent');
+        setIsSubmitting(true);
+        try {
+            if (isEditing && onUpdateEvent) {
+                onUpdateEvent({ ...eventData, id: eventToEdit!.id } as CalendarEvent);
+            } else {
+                onSave(eventData);
+                localStorage.removeItem('draft_newEvent');
+            }
+            onClose();
+        } finally {
+            setIsSubmitting(false);
         }
-        onClose();
     };
 
     const commonInputClass = inputModern;
@@ -426,7 +433,7 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Event'}
                 </button>
             </div>

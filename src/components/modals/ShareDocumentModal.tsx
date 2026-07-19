@@ -22,6 +22,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
 
     const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
     const [message, setMessage] = useState(`Sharing document: ${document.title}`);
+    const [isSharing, setIsSharing] = useState(false);
 
     // Filter out current user and clients
     const internalUsers = useMemo(() =>
@@ -54,6 +55,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     };
 
     const handleShare = async () => {
+        if (isSharing) return; // P1 FIX: prevent double-share
         if (selectedUserIds.size === 0) {
             addToast("Please select at least one colleague.", { type: 'info' });
             return;
@@ -61,17 +63,21 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
 
         if (!currentUser) return;
 
-        const linkText = `\n\n[FILE: ${document.title}](${document.id})`; // Internal link format or similar
+        const linkText = `\n\n[FILE: ${document.title}](${document.id})`;
 
-        const sharePromises = Array.from(selectedUserIds).map(async recipientId => {
-            // Check if DM exists, if not create one
-            const chatId = await handleCreateDirectMessage(recipientId, undefined, currentUser.id, undefined, false);
-            handleSendMessage(chatId, message + linkText, currentUser.id);
-        });
-
-        await Promise.all(sharePromises);
-
-        onClose();
+        setIsSharing(true);
+        try {
+            const sharePromises = Array.from(selectedUserIds).map(async recipientId => {
+                const chatId = await handleCreateDirectMessage(recipientId, undefined, currentUser.id, undefined, false);
+                handleSendMessage(chatId, message + linkText, currentUser.id);
+            });
+            await Promise.all(sharePromises);
+            onClose();
+        } catch (err: any) {
+            addToast(`Failed to share: ${err.message}`, { type: 'error' });
+        } finally {
+            setIsSharing(false);
+        }
     };
 
     return (
@@ -140,9 +146,10 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
                 <button
                     type="button"
                     onClick={handleShare}
-                    className="px-4 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 shadow-sm transition-colors flex items-center gap-2"
+                    disabled={isSharing}
+                    className="px-4 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
-                    Share
+                    {isSharing ? 'Sharing…' : 'Share'}
                 </button>
             </div>
         </div>

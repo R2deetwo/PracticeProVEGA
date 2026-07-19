@@ -23,6 +23,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
   const { addToast, openModal } = useUI(); // Added openModal
   const { hasPropertyFeatures } = useProduct();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [isSubmitting, setIsSubmitting] = useState(false);
   const [duration, setDuration] = useState(1);
   const [description, setDescription] = useState('');
   const [billable, setBillable] = useState(true);
@@ -39,8 +40,9 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
     }
   }, [isEditing, timeEntryToEdit]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!description.trim() || duration <= 0) {
       addToast("Please provide a valid description and duration.", { type: 'info' });
       return;
@@ -60,12 +62,17 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
       billable,
       billedInInvoiceId: timeEntryToEdit?.billedInInvoiceId ?? null,
     };
-    if (isEditing && timeEntryToEdit) {
-      onUpdateTimeEntry({ ...timeEntryToEdit, ...entryData });
-    } else {
-      onAddTimeEntry(entryData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && timeEntryToEdit) {
+        onUpdateTimeEntry({ ...timeEntryToEdit, ...entryData });
+      } else {
+        onAddTimeEntry(entryData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputModern;
@@ -170,7 +177,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ matter, timeEntryToEdit, 
                 <button type="button" onClick={onClose} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-xl sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>
-                <button type="submit" className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <button type="submit" disabled={isSubmitting} className="flex-1 sm:flex-none px-8 sm:px-12 py-2.5 bg-primary-600 text-white text-xs font-semibold rounded-xl sm:rounded-2xl shadow-2xl shadow-primary-500/30 hover:bg-primary-700 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
                     <SaveIcon className="w-4 h-4" /> {isEditing ? 'Save Changes' : 'Create Entry'}
                 </button>
             </div>
