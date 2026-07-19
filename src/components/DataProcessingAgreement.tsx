@@ -22,7 +22,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Data Processing Agreement</h1>
                         <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 uppercase tracking-tight">PracticePro Legal Technologies Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic mb-6">
-                            <span>Effective Date: April 21, 2026</span>
+                            <span>Effective Date: July 19, 2026</span>
                             <span>Version: 1.0</span>
                         </div>
                         <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
@@ -129,7 +129,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                                             ['Google Cloud Platform','USA / Multi-region','Cloud hosting, database, and storage infrastructure'],
                                             ['Google Gemini API','USA','AI language model processing (ARIA® engine)'],
                                             ['Convex Inc.','USA','Real-time database and backend infrastructure'],
-                                            ['Paystack / Flutterwave','Nigeria / USA','Payment processing'],
+                                            
                                         ].map(([sp, loc, purpose], i) => (
                                             <tr key={i} className={i % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-slate-50 dark:bg-zinc-800/50'}>
                                                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200 border-b border-slate-100 dark:border-zinc-800">{sp}</td>

@@ -33,7 +33,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ matterId, hideHeader })
             {/* Horizontal Timeline Container */}
             <div className="flex gap-4 overflow-x-auto pb-4 pt-2 custom-scrollbar snap-x">
                 {activities.map((activity, index) => {
-                    const isSystem = activity.userId === 'system';
+                    const isSystem = activity.userId === 'system' || activity.userName === 'PracticePro';
                     return (
                         <div key={activity.id} className="flex-shrink-0 w-64 snap-start relative">
                             {/* Connector Line */}
@@ -44,7 +44,7 @@ const ActivityLogTab: React.FC<ActivityLogTabProps> = ({ matterId, hideHeader })
                             <div className="relative z-10 flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm border-2 border-white dark:border-zinc-800 ${isSystem ? 'bg-slate-200 text-slate-600' : 'bg-primary-100 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'}`}>
-                                        {isSystem ? 'SYS' : getInitials(activity.userName)}
+                                        {isSystem ? 'PP' : getInitials(activity.userName)}
                                     </div>
                                     <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
                                         {timeAgo(activity.timestamp)}

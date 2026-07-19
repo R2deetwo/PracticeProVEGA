@@ -634,7 +634,7 @@ const PropertyDetailViewContent: React.FC = () => {
         prompt += `\n**CONTEXT:**\n`;
         prompt += `- Notice to Quit was served and delivered on ${tracker.quitNoticeDeliveredDate ? new Date(tracker.quitNoticeDeliveredDate).toLocaleDateString('en-GB') : '[DATE]'}\n`;
         prompt += `- The statutory notice period has expired and the tenant remains in possession\n`;
-        prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the Recovery of Premises Act. The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
+        prompt += `\n**SPECIFIC INSTRUCTION:** This is a 7-Day Notice of Owner's Intention to Recover Premises under the the applicable state Recovery of Premises Law (e.g., Lagos Tenancy Law 2011). The tenant has failed to yield possession after the quit notice period expired. Give 7 days from service of this notice for the tenant to vacate, failing which legal proceedings for recovery of premises will be commenced.\n`;
         prompt += `\n**FORMAT:** Use standard Nigerian legal formatting. Start with the Title centered.`;
 
         const draftTitle = `7-Day Notice - ${d.name || property.address.split(',')[0]}`;

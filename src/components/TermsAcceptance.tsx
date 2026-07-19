@@ -26,7 +26,7 @@ interface TermsAcceptanceProps {
     onClose?: () => void;
 }
 
-const TERMS_VERSION = '2026-07-09-v2';
+const TERMS_VERSION = '2026-07-19-v3';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 

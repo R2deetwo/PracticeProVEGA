@@ -491,7 +491,7 @@ export const SettingsView: React.FC = () => {
             case 'security': return <SecuritySettings activities={coreState.firmActivity} users={props.users} onEnableDevMode={props.onEnableDevMode} />;
             case 'agents':
                 return isDemo
-                    ? demoGate(isProperty ? "ARIA Brain" : "ALOA® AI Architecture", isProperty ? "Configure your property AI agents, document parsers, and custom model parameters in your own workspace." : "Configure personalized AI personalities, agency settings, and model parameters in your own workspace.")
+                    ? demoGate(isProperty ? "ARIA Brain" : "ALOA™ AI Architecture", isProperty ? "Configure your property AI agents, document parsers, and custom model parameters in your own workspace." : "Configure personalized AI personalities, agency settings, and model parameters in your own workspace.")
                     : <AgentSettings firmDetails={props.firmDetails} onUpdateFirmDetails={props.onUpdateFirmDetails} currentUser={props.currentUser} />;
             case 'data': return <DataManagementSettings onEnableDevMode={props.onEnableDevMode} />;
             case 'templates':
