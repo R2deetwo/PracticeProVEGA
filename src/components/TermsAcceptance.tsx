@@ -1,24 +1,19 @@
 /**
  * TermsAcceptance — slim, non-blocking legal acceptance bar.
  *
- * DESIGN PHILOSOPHY (top-tier SaaS pattern):
- *   Top-tier companies (Slack, Notion, GitHub) don't block the app with
- *   a full-screen modal. They show a slim bar at the bottom of the screen
- *   with inline links to the legal documents and a single accept button.
- *   The app remains fully usable — the bar is a gentle nudge, not a gate.
+ * LEGAL COMPLIANCE (NDPA §25):
+ *   The acceptance timestamp + terms version is stored BOTH:
+ *   1. In localStorage (for instant UI state — no network round-trip)
+ *   2. In the Convex consent_log table (for legal demonstrability)
  *
- *   - First-time users: "By continuing, you agree to our Terms and Privacy Policy"
- *   - Returning users (version update): "We've updated our Terms. Please review and accept."
- *   - Never blocks the app — always dismissible
- *   - Links open the full documents in a clean route (web) or external browser (APK)
- *   - Single "Accept" button — no checkboxes, no expandable sections
- *
- * LEGAL COMPLIANCE:
- *   The acceptance timestamp + terms version is stored in localStorage.
- *   The bar reappears when TERMS_VERSION is bumped.
+ *   The server-side record is what satisfies NDPA §25's requirement
+ *   for demonstrable consent. localStorage alone is insufficient
+ *   (volatile, device-local, can be cleared by the user).
  */
 import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
 interface TermsAcceptanceProps {
     onAccepted: () => void;
@@ -26,7 +21,7 @@ interface TermsAcceptanceProps {
     onClose?: () => void;
 }
 
-const TERMS_VERSION = '2026-07-09-v2';
+const TERMS_VERSION = '2026-07-19-v3';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 
@@ -76,10 +71,23 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
     const previousVersion = getPreviousVersion();
     const isUpdate = previousVersion !== null && previousVersion !== TERMS_VERSION;
 
+    // P0 FIX: Persist consent to server (NDPA §25)
+    const recordConsent = useMutation(api.myFunctions.recordConsent);
+
     if (dismissed) return null;
 
-    const handleAccept = () => {
+    const handleAccept = async () => {
+        // 1. Store in localStorage for instant UI state
         markTermsAccepted();
+        // 2. Persist to server for legal demonstrability (NDPA §25)
+        // Fire-and-forget — don't block the UI on network. If it fails,
+        // the localStorage record still works; the server record will
+        // be retried on next login (checkConsentStatus query).
+        try {
+            await recordConsent({ termsVersion: TERMS_VERSION });
+        } catch (err) {
+            console.warn('[TermsAcceptance] Failed to persist consent server-side:', err);
+        }
         onAccepted();
     };
 

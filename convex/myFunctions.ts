@@ -3579,3 +3579,89 @@ export const fixCorporateName = mutation({
     return { success: true, patched };
   },
 });
+
+// ─── Consent Log (NDPA §25 compliance) ──────────────────────────────
+// Records terms/privacy acceptance server-side. This is the legal
+// record that satisfies NDPA §25's requirement for demonstrable consent.
+// localStorage alone is insufficient — it's volatile and device-local.
+export const recordConsent = mutation({
+  args: {
+    termsVersion: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Unauthenticated. Please log in to record consent.");
+    }
+
+    const email = (identity.email || identity.subject)?.toLowerCase();
+    if (!email) {
+      throw new Error("No email in session identity.");
+    }
+
+    // Find the user record
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!user) {
+      throw new Error("User not found.");
+    }
+
+    // Record the consent entry
+    await ctx.db.insert("consent_log", {
+      firmId: user.firmId || undefined,
+      userId: user._id,
+      userEmail: email,
+      termsVersion: args.termsVersion,
+      acceptedAt: Date.now(),
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      ipAddress: undefined, // Convex doesn't expose client IP in mutations
+    });
+
+    // Also update the user record with the latest acceptance
+    await ctx.db.patch(user._id, {
+      termsAcceptedAt: Date.now(),
+      termsAcceptedVersion: args.termsVersion,
+    });
+
+    return { success: true, recordedAt: Date.now() };
+  },
+});
+
+// Query to check if a user has accepted the current terms version
+export const checkConsentStatus = query({
+  args: { termsVersion: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return { hasAccepted: false, latestAcceptance: null };
+
+    const email = (identity.email || identity.subject)?.toLowerCase();
+    if (!email) return { hasAccepted: false, latestAcceptance: null };
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email))
+      .first();
+
+    if (!user) return { hasAccepted: false, latestAcceptance: null };
+
+    // Check the consent_log for the latest acceptance of this version
+    const latest = await ctx.db
+      .query("consent_log")
+      .withIndex("by_userId", (q: any) => q.eq("userId", user._id))
+      .order("desc")
+      .first();
+
+    const hasAccepted = latest?.termsVersion === args.termsVersion;
+
+    return {
+      hasAccepted,
+      latestAcceptance: latest ? {
+        version: latest.termsVersion,
+        acceptedAt: latest.acceptedAt,
+      } : null,
+    };
+  },
+});

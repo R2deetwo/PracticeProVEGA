@@ -1086,6 +1086,20 @@ export default defineSchema({
   .index("by_firmId_moduleKey", ["firmId", "moduleKey"])
   .index("by_loggedAt", ["loggedAt"]),
 
+  // ─── Consent Log (NDPA §25 compliance) ────────────────────────────
+  // Records every terms/privacy acceptance with timestamp + version.
+  // This is the SERVER-SIDE record that satisfies NDPA §25's requirement
+  // for demonstrable consent. localStorage is NOT sufficient (volatile).
+  consent_log: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    userEmail: nullableString,
+    termsVersion: v.string(),
+    acceptedAt: v.number(), // epoch millis
+    userAgent: nullableString, // browser/Capacitor UA for audit
+    ipAddress: nullableString, // best-effort, may be null
+  }).index("by_userId", ["userId"]).index("by_acceptedAt", ["acceptedAt"]),
+
   aloa_documents: defineTable({
     sessionId: v.string(),
     firmId: v.optional(v.string()),
@@ -1618,6 +1632,7 @@ export default defineSchema({
   trust_transactions: defineTable({
     firmId: v.string(),
     matterId: v.optional(v.string()),     // linked matter (which client's money)
+    clientId: v.optional(v.string()),     // P0 FIX: per-client sub-ledger (prevents commingling)
     clientName: v.optional(v.string()),   // denormalized for display
     type: v.union(
       v.literal("deposit"),              // money received into trust
@@ -1629,12 +1644,16 @@ export default defineSchema({
     reference: v.optional(v.string()),   // bank reference / cheque number
     recordedBy: v.optional(v.string()),  // userId
     recordedByName: v.optional(v.string()),
-    balanceAfter: v.number(),            // running balance after this transaction
+    balanceAfter: v.number(),            // running FIRM-WIDE balance after this transaction
+    clientBalanceAfter: v.optional(v.number()), // P0 FIX: running PER-CLIENT balance (prevents commingling)
+    deletedAt: v.optional(v.number()),   // P0 FIX: soft delete (never rewrite history)
+    deletedBy: v.optional(v.string()),   // who deleted it
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm",            ["firmId"])
     .index("by_matter",          ["matterId"])
+    .index("by_client",          ["firmId", "clientId"])     // P0 FIX: per-client lookup
     .index("by_firm_created",    ["firmId", "createdAt"])
     .index("by_type",            ["type"]),
 
