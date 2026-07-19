@@ -291,7 +291,8 @@ const HubHero: React.FC<{
     onSignup: () => void;
     highlightKey?: number;
 }> = ({ onPickProduct, onLogin, onSignup, highlightKey }) => {
-    const { isProperty } = useProduct();
+    // HubHero shows both products — no need for isProperty here
+    // (it was always 'unified' on the landing page anyway)
     // TASK 17: Respect light/dark mode. The hub hero was hardcoded to
     // bg-slate-950 (always dark). Now it uses dark: variants so that in
     // light mode it's a clean light background, and in dark mode it uses
@@ -431,7 +432,8 @@ const ATRIUM_STATS = [
 ];
 
 const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
-    const { isProperty } = useProduct();
+    // FIX: Use activeProduct instead of useProduct() — landing page has no firm
+    const isProperty = activeProduct === 'atrium';
     // TASK 18: Respect light/dark mode for BOTH Vega and Atrium landing pages.
     // Previously, Atrium was hardcoded to bg-slate-950 (always dark) even in
     // light mode. Now both products use light backgrounds in light mode and
@@ -573,8 +575,11 @@ const ATRIUM_FEATURE_CATEGORIES = [
 ];
 
 const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
-    const { isProperty } = useProduct();
+    // FIX: Use activeProduct (local state) instead of useProduct() (which returns
+    // 'unified' on the landing page when no firm is loaded). This was causing
+    // the Vega page to filter features incorrectly.
     const isVega = activeProduct === 'vega';
+    const isProperty = activeProduct === 'atrium';
     const categories = isVega ? VEGA_FEATURE_CATEGORIES.map(cat => ({ ...cat, items: cat.items.filter(item => isProperty ? !item.isLegalOnly : !item.isPropertyOnly) })).filter(cat => cat.items.length > 0) : ATRIUM_FEATURE_CATEGORIES;
 
     return (
@@ -678,7 +683,8 @@ const TIER_CTAS: Record<TierId, string> = {
 };
 
 const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
-    const { isAtrium } = useProduct();
+    // FIX: Use activeProduct instead of useProduct() — same as FeaturesSection
+    const isAtrium = activeProduct === 'atrium';
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
     const productMode: ProductMode = isVega ? 'legal' : 'property';
@@ -951,14 +957,12 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     };
 
     const handlePickProduct = (p: 'vega' | 'atrium') => {
-        // TASK 13: Open the product-specific landing page in a NEW TAB.
-        // The user wants the hub to stay open while the product page opens
-        // separately. The URL reflects the product (/vega or /atrium) so
-        // it's clear which product the user is viewing.
-        //
-        // We DON'T set activeProduct/productChosen here — the new tab will
-        // initialize its own state from the URL via the initialProduct prop.
-        window.open(`/${p}`, '_blank', 'noopener,noreferrer');
+        // Navigate in-place to /vega or /atrium (NOT new tab — popup blockers
+        // were preventing the new tab from opening, and the user saw nothing
+        // happen or got redirected to the wrong product).
+        // The URL changes to /vega or /atrium, which App.tsx picks up via
+        // urlProduct and passes to LandingPage as initialProduct.
+        window.location.href = `/${p}`;
     };
 
     const handleBackToHub = () => {
