@@ -613,6 +613,37 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             keysToRemove.forEach(k => localStorage.removeItem(k));
         } catch { /* Non-critical */ }
 
+        // ─── SECURITY: Clear ALL user-scoped storage to prevent cross-user data leak ───
+        // Without this sweep, user A's data (queued mutations, draft sessions, ALOA docs,
+        // cached app state) would be visible to user B logging into the same browser.
+        try {
+            // Clear the offline mutation queue (contains user A's pending writes with their userEmail)
+            localStorage.removeItem('practicepro_offline_queue');
+
+            // Clear event/matter form drafts (shared keys without user prefix)
+            localStorage.removeItem('draft_newEvent');
+
+            // Clear ALOA session + ALOA-X indexed documents (per-user AI library)
+            const aloaKeys = Object.keys(localStorage).filter(k =>
+                k.startsWith('practicepro:aloa:session:') ||
+                k.startsWith('aloax_doc_') ||
+                k.startsWith('practicepro:draft-tabs:registry') ||
+                k.startsWith('draftpro:') ||
+                k.startsWith('practicepro_cached_appstate') ||
+                k.startsWith('local_cached_files') ||
+                k.startsWith('practicepro_demo_product')
+            );
+            aloaKeys.forEach(k => localStorage.removeItem(k));
+
+            // Clear localUserOverrides (carries portalAccessToken across sessions)
+            // This is set via state below, but also clear any persisted copy
+            localStorage.removeItem('practicepro_user_overrides');
+        } catch { /* Non-critical */ }
+
+        // Clear localUserOverrides state (portalAccessToken, defaultViewModes, etc.)
+        // Without this, the next user inherits the previous user's portal access token.
+        setLocalUserOverrides(null);
+
         // Clear the demo product flag so it doesn't persist into the next session
         sessionStorage.removeItem('practicepro_demo_product');
 

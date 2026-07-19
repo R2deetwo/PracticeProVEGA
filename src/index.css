@@ -1532,3 +1532,30 @@ nav,
   animation: draftpro-ai-pulse 2.4s ease-out 1;
   border-radius: 0.5rem;
 }
+
+/* ─── P0 a11y: Global focus-visible style ───────────────────────────
+ * Ensures keyboard users can always see which element is focused.
+ * Components that use `focus:outline-none` must add their own
+ * `focus-visible:ring-*` — this rule catches everything else.
+ */
+:focus-visible {
+    outline: 2px solid rgb(var(--color-primary-500, 22 163 74) / 1);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ─── P0 a11y: Respect prefers-reduced-motion ──────────────────────
+ * Users with vestibular disorders get motion sickness from animations.
+ * This global rule disables all animations/transitions when the user
+ * has requested reduced motion at the OS level.
+ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

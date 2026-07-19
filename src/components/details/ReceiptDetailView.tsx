@@ -153,7 +153,7 @@ const ReceiptDetailViewContent: React.FC = () => {
                   </tr>
                   <tr className="border-b border-gray-100">
                     <td className="py-4 font-semibold text-gray-500">For Matter</td>
-                    <td className="py-4 text-left font-medium text-gray-900">{invoice.matter.title}</td>
+                    <td className="py-4 text-left font-medium text-gray-900">{invoice?.matter?.title || 'General Receipt'}</td>
                   </tr>
                 </tbody>
               </table>

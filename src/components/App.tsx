@@ -365,7 +365,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
 
-            case 'editor': return <WordProcessor />;
+            case 'editor': return <ViewWrapper><WordProcessor /></ViewWrapper>;
             case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ResearchView /></FeatureGuard></ViewWrapper>;
             case 'indexer': return <ViewWrapper><AloaXView /></ViewWrapper>;
             case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>;

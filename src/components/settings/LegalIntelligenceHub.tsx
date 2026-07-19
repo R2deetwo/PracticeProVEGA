@@ -423,7 +423,7 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
     const [topLevelTab, setTopLevelTab] = useState<'modules' | 'licenses' | 'logs'>('modules');
     
     // Fetch live licenses from Convex
-    const activeLicenses = useQuery(api.legalRepo.getLicensesForFirm, { firmId }) || [];
+    const activeLicenses = useQuery(api.legalRepo.getLicensesForFirm, firmId ? { firmId } : "skip") || [];
     const activeKeys = new Set(activeLicenses.map((l: any) => l.moduleKey));
 
     const [showAloaX, setShowAloaX] = useState(() => localStorage.getItem('aloax_sidebar_enabled') === 'true');

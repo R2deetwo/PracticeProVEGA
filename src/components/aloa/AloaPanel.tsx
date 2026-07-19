@@ -61,10 +61,12 @@ const AloaPanel: React.FC = () => {
                             <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-700" />
                         </div>
                     )}
-                    <AloaChat
-                        onClose={handleClose}
-                        isMobile={isMobile}
-                    />
+                    <ErrorBoundary>
+                        <AloaChat
+                            onClose={handleClose}
+                            isMobile={isMobile}
+                        />
+                    </ErrorBoundary>
                 </div>
             )}
         </>

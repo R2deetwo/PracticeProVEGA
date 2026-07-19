@@ -538,7 +538,7 @@ const CommsView: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
 
     // System Inbox: fetch user's own feedback threads
-    const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
+    const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, currentUser?.id ? { userId: currentUser.id } : "skip") || [];
 
     // ... (rest of logic for sidebar list filtering etc)
     const filteredConversations = useMemo(() => {

@@ -576,7 +576,7 @@ const MessagesView: React.FC = () => {
     // ── Team Chat state (existing logic) ──
     const [selectedId, setSelectedId] = useState<string | null>(activeConversationId || null);
     const [searchQuery, setSearchQuery] = useState('');
-    const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
+    const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, currentUser?.id ? { userId: currentUser.id } : "skip") || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from residents

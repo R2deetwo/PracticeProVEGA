@@ -359,7 +359,8 @@ export const generateReceiptPdf = (invoice: Invoice, firmDetails: FirmDetails, c
     const totalAmount = subTotal + taxAmount;
 
     doc.setFontSize(10);
-    const isRentReceipt = invoice.matter.title.toLowerCase().includes('rent payment') || !!additionalDetails?.tenancyPeriod;
+    const matterTitle = invoice?.matter?.title || 'General Receipt';
+    const isRentReceipt = matterTitle.toLowerCase().includes('rent payment') || !!additionalDetails?.tenancyPeriod;
     const descriptionText = isRentReceipt 
         ? `BEING PAYMENT IN RESPECT OF TENANCY AT:`
         : `BEING PAYMENT FOR PROFESSIONAL SERVICES RENDERED IN RESPECT OF MATTER:`;
@@ -369,7 +370,7 @@ export const generateReceiptPdf = (invoice: Invoice, firmDetails: FirmDetails, c
     doc.text(descriptionText, MARGIN, y);
     doc.setFontSize(11);
     doc.setTextColor(15, 23, 42);
-    doc.text(invoice.matter.title.replace('Rent Payment: ', '').toUpperCase(), MARGIN, y + 6);
+    doc.text(matterTitle.replace('Rent Payment: ', '').toUpperCase(), MARGIN, y + 6);
     y += 18;
 
     // Add Tenancy Period if available - Highlighting for legal compliance

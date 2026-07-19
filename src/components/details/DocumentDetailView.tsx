@@ -36,34 +36,46 @@ const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     }, [file?.dataUrl, storageUrl]);
 
     useEffect(() => {
-        if (activeUrl && file?.type === 'application/pdf') {
-            // Only update if current blobUrl is missing or invalid for this activeUrl
-            if (activeUrl.startsWith('blob:')) {
-                setBlobUrl(activeUrl);
-            } else if (activeUrl.startsWith('data:')) {
-                fetch(activeUrl)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setBlobUrl(url);
-                    })
-                    .catch(e => console.error("Error creating blob from data URL", e));
-            } else if (activeUrl.startsWith('http')) {
-                fetch(activeUrl)
-                    .then(res => res.blob())
-                    .then(blob => {
-                        const url = URL.createObjectURL(blob);
-                        setBlobUrl(url);
-                    })
-                    .catch(e => {
-                        console.error("Error creating blob from remote URL", e);
-                        setBlobUrl(activeUrl);
-                    });
+        if (!activeUrl || file?.type !== 'application/pdf') return;
+
+        // ─── P0 FIX: Race condition + missing cancellation ───
+        // When activeUrl changes mid-fetch (user switches documents), the stale
+        // fetch's .then() can resolve LAST and overwrite the new blobUrl with
+        // the WRONG file's content. We track a `cancelled` flag in closure
+        // and use AbortController so the fetch can be aborted cleanly.
+        let cancelled = false;
+        const abortController = new AbortController();
+        const prevBlobUrl = blobUrl; // capture for revocation
+
+        const loadBlob = async () => {
+            try {
+                if (activeUrl.startsWith('blob:')) {
+                    if (!cancelled) setBlobUrl(activeUrl);
+                    return;
+                }
+                // For data: and http: URLs, fetch as blob and create object URL
+                const res = await fetch(activeUrl, { signal: abortController.signal });
+                if (cancelled) return;
+                const blob = await res.blob();
+                if (cancelled) return;
+                const url = URL.createObjectURL(blob);
+                // Revoke previous blob URL to prevent memory leak (P3 fix)
+                if (prevBlobUrl && prevBlobUrl.startsWith('blob:')) {
+                    try { URL.revokeObjectURL(prevBlobUrl); } catch { /* ignore */ }
+                }
+                setBlobUrl(url);
+            } catch (e: any) {
+                if (cancelled || e?.name === 'AbortError') return;
+                console.error("Error creating blob from URL", e);
+                // Fall back to direct URL (may have CORS issues but better than nothing)
+                if (activeUrl.startsWith('http')) setBlobUrl(activeUrl);
             }
-        }
+        };
+        loadBlob();
+
         return () => {
-            // We don't revoke here to prevent flickering on quick re-renders
-            // Browser will clean up when the page/session ends or we can add manual cleanup if memory becomes an issue
+            cancelled = true;
+            abortController.abort();
         };
     }, [activeUrl, file?.type]);
 
