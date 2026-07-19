@@ -263,8 +263,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
 const BADGES = [
     { label: 'NDPA 2023 Compliant', Icon: ScalesIcon },
     { label: 'TLS 1.3 Encrypted', Icon: LockClosedIcon },
-    { label: 'Data Encrypted at Rest*', Icon: KeyIcon },
-    { label: 'SOC 2 Principles', Icon: ShieldCheckIcon }
+    { label: 'Data Encrypted at Rest*', Icon: KeyIcon }
 ];
 
 const TrustBadgesStrip: React.FC = () => (

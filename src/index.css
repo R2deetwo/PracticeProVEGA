@@ -181,12 +181,12 @@ html.theme-army-dark {
   --color-primary-200: 185 205 185;
   --color-primary-300: 155 180 155;
   --color-primary-400: 130 155 125;
-  --color-primary-500: 74, 105, 76;   /* Brand Moss Green #4A694C */
-  --color-primary-600: 60, 85, 62;    /* Darker Moss Green for hover/active */
-  --color-primary-700: 50, 72, 52;
-  --color-primary-800: 40, 58, 42;
-  --color-primary-900: 30, 45, 32;
-  --color-primary-950: 15, 25, 18;
+  --color-primary-500: 74 105 76;   /* Brand Moss Green #4A694C */
+  --color-primary-600: 60 85 62;    /* Darker Moss Green for hover/active */
+  --color-primary-700: 50 72 52;
+  --color-primary-800: 40 58 42;
+  --color-primary-900: 30 45 32;
+  --color-primary-950: 15 25 18;
 }
 
 /* ===== Army Green Light (Soft Sage) ===== */
