@@ -5,6 +5,7 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon } from '../constants';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import Fuse from 'fuse.js';
 
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task';
@@ -28,6 +29,9 @@ const CommandPalette: React.FC = () => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLDivElement>(null);
+    const paletteRef = useRef<HTMLDivElement>(null);
+    // P0 a11y: Trap focus inside the palette so keyboard users can't Tab out
+    useFocusTrap(paletteRef, isCommandPaletteOpen);
 
     // 1. Static Commands
     const staticCommands: SearchResult[] = useMemo(() => [
@@ -193,7 +197,7 @@ const CommandPalette: React.FC = () => {
     if (!isCommandPaletteOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4">
+        <div ref={paletteRef} className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4" role="dialog" aria-modal="true" aria-label="Command palette">
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setCommandPaletteOpen(false)} />
             
             <div className="w-full max-w-2xl bg-white dark:bg-zinc-800 rounded-xl shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative z-10 flex flex-col max-h-[70vh] animate-slide-in-up">

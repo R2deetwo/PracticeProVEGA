@@ -25,14 +25,9 @@ import { DocumentList } from './DocumentList';
 import { CalendarView } from './CalendarView';
 import { BillingView } from './BillingView';
 import { BillingMonitorView } from './BillingMonitorView';
-import ReportingView from './ReportingView';
-import ComplianceView from './ComplianceView';
 import SettingsView from './settings/SettingsView';
 import MessagesView from './MessagesView';
-import { WordProcessor } from './documents/WordProcessor';
-import ResearchView from './ResearchView';
-import { AloaXView } from './indexer/AloaXView';
-import TimelineView from './TimelineView';
+import ComplianceView from './ComplianceView';
 import CommandPalette from './CommandPalette';
 import ContextMenu from './ContextMenu';
 import { SplitMasterDetail } from './layout/SplitMasterDetail';
@@ -64,6 +59,16 @@ import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 import DemoProductSwitcher from './DemoProductSwitcher';
+
+// ─── P1 PERF: Lazy-load heavy route views ──────────────────────────
+// These modules pull in large dependencies (TipTap, pdfjs, jsPDF, etc.)
+// that bloat the initial bundle. Lazy-loading splits them into separate
+// chunks that are only fetched when the user navigates to that route.
+const ReportingView = React.lazy(() => import('./ReportingView'));
+const WordProcessor = React.lazy(() => import('./documents/WordProcessor').then(m => ({ default: m.WordProcessor })));
+const ResearchView = React.lazy(() => import('./ResearchView'));
+const AloaXView = React.lazy(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
+const TimelineView = React.lazy(() => import('./TimelineView'));
 
 import { LandingPage } from './LandingPage';
 import BottomNav from './BottomNav';
@@ -354,10 +359,10 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             );
 
             case 'calendar': return <ViewWrapper><CalendarView /></ViewWrapper>;
-            case 'timeline': return <ViewWrapper><TimelineView /></ViewWrapper>;
+            case 'timeline': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TimelineView /></React.Suspense></ViewWrapper>;
             case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
             case 'billingMonitor': return <ViewWrapper><BillingMonitorView /></ViewWrapper>;
-            case 'reporting': return <ViewWrapper><ReportingView /></ViewWrapper>;
+            case 'reporting': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReportingView /></React.Suspense></ViewWrapper>;
             case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
 
             case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
@@ -365,9 +370,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
 
-            case 'editor': return <ViewWrapper><WordProcessor /></ViewWrapper>;
-            case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ResearchView /></FeatureGuard></ViewWrapper>;
-            case 'indexer': return <ViewWrapper><AloaXView /></ViewWrapper>;
+            case 'editor': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense></ViewWrapper>;
+            case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
+            case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
             case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>;
             case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
             case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
@@ -464,6 +469,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
     return (
         <div className={`${protectionEnabled ? 'app-protected' : ''} flex h-[100dvh] bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white overflow-hidden transition-colors duration-500 pt-safe`}>
+            {/* P1 a11y: Skip link for keyboard users — bypasses sidebar/header */}
+            <a href="#main-content"
+               className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[10000] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-bold"
+            >
+                Skip to main content
+            </a>
             {/* Screenshot deterrent overlay — shows a black screen when the
                 window loses focus or PrintScreen is pressed. Best-effort only. */}
             {showScreenshotOverlay && (
@@ -481,7 +492,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     h-14 (3.5rem = 56px). We use a CSS media query via the
                     'pb-14 md:pb-0' class which applies 56px padding on
                     screens < 768px (md breakpoint) and 0 on desktop. */}
-                <main className="flex-1 relative overflow-hidden min-h-0">
+                <main id="main-content" className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
                         <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0 min-h-0">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>

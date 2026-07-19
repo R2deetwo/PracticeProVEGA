@@ -287,7 +287,9 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
     // ─── Keyboard shortcuts (desktop) ──────────────────────────────
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement) return;
+            // P1 a11y: Guard against firing shortcuts while typing in any input
+            const target = e.target as HTMLElement;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) return;
             if (viewMode === 'reading' && e.key === 'Escape') {
                 setViewMode('single');
                 return;

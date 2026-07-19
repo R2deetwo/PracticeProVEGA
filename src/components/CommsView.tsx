@@ -541,6 +541,23 @@ const CommsView: React.FC = () => {
     const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, currentUser?.id ? { userId: currentUser.id } : "skip") || [];
 
     // ... (rest of logic for sidebar list filtering etc)
+    // P0 PERF FIX: Pre-build Map<conversationId, lastMessageTimestamp> once.
+    const lastMessageTimeByConv = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const m of messages) {
+            if (!m || !m.conversationId || !m.timestamp) continue;
+            const convId = m.conversationId.toString();
+            const time = new Date(m.timestamp).getTime();
+            if (!isNaN(time)) {
+                const existing = map.get(convId);
+                if (existing === undefined || time > existing) {
+                    map.set(convId, time);
+                }
+            }
+        }
+        return map;
+    }, [messages]);
+
     const filteredConversations = useMemo(() => {
         const chats = conversations
             .filter((c: any) => {
@@ -555,13 +572,10 @@ const CommsView: React.FC = () => {
                 return otherMember?.name?.toLowerCase().includes(lowerQuery) ?? false;
             })
             .sort((a: any, b: any) => {
-                const msgsA = messages.filter((m: any) => m && m.conversationId?.toString() === a.id);
-                const msgsB = messages.filter((m: any) => m && m.conversationId?.toString() === b.id);
-                const lastMsgA = msgsA.length > 0 ? msgsA[msgsA.length - 1] : null;
-                const lastMsgB = msgsB.length > 0 ? msgsB[msgsB.length - 1] : null;
-                const timeA = lastMsgA?.timestamp ? new Date(lastMsgA.timestamp).getTime() : 0;
-                const timeB = lastMsgB?.timestamp ? new Date(lastMsgB.timestamp).getTime() : 0;
-                return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
+                // O(1) lookup instead of O(M) filter per comparison
+                const timeA = lastMessageTimeByConv.get(a.id?.toString()) || 0;
+                const timeB = lastMessageTimeByConv.get(b.id?.toString()) || 0;
+                return timeB - timeA;
             });
             
         // Inject System Inbox into the list if there are feedback replies

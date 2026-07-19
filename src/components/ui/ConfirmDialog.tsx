@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useHapticFeedback } from '../../hooks/useHapticFeedback';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 /**
  * ConfirmDialog — reusable in-app confirmation modal.
@@ -144,6 +145,10 @@ export const ConfirmDialogComponent: React.FC<{
   onConfirm: () => void;
   onCancel: () => void;
 }> = ({ open, title, message, confirmLabel, cancelLabel, danger, context, onConfirm, onCancel }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // P0 a11y: Trap focus inside the dialog so keyboard users can't Tab out
+  useFocusTrap(dialogRef, open);
+
   // Close on Escape key
   useEffect(() => {
     if (!open) return;
@@ -161,6 +166,7 @@ export const ConfirmDialogComponent: React.FC<{
 
   return (
     <div
+      ref={dialogRef}
       className="fixed inset-0 z-[9999] flex items-center justify-center p-4 animate-fade-in"
       onClick={onCancel}
       role="dialog"

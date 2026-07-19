@@ -165,6 +165,9 @@ const HtmlPagePreview: React.FC<HtmlPagePreviewProps> = ({
     // ─── Keyboard navigation ────────────────────────────────────────
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
+            // P1 a11y: Guard against firing shortcuts while typing in any input
+            const target = e.target as HTMLElement;
+            if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target.isContentEditable) return;
             if (e.key === 'Escape') {
                 if (readingMode) {
                     e.preventDefault();

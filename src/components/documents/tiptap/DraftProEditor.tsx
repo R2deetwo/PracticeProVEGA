@@ -509,6 +509,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const [isDrafting, setIsDrafting] = useState(false);
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
+    // P2 PERF: Debounce onContentChange to prevent localStorage writes on every keystroke.
+    // Was: synchronous localStorage.setItem via saveDraftSession on EVERY character.
+    // Now: waits 500ms after last keystroke before persisting. Flushes on unmount.
+    const contentChangeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestContentRef = useRef<string>('');
 
     // ─── Citation Registry ──────────────────────────────────────────────
     // Hydrated from the `citations` prop (passed from ALOA when sending
@@ -652,6 +657,21 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
         const cleanup = installBeforeUnloadGuard(!isSaved);
         return cleanup;
     }, [isSaved]);
+
+    // P2 PERF: Flush pending debounced content change on unmount.
+    // Without this, the last 500ms of typing would be lost if the component
+    // unmounts before the debounce timer fires.
+    useEffect(() => {
+        return () => {
+            if (contentChangeDebounceRef.current) {
+                clearTimeout(contentChangeDebounceRef.current);
+                // Flush the latest content immediately
+                if (latestContentRef.current) {
+                    onContentChange?.(latestContentRef.current);
+                }
+            }
+        };
+    }, [onContentChange]);
 
     // Modals
     const [activeModal, setActiveModal] = useState<'placeholder' | 'link' | 'image' | 'table' | 'fill_placeholders' | 'save_template' | 'auto_format_rules' | 'redraft' | null>(null);
@@ -798,7 +818,17 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // that crashed DraftPro), we don't want it to take down the
             // entire editor. Fall back to empty string and log the error.
             try {
-                onContentChange?.(e.getHTML());
+                const html = e.getHTML();
+                latestContentRef.current = html;
+                // P2 PERF: Debounce onContentChange — was firing on every keystroke,
+                // causing synchronous localStorage.setItem via saveDraftSession.
+                // Now waits 500ms after the last keystroke before persisting.
+                if (contentChangeDebounceRef.current) {
+                    clearTimeout(contentChangeDebounceRef.current);
+                }
+                contentChangeDebounceRef.current = setTimeout(() => {
+                    onContentChange?.(latestContentRef.current);
+                }, 500);
             } catch (htmlErr) {
                 console.error('[DraftPro] getHTML failed in onUpdate:', htmlErr);
             }
