@@ -54,6 +54,49 @@ function useScrollReveal<T extends HTMLElement = HTMLDivElement>(options?: { thr
     return ref;
 }
 
+/**
+ * useScrollParallax — subtle vertical parallax on scroll.
+ * Returns a ref to attach to the image element. The image translates
+ * slowly as the user scrolls, creating depth. Max offset ±20px.
+ */
+function useScrollParallax<T extends HTMLElement = HTMLDivElement>() {
+    const ref = useRef<T>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        // Skip parallax if user prefers reduced motion
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+        let rafId: number | null = null;
+        const update = () => {
+            const rect = el.getBoundingClientRect();
+            const viewportH = window.innerHeight;
+            // How far is the element's center from the viewport center?
+            const elementCenter = rect.top + rect.height / 2;
+            const viewportCenter = viewportH / 2;
+            const distance = elementCenter - viewportCenter;
+            // Normalize to -1..1 (element fully in viewport)
+            const normalized = Math.max(-1, Math.min(1, distance / viewportCenter));
+            // Apply parallax: max ±16px translate
+            const offset = normalized * -16;
+            el.style.transform = `translateY(${offset}px) scale(1.08)`;
+            rafId = null;
+        };
+        const onScroll = () => {
+            if (rafId === null) rafId = requestAnimationFrame(update);
+        };
+        update(); // Initial position
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', onScroll);
+        return () => {
+            window.removeEventListener('scroll', onScroll);
+            window.removeEventListener('resize', onScroll);
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
+    }, []);
+    return ref;
+}
+
 /** Primary CTA button – high-contrast gradient fill */
 const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button
@@ -409,6 +452,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
     // Landing page is ALWAYS light mode — no isDark logic.
     const isVega = activeProduct === 'vega';
     const heroImage = isVega ? '/assets/landing/vega-hero.jpg' : '/assets/landing/atrium-hero.jpg';
+    const parallaxRef = useScrollParallax<HTMLImageElement>();
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
@@ -462,9 +506,10 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                     <div className="relative order-first lg:order-last">
                         <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
                             <img
+                                ref={parallaxRef}
                                 src={heroImage}
                                 alt={isVega ? 'Nigerian lawyers collaborating in a modern Lagos law office' : 'Nigerian property professionals collaborating on a residential estate rooftop'}
-                                className="w-full h-full object-cover"
+                                className="parallax-image w-full h-full object-cover"
                                 loading="eager"
                             />
                             {/* Subtle gradient overlay for depth */}
@@ -559,6 +604,12 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     const headerRef = useScrollReveal<HTMLDivElement>();
     const sectionsRef = useScrollReveal<HTMLDivElement>();
 
+    // Interactive cards: track which card is expanded (for touch devices).
+    // On desktop, hover handles it via CSS. On mobile, tap toggles this state.
+    const [expandedCard, setExpandedCard] = useState<string | null>(null);
+    const accentColor = isVega ? '22 163 74' : '16 185 129'; // primary-500 or emerald-500
+    const accentShadow = isVega ? '22 163 74' : '16 185 129';
+
     return (
         <section id="features" className="py-20 lg:py-28 bg-slate-50">
             <div className="container mx-auto px-6 max-w-7xl">
@@ -575,6 +626,11 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                             ? 'From intake to resolution, VEGA covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
                             : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — residents, maintenance, and financials.'}
                     </p>
+                    {/* Hint for interactivity */}
+                    <p className="text-xs mt-4 text-slate-400 font-medium tracking-wide">
+                        <span className="hidden md:inline">Hover a card to learn more</span>
+                        <span className="md:hidden">Tap a card to learn more</span>
+                    </p>
                 </div>
 
                 {/* Feature Categories */}
@@ -588,24 +644,43 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                                 <h3 className="text-2xl font-bold tracking-tight text-slate-900">{cat.category}</h3>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                {cat.items.map((item) => (
-                                    <div
-                                        key={item.title}
-                                        className="group relative rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-white border-slate-200 hover:border-primary-300 hover:shadow-primary-500/5"
-                                    >
-                                        <h4 className="text-base font-bold mb-2 text-slate-900">
-                                            {item.title}
-                                            {item.badge && (
-                                                <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 border border-primary-200">
-                                                    {item.badge}
-                                                </span>
-                                            )}
-                                        </h4>
-                                        <p className="text-sm leading-relaxed text-slate-500">
-                                            {item.desc}
-                                        </p>
-                                    </div>
-                                ))}
+                                {cat.items.map((item) => {
+                                    const cardKey = `${cat.category}-${item.title}`;
+                                    const isExpanded = expandedCard === cardKey;
+                                    return (
+                                        <div
+                                            key={item.title}
+                                            className={`feature-card cursor-pointer rounded-2xl p-6 border bg-white border-slate-200 ${isExpanded ? 'is-expanded' : ''}`}
+                                            style={{ '--feature-accent': `rgb(${accentColor})`, '--feature-accent-shadow': `rgb(${accentShadow} / 0.15)` } as React.CSSProperties}
+                                            onClick={() => setExpandedCard(isExpanded ? null : cardKey)}
+                                            role="button"
+                                            tabIndex={0}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                    e.preventDefault();
+                                                    setExpandedCard(isExpanded ? null : cardKey);
+                                                }
+                                            }}
+                                        >
+                                            {/* Accent bar — slides in on hover/expand */}
+                                            <div className="feature-card__accent" aria-hidden="true" />
+                                            <h4 className="text-base font-bold text-slate-900 pr-4">
+                                                {item.title}
+                                                {item.badge && (
+                                                    <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 border border-primary-200">
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                            </h4>
+                                            {/* Description — hidden by default, expands on hover/tap */}
+                                            <div className="feature-card__desc">
+                                                <p className="text-sm leading-relaxed text-slate-500">
+                                                    {item.desc}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
@@ -737,7 +812,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 {dynamicPlans.map((plan) => (
                     <div
                         key={plan.id}
-                        className={`group rounded-[40px] border p-8 md:p-10 flex flex-col relative transition-all duration-500 ${plan.highlighted
+                        className={`pricing-card group rounded-[40px] border p-8 md:p-10 flex flex-col relative ${plan.highlighted
                             ? 'bg-slate-900 border-transparent shadow-2xl shadow-slate-900/30 lg:-translate-y-4'
                             : 'bg-white border-slate-200 shadow-lg shadow-slate-900/5 hover:shadow-2xl hover:border-primary-300'
                             }`}
