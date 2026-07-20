@@ -4516,3 +4516,62 @@ Stage Summary:
 - Features section is now interactive — hover/tap reveals descriptions
 - Motion is now VISIBLE: hero stagger + scroll reveals + parallax
 - All animations respect prefers-reduced-motion
+
+---
+Task ID: natural-images-and-caching-fix
+Agent: main
+Task: Replace stylized images with natural documentary style, fix aggressive caching on landing pages
+
+IMAGE REGENERATION:
+Founder confirmed images were too stylized. Vision analysis verified:
+- Previous images rated ~3/10 realism
+- Oversaturated teal-orange cinematic color grading
+- Dramatic studio lighting (golden hour, harsh shadows)
+- Airbrushed skin tones
+- Staged stock-photo aesthetic
+
+New prompts used explicit anti-stylization language:
+- 'RAW unedited snapshot photograph'
+- 'Like a candid photo taken quickly on iPhone by a colleague'
+- 'FLUORESCENT OFFICE LIGHTING, NOT golden hour'
+- 'Boring flat neutral colors, no color grading, no teal and orange'
+- 'Realistic skin with visible texture, pores, slight imperfection'
+- 'Shot on iPhone 14, average snapshot quality, not professional'
+- 'Mundane everyday office moment, not staged, not polished'
+
+Result: both new images rated 8/10 realism by vision analysis.
+- vega-hero.jpg: Nigerian man + woman lawyers at cluttered desk with
+  laptop + case file + coffee mug. Fluorescent office lighting. Beige walls.
+- atrium-hero.jpg: Nigerian man + woman property professionals on apartment
+  rooftop with tablet. Overcast grey sky. Concrete rooftop, mid-rise buildings.
+
+CACHING FIX — three layers:
+Root cause: vercel.json had no-cache headers on '/' and '/index.html' sources
+but NOT on '/vega' or '/atrium' routes (served via SPA rewrite without
+carrying headers). So /vega and /atrium HTML was cached aggressively.
+
+Layer 1 — vercel.json:
+- Added '/((?:vega|atrium|komplete|portal|login|signup|demo).*)' source
+  with full no-cache headers
+- Added catch-all '/(.*)' source with same no-cache headers (after asset
+  sources so asset immutable headers still win)
+
+Layer 2 — index.html meta tags:
+- Cache-Control, Pragma, Expires meta tags as belt-and-suspenders
+
+Layer 3 — useVersionCheck.refresh():
+- Added 100ms delay between caches.delete() and navigation to ensure
+  async delete completes before navigation fires
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=6682b3f, status=healthy
+- curl -sI https://practice-pro-vega.vercel.app/vega now returns:
+  cache-control: no-cache, no-store, must-revalidate
+  expires: 0
+- Build passes (19.32s)
+
+Stage Summary:
+- Images are now authentic documentary style, not stylized stock
+- Caching is now properly busted on all SPA routes (/vega, /atrium, etc.)
+- User should no longer need to switch browser profiles to see updates
+- Still waiting on design plan approval for full landing page redesign
