@@ -1022,16 +1022,16 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
             <div ref={ctaRef} className="scroll-reveal max-w-5xl mx-auto mt-10 mb-12 space-y-5">
                 {/* A. Real Estate Lawyer Hook — Komplete Tier (Vega/unified only) */}
                 {!isAtrium && (
-                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-primary-500/10 via-emerald-500/5 to-indigo-500/10 border border-primary-500/20 dark:border-primary-500/10">
+                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-primary-500/10 via-emerald-500/5 to-indigo-500/10 border border-primary-500/20">
                     <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full blur-3xl bg-primary-400/10 pointer-events-none" />
                     <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full blur-3xl bg-emerald-400/8 pointer-events-none" />
                     <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                         <div className="flex-1">
-                            <h4 className="text-2xl font-extrabold text-slate-900 dark:text-white mb-2 tracking-tight">
+                            <h4 className="font-display text-2xl font-extrabold text-slate-900 mb-2 tracking-tight">
                                 Are you a Real Estate Lawyer?
                             </h4>
-                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
-                                Discover <strong className="text-primary-600 dark:text-primary-400">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
+                            <p className="text-sm text-slate-600 leading-relaxed max-w-xl">
+                                Discover <strong className="text-primary-600">Komplete</strong> — our specialized, unified workspace designed exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy portfolios, and track chamber matters from a single secure terminal.
                             </p>
                         </div>
                         <button 
@@ -1046,7 +1046,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 )}
 
                 {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems */}
-                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-800 dark:to-slate-950 border border-slate-700/40 dark:border-white/[0.06]">
+                <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/40">
                     <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl bg-violet-500/10 pointer-events-none" />
                     <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl bg-blue-500/8 pointer-events-none" />
                     <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
