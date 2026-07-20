@@ -50,7 +50,7 @@
       ]
     },
     {
-      "source": "/index.html",
+      "source": "/((?:vega|atrium|komplete|portal|login|signup|demo).*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -71,7 +71,7 @@
       ]
     },
     {
-      "source": "/",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "Cache-Control",

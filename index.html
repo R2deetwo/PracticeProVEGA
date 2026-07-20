@@ -31,6 +31,12 @@
   <meta name="theme-color" content="#0e0e11" media="(prefers-color-scheme: dark)">
   <meta name="format-detection" content="telephone=no">
   <meta name="msapplication-tap-highlight" content="no">
+  <!-- Cache-control meta tags (belt-and-suspenders with vercel.json headers).
+       Forces browsers to always fetch fresh HTML, never serve from cache.
+       Critical for landing pages where founder iterates frequently. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>PracticePro — Operating Systems for Modern Organizations</title>
   <meta name="description" content="PracticePro builds dedicated operating systems for the organizations that run modern Africa. Atrium for property managers. Vega for Nigerian law firms. One platform, two specialized products." />
   <meta name="keywords" content="PracticePro, Atrium, Vega, property management software, legal practice management Nigeria, NDPA compliance, law firm management, property management Africa, legal tech Nigeria, organization software" />

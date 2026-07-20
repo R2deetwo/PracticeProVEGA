@@ -139,15 +139,29 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
-    // Bypass any bfcache by appending a cache-bust query, then reload.
+    // AGGRESSIVE cache busting — the user reported that "refresh" didn't
+    // actually update the page on the landing pages. This is because:
+    //   1. Browsers serve HTML from bfcache (back/forward cache) on reload
+    //   2. Even with no-cache headers, Chrome sometimes serves from disk
+    //      cache for same-URL navigations
+    //   3. Service Worker caches (if any) can intercept and serve stale
+    // We address all three:
+    //   - Delete ALL Cache API entries (Service Worker caches)
+    //   - Append a unique query param so the URL is different (forces
+    //     fresh fetch, can't be served from bfcache or disk cache)
+    //   - Use window.location.replace() so the old URL isn't in history
     try {
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
     } catch { /* ignore */ }
+    // Build a fresh URL with cache-bust query param
     const url = new URL(window.location.href);
     url.searchParams.set('_refresh', String(Date.now()));
-    window.location.replace(url.toString());
+    // Small delay to let caches.delete() complete
+    setTimeout(() => {
+      window.location.replace(url.toString());
+    }, 100);
   };
 
   const dismiss = () => {
