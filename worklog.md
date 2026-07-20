@@ -4239,3 +4239,47 @@ Stage Summary:
   Komplete CTA
 - Onboarding still asks "which product?" on the root hub page when the
   user hasn't committed to a product
+
+---
+Task ID: rename-parent-company
+Agent: main
+Task: Rename parent company to 'PracticePro Systems Limited' across legal docs and footers
+
+Founder decision: 'PracticePro Systems Limited' is the new official parent
+company name (to be registered with CAC). The name is broad enough to house
+both legal tech (Vega) and prop tech (Atrium), with future-room for additional
+B2B SaaS verticals.
+
+Scope: legal docs + footers ONLY. Product names (Vega, Atrium), the platform
+brand 'PracticePro', favicon, and email addresses were intentionally NOT touched.
+
+Replaced 30 occurrences across 10 files:
+- LandingPage.tsx (footer copyright)
+- ResourcesPage.tsx (footer copyright)
+- TermsOfService.tsx (legal entity throughout)
+- PrivacyPolicy.tsx (legal entity throughout)
+- DataProcessingAgreement.tsx (legal entity throughout)
+- CookiePolicy.tsx (legal entity throughout)
+- PortalTermsOfUse.tsx (portal legal entity)
+- SetupPassword.tsx (portal IP ownership clause)
+- TenantPortal.tsx (4 portal footers)
+- ClientDashboard.tsx (client portal footer)
+
+Replacement map:
+- 'PracticePro Legal Technologies Limited' → 'PracticePro Systems Limited'
+- 'PracticePro Legal Technologies Ltd'    → 'PracticePro Systems Ltd'
+- 'PracticePro Legal Tech Ltd'            → 'PracticePro Systems Ltd'
+- 'PRACTICEPRO LEGAL TECHNOLOGIES LIMITED' → 'PRACTICEPRO SYSTEMS LIMITED'
+- 'PracticePro Technologies Limited'      → 'PracticePro Systems Limited'
+  (was an inconsistent variant in SetupPassword.tsx — now unified)
+
+Verified on production:
+- version.json: sha=0e80946, status=healthy
+- Production JS bundle grep: only 'PracticePro Systems Limited' appears
+  (zero matches for old name 'PracticePro Legal Technologies')
+
+Stage Summary:
+- All legal documentation now references the correct parent entity
+- Footer copyrights on landing page, resources page, tenant portal,
+  client portal all updated
+- Ready for CAC name reservation filing
