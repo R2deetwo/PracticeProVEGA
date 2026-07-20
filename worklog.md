@@ -4131,3 +4131,39 @@ Stage Summary:
 - "Sign in →" link is green
 - Pricing badges, CTAs, focused states all properly colored
 - User should hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) to bypass cache
+
+---
+Task ID: remove-demo-mode-entry-points
+Agent: main
+Task: User discontinued demo mode — remove all user-facing demo buttons
+
+Removed (commit de38fdd):
+1. LandingPage NavBar: 'Demo' button (between Log In and Get Started Free)
+2. LandingPage HomeSection: 'Try Demo' GhostButton (next to Get Started)
+3. LandingPage component signature: dropped onDemo prop entirely
+4. App.tsx: removed onDemo callback passed to LandingPage
+5. Login.tsx: 'Explore Demo Mode' dashed button + handleDemoLogin fn +
+   unused SparklesIcon import + unused openModal from useUI destructure
+6. Signup.tsx: 'Explore Demo Mode' dashed button + 'Or' divider (no
+   longer needed without the demo button below it) + handleDemoLogin fn
+   + unused SparklesIcon import + unused openModal from useUI destructure
+7. App.tsx: removed DemoProductSwitcher import + JSX render
+8. DemoProductSwitcher.tsx: deleted (was mobile-only demo product switcher)
+
+Kept for safety:
+- demoUpsell modal trigger from SaveToNoteForm/AloaChat/DocumentDetailView
+  — gated behind 'demo@practicepro.ng' email checks, never fires now
+- leadCapture modal definition — no longer called, kept for later cleanup
+- FloatingTestControls.tsx — DEV mode only, useful for development
+- 'demo@practicepro.ng' checks throughout app — defensive guards
+
+Verified on production:
+- version.json: sha=de38fdd, status=healthy
+- JS bundle: index-CtNy1Ilq.js (fresh)
+- Grep of production JS for 'Try Demo|Explore Demo Mode|DemoProductSwitcher'
+  → no matches (all demo strings gone)
+
+Stage Summary:
+- All user-facing demo entry points removed
+- Users can no longer trigger demo flows from the UI
+- Build passes, deployed to production
