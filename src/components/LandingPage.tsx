@@ -305,99 +305,73 @@ const TrustBadgesStrip: React.FC = () => {
 const HubHero: React.FC<{
     onPickProduct: (p: 'vega' | 'atrium') => void;
     onLogin: () => void;
-    onSignup: () => void;
     highlightKey?: number;
-}> = ({ onPickProduct, onLogin, onSignup, highlightKey }) => {
-    // Landing page is ALWAYS light mode — no isDark logic.
-    // hub-bg.jpg provides a subtle brand-tinted background behind the dot grid.
+}> = ({ onPickProduct, onLogin, highlightKey }) => {
+    // Landing page is ALWAYS light mode. Hub is intentionally minimal:
+    // headline, subheadline, two product cards, auth link. Nothing else.
     return (
-        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-white">
-            {/* Hub background image — very subtle, brand-tinted */}
-            <div
-                className="absolute inset-0 pointer-events-none opacity-[0.15] bg-cover bg-center"
-                style={{ backgroundImage: 'url(/assets/landing/hub-bg.jpg)' }}
-                aria-hidden="true"
-            />
-            {/* Ambient mesh — light, soft */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] bg-primary-400/8" />
-                <div className="absolute bottom-0 left-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-amber-300/8" />
-                <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-emerald-300/8" />
-                <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.04]" />
-            </div>
+        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col bg-white">
+            {/* Subtle dot grid — the only background texture */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-60" />
 
-            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link → CTA → compliance */}
+            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link */}
             <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center">
 
-                <h1 className="text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl text-slate-900">
+                <h1 className="text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl text-slate-900">
                     Professional Practice,
                     <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-500">
                         Precisely Managed.
                     </span>
                 </h1>
 
                 <p className="text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] text-slate-600">
-                    Select your professional discipline to enter your dedicated workspace.
+                    Select your discipline to enter your dedicated workspace.
                 </p>
 
                 {/* Audience routing cards — data-product-cards is used by the
                     "Get Started Free" scroll handler to find this element. */}
                 <div data-product-cards className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
-                    {/* Vega — with one-pulse glow on mount + re-triggered when highlightKey changes (Task 17) */}
+                    {/* Vega card — typographic, no icon watermark */}
                     <button
                         key={`vega-${highlightKey || 0}`}
                         onClick={() => onPickProduct('vega')}
-                        style={{ '--glow-color': 'rgba(245, 158, 11, 0.10)', '--glow-border': 'rgba(245, 158, 11, 0.20)' } as React.CSSProperties}
-                        className={`product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 shadow-sm hover:shadow-md`}
+                        className="group relative text-left p-8 md:p-10 rounded-3xl border-2 border-slate-200 bg-white hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
                     >
-                        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        <div className="relative z-10">
-                            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-5">
-                                <ScalesIcon className="w-5 h-5 text-amber-400" />
-                            </div>
-                            <div className="flex items-center gap-2 mb-2.5">
-                                <span className="text-2xs font-black uppercase tracking-[0.22em] text-amber-500">Vega</span>
-                                <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
-                            </div>
-                            <h3 className="text-lg font-bold mb-2.5 text-slate-900">For Law Firms</h3>
-                            <p className="text-sm leading-[1.75] text-slate-600">
-                                Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.
-                            </p>
-                            <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-amber-500/70 group-hover:text-amber-400 group-hover:gap-2.5 transition-all duration-300">
-                                Enter Vega <span aria-hidden="true">→</span>
-                            </div>
+                        <div className="flex items-baseline gap-3 mb-3">
+                            <span className="text-3xl font-bold tracking-tight text-slate-900">Vega</span>
+                            <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Legal</span>
+                        </div>
+                        <h3 className="text-base font-semibold mb-3 text-slate-700">For Nigerian Law Firms</h3>
+                        <p className="text-sm leading-[1.7] text-slate-500 mb-6">
+                            Case management, AI-assisted drafting, and automated billing.
+                        </p>
+                        <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-600 group-hover:text-amber-500 group-hover:gap-2.5 transition-all duration-300">
+                            Enter Vega <span aria-hidden="true">→</span>
                         </div>
                     </button>
 
-                    {/* Atrium — with one-pulse glow on mount + re-triggered when highlightKey changes (Task 17) */}
+                    {/* Atrium card — typographic, no icon watermark */}
                     <button
                         key={`atrium-${highlightKey || 0}`}
                         onClick={() => onPickProduct('atrium')}
-                        style={{ '--glow-color': 'rgba(16, 185, 129, 0.10)', '--glow-border': 'rgba(16, 185, 129, 0.20)' } as React.CSSProperties}
-                        className={`product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 shadow-sm hover:shadow-md`}
+                        className="group relative text-left p-8 md:p-10 rounded-3xl border-2 border-slate-200 bg-white hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                     >
-                        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        <div className="relative z-10">
-                            <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
-                                <OfficeBuildingIcon className="w-5 h-5 text-emerald-400" />
-                            </div>
-                            <div className="flex items-center gap-2 mb-2.5">
-                                <span className="text-2xs font-black uppercase tracking-[0.22em] text-emerald-500">Atrium</span>
-                                <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
-                            </div>
-                            <h3 className="text-lg font-bold mb-2.5 text-slate-900">For Property Managers</h3>
-                            <p className="text-sm leading-[1.75] text-slate-600">
-                                Revenue monitoring, rent collection, and portfolio analytics for modern Nigerian estates.
-                            </p>
-                            <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-emerald-500/70 group-hover:text-emerald-400 group-hover:gap-2.5 transition-all duration-300">
-                                Enter Atrium <span aria-hidden="true">→</span>
-                            </div>
+                        <div className="flex items-baseline gap-3 mb-3">
+                            <span className="text-3xl font-bold tracking-tight text-slate-900">Atrium</span>
+                            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Property</span>
+                        </div>
+                        <h3 className="text-base font-semibold mb-3 text-slate-700">For Property Managers</h3>
+                        <p className="text-sm leading-[1.7] text-slate-500 mb-6">
+                            Revenue monitoring, rent collection, and portfolio analytics.
+                        </p>
+                        <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 group-hover:text-emerald-500 group-hover:gap-2.5 transition-all duration-300">
+                            Enter Atrium <span aria-hidden="true">→</span>
                         </div>
                     </button>
                 </div>
 
-                {/* Auth link */}
+                {/* Auth link — single, quiet */}
                 <button
                     onClick={onLogin}
                     className="text-sm transition-colors text-slate-500 hover:text-slate-700"
@@ -406,23 +380,8 @@ const HubHero: React.FC<{
                     <span className="font-semibold hover:underline text-primary-600 hover:text-primary-700">Sign in →</span>
                 </button>
 
-                {/* TASK 17: "Get Started Free" CTA in the middle of the hub.
-                    When no product is chosen, this scrolls to the product cards
-                    and highlights them (instead of opening the signup modal).
-                    The user explicitly requested this flow. */}
-                <div className="mt-2">
-                    <button
-                        onClick={onSignup}
-                        className="group inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-primary-400 text-white font-bold text-base shadow-xl shadow-primary-500/30 transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]"
-                    >
-                        Get Started Free
-                        <span className="text-sm opacity-80 group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
-                    </button>
-                    <p className="text-xs mt-3 text-slate-500">Not sure which product fits? Browse all options.</p>
-                </div>
-
-                {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
-                <p className="text-2xs mt-12 tracking-wide text-slate-400">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
+                {/* Compliance note — quiet, bottom */}
+                <p className="text-2xs mt-10 tracking-wide text-slate-400">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
@@ -453,13 +412,8 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
-            {/* ── Subtle brand-tinted mesh background ── */}
-            <div className="absolute inset-0 pointer-events-none">
-                {/* Radial glow centred top */}
-                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-[120px] ${isVega ? 'bg-primary-400/10' : 'bg-blue-400/8'}`} />
-                {/* Dot grid */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.04]" />
-            </div>
+            {/* ── Subtle dot grid only — no radial glow blob ── */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-60" />
 
             {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
             {/* hero-stagger: orchestrates headline → sub-copy → CTA → stats strip */}
@@ -504,23 +458,18 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         </div>
                     </div>
 
-                    {/* Right: hero portrait image */}
+                    {/* Right: hero portrait image — clean, no decorative glow */}
                     <div className="relative order-first lg:order-last">
-                        <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5">
+                        <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
                             <img
                                 src={heroImage}
-                                alt={isVega ? 'Nigerian lawyer in a modern Lagos law office' : 'Nigerian property manager on a residential estate rooftop'}
+                                alt={isVega ? 'Nigerian lawyers collaborating in a modern Lagos law office' : 'Nigerian property professionals collaborating on a residential estate rooftop'}
                                 className="w-full h-full object-cover"
                                 loading="eager"
                             />
-                            {/* Subtle gradient overlay for depth + text legibility if caption is added later */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
+                            {/* Subtle gradient overlay for depth */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
                         </div>
-                        {/* Decorative brand glow behind image */}
-                        <div
-                            className={`absolute -inset-4 -z-10 rounded-[2rem] blur-2xl opacity-20 ${isVega ? 'bg-primary-500' : 'bg-blue-500'}`}
-                            aria-hidden="true"
-                        />
                     </div>
                 </div>
             </div>
@@ -1112,7 +1061,6 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 <HubHero
                     onPickProduct={handlePickProduct}
                     onLogin={() => openModal('login')}
-                    onSignup={openSignup}
                     highlightKey={0}
                 />
             ) : (
