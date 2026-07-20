@@ -343,42 +343,41 @@ const TrustBadgesStrip: React.FC = () => {
     );
 };
 
-// ─── END-TO-END DEMARCATOR (Issue 1 fix) ─────────────────────────────────────
-// Full-width Sage section that functions as a structural break between
-// major page sections — the visual equivalent of a chapter divider, NOT a
-// sidebar callout. Large vertical padding makes it feel like "a moment".
-// No border, no shadow, no card chrome — just a deliberate pause.
+// ─── STATS DEMARCATOR (Issue 1 fix — user's actual request) ──────────────────
+// The stats strip (3-Tier, End-to-End, 99.9%, NDPA 2023) is moved OUT of the
+// HomeSection hero and into its own centered section that sits between the
+// hero and the features section. This makes it function as a structural
+// break / demarcator between the top landing page and the features part —
+// exactly what the user asked for. NOT a new content section, just the
+// existing stats strip repositioned and centered.
 
-const EndToEndDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
     const ref = useScrollReveal<HTMLDivElement>();
     const isVega = activeProduct === 'vega';
-    const accentColorValue = isVega ? '#D97706' : '#059669';
+    const stats = isVega ? VEGA_STATS : ATRIUM_STATS;
 
     return (
         <section
             ref={ref}
-            className="scroll-reveal w-full py-24 lg:py-32 px-6"
+            className="scroll-reveal w-full py-16 lg:py-20 px-6"
             style={{ background: 'var(--color-sage)' }}
         >
-            <div className="max-w-4xl mx-auto text-center">
-                {/* Small accent label */}
-                <p
-                    className="font-display text-xs font-bold uppercase tracking-[0.25em] mb-6"
-                    style={{ color: accentColorValue }}
-                >
-                    End-to-End
-                </p>
-                {/* Large editorial statement */}
-                <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.2] mb-6" style={{ color: 'var(--color-ink)' }}>
-                    {isVega
-                        ? <>From intake to resolution, Vega covers every stage of your legal practice.</>
-                        : <>From rent collection to defaulter management, Atrium covers every aspect of your property portfolio.</>}
-                </h2>
-                <p className="text-lg md:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
-                    {isVega
-                        ? 'Drafting, research, billing, and client collaboration — unified in one workspace built for Nigerian legal practice.'
-                        : 'Residents, maintenance, and financials — unified in one workspace built for Nigerian property portfolios.'}
-                </p>
+            <div className="max-w-5xl mx-auto">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4 text-center">
+                    {stats.map((s, i) => (
+                        <div key={i} className="flex flex-col items-center">
+                            <p
+                                className="font-display nums-tabular text-3xl md:text-4xl lg:text-5xl font-bold mb-2 whitespace-nowrap"
+                                style={{ color: 'var(--color-ink)' }}
+                            >
+                                {s.value}
+                            </p>
+                            <p className="text-xs md:text-sm leading-tight text-slate-600 tracking-wide">
+                                {s.label}
+                            </p>
+                        </div>
+                    ))}
+                </div>
             </div>
         </section>
     );
@@ -494,11 +493,35 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
     const isProperty = activeProduct === 'atrium';
     // Landing page is ALWAYS light mode — no isDark logic.
     const isVega = activeProduct === 'vega';
-    const heroImage = isVega ? '/assets/landing/vega-hero.jpg' : '/assets/landing/atrium-hero.jpg';
-    const parallaxRef = useScrollParallax<HTMLImageElement>();
-    // Duotone brand tint — amber for Vega, emerald for Atrium. Applied via
-    // mix-blend-mode over the image so it feels color-matched to the brand.
-    const accentColor = isVega ? 'var(--color-amber)' : 'var(--color-emerald)';
+
+    // ── Image cycling ──────────────────────────────────────────────
+    // Auto-rotate through 3 images per product every 6 seconds with a
+    // crossfade. Younger lawyers/pros, varied scenes (desk work, mentoring,
+    // team meeting). Cache-busted via build SHA so new deploys always fetch
+    // fresh images instead of serving stale cached versions.
+    const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
+    const heroImages = isVega
+        ? [
+            `/assets/landing/vega-hero-1.jpg?v=${buildSha}`,
+            `/assets/landing/vega-hero-2.jpg?v=${buildSha}`,
+            `/assets/landing/vega-hero-3.jpg?v=${buildSha}`,
+        ]
+        : [
+            `/assets/landing/atrium-hero-1.jpg?v=${buildSha}`,
+            `/assets/landing/atrium-hero-2.jpg?v=${buildSha}`,
+            `/assets/landing/atrium-hero-3.jpg?v=${buildSha}`,
+        ];
+    const [currentImageIdx, setCurrentImageIdx] = useState(0);
+    useEffect(() => {
+        // Skip cycling if user prefers reduced motion
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const interval = setInterval(() => {
+            setCurrentImageIdx(prev => (prev + 1) % heroImages.length);
+        }, 6000);
+        return () => clearInterval(interval);
+    }, [heroImages.length]);
+
+    // Duotone brand tint — amber for Vega, emerald for Atrium.
     const accentColorValue = isVega ? '#D97706' : '#059669';
 
     return (
@@ -507,7 +530,6 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
             {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
-            {/* hero-stagger: orchestrates headline → sub-copy → CTA → stats strip */}
             <div className="hero-stagger relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 px-6">
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                     {/* Left: text content */}
@@ -532,47 +554,63 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         </p>
 
                         {/* CTAs */}
-                        <div className="flex gap-4 justify-center lg:justify-start items-center mb-16">
+                        <div className="flex gap-4 justify-center lg:justify-start items-center mb-8">
                             <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
                                 Get Started
                             </PrimaryButton>
                         </div>
 
-                        {/* Stats strip — Space Grotesk + tabular-nums for editorial feel */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border border-slate-200 shadow-lg shadow-slate-900/5 bg-slate-200">
-                            {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
-                                <div key={i} className="px-4 py-5 bg-white">
-                                    <p className="font-display nums-tabular text-xl md:text-2xl font-bold mb-0.5 whitespace-nowrap" style={{ color: 'var(--color-ink)' }}>{s.value}</p>
-                                    <p className="text-xs leading-tight text-slate-500">{s.label}</p>
-                                </div>
+                        {/* Image pagination dots — shows which image is active */}
+                        <div className="flex gap-2 justify-center lg:justify-start items-center">
+                            {heroImages.map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setCurrentImageIdx(i)}
+                                    className="h-1.5 rounded-full transition-all duration-300"
+                                    style={{
+                                        width: i === currentImageIdx ? '24px' : '8px',
+                                        backgroundColor: i === currentImageIdx ? accentColorValue : 'rgb(203 213 225)',
+                                    }}
+                                    aria-label={`View image ${i + 1}`}
+                                    aria-pressed={i === currentImageIdx}
+                                />
                             ))}
                         </div>
                     </div>
 
-                    {/* Right: hero image — DUOTONE BRAND-TINTED, bleeds to right edge on desktop */}
+                    {/* Right: hero image — CYCLING GALLERY with crossfade, bleeds to right edge */}
                     <div className="relative order-first lg:order-last">
                         {/* On desktop: image bleeds to the right edge of the section (negative margin) */}
                         <div className="relative aspect-[4/3] lg:-mr-6 xl:-mr-12 rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
-                            <img
-                                ref={parallaxRef}
-                                src={heroImage}
-                                alt={isVega ? 'Nigerian lawyers collaborating in a modern Lagos law office' : 'Nigerian property professionals collaborating on a residential estate rooftop'}
-                                className="parallax-image w-full h-full object-cover"
-                                loading="eager"
-                            />
-                            {/* Duotone brand-color overlay — amber for Vega, emerald for Atrium.
-                                mix-blend-mode: multiply lets the photo show through while tinting it. */}
+                            {/* Stack all images, only the current one is visible (crossfade) */}
+                            {heroImages.map((imgSrc, i) => (
+                                <img
+                                    key={i}
+                                    src={imgSrc}
+                                    alt={isVega
+                                        ? `Nigerian lawyers collaborating — image ${i + 1}`
+                                        : `Nigerian property professionals collaborating — image ${i + 1}`}
+                                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-out"
+                                    style={{
+                                        opacity: i === currentImageIdx ? 1 : 0,
+                                        zIndex: i === currentImageIdx ? 2 : 1,
+                                    }}
+                                    loading={i === 0 ? 'eager' : 'lazy'}
+                                />
+                            ))}
+                            {/* Duotone brand-color overlay — amber for Vega, emerald for Atrium. */}
                             <div
-                                className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-25"
-                                style={{ backgroundColor: accentColorValue }}
+                                className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20"
+                                style={{ backgroundColor: accentColorValue, zIndex: 3 }}
                                 aria-hidden="true"
                             />
                             {/* Subtle gradient overlay for depth */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" style={{ zIndex: 4 }} aria-hidden="true" />
                         </div>
                         {/* Floating label that overlaps the image edge (layered text/image integration) */}
                         <div
                             className="hidden lg:block absolute -bottom-4 -left-4 px-4 py-2 rounded-xl bg-white shadow-xl border border-slate-200/60"
+                            style={{ zIndex: 5 }}
                             aria-hidden="true"
                         >
                             <span className="text-xs font-bold uppercase tracking-widest" style={{ color: accentColorValue }}>
@@ -607,7 +645,7 @@ const VEGA_FEATURE_CATEGORIES = [
         Icon: SparklesIcon,
         items: [
             { title: 'DraftPro Editor', desc: 'Rich-text editor with A4 pagination and Nigerian legal fonts. Placeholder guardrails block printing until every blank is filled — so you never accidentally send incomplete work. Draft, tweak, then save to a matter, print, or copy to Word.' },
-            { title: 'ALOA AI Copilot', desc: 'AI-powered drafting assistant built on Gemini, trained for Nigerian legal terminology, court rules, and document structures. Draft originating processes, affidavits, and conveyances with natural language instructions.', badge: 'Growth+' },
+            { title: 'ALOA AI Copilot', desc: 'Your firm\'s always-on legal intelligence — ask questions about your matters, get instant case summaries, analyze opposing counsel patterns, research precedent across Nigerian courts, and surface insights from your document vault. Trained on Nigerian legal terminology and court rules.', badge: 'Growth+' },
             { title: 'Document Vault', desc: 'Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm\'s document library.' },
             { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.', badge: 'Growth+', isLegalOnly: true },
             { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations.', badge: 'Growth+', isPropertyOnly: true },
@@ -1233,8 +1271,8 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             ) : (
                 <main key={activeProduct} className="animate-swap-in">
                     <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
+                    <StatsDemarcator activeProduct={activeProduct} />
                     <FeaturesSection activeProduct={activeProduct} />
-                    <EndToEndDemarcator activeProduct={activeProduct} />
                     <TrustBadgesStrip />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                 </main>
