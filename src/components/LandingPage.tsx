@@ -159,10 +159,23 @@ const NavBar: React.FC<{
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-500 transition-colors pl-3 border-l border-slate-200"
+                        className="hidden md:flex items-center pl-3 border-l border-slate-200 group/breadcrumb relative h-7 overflow-hidden"
+                        aria-label={`Back to all products — currently viewing ${activeProduct === 'vega' ? 'Vega' : 'Atrium'}`}
                     >
-                        <ArrowLeftIcon className="w-3 h-3" />
-                        All Products
+                        {/* Container with fixed width to prevent layout shift during transition */}
+                        <span className="relative h-5 w-28 overflow-hidden flex items-center">
+                            {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
+                            <span
+                                className={`absolute inset-0 flex items-center text-[15px] font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-600'}`}
+                            >
+                                {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
+                            </span>
+                            {/* Hover state: All Products slides up from below */}
+                            <span className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out">
+                                <ArrowLeftIcon className="w-3 h-3" />
+                                All Products
+                            </span>
+                        </span>
                     </button>
                 )}
             </div>
