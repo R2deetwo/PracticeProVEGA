@@ -1274,6 +1274,35 @@ span[data-type="legal-placeholder"] {
   animation: swap-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ===== Scroll Reveal (landing page) ===== */
+/* Subtle, professional fade-in-up when elements enter the viewport.
+   Applied via the useScrollReveal hook in LandingPage.tsx.
+   Respects prefers-reduced-motion. */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.scroll-reveal-delay-1 { transition-delay: 0.08s; }
+.scroll-reveal-delay-2 { transition-delay: 0.16s; }
+.scroll-reveal-delay-3 { transition-delay: 0.24s; }
+.scroll-reveal-delay-4 { transition-delay: 0.32s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .animate-swap-in { animation: none; }
+}
+
 /* ─── Print Styles ──────────────────────────────────────────────────────── */
 @media print {
   /* Hide non-essential UI elements when printing */

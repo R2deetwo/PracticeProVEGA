@@ -1,12 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    Logo, SunIcon, MoonIcon, CheckIcon, ZapIcon,
+    Logo, CheckIcon, ZapIcon,
     ScalesIcon, ShieldCheckIcon, DocumentIcon, MattersIcon, SparklesIcon,
     OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon, KeyIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
-import { useProduct } from '../contexts/ProductContext';
 import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import DataProcessingAgreement from './DataProcessingAgreement';
@@ -22,6 +21,38 @@ import {
 import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 
 // ─── SHARED PRIMITIVE COMPONENTS ────────────────────────────────────────────
+
+/**
+ * useScrollReveal — subtle fade-in-up when element enters viewport.
+ * Returns a ref to attach to the element. Professional, not bouncy.
+ * Respects prefers-reduced-motion (CSS handles the actual disable).
+ */
+function useScrollReveal<T extends HTMLElement = HTMLDivElement>(options?: { threshold?: number; rootMargin?: string }) {
+    const ref = useRef<T>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        // If IntersectionObserver isn't supported, just show the element.
+        if (!('IntersectionObserver' in window)) {
+            el.classList.add('is-visible');
+            return;
+        }
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: options?.threshold ?? 0.15,
+            rootMargin: options?.rootMargin ?? '0px 0px -60px 0px',
+        });
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, []);
+    return ref;
+}
 
 /** Primary CTA button – high-contrast gradient fill */
 const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
@@ -64,30 +95,28 @@ const NavBar: React.FC<{
     onLogin: () => void;
     onSignup: () => void;
     onResources: () => void;
-    isDark: boolean;
-    toggleTheme: () => void;
     activeProduct: 'vega' | 'atrium';
     setActiveProduct: (p: 'vega' | 'atrium') => void;
     productChosen: boolean;
     onBackToHub: () => void;
-}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, isDark, toggleTheme, activeProduct, setActiveProduct, productChosen, onBackToHub }) => (
+}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, activeProduct, setActiveProduct, productChosen, onBackToHub }) => (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300">
-        {/* Glass layer */}
-        <div className="absolute inset-0 bg-white/75 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-white/[0.06] transition-colors duration-500" />
+        {/* Glass layer — always light on landing page */}
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
 
         <div className="relative container mx-auto px-6 h-16 flex items-center justify-between">
             {/* Logo + back-to-hub breadcrumb */}
             <div className="flex items-center gap-3">
                 <button onClick={() => productChosen ? scrollTo('home') : undefined} className="flex items-center gap-2 group">
                     <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
-                    <span className="text-[19px] font-bold tracking-tight text-slate-900 dark:text-white flex items-center">
+                    <span className="text-[19px] font-bold tracking-tight text-slate-900 flex items-center">
                         Practice<span className="text-primary-500">Pro</span>
                     </span>
                 </button>
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-500 transition-colors pl-3 border-l border-slate-200 dark:border-white/10"
+                        className="hidden md:flex items-center gap-1 text-2xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-500 transition-colors pl-3 border-l border-slate-200"
                     >
                         <ArrowLeftIcon className="w-3 h-3" />
                         All Products
@@ -98,19 +127,19 @@ const NavBar: React.FC<{
             {/* Desktop Links */}
             <nav className="hidden md:flex items-center gap-1">
                 <div className="relative group">
-                    <button className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 flex items-center gap-1 transition-all duration-200">
+                    <button className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200">
                         Products
                         <svg className="w-4 h-4 ml-0.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {/* Invisible hover bridge: transparent padding fills the gap between
                         trigger and dropdown so the cursor never leaves the hover boundary */}
                     <div className="absolute top-full left-0 pt-1 w-[210px]">
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
-                        <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex flex-col p-1">
+                        <button onClick={() => setActiveProduct('vega')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                             <ScalesIcon className="w-4 h-4 opacity-70" />
                             Vega
                         </button>
-                        <button onClick={() => setActiveProduct('atrium')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}>
+                        <button onClick={() => setActiveProduct('atrium')} className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                             <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
                             Atrium
                         </button>
@@ -121,8 +150,8 @@ const NavBar: React.FC<{
                     onClick={() => scrollTo('features')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                         activeSection === 'features'
-                            ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                 >
                     Features
@@ -131,35 +160,27 @@ const NavBar: React.FC<{
                     onClick={() => scrollTo('pricing')}
                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
                         activeSection === 'pricing'
-                            ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5'
+                            ? 'bg-primary-50 text-primary-700'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                     }`}
                 >
                     Pricing
                 </button>
                 <button
                     onClick={onResources}
-                    className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-all duration-200"
+                    className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
                 >
                     Resources
                 </button>
             </nav>
 
-            {/* Right Actions */}
+            {/* Right Actions — theme toggle removed; landing page is always light */}
             <div className="flex items-center gap-2">
-                <button
-                    onClick={(e) => { e.stopPropagation(); toggleTheme(); }}
-                    className="w-8 h-8 md:w-8 md:h-8 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/10 transition-all"
-                    aria-label="Toggle colour theme"
-                >
-                    {isDark ? <SunIcon className="w-5 h-5 md:w-4 md:h-4" aria-hidden="true" /> : <MoonIcon className="w-5 h-5 md:w-4 md:h-4" aria-hidden="true" />}
-                </button>
-
-                <div className="hidden md:block h-4 w-px bg-slate-200 dark:bg-white/10 mx-1" />
+                <div className="hidden md:block h-4 w-px bg-slate-200 mx-1" />
 
                 <button
                     onClick={onLogin}
-                    className="hidden md:block px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                    className="hidden md:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
                 >
                     Log In
                 </button>
@@ -259,22 +280,25 @@ const BADGES = [
     { label: 'Data Encrypted at Rest*', Icon: KeyIcon }
 ];
 
-const TrustBadgesStrip: React.FC = () => (
-    <div className="bg-slate-50 dark:bg-slate-900/80 border-y border-slate-200 dark:border-white/[0.04] py-5 px-6">
-        <div className="container mx-auto flex flex-wrap items-center justify-center gap-6 md:gap-10">
-            {BADGES.map((b, i) => (
-                <div key={i} className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-white dark:bg-[#151b2b] shadow-sm border border-slate-200/60 dark:border-white/[0.06] flex items-center justify-center">
-                        <b.Icon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+const TrustBadgesStrip: React.FC = () => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
+        <div ref={ref} className="scroll-reveal bg-slate-50 border-y border-slate-200 py-5 px-6">
+            <div className="container mx-auto flex flex-wrap items-center justify-center gap-6 md:gap-10">
+                {BADGES.map((b, i) => (
+                    <div key={i} className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-200/60 flex items-center justify-center">
+                            <b.Icon className="w-4 h-4 text-slate-500" />
+                        </div>
+                        <span className="text-xs font-semibold text-slate-500 tracking-wide whitespace-nowrap">
+                            {b.label}
+                        </span>
                     </div>
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide whitespace-nowrap">
-                        {b.label}
-                    </span>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // ─── HUB HERO (no product chosen yet) ───────────────────────────────────────
 
@@ -284,32 +308,30 @@ const HubHero: React.FC<{
     onSignup: () => void;
     highlightKey?: number;
 }> = ({ onPickProduct, onLogin, onSignup, highlightKey }) => {
-    // HubHero shows both products — no need for isProperty here
-    // (it was always 'unified' on the landing page anyway)
-    // TASK 17: Respect light/dark mode. The hub hero was hardcoded to
-    // bg-slate-950 (always dark). Now it uses dark: variants so that in
-    // light mode it's a clean light background, and in dark mode it uses
-    // the "midnight royal" aesthetic the user requested.
-    const { theme } = useUI();
-    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Landing page is ALWAYS light mode — no isDark logic.
+    // hub-bg.jpg provides a subtle brand-tinted background behind the dot grid.
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
 
     return (
-        <section className={`relative overflow-hidden min-h-[100dvh] flex flex-col transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-gradient-to-b from-slate-50 to-white'}`}>
-            {/* Ambient mesh */}
+        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-white">
+            {/* Hub background image — very subtle, brand-tinted */}
+            <div
+                className="absolute inset-0 pointer-events-none opacity-[0.15] bg-cover bg-center"
+                style={{ backgroundImage: 'url(/assets/landing/hub-bg.jpg)' }}
+                aria-hidden="true"
+            />
+            {/* Ambient mesh — light, soft */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                <div className={`absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-400/8'}`} />
-                <div className={`absolute bottom-0 left-0 w-[500px] h-[400px] rounded-full blur-[120px] ${isDark ? 'bg-amber-500/5' : 'bg-amber-300/8'}`} />
-                <div className={`absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full blur-[120px] ${isDark ? 'bg-emerald-500/5' : 'bg-emerald-300/8'}`} />
-                <div className={`absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] ${isDark ? 'opacity-[0.08]' : 'opacity-[0.04]'}`} />
+                <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full blur-[140px] bg-primary-400/8" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-amber-300/8" />
+                <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full blur-[120px] bg-emerald-300/8" />
+                <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.04]" />
             </div>
 
             <div className={`relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
 
-                <h1 className={`text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                <h1 className="text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl text-slate-900">
                     Professional Practice,
                     <br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500">
@@ -317,7 +339,7 @@ const HubHero: React.FC<{
                     </span>
                 </h1>
 
-                <p className={`text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] ${isDark ? 'text-slate-500' : 'text-slate-600'}`}>
+                <p className="text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] text-slate-600">
                     Select your professional discipline to enter your dedicated workspace.
                 </p>
 
@@ -329,7 +351,7 @@ const HubHero: React.FC<{
                         key={`vega-${highlightKey || 0}`}
                         onClick={() => onPickProduct('vega')}
                         style={{ '--glow-color': 'rgba(245, 158, 11, 0.10)', '--glow-border': 'rgba(245, 158, 11, 0.20)' } as React.CSSProperties}
-                        className={`product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 ${isDark ? 'border-white/[0.08] bg-white/[0.03] hover:bg-amber-500/[0.06] hover:border-amber-500/25' : 'border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 shadow-sm hover:shadow-md'}`}
+                        className={`product-glow-pulse product-glow-pulse-delay-1 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50 border-slate-200 bg-white hover:bg-amber-50 hover:border-amber-300 shadow-sm hover:shadow-md`}
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-amber-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -340,8 +362,8 @@ const HubHero: React.FC<{
                                 <span className="text-2xs font-black uppercase tracking-[0.22em] text-amber-500">Vega</span>
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
                             </div>
-                            <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Law Firms</h3>
-                            <p className={`text-sm leading-[1.75] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <h3 className="text-lg font-bold mb-2.5 text-slate-900">For Law Firms</h3>
+                            <p className="text-sm leading-[1.75] text-slate-600">
                                 Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.
                             </p>
                             <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-amber-500/70 group-hover:text-amber-400 group-hover:gap-2.5 transition-all duration-300">
@@ -355,7 +377,7 @@ const HubHero: React.FC<{
                         key={`atrium-${highlightKey || 0}`}
                         onClick={() => onPickProduct('atrium')}
                         style={{ '--glow-color': 'rgba(16, 185, 129, 0.10)', '--glow-border': 'rgba(16, 185, 129, 0.20)' } as React.CSSProperties}
-                        className={`product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 ${isDark ? 'border-white/[0.08] bg-white/[0.03] hover:bg-emerald-500/[0.06] hover:border-emerald-500/25' : 'border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 shadow-sm hover:shadow-md'}`}
+                        className={`product-glow-pulse product-glow-pulse-delay-2 group relative text-left p-7 md:p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-1.5 active:scale-[0.975] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 border-slate-200 bg-white hover:bg-emerald-50 hover:border-emerald-300 shadow-sm hover:shadow-md`}
                     >
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl bg-emerald-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                         <div className="relative z-10">
@@ -366,8 +388,8 @@ const HubHero: React.FC<{
                                 <span className="text-2xs font-black uppercase tracking-[0.22em] text-emerald-500">Atrium</span>
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
                             </div>
-                            <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Property Managers</h3>
-                            <p className={`text-sm leading-[1.75] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                            <h3 className="text-lg font-bold mb-2.5 text-slate-900">For Property Managers</h3>
+                            <p className="text-sm leading-[1.75] text-slate-600">
                                 Revenue monitoring, rent collection, and portfolio analytics for modern Nigerian estates.
                             </p>
                             <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-emerald-500/70 group-hover:text-emerald-400 group-hover:gap-2.5 transition-all duration-300">
@@ -380,10 +402,10 @@ const HubHero: React.FC<{
                 {/* Auth link */}
                 <button
                     onClick={onLogin}
-                    className={`text-sm transition-colors ${isDark ? 'text-slate-600 hover:text-slate-400' : 'text-slate-500 hover:text-slate-700'}`}
+                    className="text-sm transition-colors text-slate-500 hover:text-slate-700"
                 >
                     Already have an account?{' '}
-                    <span className={`font-semibold hover:underline ${isDark ? 'text-primary-400 hover:text-primary-300' : 'text-primary-600 hover:text-primary-700'}`}>Sign in →</span>
+                    <span className="font-semibold hover:underline text-primary-600 hover:text-primary-700">Sign in →</span>
                 </button>
 
                 {/* TASK 17: "Get Started Free" CTA in the middle of the hub.
@@ -398,11 +420,11 @@ const HubHero: React.FC<{
                         Get Started Free
                         <span className="text-sm opacity-80 group-hover:translate-x-1 transition-transform" aria-hidden="true">→</span>
                     </button>
-                    <p className={`text-xs mt-3 ${isDark ? 'text-slate-600' : 'text-slate-500'}`}>Not sure which product fits? Browse all options.</p>
+                    <p className="text-xs mt-3 text-slate-500">Not sure which product fits? Browse all options.</p>
                 </div>
 
                 {/* Compliance note — full trust strip lives in TrustBadgesStrip below */}
-                <p className={`text-2xs mt-12 tracking-wide ${isDark ? 'text-slate-600' : 'text-slate-400'}`}>NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
+                <p className="text-2xs mt-12 tracking-wide text-slate-400">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
@@ -427,72 +449,88 @@ const ATRIUM_STATS = [
 const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, activeProduct, setActiveProduct }) => {
     // FIX: Use activeProduct instead of useProduct() — landing page has no firm
     const isProperty = activeProduct === 'atrium';
-    // TASK 18: Respect light/dark mode for BOTH Vega and Atrium landing pages.
-    // Previously, Atrium was hardcoded to bg-slate-950 (always dark) even in
-    // light mode. Now both products use light backgrounds in light mode and
-    // dark backgrounds in dark mode.
-    const { theme } = useUI();
-    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Landing page is ALWAYS light mode — no isDark logic.
     const [mounted, setMounted] = useState(false);
     useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
 
     const isVega = activeProduct === 'vega';
+    const heroImage = isVega ? '/assets/landing/vega-hero.jpg' : '/assets/landing/atrium-hero.jpg';
 
     return (
-        <section id="home" className={`relative overflow-hidden transition-colors duration-500 ${isDark ? 'bg-slate-950' : 'bg-white'}`}>
-            {/* ── Mesh / Noise background ── */}
+        <section id="home" className="relative overflow-hidden bg-white">
+            {/* ── Subtle brand-tinted mesh background ── */}
             <div className="absolute inset-0 pointer-events-none">
                 {/* Radial glow centred top */}
-                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-[120px] ${isVega ? (isDark ? 'bg-primary-500/8' : 'bg-primary-400/10') : (isDark ? 'bg-blue-500/15' : 'bg-blue-400/8')}`} />
+                <div className={`absolute -top-32 left-1/2 -translate-x-1/2 w-[900px] h-[500px] rounded-full blur-[120px] ${isVega ? 'bg-primary-400/10' : 'bg-blue-400/8'}`} />
                 {/* Dot grid */}
-                <div className={`absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] ${isDark ? 'opacity-[0.07]' : 'opacity-[0.04]'}`} />
+                <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.04]" />
             </div>
 
-            {/* ── Hero Content ── */}
-            <div className={`relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 text-center px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
-                {/* Headline */}
-                <h1 className={`text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 max-w-4xl mx-auto ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
-                    <br className="hidden md:block" />
-                    for{' '}
-                    <span className="relative">
-                        <span className={`text-transparent bg-clip-text bg-gradient-to-r ${isVega ? 'from-primary-500 via-emerald-500 to-teal-500' : 'from-blue-500 via-indigo-500 to-cyan-500'}`}>
-                            {isVega ? 'Nigerian Law Firms' : 'Modern Portfolios'}
-                        </span>
-                    </span>
-                </h1>
+            {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
+            <div className={`relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+                    {/* Left: text content */}
+                    <div className="text-center lg:text-left">
+                        {/* Headline */}
+                        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 text-slate-900">
+                            {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
+                            <br className="hidden md:block" />
+                            for{' '}
+                            <span className="relative">
+                                <span className={`text-transparent bg-clip-text bg-gradient-to-r ${isVega ? 'from-primary-500 via-emerald-500 to-teal-500' : 'from-blue-500 via-indigo-500 to-cyan-500'}`}>
+                                    {isVega ? 'Nigerian Law Firms' : 'Modern Portfolios'}
+                                </span>
+                            </span>
+                        </h1>
 
-                {/* Sub-copy */}
-                <p className={`text-lg max-w-2xl mx-auto mb-10 leading-[1.7] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
-                    {isVega
-                        ? (isProperty
-                            ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing.'
-                            : 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.')
-                        : 'Revenue monitoring, rent collection, and defaulter management — purpose-built for Nigerian property portfolios and estate operations.'}
-                </p>
+                        {/* Sub-copy */}
+                        <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
+                            {isVega
+                                ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
+                                : 'Revenue monitoring, rent collection, and defaulter management — purpose-built for Nigerian property portfolios and estate operations.'}
+                        </p>
 
-                {/* CTAs */}
-                <div className="flex gap-4 justify-center items-center mb-16">
-                    <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
-                        Get Started
-                    </PrimaryButton>
-                </div>
-
-                {/* Stats strip */}
-                <div className={`grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto border shadow-sm ${isDark ? 'bg-white/5 border-white/5' : 'bg-slate-200 border-slate-200'}`}>
-                    {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
-                        <div key={i} className={`px-6 py-5 ${isDark ? 'bg-slate-900' : 'bg-white'}`}>
-                            <p className={`text-2xl font-bold mb-0.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>{s.value}</p>
-                            <p className={`text-xs leading-tight ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</p>
+                        {/* CTAs */}
+                        <div className="flex gap-4 justify-center lg:justify-start items-center mb-16">
+                            <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
+                                Get Started
+                            </PrimaryButton>
                         </div>
-                    ))}
+
+                        {/* Stats strip */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border shadow-sm bg-slate-200 border-slate-200">
+                            {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
+                                <div key={i} className="px-6 py-5 bg-white">
+                                    <p className="text-2xl font-bold mb-0.5 text-slate-900">{s.value}</p>
+                                    <p className="text-xs leading-tight text-slate-500">{s.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Right: hero portrait image */}
+                    <div className="relative order-first lg:order-last">
+                        <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/10 ring-1 ring-slate-900/5">
+                            <img
+                                src={heroImage}
+                                alt={isVega ? 'Nigerian lawyer in a modern Lagos law office' : 'Nigerian property manager on a residential estate rooftop'}
+                                className="w-full h-full object-cover"
+                                loading="eager"
+                            />
+                            {/* Subtle gradient overlay for depth + text legibility if caption is added later */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
+                        </div>
+                        {/* Decorative brand glow behind image */}
+                        <div
+                            className={`absolute -inset-4 -z-10 rounded-[2rem] blur-2xl opacity-20 ${isVega ? 'bg-primary-500' : 'bg-blue-500'}`}
+                            aria-hidden="true"
+                        />
+                    </div>
                 </div>
             </div>
 
             {/* Bottom fade into next section */}
-            <div className={`absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none ${isDark ? 'from-slate-950' : 'from-white'}`} />
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none from-white" />
         </section>
     );
 };
@@ -572,18 +610,22 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     const isProperty = activeProduct === 'atrium';
     const categories = isVega ? VEGA_FEATURE_CATEGORIES.map(cat => ({ ...cat, items: cat.items.filter(item => isProperty ? !item.isLegalOnly : !item.isPropertyOnly) })).filter(cat => cat.items.length > 0) : ATRIUM_FEATURE_CATEGORIES;
 
+    // Scroll reveal — subtle fade-in when section enters viewport
+    const headerRef = useScrollReveal<HTMLDivElement>();
+    const sectionsRef = useScrollReveal<HTMLDivElement>();
+
     return (
-        <section id="features" className={`py-20 lg:py-28 transition-colors duration-500 ${isVega ? 'bg-slate-50 dark:bg-slate-900/40' : 'bg-slate-950'}`}>
+        <section id="features" className="py-20 lg:py-28 bg-slate-50">
             <div className="container mx-auto px-6 max-w-7xl">
                 {/* Header */}
-                <div className="text-center mb-16">
-                    <Pill className={`mb-5 ${isVega ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 border-primary-200 dark:border-primary-800/50'}`}>
+                <div ref={headerRef} className="scroll-reveal text-center mb-16">
+                    <Pill className="mb-5 bg-primary-50 text-primary-700 border-primary-200">
                         Features
                     </Pill>
-                    <h2 className={`text-4xl md:text-5xl font-bold tracking-tight mb-4 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
+                    <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-slate-900">
                         {isVega ? <>Case Management &<br />Legal Intelligence</> : <>Property Management &<br />Revenue Operations</>}
                     </h2>
-                    <p className={`text-lg max-w-2xl mx-auto leading-relaxed ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
+                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-slate-500">
                         {isVega
                             ? 'From intake to resolution, VEGA covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
                             : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — residents, maintenance, and financials.'}
@@ -591,40 +633,38 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                 </div>
 
                 {/* Feature Categories */}
-                {categories.map((cat) => (
-                    <div key={cat.category} className="mb-14 last:mb-0">
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isVega ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                                <cat.Icon className="w-5 h-5" />
-                            </div>
-                            <h3 className={`text-2xl font-bold tracking-tight ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>{cat.category}</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                            {cat.items.map((item) => (
-                                <div
-                                    key={item.title}
-                                    className={`group relative rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
-                                        isVega
-                                            ? 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-white/[0.06] hover:border-primary-300 dark:hover:border-primary-700/50 hover:shadow-primary-500/5'
-                                            : 'bg-white/[0.03] border-white/[0.06] hover:border-blue-500/30 hover:shadow-blue-500/5'
-                                    }`}
-                                >
-                                    <h4 className={`text-base font-bold mb-2 ${isVega ? 'text-slate-900 dark:text-white' : 'text-white'}`}>
-                                        {item.title}
-                                        {item.badge && (
-                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800/50">
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                    </h4>
-                                    <p className={`text-sm leading-relaxed ${isVega ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400'}`}>
-                                        {item.desc}
-                                    </p>
+                <div ref={sectionsRef} className="scroll-reveal">
+                    {categories.map((cat) => (
+                        <div key={cat.category} className="mb-14 last:mb-0">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary-100 text-primary-600">
+                                    <cat.Icon className="w-5 h-5" />
                                 </div>
-                            ))}
+                                <h3 className="text-2xl font-bold tracking-tight text-slate-900">{cat.category}</h3>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                {cat.items.map((item) => (
+                                    <div
+                                        key={item.title}
+                                        className="group relative rounded-2xl p-6 border transition-all duration-300 hover:-translate-y-1 hover:shadow-xl bg-white border-slate-200 hover:border-primary-300 hover:shadow-primary-500/5"
+                                    >
+                                        <h4 className="text-base font-bold mb-2 text-slate-900">
+                                            {item.title}
+                                            {item.badge && (
+                                                <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 border border-primary-200">
+                                                    {item.badge}
+                                                </span>
+                                            )}
+                                        </h4>
+                                        <p className="text-sm leading-relaxed text-slate-500">
+                                            {item.desc}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
         </section>
     );
@@ -681,6 +721,11 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     const tiers = getDisplayTiersForProduct(productMode);
     const cycle = isVega ? billingCycle : 'annual';  // Atrium: always annual
 
+    // Scroll reveal
+    const headerRef = useScrollReveal<HTMLDivElement>();
+    const gridRef = useScrollReveal<HTMLDivElement>();
+    const ctaRef = useScrollReveal<HTMLDivElement>();
+
     const dynamicPlans = DISPLAY_TIER_IDS.map((id: TierId) => {
         const tier = tiers[id as keyof typeof tiers];
         const { price, per } = formatTierPrice(tier, cycle);
@@ -705,30 +750,30 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     });
 
     return (
-    <section id="pricing" className="bg-white dark:bg-slate-950 min-h-[100dvh] pt-24 pb-24 px-6 transition-colors duration-500">
+    <section id="pricing" className="bg-white min-h-[100dvh] pt-24 pb-24 px-6">
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
-            <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white tracking-tight mb-4">
+            <div ref={headerRef} className="scroll-reveal text-center mb-16">
+                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-4">
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
-                <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto text-lg leading-relaxed mb-6">
+                <p className="text-slate-500 max-w-lg mx-auto text-lg leading-relaxed mb-6">
                     {isVega ? 'Equip your firm with the tools to manage complex cases and scale efficiently.' : 'Frame your technology cost as a service benefit to your residents.'}
                 </p>
 
                 {/* Billing Toggle (VEGA Only — Atrium is annual-only) */}
                 {isVega && (
                     <div className="flex items-center justify-center gap-4 mb-8">
-                        <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Monthly</span>
+                        <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
                         <button 
                             onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                            className="relative w-14 h-7 bg-slate-200 dark:bg-white/10 rounded-full transition-colors"
+                            className="relative w-14 h-7 bg-slate-200 rounded-full transition-colors"
                         >
-                            <div className={`absolute top-1 left-1 w-5 h-5 bg-white dark:bg-primary-500 rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
+                            <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
                         </button>
                         <div className="flex items-center gap-2">
-                            <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Annual</span>
-                            <span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-2xs font-black uppercase rounded-full border border-emerald-200 dark:border-emerald-800">
+                            <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 text-2xs font-black uppercase rounded-full border border-emerald-200">
                                 Save 20%
                             </span>
                         </div>
@@ -736,14 +781,14 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 )}
 
                 {!isVega && (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-sm font-semibold border border-blue-200 dark:border-blue-800/50">
+                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200">
                         Billed Annually · SCE shown per unit
                     </span>
                 )}
             </div>
 
             {/* Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto">
+            <div ref={gridRef} className="scroll-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto">
                 {dynamicPlans.map((plan) => (
                     <div
                         key={plan.id}
@@ -824,7 +869,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
             </div>
 
             {/* ── Dual CTA Banner: Real Estate Lawyer Hook + Custom Automation Pipeline ── */}
-            <div className="max-w-5xl mx-auto mt-10 mb-12 space-y-5">
+            <div ref={ctaRef} className="scroll-reveal max-w-5xl mx-auto mt-10 mb-12 space-y-5">
                 {/* A. Real Estate Lawyer Hook — Komplete Tier (Vega/unified only) */}
                 {!isAtrium && (
                 <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-primary-500/10 via-emerald-500/5 to-indigo-500/10 border border-primary-500/20 dark:border-primary-500/10">
@@ -887,13 +932,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 // ─── ROOT COMPONENT ──────────────────────────────────────────────────────
 
 export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ initialProduct }) => {
-    const { openModal, theme, setTheme } = useUI();
+    const { openModal } = useUI();
     const [activeSection, setActiveSection] = useState('home');
-    // TASK 13: If the URL is /vega or /atrium, start with that product
-    // pre-selected AND mark it as chosen (so "Get Started" goes straight
-    // to the signup form for that product, not the product selection step).
-    // On / (root), activeProduct defaults to 'vega' but productChosen is false
-    // — so "Get Started Free" opens the signup with the product selection step.
     const [activeProduct, setActiveProduct] = useState<'vega' | 'atrium'>(initialProduct || 'vega');
     const [productChosen, setProductChosen] = useState(!!initialProduct);
     const [showPrivacy, setShowPrivacy] = useState(false);
@@ -902,10 +942,25 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     const [showResources, setShowResources] = useState(false);
     const [showDPA, setShowDPA] = useState(false);
 
-    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
-        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
-        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    // ── Force LIGHT MODE on landing page ──────────────────────────────
+    // The landing page is always light — no dark theme, no theme-* variants.
+    // We strip the 'dark' and 'theme-*' classes from <html> on mount and
+    // restore the previous classes on unmount so the app (after login) can
+    // still respect the user's saved theme.
+    useEffect(() => {
+        const html = document.documentElement;
+        // Capture current theme classes so we can restore them on unmount
+        const savedClasses = html.className;
+        // Strip all theme-related classes
+        html.classList.remove('dark', 'theme-midnight', 'theme-oled', 'theme-neon-cyber', 'theme-sunlight-soft', 'theme-city-lights', 'theme-city-emerald', 'theme-midnight-emerald', 'theme-army-dark', 'theme-army-light');
+        return () => {
+            // Restore on unmount — needed if user navigates away from landing
+            // to the app (which should respect their saved theme)
+            html.className = savedClasses;
+        };
+    }, []);
 
     // TASK 14: Sync productChosen + activeProduct with initialProduct when it
     // changes (SPA navigation). Without this, navigating from /vega back to /
@@ -1042,7 +1097,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     return (
         <div
             ref={scrollRef}
-            className="h-[100dvh] w-full overflow-y-auto bg-white dark:bg-slate-950 text-slate-900 dark:text-white font-sans transition-colors duration-500 scroll-smooth"
+            className="h-[100dvh] w-full overflow-y-auto bg-white text-slate-900 font-sans scroll-smooth"
             style={{ scrollbarGutter: 'stable' }}
         >
             <NavBar
@@ -1051,8 +1106,6 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 onLogin={() => openModal('login')}
                 onSignup={openSignup}
                 onResources={() => setShowResources(true)}
-                isDark={isDark}
-                toggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
                 activeProduct={activeProduct}
                 setActiveProduct={handleProductSwitch}
                 productChosen={productChosen}
