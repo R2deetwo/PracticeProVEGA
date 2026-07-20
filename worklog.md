@@ -4645,3 +4645,58 @@ Stage Summary:
 - Refresh now clears all cache except auth — user stays logged in
 - User should click 'Refresh' once more to load this version (the cache
   fix applies going forward, not retroactively)
+
+---
+Task ID: image-cycling-stats-demarcator-aloa-rewrite
+Agent: main
+Task: Fix stats demarcator misunderstanding, rewrite ALOA, add image cycling with younger lawyers, fix image caching
+
+1. STATS DEMARCATOR (was EndToEndDemarcator — wrong):
+   User clarified: the stats strip (3-Tier, End-to-End, 99.9%, NDPA 2023)
+   should be centered and serve as a demarcator between hero and features.
+   NOT a new content section. Removed EndToEndDemarcator. Created
+   StatsDemarcator: moves existing stats strip out of HomeSection into a
+   centered full-width Sage section with large Space Grotesk numerals.
+
+2. ALOA DESCRIPTION REWRITE:
+   Old: 'AI-powered drafting assistant... Draft originating processes...'
+   (sounded like DraftPro)
+   New: 'Your firm's always-on legal intelligence — ask questions about
+   your matters, get instant case summaries, analyze opposing counsel
+   patterns, research precedent across Nigerian courts, and surface
+   insights from your document vault.'
+   Now clearly differentiates: ALOA = research/analysis/intelligence,
+   DraftPro = document drafting/editing.
+
+3. IMAGE CYCLING + YOUNGER LAWYERS:
+   6 new images (3 per product), all younger subjects (late 20s):
+   Vega: vega-hero-1 (desk work), vega-hero-2 (mentoring intern),
+   vega-hero-3 (team meeting)
+   Atrium: atrium-hero-1 (rooftop with tablet), atrium-hero-2 (building
+   plan on car hood), atrium-hero-3 (maintenance check in stairwell)
+   Auto-rotate every 6s with 1000ms crossfade. Pagination dots below CTA.
+   Respects prefers-reduced-motion.
+
+4. IMAGE CACHING FIX (two layers):
+   Layer 1: ?v=${VITE_BUILD_SHA} query param on all image URLs. When
+   build SHA changes, URL changes, browser fetches fresh.
+   Layer 2: vercel.json reordered so asset sources come LAST, overriding
+   the no-cache catch-all. Root cause: the '/((?:vega|atrium|...).*)'
+   source was matching image paths containing 'atrium'/'vega' and
+   overriding immutable cache with no-cache. Removed that source,
+   reordered so /assets/(.*) and /(.*\.(?:jpg|...)) sources come after
+   the catch-all and override it.
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=18c0d2f, status=healthy
+- /assets/landing/vega-hero-1.jpg → cache-control: public, max-age=31536000, immutable ✓
+- /vega → cache-control: no-cache, no-store, must-revalidate ✓
+- Production JS contains: vega-hero-1, atrium-hero-1, 'always-on legal intelligence' ✓
+- Build passes (19.74s)
+
+Stage Summary:
+- Stats strip is now a centered demarcator between hero and features
+- ALOA description differentiates from DraftPro
+- 6 new images with younger subjects, auto-cycling every 6s
+- Image caching fixed: 1-year immutable + build-SHA cache-bust
+- Route caching fixed: no-cache on /, /vega, /atrium
