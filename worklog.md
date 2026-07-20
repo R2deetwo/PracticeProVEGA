@@ -4350,3 +4350,65 @@ Stage Summary:
 - Founder should review the rendered result and swap image files in
   /public/assets/landing/ if assignments are wrong (just overwrite the
   file, no code change needed)
+
+---
+Task ID: purposeful-motion-pass
+Agent: main
+Task: Adapt Claude's 'Purposeful Motion Pass' spec — Phase 1 (hero load) + Phase 4 (depth), generate new AI images, fix End-to-End stat wrap
+
+PHASE 1 — HERO LOAD SEQUENCE:
+- New CSS: .hero-stagger class with @keyframes hero-enter
+- Staggered entrance: headline → subheadline → CTA → product cards
+- 70ms offset between siblings, 400ms duration, ease-out
+- translateY(10px→0) + opacity(0→1)
+- Applied to BOTH HubHero and HomeSection
+- Runs once via CSS animation forwards — does NOT re-trigger on scroll
+- Respects prefers-reduced-motion
+
+PHASE 4 — DEPTH AND HIERARCHY:
+- Alternating section backgrounds: white → slate-50 → white → slate-50
+  · TrustBadgesStrip: bg-slate-50 → bg-white
+  · PricingSection: bg-white → bg-slate-50 (white cards now pop)
+- Pricing cards: added base shadow-lg to non-highlighted tiers
+- Hover escalates to shadow-2xl + border-primary-300 (unified to brand green)
+- Stats strip: shadow-sm → shadow-lg shadow-slate-900/5
+
+STAT WRAP FIX:
+- 'End-to-End' was wrapping awkwardly on narrow viewports
+- Added whitespace-nowrap to all stat values
+- Reduced padding px-6 → px-4
+- Responsive font: text-xl on mobile, text-2xl on desktop
+
+NEW AI-GENERATED IMAGES (replaced Nano Banana outputs):
+- vega-hero.jpg (1152x864, 115KB) — Nigerian male lawyer, charcoal suit,
+  forest-green tie, modern Lagos law office, golden hour
+- atrium-hero.jpg (1152x864, 87KB) — Nigerian female property manager,
+  emerald blazer, tablet, residential estate rooftop, golden hour
+- hub-bg.jpg (1344x768, 15KB) — abstract gradient mesh, slate→green→amber,
+  subtle Adinkra patterns at 10% opacity
+Generated via z-ai CLI image generation, converted PNG→JPG at quality 88.
+
+MOTION TIMING SYSTEM:
+- CSS custom properties in :root:
+  · --duration-fast: 150ms (hover feedback)
+  · --duration-base: 400ms (hero load, scroll reveals)
+  · --duration-slow: 700ms (large transitions)
+  · --ease-out: cubic-bezier(0.16, 1, 0.3, 1)
+  · --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1)
+- All animations reference these variables — no magic numbers
+
+SCROLL REVEAL REFINEMENTS:
+- Reduced translateY from 24px → 12px (subtler)
+- Added .scroll-reveal-stagger class for grid children (50ms stagger,
+  total under 300ms)
+- Applied to FeaturesSection categories + PricingSection grid
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=433106c, status=healthy
+- /assets/landing/vega-hero.jpg returns HTTP 200
+- Build passes (19.80s)
+
+DEFERRED (per Claude's spec — implement after founder reviews Phases 1+4):
+- Phase 2: scroll-triggered section reveals (already partially implemented,
+  needs review for spec compliance — single reveal per SECTION not per element)
+- Phase 3: hover/interaction feedback (pricing card lift, CTA transitions)
