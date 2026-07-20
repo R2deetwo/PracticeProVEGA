@@ -3,176 +3,176 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { XIcon } from '../../constants';
 
 interface ModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title: string;
-  children: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+ isOpen: boolean;
+ onClose: () => void;
+ title: string;
+ children: React.ReactNode;
+ size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md' }) => {
-  const [isMounted, setIsMounted] = useState(false);
-  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
-  const modalRef = useRef<HTMLDivElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
+ const [isMounted, setIsMounted] = useState(false);
+ const [isAnimatingIn, setIsAnimatingIn] = useState(false);
+ const modalRef = useRef<HTMLDivElement>(null);
+ const previousFocusRef = useRef<HTMLElement | null>(null);
 
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      // Save the currently focused element so we can restore it later
-      previousFocusRef.current = document.activeElement as HTMLElement;
-      // Prevent background scrolling
-      const originalOverflow = document.body.style.overflow;
-      const originalPaddingRight = document.body.style.paddingRight;
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.overflow = 'hidden';
-      // Compensate for scrollbar disappearing to prevent layout shift
-      if (scrollbarWidth > 0) {
-        document.body.style.paddingRight = `${scrollbarWidth}px`;
-      }
-      return () => {
-        document.body.style.overflow = originalOverflow;
-        document.body.style.paddingRight = originalPaddingRight;
-        // Restore focus to the element that had it before the modal opened
-        if (previousFocusRef.current && previousFocusRef.current.focus) {
-          try { previousFocusRef.current.focus(); } catch { /* element may have been unmounted */ }
-        }
-      };
+ // Lock body scroll when modal is open
+ useEffect(() => {
+  if (isOpen) {
+   // Save the currently focused element so we can restore it later
+   previousFocusRef.current = document.activeElement as HTMLElement;
+   // Prevent background scrolling
+   const originalOverflow = document.body.style.overflow;
+   const originalPaddingRight = document.body.style.paddingRight;
+   const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+   document.body.style.overflow = 'hidden';
+   // Compensate for scrollbar disappearing to prevent layout shift
+   if (scrollbarWidth > 0) {
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+   }
+   return () => {
+    document.body.style.overflow = originalOverflow;
+    document.body.style.paddingRight = originalPaddingRight;
+    // Restore focus to the element that had it before the modal opened
+    if (previousFocusRef.current && previousFocusRef.current.focus) {
+     try { previousFocusRef.current.focus(); } catch { /* element may have been unmounted */ }
     }
-  }, [isOpen]);
+   };
+  }
+ }, [isOpen]);
 
-  // Auto-focus the first focusable element inside the modal
-  useEffect(() => {
-    if (isOpen && isMounted && modalRef.current) {
-      // Small delay to let animation start and content render
-      const timer = setTimeout(() => {
-        if (!modalRef.current) return;
-        // Look for the first input, select, textarea, or button that isn't the close button
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length > 0) {
-          focusable[0].focus();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+ // Auto-focus the first focusable element inside the modal
+ useEffect(() => {
+  if (isOpen && isMounted && modalRef.current) {
+   // Small delay to let animation start and content render
+   const timer = setTimeout(() => {
+    if (!modalRef.current) return;
+    // Look for the first input, select, textarea, or button that isn't the close button
+    const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+     'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length > 0) {
+     focusable[0].focus();
     }
-  }, [isOpen, isMounted]);
+   }, 100);
+   return () => clearTimeout(timer);
+  }
+ }, [isOpen, isMounted]);
 
-  // Focus trap: keep Tab navigation inside the modal
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      onClose();
-      return;
+ // Focus trap: keep Tab navigation inside the modal
+ const handleKeyDown = useCallback((event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+   onClose();
+   return;
+  }
+
+  if (event.key === 'Tab' && modalRef.current) {
+   const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+   );
+   if (focusableElements.length === 0) return;
+
+   const firstFocusable = focusableElements[0];
+   const lastFocusable = focusableElements[focusableElements.length - 1];
+
+   if (event.shiftKey) {
+    // Shift+Tab: if focus is on first element, wrap to last
+    if (document.activeElement === firstFocusable) {
+     event.preventDefault();
+     lastFocusable.focus();
     }
-
-    if (event.key === 'Tab' && modalRef.current) {
-      const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements.length === 0) return;
-
-      const firstFocusable = focusableElements[0];
-      const lastFocusable = focusableElements[focusableElements.length - 1];
-
-      if (event.shiftKey) {
-        // Shift+Tab: if focus is on first element, wrap to last
-        if (document.activeElement === firstFocusable) {
-          event.preventDefault();
-          lastFocusable.focus();
-        }
-      } else {
-        // Tab: if focus is on last element, wrap to first
-        if (document.activeElement === lastFocusable) {
-          event.preventDefault();
-          firstFocusable.focus();
-        }
-      }
+   } else {
+    // Tab: if focus is on last element, wrap to first
+    if (document.activeElement === lastFocusable) {
+     event.preventDefault();
+     firstFocusable.focus();
     }
-  }, [onClose]);
+   }
+  }
+ }, [onClose]);
 
-  useEffect(() => {
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, handleKeyDown]);
+ useEffect(() => {
+  if (isOpen) {
+   window.addEventListener('keydown', handleKeyDown);
+  }
+  return () => {
+   window.removeEventListener('keydown', handleKeyDown);
+  };
+ }, [isOpen, handleKeyDown]);
 
-  // Mount/unmount with animation
-  useEffect(() => {
-    let unmountTimer: number;
+ // Mount/unmount with animation
+ useEffect(() => {
+  let unmountTimer: number;
 
-    if (isOpen) {
-      setIsMounted(true);
-      requestAnimationFrame(() => {
-        setIsAnimatingIn(true);
-      });
-    } else {
-      setIsAnimatingIn(false);
-      unmountTimer = window.setTimeout(() => {
-        setIsMounted(false);
-      }, 200);
-    }
+  if (isOpen) {
+   setIsMounted(true);
+   requestAnimationFrame(() => {
+    setIsAnimatingIn(true);
+   });
+  } else {
+   setIsAnimatingIn(false);
+   unmountTimer = window.setTimeout(() => {
+    setIsMounted(false);
+   }, 200);
+  }
 
-    return () => {
-      clearTimeout(unmountTimer);
-    };
-  }, [isOpen]);
+  return () => {
+   clearTimeout(unmountTimer);
+  };
+ }, [isOpen]);
 
-  if (!isMounted) return null;
+ if (!isMounted) return null;
 
-  let sizeClass = 'sm:max-w-2xl'; // default md
-  if (size === 'sm') sizeClass = 'sm:max-w-lg';
-  if (size === 'md') sizeClass = 'sm:max-w-2xl';
-  if (size === 'lg') sizeClass = 'sm:max-w-4xl';
-  if (size === 'xl') sizeClass = 'sm:max-w-5xl lg:max-w-6xl xl:max-w-7xl';
+ let sizeClass = 'sm:max-w-2xl'; // default md
+ if (size === 'sm') sizeClass = 'sm:max-w-lg';
+ if (size === 'md') sizeClass = 'sm:max-w-2xl';
+ if (size === 'lg') sizeClass = 'sm:max-w-4xl';
+ if (size === 'xl') sizeClass = 'sm:max-w-5xl lg:max-w-6xl xl:max-w-7xl';
 
-  const modalWidthClass = `w-full ${sizeClass} h-[100dvh] sm:h-auto sm:max-h-[90vh]`;
+ const modalWidthClass = `w-full ${sizeClass} h-[100dvh] sm:h-auto sm:max-h-[90vh]`;
 
-  const modalAnimation = isAnimatingIn
-    ? 'opacity-100 translate-y-0 scale-100'
-    : 'opacity-0 translate-y-4 scale-[0.99]';
+ const modalAnimation = isAnimatingIn
+  ? 'opacity-100 translate-y-0 scale-100'
+  : 'opacity-0 translate-y-4 scale-[0.99]';
 
-  return (
-    <div
-      className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-hidden"
-      aria-labelledby="modal-title"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className={`fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm transition-opacity duration-150 ease-out ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
-        aria-hidden="true"
-        onClick={() => onClose()}
-      />
-      
-      <div
-        ref={modalRef}
-        className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 ${modalWidthClass} ${modalAnimation}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Brand Accent Bar */}
-        <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
+ return (
+  <div
+   className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-hidden"
+   aria-labelledby="modal-title"
+   role="dialog"
+   aria-modal="true"
+  >
+   <div
+    className={`fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm transition-opacity duration-150 ease-out ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
+    aria-hidden="true"
+    onClick={() => onClose()}
+   />
+   
+   <div
+    ref={modalRef}
+    className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 ${modalWidthClass} ${modalAnimation}`}
+    onClick={(e) => e.stopPropagation()}
+   >
+    {/* Brand Accent Bar */}
+    <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
 
-        <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-white/80 sm:backdrop-blur-md z-10">
-          <div className="flex flex-col min-w-0">
-            <h2 id="modal-title" className="text-base sm:text-lg font-black text-slate-800 tracking-tight leading-tight truncate pr-4">{title}</h2>
-          </div>
-          <button
-            onClick={() => onClose()}
-            className="active-press touch-target group p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all flex-shrink-0"
-            aria-label="Close modal"
-          >
-            <XIcon className="h-5 w-5 transition-transform group-hover:rotate-90 duration-300" />
-          </button>
-        </div>
-
-        <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain ${size === 'xl' ? 'p-0' : 'px-3 py-3 sm:px-6 sm:py-5'}`}>
-          {children}
-        </div>
-      </div>
+    <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-white/80 sm:backdrop-blur-md z-10">
+     <div className="flex flex-col min-w-0">
+      <h2 id="modal-title" className="text-base sm:text-lg font-black text-slate-800 tracking-tight leading-tight truncate pr-4">{title}</h2>
+     </div>
+     <button
+      onClick={() => onClose()}
+      className="active-press touch-target group p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all flex-shrink-0"
+      aria-label="Close modal"
+     >
+      <XIcon className="h-5 w-5 transition-transform group-hover:rotate-90 duration-300" />
+     </button>
     </div>
-  );
+
+    <div className={`flex-1 overflow-y-auto custom-scrollbar overscroll-contain ${size === 'xl' ? 'p-0' : 'px-3 py-3 sm:px-6 sm:py-5'}`}>
+     {children}
+    </div>
+   </div>
+  </div>
+ );
 };
