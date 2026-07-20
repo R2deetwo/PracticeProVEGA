@@ -4167,3 +4167,75 @@ Stage Summary:
 - All user-facing demo entry points removed
 - Users can no longer trigger demo flows from the UI
 - Build passes, deployed to production
+
+---
+Task ID: signout-double-confirm-and-onboarding-repetition
+Agent: main
+Task: Fix two UX issues — (1) sign-out asks "are you sure" twice, (2) onboarding asks "which product?" even when user already chose
+
+ISSUE 1: SIGN-OUT DOUBLE CONFIRMATION
+Root cause: installBeforeUnloadGuard() in tabNavigation.ts registers a
+beforeunload listener via addEventListener. AuthContext.logout() sets
+window.onbeforeunload = null AND __suppressBeforeUnload = true, BUT
+addEventListener handlers are NOT cleared by setting the window.onbeforeunload
+property — they only clear when explicitly removeEventListener'd.
+
+So when the user clicked "Sign out":
+  a) window.confirm('Are you sure you want to sign out?') → user clicks OK
+  b) logout() runs, sets __suppressBeforeUnload = true, navigates via
+     window.location.replace()
+  c) Browser fires beforeunload event
+  d) The listener installed by installBeforeUnloadGuard (active when a
+     DraftPro document has unsaved changes) STILL runs and calls
+     e.preventDefault() + e.returnValue = ''
+  e) Browser shows "Leave site? Changes you made may not be saved"
+  f) User has to confirm AGAIN — even though they already confirmed
+
+FIX: Added a check at the top of the beforeunload handler in
+installBeforeUnloadGuard — if __suppressBeforeUnload is true, return
+early without calling preventDefault. Now signing out asks exactly once.
+
+ISSUE 2: ONBOARDING REPETITION
+Root cause: LandingPage.openSignup() ALWAYS passed undefined as
+selectedProduct — even when the user was on /vega or /atrium. This
+forced the Signup modal to always show the product_selection step,
+ignoring the user's current product context.
+
+The previous code (TASK 21) explicitly did this because an earlier
+user request was "Clicking Get Started should immediately present the
+product selection screen". But that request was about the ROOT hub
+page — not about /vega or /atrium where the user has already committed
+to a product by navigating there.
+
+FIX: openSignup now respects the user's current product context:
+  - On '/' (root, productChosen=false) → no selectedProduct →
+    Signup shows product_selection step (asks which product)
+  - On '/vega' (productChosen=true, activeProduct='vega') →
+    selectedProduct='vega' → Signup maps to 'legal' and skips
+    straight to the registration form
+  - On '/atrium' → selectedProduct='atrium' → Signup maps to
+    'property' and skips straight to the form
+  - 'Explore Komplete' CTA → passes 'unified' override → Signup
+    skips to form with product=unified
+  - Pricing section tier CTAs → inherits activeProduct when on
+    /vega or /atrium (correct — if they're on Vega pricing and
+    click 'Start Growth', they want Vega)
+
+The Signup component (src/components/auth/Signup.tsx) already had the
+correct logic — it checks modalContext.selectedProduct and skips the
+product_selection step when one is provided. The bug was entirely in
+LandingPage.openSignup() which was discarding the product context.
+
+VERIFICATION:
+- vite build passes (19.11s)
+- Pushed to main: f5a14a1
+- Vercel deployed: production version.json shows sha=f5a14a1, status=healthy
+
+Stage Summary:
+- Sign-out now confirms exactly once (custom dialog only, no browser
+  "Leave site?" follow-up)
+- Onboarding no longer asks "which product?" when the user has already
+  chosen one by navigating to /vega or /atrium, or by clicking the
+  Komplete CTA
+- Onboarding still asks "which product?" on the root hub page when the
+  user hasn't committed to a product
