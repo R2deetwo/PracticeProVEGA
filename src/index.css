@@ -52,9 +52,26 @@
   --color-white: 255 255 255;
   --color-black: 0 0 0;
 
+  /* Primary (Green) — Brand color, matches favicon (#16A34A = green-600)
+     IMPORTANT: This MUST be defined in :root so the landing page (which has
+     no theme class applied) still gets a primary color. Without this,
+     text-primary-500 resolves to rgb( / 1) which is INVALID CSS and the
+     color is missing entirely. */
+  --color-primary-50:  240 253 244;
+  --color-primary-100: 220 252 231;
+  --color-primary-200: 187 247 208;
+  --color-primary-300: 134 239 172;
+  --color-primary-400: 74 222 128;
+  --color-primary-500: 22 163 74;    /* #16A34A — favicon green */
+  --color-primary-600: 21 128 61;    /* darker for hover/active */
+  --color-primary-700: 20 83 45;
+  --color-primary-800: 22 101 52;
+  --color-primary-900: 20 83 45;
+  --color-primary-950: 5 46 22;
+
   /* App semantic tokens */
-  --primary-accent: 79, 70, 229;
-  --primary-light:  238, 242, 255;
+  --primary-accent: 22, 163, 74;     /* match primary-500 */
+  --primary-light:  220, 252, 231;   /* match primary-100 */
   --success:  16, 185, 129;
   --warning:  245, 158, 11;
   --danger:   239, 68, 68;
