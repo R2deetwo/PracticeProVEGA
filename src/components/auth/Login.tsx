@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
 import { isNativePlatform } from '../../utils/capacitor';
-import { EyeIcon, EyeOffIcon, SparklesIcon, MailIcon, ShieldCheckIcon, WarningIcon, ZapIcon } from '../../constants';
+import { EyeIcon, EyeOffIcon, MailIcon, ShieldCheckIcon, WarningIcon, ZapIcon } from '../../constants';
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { biometricAuth } from '../../utils/biometric';
@@ -31,7 +31,7 @@ const getPasswordStrength = (pw: string): { score: number; label: string; color:
 
 const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     const { login, resendConfirmation } = useAuth();
-    const { closeModal, addToast, setIsSessionLocked, openModal } = useUI();
+    const { closeModal, addToast, setIsSessionLocked } = useUI();
 
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
@@ -229,11 +229,6 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
         } finally {
             setSendingReset(false);
         }
-    };
-
-    const handleDemoLogin = () => {
-        closeModal();
-        setTimeout(() => openModal('leadCapture'), 100);
     };
 
     // inputLarge is now imported at top level
@@ -486,7 +481,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                     )}
                 </form>
 
-                {/* #5 — Sign Up first, Demo below */}
+                {/* #5 — Sign Up link */}
                 {!forClient && !isLoading && !requiresMfa && !isRecovering && (
                     <p className="text-center text-sm text-gray-600 dark:text-zinc-400">
                         Don't have an account?{' '}
@@ -494,27 +489,6 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
                             Sign up for free
                         </button>
                     </p>
-                )}
-
-                {!isLoading && !requiresMfa && !isRecovering && (
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200 dark:border-zinc-700" />
-                        </div>
-                        <div className="relative flex justify-center text-xs">
-                            <span className="px-2 bg-white dark:bg-zinc-800 text-slate-400">or</span>
-                        </div>
-                    </div>
-                )}
-
-                {!isLoading && !requiresMfa && !isRecovering && !isNativePlatform() && (
-                    <button
-                        onClick={handleDemoLogin}
-                        className="w-full flex justify-center items-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-lg font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                    >
-                        <SparklesIcon className="w-5 h-5" />
-                        Explore Demo Mode
-                    </button>
                 )}
 
                 {requiresMfa && (

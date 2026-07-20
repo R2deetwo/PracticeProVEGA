@@ -69,7 +69,6 @@ import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
-import DemoProductSwitcher from './DemoProductSwitcher';
 
 import { LandingPage } from './LandingPage';
 import BottomNav from './BottomNav';
@@ -506,8 +505,6 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     ) : <DashboardSkeleton />}
                 </main>
                 {currentUser && !isPortalUser && <BottomNav currentView={view} setView={navigateTo} />}
-                {/* DemoProductSwitcher — web only, hidden in native APK */}
-                {!isNativePlatform() && <DemoProductSwitcher />}
             </div>
             {currentUser && flowState === 'app' && !isPortalUser && (
                 <>
@@ -1155,7 +1152,7 @@ export const App: React.FC = () => {
                 location.pathname === '/vega' ? 'vega' :
                 location.pathname === '/atrium' ? 'atrium' :
                 location.pathname === '/komplet' ? 'vega' : undefined; // komplet maps to vega for landing purposes
-            return <LandingPage onDemo={(product) => openModal('leadCapture', null, { demoProduct: product })} initialProduct={urlProduct} />;
+            return <LandingPage initialProduct={urlProduct} />;
         }
 
         // New User Flow: Go straight to setup if no firm exists

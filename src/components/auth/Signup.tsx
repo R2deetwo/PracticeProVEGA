@@ -5,7 +5,7 @@ import { useUI } from '../../contexts/UIContext';
 import { isNativePlatform } from '../../utils/capacitor';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { EyeIcon, EyeOffIcon, MailIcon, CheckCircleIcon, SparklesIcon, ZapIcon } from '../../constants';
+import { EyeIcon, EyeOffIcon, MailIcon, CheckCircleIcon, ZapIcon } from '../../constants';
 import { AppMode, SubscriptionPlan } from '../../types';
 
 interface SignupProps {
@@ -14,7 +14,7 @@ interface SignupProps {
 
 const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     const { signup, verifyEmail } = useAuth();
-    const { closeModal, addToast, navigateTo, openModal, modalContext } = useUI();
+    const { closeModal, addToast, navigateTo, modalContext } = useUI();
 
     const [step, setStep] = React.useState<'product_selection' | 'form' | 'verify' | 'restore'>('product_selection');
     const [selectedProduct, setSelectedProduct] = React.useState<'legal' | 'property' | 'unified'>('legal');
@@ -203,11 +203,6 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         } finally {
             setIsSubmittingRestore(false);
         }
-    };
-
-    const handleDemoLogin = () => {
-        closeModal();
-        setTimeout(() => openModal('leadCapture'), 100);
     };
 
     // inputLarge is now imported at top level
@@ -551,26 +546,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
                     </button>
                 </p>
 
-                <div className="relative py-2">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-200 dark:border-zinc-700"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-white dark:bg-zinc-800 text-slate-500">Or</span>
-                    </div>
-                </div>
-
-                {/* Demo Mode — web only, hidden in native APK */}
-                {!isNativePlatform() && (
-                    <button
-                        type="button"
-                        onClick={handleDemoLogin}
-                        className="w-full flex justify-center items-center gap-2 px-4 py-2.5 border-2 border-dashed border-primary-300 dark:border-primary-800 rounded-lg font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
-                    >
-                        <SparklesIcon className="w-5 h-5" />
-                        Explore Demo Mode
-                    </button>
-                )}
+                {/* CTA section ends here — Sign-up only, no demo button */}
             </div>
         </div>
     );

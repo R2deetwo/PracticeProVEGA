@@ -63,7 +63,6 @@ const NavBar: React.FC<{
     scrollTo: (id: string) => void;
     onLogin: () => void;
     onSignup: () => void;
-    onDemo: () => void;
     onResources: () => void;
     isDark: boolean;
     toggleTheme: () => void;
@@ -71,7 +70,7 @@ const NavBar: React.FC<{
     setActiveProduct: (p: 'vega' | 'atrium') => void;
     productChosen: boolean;
     onBackToHub: () => void;
-}> = ({ activeSection, scrollTo, onLogin, onSignup, onDemo, onResources, isDark, toggleTheme, activeProduct, setActiveProduct, productChosen, onBackToHub }) => (
+}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, isDark, toggleTheme, activeProduct, setActiveProduct, productChosen, onBackToHub }) => (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300">
         {/* Glass layer */}
         <div className="absolute inset-0 bg-white/75 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-white/[0.06] transition-colors duration-500" />
@@ -163,12 +162,6 @@ const NavBar: React.FC<{
                     className="hidden md:block px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                 >
                     Log In
-                </button>
-                <button
-                    onClick={onDemo}
-                    className="hidden lg:flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10 hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
-                >
-                    Demo
                 </button>
                 <PrimaryButton onClick={onSignup} className="!px-3 !py-1.5 !rounded-lg !text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
                     Get Started Free
@@ -431,7 +424,7 @@ const ATRIUM_STATS = [
     { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
-const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, onDemo, activeProduct, setActiveProduct }) => {
+const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, activeProduct, setActiveProduct }) => {
     // FIX: Use activeProduct instead of useProduct() — landing page has no firm
     const isProperty = activeProduct === 'atrium';
     // TASK 18: Respect light/dark mode for BOTH Vega and Atrium landing pages.
@@ -485,9 +478,6 @@ const HomeSection: React.FC<{ onSignup: () => void; onDemo: () => void; activePr
                     <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
                         Get Started
                     </PrimaryButton>
-                    <GhostButton onClick={() => onDemo()} className="text-base px-8 py-4">
-                        Try Demo
-                    </GhostButton>
                 </div>
 
                 {/* Stats strip */}
@@ -896,7 +886,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
 // ─── ROOT COMPONENT ──────────────────────────────────────────────────────
 
-export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => void; initialProduct?: 'vega' | 'atrium' }> = ({ onDemo, initialProduct }) => {
+export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ initialProduct }) => {
     const { openModal, theme, setTheme } = useUI();
     const [activeSection, setActiveSection] = useState('home');
     // TASK 13: If the URL is /vega or /atrium, start with that product
@@ -1042,7 +1032,6 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 scrollTo={scrollTo}
                 onLogin={() => openModal('login')}
                 onSignup={openSignup}
-                onDemo={() => onDemo(activeProduct)}
                 onResources={() => setShowResources(true)}
                 isDark={isDark}
                 toggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
@@ -1061,7 +1050,7 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
                 />
             ) : (
                 <main key={activeProduct} className="animate-swap-in">
-                    <HomeSection onSignup={openSignup} onDemo={() => onDemo(activeProduct)} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
+                    <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <FeaturesSection activeProduct={activeProduct} />
                     <TrustBadgesStrip />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
