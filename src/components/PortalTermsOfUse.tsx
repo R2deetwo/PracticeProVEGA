@@ -28,7 +28,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                 <div className="max-w-4xl mx-auto px-6 sm:px-12 py-12 lg:py-20">
                     <div className="mb-16">
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">PORTAL TERMS OF USE</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Legal Technologies Limited</p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PracticePro Systems Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                             <span>Effective Date: January 1, 2026</span>
                             <span>Last Updated: April 10, 2026</span>
@@ -67,7 +67,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
 
                         {/* Preamble */}
                         <p className="text-lg leading-relaxed text-slate-700 dark:text-zinc-300">
-                            These Portal Terms of Use ("Portal Terms") govern your access to and use of the PracticePro {portalLabel} (the "Portal"), provided by PracticePro Legal Technologies Limited ("PracticePro," "we," "us," or "our"). By accepting an invitation to the Portal, creating an account, or accessing the Portal in any capacity, you ("you," "your," or "User") acknowledge that you have read, understood, and agree to be bound by these Portal Terms, together with the <a href="#portal-section-3">PracticePro Terms and Conditions of Service</a> and the <a href="#portal-section-3">Privacy Policy</a>, which are incorporated herein by reference.
+                            These Portal Terms of Use ("Portal Terms") govern your access to and use of the PracticePro {portalLabel} (the "Portal"), provided by PracticePro Systems Limited ("PracticePro," "we," "us," or "our"). By accepting an invitation to the Portal, creating an account, or accessing the Portal in any capacity, you ("you," "your," or "User") acknowledge that you have read, understood, and agree to be bound by these Portal Terms, together with the <a href="#portal-section-3">PracticePro Terms and Conditions of Service</a> and the <a href="#portal-section-3">Privacy Policy</a>, which are incorporated herein by reference.
                         </p>
 
                         <section id="portal-section-1" className="mb-20">
@@ -153,7 +153,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                         <section id="portal-section-7" className="mb-20">
                             <h2 className="text-3xl font-bold mb-8 transition-colors">7. INTELLECTUAL PROPERTY RESTRICTIONS</h2>
                             <div className="space-y-12">
-                                <p>7.1 <strong>Platform Ownership:</strong> The PracticePro platform, including the Portal, all software, source code, user interfaces, graphics, logos, and documentation, is the exclusive property of PracticePro Legal Technologies Limited and is protected by applicable intellectual property laws, including the Copyright Act (Cap C28, Laws of the Federation of Nigeria, 2004) and the Patents and Designs Act (Cap P2, LFN 2004).</p>
+                                <p>7.1 <strong>Platform Ownership:</strong> The PracticePro platform, including the Portal, all software, source code, user interfaces, graphics, logos, and documentation, is the exclusive property of PracticePro Systems Limited and is protected by applicable intellectual property laws, including the Copyright Act (Cap C28, Laws of the Federation of Nigeria, 2004) and the Patents and Designs Act (Cap P2, LFN 2004).</p>
                                 <p>7.2 <strong>Limited License:</strong> Subject to your compliance with these Portal Terms, PracticePro grants you a limited, non-exclusive, non-transferable, revocable license to access and use the Portal solely for its intended purposes. This license does not include the right to:</p>
                                 <ul>
                                     <li>Modify, adapt, or create derivative works based on the Portal;</li>
@@ -208,7 +208,7 @@ export const PortalTermsOfUse: React.FC<{ onBack: () => void; activeProduct?: 'v
                             <div className="space-y-12">
                                 <p>For any questions, complaints, or notices relating to these Portal Terms, please contact us at:</p>
                                 <div className="pl-4 border-l-2 border-slate-100 dark:border-zinc-800 space-y-3">
-                                    <p><strong>Company:</strong> PracticePro Legal Technologies Limited</p>
+                                    <p><strong>Company:</strong> PracticePro Systems Limited</p>
                                     <p><strong>Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria</p>
                                     <p><strong>General Enquiries:</strong> <a href="mailto:practiceprovega@gmail.com">practiceprovega@gmail.com</a></p>
                                     <p><strong>Data Protection / Privacy:</strong> <a href="mailto:practiceproindex@gmail.com">practiceproindex@gmail.com</a></p>

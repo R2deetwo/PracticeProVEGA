@@ -24,7 +24,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                 <div className="mb-16">
                     <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Cookie Policy</h1>
-                    <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO LEGAL TECHNOLOGIES LIMITED</p>
+                    <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
                     <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                         <span>Last Updated: May 2026</span>
                     </div>
@@ -40,7 +40,7 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <hr className="my-10" />
 
                     <p>
-                        PracticePro Legal Technologies Limited ("we", "us", or "our") uses cookies and similar tracking
+                        PracticePro Systems Limited ("we", "us", or "our") uses cookies and similar tracking
                         technologies on the Vega platform to ensure high-fidelity UI performance, verify active user
                         sessions, and maintain secure database routing states. This Cookie Policy explains what cookies
                         are, how we use them, and your rights to manage their behaviour.
@@ -152,14 +152,14 @@ const CookiePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         compliance desk at:
                     </p>
                     <p>
-                        <strong>PracticePro Legal Technologies Limited</strong><br />
+                        <strong>PracticePro Systems Limited</strong><br />
                         Data Compliance Desk<br />
                         Email: <a href="mailto:compliance@practicepro.esq">compliance@practicepro.esq</a>
                     </p>
 
                     <hr className="my-10" />
                     <p className="text-xs text-slate-400 dark:text-zinc-600 italic">
-                        This Cookie Policy is issued by PracticePro Legal Technologies Limited and applies exclusively
+                        This Cookie Policy is issued by PracticePro Systems Limited and applies exclusively
                         to the Vega Legal Operations OS and Atrium Property OS platforms operated under the
                         PracticePro brand. Last reviewed: May 2026.
                     </p>

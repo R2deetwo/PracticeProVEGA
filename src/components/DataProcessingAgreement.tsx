@@ -20,13 +20,13 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
 
                     <div className="mb-16">
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Data Processing Agreement</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 uppercase tracking-tight">PracticePro Legal Technologies Limited</p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 uppercase tracking-tight">PracticePro Systems Limited</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic mb-6">
                             <span>Effective Date: July 19, 2026</span>
                             <span>Version: 1.0</span>
                         </div>
                         <div className="p-5 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                            <strong>Important:</strong> This Data Processing Agreement ("DPA") governs the processing of personal data by PracticePro Legal Technologies Limited ("Processor") on behalf of the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} ("Controller") that has agreed to the PracticePro Terms of Service. This DPA is incorporated by reference into and forms part of the main Service Agreement.
+                            <strong>Important:</strong> This Data Processing Agreement ("DPA") governs the processing of personal data by PracticePro Systems Limited ("Processor") on behalf of the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} ("Controller") that has agreed to the PracticePro Terms of Service. This DPA is incorporated by reference into and forms part of the main Service Agreement.
                         </div>
                     </div>
 
@@ -48,7 +48,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
                             <p>In this Agreement, the following terms shall have the meanings given below:</p>
                             <ul className="list-disc pl-6 space-y-3">
                                 <li><strong>"Controller"</strong> means the {isVega ? 'law firm or legal practitioner' : 'property manager or real estate agency'} that determines the purposes and means of processing personal data and has entered into the Service Agreement with the Processor.</li>
-                                <li><strong>"Processor"</strong> means PracticePro Legal Technologies Limited, which processes personal data on behalf of the Controller.</li>
+                                <li><strong>"Processor"</strong> means PracticePro Systems Limited, which processes personal data on behalf of the Controller.</li>
                                 <li><strong>"Personal Data"</strong> means any information relating to an identified or identifiable natural person processed in connection with the Services.</li>
                                 <li><strong>"Processing"</strong> means any operation or set of operations performed on Personal Data, including collection, recording, storage, use, disclosure, or deletion.</li>
                                 <li><strong>"Data Subject"</strong> means the natural person to whom the Personal Data relates.</li>
@@ -238,7 +238,7 @@ export const DataProcessingAgreement: React.FC<{ onBack: () => void; activeProdu
 
                     <div className="h-32 pt-20 border-t border-slate-100 dark:border-zinc-800 mt-20 text-center">
                         <p className="text-2xs text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-widest">
-                            PracticePro {isVega ? 'VEGA' : 'ATRIUM'} · Data Processing Agreement v1.0 · © 2026 PracticePro Legal Technologies Limited
+                            PracticePro {isVega ? 'VEGA' : 'ATRIUM'} · Data Processing Agreement v1.0 · © 2026 PracticePro Systems Limited
                         </p>
                     </div>
                     <div className="h-20 sm:h-0" />

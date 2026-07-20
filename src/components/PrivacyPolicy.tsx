@@ -27,7 +27,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                     {/* Document Head */}
                     <div className="mb-16">
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">Privacy Policy</h1>
-                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO LEGAL TECHNOLOGIES LIMITED</p>
+                        <p className="text-sm font-semibold text-slate-600 dark:text-zinc-400 mb-2 tracking-tight">PRACTICEPRO SYSTEMS LIMITED</p>
                         <div className="flex flex-col text-xs text-slate-500 dark:text-zinc-500 italic">
                             <span>Effective Date: July 19, 2026</span>
                             <span>Last Updated: February 24, 2026</span>
@@ -68,7 +68,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8">1. Introduction</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Legal Technologies Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
+                                    Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}), a comprehensive cloud-based {isVega ? 'Litigation System' : 'Property OS'} designed specifically for Nigerian {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}. PracticePro Systems Limited ("PracticePro," "we," "us," or "our") is committed to protecting the privacy and security of your personal data in accordance with the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>, the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and all applicable Nigerian data protection laws and regulations.
                                 </p>
                                 <p>
                                     This Privacy Policy explains how we collect, use, disclose, store, and protect personal data when you use our Platform, including {isProperty ? 'our AI-powered property assistant ARIA™' : 'our AI-powered legal assistant ARIA™'}. By using PracticePro, you consent to the data practices described in this Privacy Policy.
@@ -83,7 +83,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8">2. Who We Are (Data Controller Information)</h2>
                             <div className="space-y-12">
                                 <p>
-                                    <strong>Company Name:</strong> PracticePro Legal Technologies Limited<br />
+                                    <strong>Company Name:</strong> PracticePro Systems Limited<br />
                                     <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway. Lagos State<br />
                                     <strong>Email:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a><br />
                                     <strong>Data Protection Officer (DPO):</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>
@@ -379,7 +379,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 </p>
                                 <div className="space-y-6">
                                     <p>
-                                        <strong>PracticePro Legal Technologies Limited</strong><br />
+                                        <strong>PracticePro Systems Limited</strong><br />
                                         <strong>Data Protection Officer:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a><br />
                                         <strong>General Inquiries:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 hover:underline">dpo@practicepro.ng</a>
                                     </p>

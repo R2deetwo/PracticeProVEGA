@@ -1080,7 +1080,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
 
                 {/* Footer note */}
                 <p className="text-center text-xs text-slate-400 dark:text-slate-600 mt-12">
-                    © {new Date().getFullYear()} PracticePro Legal Tech Ltd. Lagos, Nigeria.
+                    © {new Date().getFullYear()} PracticePro Systems Ltd. Lagos, Nigeria.
                 </p>
             </div>
         </div>

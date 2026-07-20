@@ -599,7 +599,7 @@ const SetupPassword: React.FC = () => {
                                     )}
 
                                     <h4 className="text-sm font-bold text-slate-200">7. Intellectual Property Restrictions</h4>
-                                    <p>The PracticePro platform, including the Portal, is the exclusive property of PracticePro Technologies Limited and is protected by applicable intellectual property laws. You are granted a limited, non-exclusive, non-transferable, revocable license to access and use the Portal solely for its intended purposes. You must not modify, copy, redistribute, reverse-engineer, or remove proprietary notices from the Portal.</p>
+                                    <p>The PracticePro platform, including the Portal, is the exclusive property of PracticePro Systems Limited and is protected by applicable intellectual property laws. You are granted a limited, non-exclusive, non-transferable, revocable license to access and use the Portal solely for its intended purposes. You must not modify, copy, redistribute, reverse-engineer, or remove proprietary notices from the Portal.</p>
 
                                     <h4 className="text-sm font-bold text-slate-200">8. Limitation of Liability</h4>
                                     <p>PracticePro does not control, verify, or endorse the content displayed on the Portal. The Portal is provided on an &quot;as is&quot; and &quot;as available&quot; basis. To the maximum extent permitted by applicable law, PracticePro shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the Portal. PracticePro&apos;s total aggregate liability shall not exceed the amount of fees paid by your {isClientPortal ? 'law firm' : 'property management firm'} in the twelve months preceding the event, or ₦100,000, whichever is greater.</p>
@@ -611,7 +611,7 @@ const SetupPassword: React.FC = () => {
                                     <p>These Portal Terms are governed by the laws of the Federal Republic of Nigeria. Any dispute shall be subject to the exclusive jurisdiction of the courts of Lagos State, Nigeria.</p>
 
                                     <h4 className="text-sm font-bold text-slate-200">11. Contact Information</h4>
-                                    <p>PracticePro Technologies Limited, No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria. Email: <a href="mailto:practiceprovega@gmail.com" className="text-amber-400 underline">practiceprovega@gmail.com</a></p>
+                                    <p>PracticePro Systems Limited, No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State, Nigeria. Email: <a href="mailto:practiceprovega@gmail.com" className="text-amber-400 underline">practiceprovega@gmail.com</a></p>
 
                                     <div className="mt-4 pt-4 border-t border-white/[0.08]">
                                         <p className="text-xs text-slate-500">For full details, see the PracticePro <a href="/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Terms and Conditions of Service</a>, <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Privacy Policy</a>, and <a href="/data-processing-agreement" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Data Processing Agreement</a>.</p>

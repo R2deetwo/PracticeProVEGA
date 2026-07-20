@@ -887,7 +887,7 @@ const ClientDashboard: React.FC = () => {
                     </div>
                     <div class="footer">
                         <p>This record confirms your acceptance of the PracticePro portal terms and conditions.</p>
-                        <p>PracticePro Legal Technologies Ltd · Lagos, Nigeria</p>
+                        <p>PracticePro Systems Ltd · Lagos, Nigeria</p>
                         <p>NDPA 2023 Compliant · ISO 27001 Aligned · AES-256 Encrypted</p>
                     </div>
                     <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
