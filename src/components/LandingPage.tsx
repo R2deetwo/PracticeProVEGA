@@ -953,34 +953,34 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             </div>
                         )}
 
-                        <h3 className={`text-xl font-bold mb-1 ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                        <p className={`text-sm mb-6 ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>{plan.description}</p>
+                        <h3 className={`font-display text-xl font-bold mb-1 ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
+                        <p className={`text-sm mb-6 ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.description}</p>
 
                         {/* Price */}
                         <div className="flex items-baseline gap-1 mb-2">
-                            <span className={`text-4xl font-extrabold tracking-tight ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.price}</span>
-                            <span className={`text-sm ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>{plan.per}</span>
+                            <span className={`font-display nums-tabular text-4xl font-extrabold tracking-tight ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.price}</span>
+                            <span className={`text-sm ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.per}</span>
                         </div>
 
                         {/* Tenant Contribution Section (Atrium Only) */}
                         {!isVega && (
-                            <div className={`mb-8 p-4 rounded-2xl border ${plan.highlighted ? 'bg-white/5 border-white/10 dark:bg-slate-50 dark:border-slate-200' : 'bg-slate-50 border-slate-100 dark:bg-white/5 dark:border-white/5'}`}>
-                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400 dark:text-blue-600' : 'text-blue-600 dark:text-blue-400'}`}>
+                            <div className={`mb-8 p-4 rounded-2xl border ${plan.highlighted ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
+                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400' : 'text-blue-600'}`}>
                                     <span className="inline-flex items-center gap-1">
                                         Service Charge Equiv.
                                         <span className="group relative inline-flex items-center">
                                             <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            <span role="tooltip" className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 w-60 -translate-x-1/2 scale-95 rounded-lg bg-slate-900 dark:bg-slate-700 px-3 py-2 text-2xs font-normal normal-case tracking-normal leading-snug text-white opacity-0 shadow-xl transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                                            <span role="tooltip" className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 w-60 -translate-x-1/2 scale-95 rounded-lg bg-slate-900 px-3 py-2 text-2xs font-normal normal-case tracking-normal leading-snug text-white opacity-0 shadow-xl transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
                                                 This is the annual subscription cost divided across your tenant base, shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost — it is not an additional fee charged by Atrium.
                                             </span>
                                         </span>
                                     </span>
                                 </p>
                                 <div className="flex items-baseline gap-1">
-                                    <span className={`text-lg font-bold ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.tenantContribution}</span>
-                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
+                                    <span className={`font-display nums-tabular text-lg font-bold ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.tenantContribution}</span>
+                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>/tenant</span>
                                 </div>
-                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>Cost benefit for the manager to pass on to the estate.</p>
+                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-400' : 'text-slate-400'}`}>Cost benefit for the manager to pass on to the estate.</p>
                             </div>
                         )}
 
@@ -990,11 +990,11 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         <ul className="space-y-3.5 mb-8 flex-1">
                             {plan.features.map((f, i) => (
                                 <li key={i} className="flex items-start gap-3">
-                                    <CheckIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'text-emerald-400 dark:text-emerald-600' : 'text-emerald-600 dark:text-emerald-400'}`} />
-                                    <span className={`text-sm leading-snug ${plan.highlighted ? 'text-slate-200 dark:text-slate-700' : 'text-slate-700 dark:text-slate-300'}`}>
+                                    <CheckIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                                    <span className={`text-sm leading-snug ${plan.highlighted ? 'text-slate-200' : 'text-slate-700'}`}>
                                         {f.text}
                                         {f.note && (
-                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">
                                                 {f.note}
                                             </span>
                                         )}
@@ -1009,7 +1009,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
                                 plan.highlighted 
                                 ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90' 
-                                : 'bg-slate-100 dark:bg-white/5 text-slate-900 dark:text-white border border-slate-200 dark:border-white/10 hover:bg-slate-200'
+                                : 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200'
                             }`}
                         >
                             {plan.cta}
