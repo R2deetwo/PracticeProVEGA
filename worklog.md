@@ -4463,3 +4463,56 @@ Stage Summary:
 - Product pages lead with a collaboration image next to tight headline + CTA + stats
 - No icons-as-decoration, no ambient blobs, no redundant CTAs
 - Typography carries the product identity (Vega=amber, Atrium=emerald)
+
+---
+Task ID: interactive-features-visible-motion-parallax
+Agent: main
+Task: Fix anatomically incorrect fingers, make features interactive, add visible motion, parallax
+
+1. HAND-SAFE IMAGES (regenerated):
+   - vega-hero.jpg: shot from BEHIND/over-shoulder, two lawyers at table,
+     hands hidden below table edge + obscured by case files. No visible hands.
+   - atrium-hero.jpg: three-quarter angle from behind, female gesturing with
+     arm (hand out of frame), male with hands in pockets. No visible hands.
+
+2. INTERACTIVE FEATURES SECTION:
+   - Cards collapse/expand instead of showing everything at once
+   - Default: title + badge only (clean grid)
+   - Hover (desktop): lift 4px, accent bar slides in, description expands
+   - Touch (mobile): tap to toggle expanded state
+   - Keyboard accessible (Enter/Space, tabIndex)
+   - Hint text: 'Hover a card to learn more' / 'Tap a card to learn more'
+   - Accent color: primary green for Vega, emerald for Atrium
+
+3. VISIBLE MOTION (was too subtle):
+   - Hero stagger: 10px→16px translate + scale(0.98→1), 400ms→500ms, 70ms→80ms offset
+   - Scroll reveal: 12px→24px translate, 400ms→600ms
+   - Scroll reveal stagger: 8px→16px translate, supports up to 8 children
+
+4. IMAGE PARALLAX ON SCROLL:
+   - New useScrollParallax hook (rAF-based, passive scroll listener)
+   - Hero portrait translates ±16px based on scroll position
+   - Slight scale(1.08) so image fills frame during parallax
+   - Creates depth as user scrolls past hero
+   - Respects prefers-reduced-motion
+
+5. ENHANCED PRICING CARD HOVER:
+   - New .pricing-card class
+   - Hover: translateY(-6px) lift (was -4px)
+   - Smooth transitions via CSS vars
+
+6. REDUCED MOTION SUPPORT:
+   All new animations disabled in prefers-reduced-motion: reduce block.
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=1b0a89a, status=healthy
+- Production JS contains: feature-card, parallax-image, Hover a card,
+  Tap a card, pricing-card — all new code confirmed live
+- Build passes (21.08s)
+
+Stage Summary:
+- Images no longer show anatomically incorrect hands (hands hidden by
+  composition: over-shoulder, in pockets, below table edge)
+- Features section is now interactive — hover/tap reveals descriptions
+- Motion is now VISIBLE: hero stagger + scroll reveals + parallax
+- All animations respect prefers-reduced-motion
