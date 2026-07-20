@@ -4012,3 +4012,52 @@ Task: Fix notetaker permission, DocumentForm dual-link, wire up backlinks in End
    - MessagesView Compose + ContactsView New buttons: p-2 → p-2.5 + min-h-[40px]
 
 5. MINIMUM VEND — confirmed not a typo. It's a property management term for minimum electricity purchase.
+
+---
+Task ID: landing-page-polish-deploy
+Agent: main
+Task: User reported "color issue and missing words still not fixed" — push Vercel deploy with additional polish
+
+Diagnosis:
+- Production was at commit 8f0b3b4 (BEFORE the routing fix fc039d9)
+- Routing fix fc039d9 was already on master but Vercel hadn't deployed it
+- User was seeing: Vega page showing Atrium content, Atrium page showing Vega
+  pricing — these are the "missing words" (filtered features) and "color issue"
+  (dark Atrium theme bleeding onto Vega page) the user reported
+- Also found 5 additional polish issues while reviewing the code
+
+Fixes Applied (commit e5ae9dc):
+1. HubHero Vega card description: removed dangling `isProperty` reference
+   (left undefined by routing fix fc039d9 — TypeScript would have compiled
+   it as undefined → falsy → always rendered the long Vega text, but the
+   conditional was dead code). Now always renders the correct Vega text.
+2. HubHero card descriptions (Vega + Atrium): hardcoded `text-slate-500`
+   → isDark conditional `text-slate-400 dark / text-slate-600 light` so
+   they're readable on both themes.
+3. HubHero "Sign in →" link: `text-primary-500` (borderline on dark) →
+   isDark conditional `text-primary-400 dark / text-primary-600 light`.
+4. LandingPage root isDark: now includes 'midnight', 'oled', 'neon-cyber',
+   'midnight-emerald', 'army-dark' themes (was only 'dark' + system-dark).
+   This matches the isDark logic already used in HubHero and HomeSection.
+5. PricingSection highlighted tier text contrast: dark-mode `text-slate-500`
+   on white was too light → changed to `text-slate-600 dark / text-slate-300
+   light`. Applied to: description, /per, /tenant, "Cost benefit" caption.
+6. Footer copyright: `text-slate-600` and `text-slate-700` on dark
+   slate-950 footer were too dark → `text-slate-400` and `text-slate-500`.
+
+Verification:
+- vite build passes (21.51s)
+- Pushed to main: e5ae9dc → origin/main
+- GH Actions workflow synced main → master
+- Vercel native integration deployed: production version.json now shows
+  sha=e5ae9dc, status=healthy, builtAt=2026-07-20T12:20:49
+- Production JS bundle changed from index-CvPm-kzs.js → index-BFtuxUGg.js
+  (confirms fresh deploy, not cached)
+
+Stage Summary:
+- All 5 visible polish issues fixed
+- Routing fix (fc039d9) and polish (e5ae9dc) are now BOTH live in production
+- User should hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) to bypass any local
+  cache and see the new version
+- The auto-refresh hook (useVersionCheck) should also auto-reload users
+  within 30 seconds of detecting the new healthy deploy
