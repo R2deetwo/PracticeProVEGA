@@ -251,8 +251,8 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 </div>
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-600">© {new Date().getFullYear()} PracticePro Legal Technologies Limited Lagos, Nigeria.</p>
-                <p className="text-xs text-slate-700">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
+                <p className="text-xs text-slate-400">© {new Date().getFullYear()} PracticePro Legal Technologies Limited Lagos, Nigeria.</p>
+                <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
             </div>
         </div>
     </footer>
@@ -348,8 +348,8 @@ const HubHero: React.FC<{
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/[0.08] text-amber-500/70 border border-amber-500/15">Legal</span>
                             </div>
                             <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Law Firms</h3>
-                            <p className="text-sm text-slate-500 leading-[1.75]">
-                                {isProperty ? 'Case management, automated billing, and AI-assisted research.' : 'Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.'}
+                            <p className={`text-sm leading-[1.75] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+                                Case management, automated billing, and AI-assisted research — built for Nigerian legal practice.
                             </p>
                             <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-amber-500/70 group-hover:text-amber-400 group-hover:gap-2.5 transition-all duration-300">
                                 Enter Vega <span aria-hidden="true">→</span>
@@ -374,7 +374,7 @@ const HubHero: React.FC<{
                                 <span className="text-3xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/[0.08] text-emerald-500/70 border border-emerald-500/15">Property</span>
                             </div>
                             <h3 className={`text-lg font-bold mb-2.5 ${isDark ? 'text-white' : 'text-slate-900'}`}>For Property Managers</h3>
-                            <p className="text-sm text-slate-500 leading-[1.75]">
+                            <p className={`text-sm leading-[1.75] ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
                                 Revenue monitoring, rent collection, and portfolio analytics for modern Nigerian estates.
                             </p>
                             <div className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-emerald-500/70 group-hover:text-emerald-400 group-hover:gap-2.5 transition-all duration-300">
@@ -390,7 +390,7 @@ const HubHero: React.FC<{
                     className={`text-sm transition-colors ${isDark ? 'text-slate-600 hover:text-slate-400' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     Already have an account?{' '}
-                    <span className="text-primary-500 font-semibold hover:text-primary-600">Sign in →</span>
+                    <span className={`font-semibold hover:underline ${isDark ? 'text-primary-400 hover:text-primary-300' : 'text-primary-600 hover:text-primary-700'}`}>Sign in →</span>
                 </button>
 
                 {/* TASK 17: "Get Started Free" CTA in the middle of the hub.
@@ -769,12 +769,12 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         )}
 
                         <h3 className={`text-xl font-bold mb-1 ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.name}</h3>
-                        <p className={`text-sm mb-6 ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>{plan.description}</p>
+                        <p className={`text-sm mb-6 ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>{plan.description}</p>
 
                         {/* Price */}
                         <div className="flex items-baseline gap-1 mb-2">
                             <span className={`text-4xl font-extrabold tracking-tight ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.price}</span>
-                            <span className={`text-sm ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>{plan.per}</span>
+                            <span className={`text-sm ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>{plan.per}</span>
                         </div>
 
                         {/* Tenant Contribution Section (Atrium Only) */}
@@ -793,9 +793,9 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                 </p>
                                 <div className="flex items-baseline gap-1">
                                     <span className={`text-lg font-bold ${plan.highlighted ? 'text-white dark:text-slate-900' : 'text-slate-900 dark:text-white'}`}>{plan.tenantContribution}</span>
-                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
+                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>/tenant</span>
                                 </div>
-                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-500 dark:text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>Cost benefit for the manager to pass on to the estate.</p>
+                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-400 dark:text-slate-500' : 'text-slate-400 dark:text-slate-500'}`}>Cost benefit for the manager to pass on to the estate.</p>
                             </div>
                         )}
 
@@ -912,7 +912,9 @@ export const LandingPage: React.FC<{ onDemo: (product: 'vega' | 'atrium') => voi
     const [showResources, setShowResources] = useState(false);
     const [showDPA, setShowDPA] = useState(false);
 
-    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const isDark = theme === 'dark' || theme === 'midnight' || theme === 'oled' ||
+        theme === 'neon-cyber' || theme === 'midnight-emerald' || theme === 'army-dark' ||
+        (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // TASK 14: Sync productChosen + activeProduct with initialProduct when it
