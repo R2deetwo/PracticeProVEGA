@@ -283,7 +283,7 @@ const BADGES = [
 const TrustBadgesStrip: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
     return (
-        <div ref={ref} className="scroll-reveal bg-slate-50 border-y border-slate-200 py-5 px-6">
+        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200 py-5 px-6">
             <div className="container mx-auto flex flex-wrap items-center justify-center gap-6 md:gap-10">
                 {BADGES.map((b, i) => (
                     <div key={i} className="flex items-center gap-2.5">
@@ -310,9 +310,6 @@ const HubHero: React.FC<{
 }> = ({ onPickProduct, onLogin, onSignup, highlightKey }) => {
     // Landing page is ALWAYS light mode — no isDark logic.
     // hub-bg.jpg provides a subtle brand-tinted background behind the dot grid.
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { const t = setTimeout(() => setMounted(true), 40); return () => clearTimeout(t); }, []);
-
     return (
         <section className="relative overflow-hidden min-h-[100dvh] flex flex-col bg-gradient-to-b from-slate-50 to-white">
             {/* Hub background image — very subtle, brand-tinted */}
@@ -329,7 +326,8 @@ const HubHero: React.FC<{
                 <div className="absolute inset-0 bg-[radial-gradient(circle,_#334155_1px,_transparent_1px)] [background-size:28px_28px] opacity-[0.04]" />
             </div>
 
-            <div className={`relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link → CTA → compliance */}
+            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center">
 
                 <h1 className="text-5xl md:text-6xl lg:text-[5.5rem] font-bold tracking-tight leading-[1.06] mb-6 max-w-5xl text-slate-900">
                     Professional Practice,
@@ -450,9 +448,6 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
     // FIX: Use activeProduct instead of useProduct() — landing page has no firm
     const isProperty = activeProduct === 'atrium';
     // Landing page is ALWAYS light mode — no isDark logic.
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
-
     const isVega = activeProduct === 'vega';
     const heroImage = isVega ? '/assets/landing/vega-hero.jpg' : '/assets/landing/atrium-hero.jpg';
 
@@ -467,7 +462,8 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
             </div>
 
             {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
-            <div className={`relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 px-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+            {/* hero-stagger: orchestrates headline → sub-copy → CTA → stats strip */}
+            <div className="hero-stagger relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 px-6">
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
@@ -497,11 +493,11 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                             </PrimaryButton>
                         </div>
 
-                        {/* Stats strip */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border shadow-sm bg-slate-200 border-slate-200">
+                        {/* Stats strip — whitespace-nowrap prevents 'End-to-End' from wrapping */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border shadow-lg shadow-slate-900/5 bg-slate-200 border-slate-200">
                             {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
-                                <div key={i} className="px-6 py-5 bg-white">
-                                    <p className="text-2xl font-bold mb-0.5 text-slate-900">{s.value}</p>
+                                <div key={i} className="px-4 py-5 bg-white">
+                                    <p className="text-xl md:text-2xl font-bold mb-0.5 text-slate-900 whitespace-nowrap">{s.value}</p>
                                     <p className="text-xs leading-tight text-slate-500">{s.label}</p>
                                 </div>
                             ))}
@@ -633,7 +629,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                 </div>
 
                 {/* Feature Categories */}
-                <div ref={sectionsRef} className="scroll-reveal">
+                <div ref={sectionsRef} className="scroll-reveal scroll-reveal-stagger">
                     {categories.map((cat) => (
                         <div key={cat.category} className="mb-14 last:mb-0">
                             <div className="flex items-center gap-3 mb-8">
@@ -750,7 +746,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     });
 
     return (
-    <section id="pricing" className="bg-white min-h-[100dvh] pt-24 pb-24 px-6">
+    <section id="pricing" className="bg-slate-50 min-h-[100dvh] pt-24 pb-24 px-6">
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <div ref={headerRef} className="scroll-reveal text-center mb-16">
@@ -788,13 +784,13 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
             </div>
 
             {/* Grid */}
-            <div ref={gridRef} className="scroll-reveal grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto">
+            <div ref={gridRef} className="scroll-reveal scroll-reveal-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto">
                 {dynamicPlans.map((plan) => (
                     <div
                         key={plan.id}
                         className={`group rounded-[40px] border p-8 md:p-10 flex flex-col relative transition-all duration-500 ${plan.highlighted
-                            ? 'bg-slate-900 dark:bg-white border-transparent shadow-2xl shadow-slate-900/30 dark:shadow-white/10 lg:-translate-y-4'
-                            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-white/[0.06] hover:shadow-2xl hover:border-blue-500/30 dark:hover:border-white/20'
+                            ? 'bg-slate-900 border-transparent shadow-2xl shadow-slate-900/30 lg:-translate-y-4'
+                            : 'bg-white border-slate-200 shadow-lg shadow-slate-900/5 hover:shadow-2xl hover:border-primary-300'
                             }`}
                     >
                         {plan.highlighted && (
