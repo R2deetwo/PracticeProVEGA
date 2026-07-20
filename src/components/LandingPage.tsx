@@ -1006,9 +1006,27 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // Now: ALL "Get Started" buttons (header, hub, product pages) open the
     // signup modal with NO selectedProduct → the product_selection step shows.
     // Only the pricing section's product-specific CTAs pass an override.
+    // TASK 21 (REVISED): "Get Started" should respect the user's current
+    // product context:
+    //   - On '/' (root, no product chosen) → open signup with NO selectedProduct
+    //     → signup modal shows the product_selection step (asks which product).
+    //   - On '/vega' or '/atrium' (product already chosen via URL) → open
+    //     signup WITH selectedProduct = activeProduct → signup skips the
+    //     product_selection step and goes straight to the registration form.
+    //   - From the "Are you a real estate lawyer?" Komplete CTA → passes
+    //     'unified' as productOverride → signup skips to form with product=unified.
+    //   - From the pricing section's tier CTAs → passes the active product
+    //     as productOverride → signup skips to form.
+    //
+    // This eliminates the repetitive "which product do you want?" question
+    // when the user has already chosen a product by navigating to /vega or
+    // /atrium, while still asking the question on the root hub page when
+    // the user hasn't committed to a product yet.
     const openSignup = (productOverride?: ProductMode) => {
+        // Priority: explicit override > current activeProduct (if chosen) > none
+        const product = productOverride || (productChosen ? activeProduct : undefined);
         openModal('signup', null, {
-            selectedProduct: productOverride || undefined,
+            selectedProduct: product,
         });
     };
     const [isContactDrawerOpen, setIsContactDrawerOpen] = useState(false);

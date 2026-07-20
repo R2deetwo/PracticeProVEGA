@@ -342,12 +342,28 @@ export function openDraftProNewTab(
  * when `isDirty` is true. Returns a cleanup function.
  *
  * Call this inside a useEffect with `isDirty` as a dependency.
+ *
+ * IMPORTANT: This handler honors the `__suppressBeforeUnload` flag set by
+ * AuthContext.logout(). Without this check, signing out would trigger
+ * BOTH:
+ *   1. Our custom "Are you sure you want to sign out?" confirm dialog
+ *   2. The browser's native "Leave site? Changes you made may not be
+ *      saved" dialog (because this listener is still registered via
+ *      addEventListener — `window.onbeforeunload = null` does NOT clear
+ *      addEventListener handlers).
+ * The user would have to confirm twice, which is the bug we're fixing.
  */
 export function installBeforeUnloadGuard(isDirty: boolean): () => void {
     if (typeof window === 'undefined') return () => {};
     if (!isDirty) return () => {};
 
     const handler = (e: BeforeUnloadEvent) => {
+        // Honor the suppress flag — set by logout() and other intentional
+        // navigation paths. Skip the preventDefault so the browser does
+        // NOT show the "Leave site?" dialog.
+        if ((window as any).__suppressBeforeUnload) {
+            return;
+        }
         // Per the HTML spec, calling preventDefault + setting returnValue
         // is the standard way to trigger the unload confirmation.
         e.preventDefault();
