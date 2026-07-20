@@ -4061,3 +4061,73 @@ Stage Summary:
   cache and see the new version
 - The auto-refresh hook (useVersionCheck) should also auto-reload users
   within 30 seconds of detecting the new healthy deploy
+
+---
+Task ID: critical-primary-color-fix
+Agent: main
+Task: User still seeing "missing words and colors" + "logo not green" — find and fix root cause
+
+ROOT CAUSE FOUND (CRITICAL CSS BUG):
+The --color-primary-* CSS variables (50-950) were ONLY defined inside
+html.theme-army-dark. They were NOT defined in :root or anywhere else.
+
+On the landing page:
+- Default theme = 'system'
+- Light mode → no theme class applied → --color-primary-500 UNDEFINED
+- Dark mode → 'dark' class applied → .dark { ... } also doesn't define
+  primary → --color-primary-500 UNDEFINED
+
+Result: text-primary-500 resolves to:
+  rgb(var(--color-primary-500) / 1)
+  → rgb( / 1)        [variable is empty]
+  → INVALID CSS       [browser rejects the declaration]
+  → color: inherit    [falls back to parent text color, NOT green]
+
+This is why the logo looked black/grey instead of green, and why all
+primary-themed text/buttons/badges were "missing" — the colors literally
+did not exist on the landing page.
+
+Previous "color fixes" (commits 93df911, 1a79479, e5ae9dc) were treating
+SYMPTOMS (changing text-white to text-slate-900, etc.) but never addressed
+the root cause: the primary color palette was never defined globally.
+
+FIX (commit 77d2c1a):
+Added the full primary color palette to :root in src/index.css, using
+Tailwind's green palette with primary-500 = #16A34A (green-600) to match
+the favicon exactly:
+  --color-primary-50:  240 253 244
+  --color-primary-100: 220 252 231
+  --color-primary-200: 187 247 208
+  --color-primary-300: 134 239 172
+  --color-primary-400: 74 222 128
+  --color-primary-500: 22 163 74    ← #16A34A, matches favicon
+  --color-primary-600: 21 128 61    ← darker for hover
+  --color-primary-700: 20 83 45
+  --color-primary-800: 22 101 52
+  --color-primary-900: 20 83 45
+  --color-primary-950: 5 46 22
+
+Also fixed:
+- :root --primary-accent: 79, 70, 229 (INDIGO!) → 22, 163, 74 (green)
+  This was a leftover from when the app was indigo-themed. Was never
+  updated when the brand switched to green.
+- :root --primary-light: 238, 242, 255 (indigo-50) → 220, 252, 231 (green-100)
+
+The html.theme-army-dark override is preserved — users who explicitly
+pick the 'Army Dark' theme still get the moss green palette.
+
+VERIFICATION:
+- vite build passes (19.15s)
+- dist/assets/index-*.css confirmed :root has --color-primary-500: 22 163 74
+- Pushed to main: 77d2c1a → origin/main
+- Vercel deployed: production version.json shows sha=77d2c1a, status=healthy
+- Production CSS confirmed: :root has --color-primary-500: 22 163 74
+- Production JS bundle: index-BemA2oea.js (was index-Csa4ggQm.js — fresh)
+
+Stage Summary:
+- Logo will now render in bright green (matching favicon #16A34A)
+- PrimaryButton gradient will be visible
+- All primary-themed text, borders, backgrounds now work
+- "Sign in →" link is green
+- Pricing badges, CTAs, focused states all properly colored
+- User should hard-refresh (Cmd+Shift+R / Ctrl+Shift+R) to bypass cache
