@@ -4412,3 +4412,54 @@ DEFERRED (per Claude's spec — implement after founder reviews Phases 1+4):
 - Phase 2: scroll-triggered section reveals (already partially implemented,
   needs review for spec compliance — single reveal per SECTION not per element)
 - Phase 3: hover/interaction feedback (pricing card lift, CTA transitions)
+
+---
+Task ID: declutter-and-collaboration-images
+Agent: main
+Task: Founder couldn't see changes (cache), wants declutter, no scales icon, collaboration images
+
+User feedback addressed:
+1. 'Less cluttered' — heavily simplified HubHero and HomeSection
+2. 'Employs the images you generated' — images are the visual anchor
+3. 'Get rid of the scales hero/watermark' — removed ScalesIcon + OfficeBuildingIcon
+   from product cards (was the 'watermark' feeling)
+4. 'Images should show collaboration not just one person, especially legal'
+   — regenerated both hero images with 2 people collaborating
+
+NEW COLLABORATION IMAGES:
+- vega-hero.jpg: TWO Nigerian male lawyers collaborating around a conference
+  table, one pointing at a document, the other listening. Case files + laptops.
+  (was: solo male lawyer standing)
+- atrium-hero.jpg: TWO Nigerian property professionals on a rooftop — female
+  manager with tablet + male supervisor pointing at building. (was: solo female)
+- hub-bg.jpg: refined abstract gradient (kept abstract since hub shows both)
+
+HUBHERO DECLUTTERED:
+Removed: hub-bg background, 3 ambient blur blobs, 'Get Started Free' CTA +
+caption, 'Not sure which product fits?' caption, ScalesIcon + OfficeBuildingIcon
+from cards, 'Legal'/'Property' pill badges, colored blur hover effects,
+product-glow-pulse animation classes, onSignup prop entirely.
+Kept: headline + gradient text, shortened subheadline, 2 product cards (now
+pure typography — 'Vega' 3xl bold + 'Legal' xs uppercase amber on same
+baseline, 'For Nigerian Law Firms' subtitle, 1-line description, 'Enter →'
+link), auth link, compliance note.
+Background: single subtle dot grid only.
+
+HOMESECTION SIMPLIFIED:
+Removed: radial glow blob, decorative brand glow behind image.
+Background: same subtle dot grid as HubHero (consistency).
+Image: kept rounded-3xl + shadow-2xl + ring-1, increased shadow intensity
+and gradient overlay for more depth since decorative glow is gone.
+Alt text updated to reflect collaboration.
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=300fb57, status=healthy
+- Production JS contains: 'Select your discipline', 'For Nigerian Law Firms',
+  'For Property Managers', 'collaborating' — all new copy confirmed live
+- Build passes (20.80s)
+
+Stage Summary:
+- Hub is now: one headline, one question, two choices, one auth link. Nothing else.
+- Product pages lead with a collaboration image next to tight headline + CTA + stats
+- No icons-as-decoration, no ambient blobs, no redundant CTAs
+- Typography carries the product identity (Vega=amber, Atrium=emerald)
