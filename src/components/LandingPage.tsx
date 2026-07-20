@@ -326,20 +326,61 @@ const BADGES = [
 const TrustBadgesStrip: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
     return (
-        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200 py-5 px-6">
+        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200/60 py-5 px-6">
             <div className="container mx-auto flex flex-wrap items-center justify-center gap-6 md:gap-10">
                 {BADGES.map((b, i) => (
                     <div key={i} className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-slate-200/60 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 shadow-sm border border-slate-200/60 flex items-center justify-center">
                             <b.Icon className="w-4 h-4 text-slate-500" />
                         </div>
-                        <span className="text-xs font-semibold text-slate-500 tracking-wide whitespace-nowrap">
+                        <span className="text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
                             {b.label}
                         </span>
                     </div>
                 ))}
             </div>
         </div>
+    );
+};
+
+// ─── END-TO-END DEMARCATOR (Issue 1 fix) ─────────────────────────────────────
+// Full-width Sage section that functions as a structural break between
+// major page sections — the visual equivalent of a chapter divider, NOT a
+// sidebar callout. Large vertical padding makes it feel like "a moment".
+// No border, no shadow, no card chrome — just a deliberate pause.
+
+const EndToEndDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    const isVega = activeProduct === 'vega';
+    const accentColorValue = isVega ? '#D97706' : '#059669';
+
+    return (
+        <section
+            ref={ref}
+            className="scroll-reveal w-full py-24 lg:py-32 px-6"
+            style={{ background: 'var(--color-sage)' }}
+        >
+            <div className="max-w-4xl mx-auto text-center">
+                {/* Small accent label */}
+                <p
+                    className="font-display text-xs font-bold uppercase tracking-[0.25em] mb-6"
+                    style={{ color: accentColorValue }}
+                >
+                    End-to-End
+                </p>
+                {/* Large editorial statement */}
+                <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.2] mb-6" style={{ color: 'var(--color-ink)' }}>
+                    {isVega
+                        ? <>From intake to resolution, Vega covers every stage of your legal practice.</>
+                        : <>From rent collection to defaulter management, Atrium covers every aspect of your property portfolio.</>}
+                </h2>
+                <p className="text-lg md:text-xl leading-relaxed text-slate-600 max-w-2xl mx-auto">
+                    {isVega
+                        ? 'Drafting, research, billing, and client collaboration — unified in one workspace built for Nigerian legal practice.'
+                        : 'Residents, maintenance, and financials — unified in one workspace built for Nigerian property portfolios.'}
+                </p>
+            </div>
+        </section>
     );
 };
 
@@ -352,18 +393,19 @@ const HubHero: React.FC<{
 }> = ({ onPickProduct, onLogin, highlightKey }) => {
     // Landing page is ALWAYS light mode. Hub is intentionally minimal:
     // headline, subheadline, two product cards, auth link. Nothing else.
+    // Uses Paper background (warm off-white) + Space Grotesk for headline.
     return (
-        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col bg-white">
+        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col" style={{ background: 'var(--color-paper)' }}>
             {/* Subtle dot grid — the only background texture */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-60" />
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
             {/* hero-stagger: orchestrates headline → subheadline → cards → auth link */}
             <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center">
 
-                <h1 className="text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl text-slate-900">
+                <h1 className="font-display text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
                     Professional Practice,
                     <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-emerald-500 to-teal-500">
+                    <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
                         Precisely Managed.
                     </span>
                 </h1>
@@ -372,43 +414,44 @@ const HubHero: React.FC<{
                     Select your discipline to enter your dedicated workspace.
                 </p>
 
-                {/* Audience routing cards — data-product-cards is used by the
-                    "Get Started Free" scroll handler to find this element. */}
+                {/* Audience routing cards — unified .landing-card token system */}
                 <div data-product-cards className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
-                    {/* Vega card — typographic, no icon watermark */}
+                    {/* Vega card — typographic, amber accent on hover */}
                     <button
                         key={`vega-${highlightKey || 0}`}
                         onClick={() => onPickProduct('vega')}
-                        className="group relative text-left p-8 md:p-10 rounded-3xl border-2 border-slate-200 bg-white hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                        className="landing-card group relative text-left active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+                        style={{ '--border-card-hover': 'rgba(217, 119, 6, 0.4)' } as React.CSSProperties}
                     >
                         <div className="flex items-baseline gap-3 mb-3">
-                            <span className="text-3xl font-bold tracking-tight text-slate-900">Vega</span>
-                            <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Legal</span>
+                            <span className="font-display text-3xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>Vega</span>
+                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-amber)' }}>Legal</span>
                         </div>
                         <h3 className="text-base font-semibold mb-3 text-slate-700">For Nigerian Law Firms</h3>
                         <p className="text-sm leading-[1.7] text-slate-500 mb-6">
                             Case management, AI-assisted drafting, and automated billing.
                         </p>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-600 group-hover:text-amber-500 group-hover:gap-2.5 transition-all duration-300">
+                        <div className="flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5" style={{ color: 'var(--color-amber)' }}>
                             Enter Vega <span aria-hidden="true">→</span>
                         </div>
                     </button>
 
-                    {/* Atrium card — typographic, no icon watermark */}
+                    {/* Atrium card — typographic, emerald accent on hover */}
                     <button
                         key={`atrium-${highlightKey || 0}`}
                         onClick={() => onPickProduct('atrium')}
-                        className="group relative text-left p-8 md:p-10 rounded-3xl border-2 border-slate-200 bg-white hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        className="landing-card group relative text-left active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+                        style={{ '--border-card-hover': 'rgba(5, 150, 105, 0.4)' } as React.CSSProperties}
                     >
                         <div className="flex items-baseline gap-3 mb-3">
-                            <span className="text-3xl font-bold tracking-tight text-slate-900">Atrium</span>
-                            <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Property</span>
+                            <span className="font-display text-3xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>Atrium</span>
+                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-emerald)' }}>Property</span>
                         </div>
                         <h3 className="text-base font-semibold mb-3 text-slate-700">For Property Managers</h3>
                         <p className="text-sm leading-[1.7] text-slate-500 mb-6">
                             Revenue monitoring, rent collection, and portfolio analytics.
                         </p>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 group-hover:text-emerald-500 group-hover:gap-2.5 transition-all duration-300">
+                        <div className="flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5" style={{ color: 'var(--color-emerald)' }}>
                             Enter Atrium <span aria-hidden="true">→</span>
                         </div>
                     </button>
@@ -420,7 +463,7 @@ const HubHero: React.FC<{
                     className="text-sm transition-colors text-slate-500 hover:text-slate-700"
                 >
                     Already have an account?{' '}
-                    <span className="font-semibold hover:underline text-primary-600 hover:text-primary-700">Sign in →</span>
+                    <span className="font-semibold hover:underline" style={{ color: 'var(--color-moss)' }}>Sign in →</span>
                 </button>
 
                 {/* Compliance note — quiet, bottom */}
@@ -453,11 +496,15 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
     const isVega = activeProduct === 'vega';
     const heroImage = isVega ? '/assets/landing/vega-hero.jpg' : '/assets/landing/atrium-hero.jpg';
     const parallaxRef = useScrollParallax<HTMLImageElement>();
+    // Duotone brand tint — amber for Vega, emerald for Atrium. Applied via
+    // mix-blend-mode over the image so it feels color-matched to the brand.
+    const accentColor = isVega ? 'var(--color-amber)' : 'var(--color-emerald)';
+    const accentColorValue = isVega ? '#D97706' : '#059669';
 
     return (
-        <section id="home" className="relative overflow-hidden bg-white">
+        <section id="home" className="relative overflow-hidden" style={{ background: 'var(--color-paper)' }}>
             {/* ── Subtle dot grid only — no radial glow blob ── */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-60" />
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
             {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
             {/* hero-stagger: orchestrates headline → sub-copy → CTA → stats strip */}
@@ -465,13 +512,13 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
-                        {/* Headline */}
-                        <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6 text-slate-900">
+                        {/* Headline — Space Grotesk display */}
+                        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6" style={{ color: 'var(--color-ink)' }}>
                             {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
                             <br className="hidden md:block" />
                             for{' '}
                             <span className="relative">
-                                <span className={`text-transparent bg-clip-text bg-gradient-to-r ${isVega ? 'from-primary-500 via-emerald-500 to-teal-500' : 'from-blue-500 via-indigo-500 to-cyan-500'}`}>
+                                <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${accentColorValue}, var(--color-moss))` }}>
                                     {isVega ? 'Nigerian Law Firms' : 'Modern Portfolios'}
                                 </span>
                             </span>
@@ -491,20 +538,21 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                             </PrimaryButton>
                         </div>
 
-                        {/* Stats strip — whitespace-nowrap prevents 'End-to-End' from wrapping */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border shadow-lg shadow-slate-900/5 bg-slate-200 border-slate-200">
+                        {/* Stats strip — Space Grotesk + tabular-nums for editorial feel */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-2xl overflow-hidden max-w-3xl mx-auto lg:mx-0 border border-slate-200 shadow-lg shadow-slate-900/5 bg-slate-200">
                             {(isVega ? VEGA_STATS : ATRIUM_STATS).map((s, i) => (
                                 <div key={i} className="px-4 py-5 bg-white">
-                                    <p className="text-xl md:text-2xl font-bold mb-0.5 text-slate-900 whitespace-nowrap">{s.value}</p>
+                                    <p className="font-display nums-tabular text-xl md:text-2xl font-bold mb-0.5 whitespace-nowrap" style={{ color: 'var(--color-ink)' }}>{s.value}</p>
                                     <p className="text-xs leading-tight text-slate-500">{s.label}</p>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Right: hero portrait image — clean, no decorative glow */}
+                    {/* Right: hero image — DUOTONE BRAND-TINTED, bleeds to right edge on desktop */}
                     <div className="relative order-first lg:order-last">
-                        <div className="relative aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
+                        {/* On desktop: image bleeds to the right edge of the section (negative margin) */}
+                        <div className="relative aspect-[4/3] lg:-mr-6 xl:-mr-12 rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
                             <img
                                 ref={parallaxRef}
                                 src={heroImage}
@@ -512,15 +560,31 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                                 className="parallax-image w-full h-full object-cover"
                                 loading="eager"
                             />
+                            {/* Duotone brand-color overlay — amber for Vega, emerald for Atrium.
+                                mix-blend-mode: multiply lets the photo show through while tinting it. */}
+                            <div
+                                className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-25"
+                                style={{ backgroundColor: accentColorValue }}
+                                aria-hidden="true"
+                            />
                             {/* Subtle gradient overlay for depth */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" aria-hidden="true" />
+                        </div>
+                        {/* Floating label that overlaps the image edge (layered text/image integration) */}
+                        <div
+                            className="hidden lg:block absolute -bottom-4 -left-4 px-4 py-2 rounded-xl bg-white shadow-xl border border-slate-200/60"
+                            aria-hidden="true"
+                        >
+                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: accentColorValue }}>
+                                {isVega ? 'For Law Firms' : 'For Property Managers'}
+                            </span>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Bottom fade into next section */}
-            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none from-white" />
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none" style={{ backgroundImage: 'linear-gradient(to top, var(--color-sage), transparent)' }} />
         </section>
     );
 };
@@ -604,86 +668,114 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     const headerRef = useScrollReveal<HTMLDivElement>();
     const sectionsRef = useScrollReveal<HTMLDivElement>();
 
-    // Interactive cards: track which card is expanded (for touch devices).
-    // On desktop, hover handles it via CSS. On mobile, tap toggles this state.
-    const [expandedCard, setExpandedCard] = useState<string | null>(null);
-    const accentColor = isVega ? '22 163 74' : '16 185 129'; // primary-500 or emerald-500
-    const accentShadow = isVega ? '22 163 74' : '16 185 129';
+    // ISSUE 2 FIX: per-ROW expand state (not per-card).
+    // When user hovers ANY card in a category's row, ALL cards in that row
+    // expand together. On mouseleave from the entire row, all collapse together.
+    // Moving the mouse between two cards in the same row does NOT trigger
+    // close/reopen flicker. Mobile/tap behavior unchanged (accordion, one card
+    // at a time per category).
+    const [expandedRow, setExpandedRow] = useState<number | null>(null);
+    const [tappedCard, setTappedCard] = useState<string | null>(null);
+    const accentColorValue = isVega ? '#D97706' : '#059669';
+    const accentShadow = isVega ? 'rgba(217, 119, 6, 0.15)' : 'rgba(5, 150, 105, 0.15)';
 
     return (
-        <section id="features" className="py-20 lg:py-28 bg-slate-50">
+        <section id="features" className="py-20 lg:py-28" style={{ background: 'var(--color-paper)' }}>
             <div className="container mx-auto px-6 max-w-7xl">
                 {/* Header */}
                 <div ref={headerRef} className="scroll-reveal text-center mb-16">
                     <Pill className="mb-5 bg-primary-50 text-primary-700 border-primary-200">
                         Features
                     </Pill>
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4 text-slate-900">
+                    <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
                         {isVega ? <>Case Management &<br />Legal Intelligence</> : <>Property Management &<br />Revenue Operations</>}
                     </h2>
-                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-slate-500">
+                    <p className="text-lg max-w-2xl mx-auto leading-relaxed text-slate-600">
                         {isVega
-                            ? 'From intake to resolution, VEGA covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
+                            ? 'From intake to resolution, Vega covers every stage of your legal practice — drafting, research, billing, and client collaboration.'
                             : 'From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — residents, maintenance, and financials.'}
                     </p>
                     {/* Hint for interactivity */}
                     <p className="text-xs mt-4 text-slate-400 font-medium tracking-wide">
-                        <span className="hidden md:inline">Hover a card to learn more</span>
+                        <span className="hidden md:inline">Hover a category to expand all cards</span>
                         <span className="md:hidden">Tap a card to learn more</span>
                     </p>
                 </div>
 
-                {/* Feature Categories */}
+                {/* Feature Categories — each row is independent */}
                 <div ref={sectionsRef} className="scroll-reveal scroll-reveal-stagger">
-                    {categories.map((cat) => (
-                        <div key={cat.category} className="mb-14 last:mb-0">
-                            <div className="flex items-center gap-3 mb-8">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary-100 text-primary-600">
-                                    <cat.Icon className="w-5 h-5" />
+                    {categories.map((cat, catIndex) => {
+                        const isRowExpanded = expandedRow === catIndex;
+                        return (
+                            <div
+                                key={cat.category}
+                                className="mb-14 last:mb-0"
+                                onMouseEnter={() => setExpandedRow(catIndex)}
+                                onMouseLeave={() => setExpandedRow(null)}
+                            >
+                                <div className="flex items-center gap-3 mb-8">
+                                    <div
+                                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                                        style={{ backgroundColor: `${accentColorValue}15`, color: accentColorValue }}
+                                    >
+                                        <cat.Icon className="w-5 h-5" />
+                                    </div>
+                                    <h3 className="font-display text-2xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>{cat.category}</h3>
                                 </div>
-                                <h3 className="text-2xl font-bold tracking-tight text-slate-900">{cat.category}</h3>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-                                {cat.items.map((item) => {
-                                    const cardKey = `${cat.category}-${item.title}`;
-                                    const isExpanded = expandedCard === cardKey;
-                                    return (
-                                        <div
-                                            key={item.title}
-                                            className={`feature-card cursor-pointer rounded-2xl p-6 border bg-white border-slate-200 ${isExpanded ? 'is-expanded' : ''}`}
-                                            style={{ '--feature-accent': `rgb(${accentColor})`, '--feature-accent-shadow': `rgb(${accentShadow} / 0.15)` } as React.CSSProperties}
-                                            onClick={() => setExpandedCard(isExpanded ? null : cardKey)}
-                                            role="button"
-                                            tabIndex={0}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    setExpandedCard(isExpanded ? null : cardKey);
-                                                }
-                                            }}
-                                        >
-                                            {/* Accent bar — slides in on hover/expand */}
-                                            <div className="feature-card__accent" aria-hidden="true" />
-                                            <h4 className="text-base font-bold text-slate-900 pr-4">
-                                                {item.title}
-                                                {item.badge && (
-                                                    <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-100 text-primary-600 border border-primary-200">
-                                                        {item.badge}
-                                                    </span>
-                                                )}
-                                            </h4>
-                                            {/* Description — hidden by default, expands on hover/tap */}
-                                            <div className="feature-card__desc">
-                                                <p className="text-sm leading-relaxed text-slate-500">
-                                                    {item.desc}
-                                                </p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                                    {cat.items.map((item) => {
+                                        const cardKey = `${cat.category}-${item.title}`;
+                                        const isCardTapped = tappedCard === cardKey;
+                                        const showExpanded = isRowExpanded || isCardTapped;
+                                        return (
+                                            <div
+                                                key={item.title}
+                                                className={`landing-card feature-card cursor-pointer ${showExpanded ? 'is-expanded' : ''}`}
+                                                style={{
+                                                    '--feature-accent': accentColorValue,
+                                                    '--feature-accent-shadow': accentShadow,
+                                                    '--border-card-hover': `${accentColorValue}66`,
+                                                } as React.CSSProperties}
+                                                onClick={() => setTappedCard(isCardTapped ? null : cardKey)}
+                                                role="button"
+                                                tabIndex={0}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setTappedCard(isCardTapped ? null : cardKey);
+                                                    }
+                                                }}
+                                            >
+                                                {/* Accent bar — slides in on hover/expand */}
+                                                <div className="feature-card__accent" aria-hidden="true" />
+                                                <h4 className="font-display text-base font-bold text-slate-900 pr-4">
+                                                    {item.title}
+                                                    {item.badge && (
+                                                        <span
+                                                            className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
+                                                            style={{
+                                                                backgroundColor: `${accentColorValue}15`,
+                                                                color: accentColorValue,
+                                                                borderColor: `${accentColorValue}30`,
+                                                            }}
+                                                        >
+                                                            {item.badge}
+                                                        </span>
+                                                    )}
+                                                </h4>
+                                                {/* Description — hidden by default, expands on row hover/tap */}
+                                                <div className="feature-card__desc">
+                                                    <p className="text-sm leading-relaxed text-slate-600">
+                                                        {item.desc}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>
@@ -770,11 +862,11 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     });
 
     return (
-    <section id="pricing" className="bg-slate-50 min-h-[100dvh] pt-24 pb-24 px-6">
+    <section id="pricing" className="min-h-[100dvh] pt-24 pb-24 px-6" style={{ background: 'var(--color-paper)' }}>
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <div ref={headerRef} className="scroll-reveal text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight mb-4">
+                <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
                 <p className="text-slate-500 max-w-lg mx-auto text-lg leading-relaxed mb-6">
@@ -1117,8 +1209,8 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     return (
         <div
             ref={scrollRef}
-            className="h-[100dvh] w-full overflow-y-auto bg-white text-slate-900 font-sans scroll-smooth"
-            style={{ scrollbarGutter: 'stable' }}
+            className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth"
+            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', scrollbarGutter: 'stable' }}
         >
             <NavBar
                 activeSection={activeSection}
@@ -1142,6 +1234,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 <main key={activeProduct} className="animate-swap-in">
                     <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
                     <FeaturesSection activeProduct={activeProduct} />
+                    <EndToEndDemarcator activeProduct={activeProduct} />
                     <TrustBadgesStrip />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                 </main>

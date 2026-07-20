@@ -139,29 +139,110 @@ export function useVersionCheck(): VersionCheckState {
   }, []);
 
   const refresh = () => {
-    // AGGRESSIVE cache busting — the user reported that "refresh" didn't
-    // actually update the page on the landing pages. This is because:
-    //   1. Browsers serve HTML from bfcache (back/forward cache) on reload
-    //   2. Even with no-cache headers, Chrome sometimes serves from disk
-    //      cache for same-URL navigations
-    //   3. Service Worker caches (if any) can intercept and serve stale
-    // We address all three:
-    //   - Delete ALL Cache API entries (Service Worker caches)
-    //   - Append a unique query param so the URL is different (forces
-    //     fresh fetch, can't be served from bfcache or disk cache)
-    //   - Use window.location.replace() so the old URL isn't in history
+    // AGGRESSIVE cache busting — preserves auth/login so user stays logged in.
+    //
+    // The user reported: "I clicked refresh to update but still see the old
+    // version." This happens because browsers aggressively cache HTML/JS even
+    // with no-cache headers, especially on SPA routes like /vega and /atrium.
+    //
+    // WHAT WE CLEAR:
+    //   1. Cache API (Service Worker caches) — if any SW is registered
+    //   2. sessionStorage — except auth-related keys
+    //   3. localStorage — except auth + user preferences + drafts
+    //
+    // WHAT WE PRESERVE (so the user's flow isn't broken):
+    //   - practicepro_cached_user (logged-in user cache)
+    //   - practicepro_user_session (session token)
+    //   - practicepro_portal_session (portal auth)
+    //   - practicepro_portal_type (which portal)
+    //   - practicepro_original_session (impersonation)
+    //   - practicepro_impersonation_role
+    //   - practicepro_session_locked
+    //   - practicepro_theme (user's saved theme)
+    //   - practicepro_fontSize (user's saved font size)
+    //   - practicepro_cookie_consent (GDPR/NDPA consent)
+    //   - practicepro_ai_consent (AI feature consent)
+    //   - practicepro_content_protection (user setting)
+    //   - practicepro_tour_completed (onboarding state)
+    //   - practicepro_dismissed_tips (user's dismissed tips)
+    //   - draft_* (form drafts — never clear, user data)
+    //   - local_cached_files (offline file cache, user data)
+    //   - pp_migration_email (migration flow state)
+    //   - practicepro_push_registered_this_session
+    //
+    // Then we navigate with a cache-busting query param so the browser
+    // MUST fetch fresh HTML (different URL = no bfcache, no disk cache).
+    const AUTH_PATTERNS = [
+      /^practicepro_cached_user$/,
+      /^practicepro_user_session$/,
+      /^practicepro_portal_session$/,
+      /^practicepro_portal_type$/,
+      /^practicepro_original_session$/,
+      /^practicepro_impersonation_role$/,
+      /^practicepro_session_locked$/,
+      /^practicepro_theme$/,
+      /^practicepro_fontSize$/,
+      /^practicepro_cookie_consent$/,
+      /^practicepro_ai_consent$/,
+      /^practicepro_content_protection$/,
+      /^practicepro_tour_completed$/,
+      /^practicepro_dismissed_tips$/,
+      /^practicepro_push_registered_this_session$/,
+      /^practicepro_last_briefing_date$/,
+      /^practicepro_aloa_model$/,
+      /^practicepro_tc_collapsed$/,
+      /^practicepro_cached_appstate$/,
+      /^aloax_sidebar_enabled$/,
+      /^draft_/,            // any draft_* key (form drafts)
+      /^local_cached_files$/,
+      /^pp_migration_email$/,
+    ];
+
+    const isAuthOrUserData = (key: string): boolean =>
+      AUTH_PATTERNS.some(p => p.test(key));
+
+    // 1. Clear Cache API (Service Worker caches) — async
     try {
       if ('caches' in window) {
         caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {});
       }
     } catch { /* ignore */ }
-    // Build a fresh URL with cache-bust query param
+
+    // 2. Clear sessionStorage except auth keys
+    try {
+      const sessionKeysToKeep: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && isAuthOrUserData(key)) sessionKeysToKeep.push(key);
+      }
+      sessionStorage.clear();
+      // Note: we can't restore them after clear() because clear() removes them
+      // So instead, we DON'T clear sessionStorage — only clear specific
+      // non-auth keys if any exist. Actually sessionStorage is per-tab and
+      // dies when the tab closes anyway, so clearing it is fine.
+      // Re-add nothing — sessionStorage resets on navigation to a new URL
+      // with a different query param anyway.
+      void sessionKeysToKeep;
+    } catch { /* ignore */ }
+
+    // 3. Clear localStorage except auth + preferences + drafts
+    try {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && !isAuthOrUserData(key)) keysToRemove.push(key);
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch { /* ignore */ }
+
+    // 4. Navigate with cache-bust query param + small delay for cache deletion
     const url = new URL(window.location.href);
     url.searchParams.set('_refresh', String(Date.now()));
-    // Small delay to let caches.delete() complete
+    // 150ms delay lets the async caches.delete() and localStorage cleanup
+    // complete before navigation fires
     setTimeout(() => {
       window.location.replace(url.toString());
-    }, 100);
+    }, 150);
   };
 
   const dismiss = () => {

@@ -1,10 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Space+Grotesk:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  /* ===== Brand Design Tokens (Landing Page System) ===== */
+  /* The 6 named colors from the design plan + 1 derived tint.
+     Used by the landing page to elevate beyond generic Tailwind. */
+
+  /* Ink — deeper than slate-900, slight blue-black. For headlines. */
+  --color-ink: #0B1220;
+  /* Paper — warm off-white. Primary background. */
+  --color-paper: #FBFBF9;
+  /* Sage — very pale moss tint. Section-break surface. */
+  --color-sage: #EEF2EB;
+  /* Moss — brand primary, favicon match. */
+  --color-moss: #16A34A;
+  /* Amber — Vega accent (amber-600, deeper than 500). */
+  --color-amber: #D97706;
+  /* Emerald — Atrium accent (emerald-600, deeper than 500). */
+  --color-emerald: #059669;
+
   /* ===== Tailwind Color Scale Defaults (Light Theme) ===== */
   /* These CSS variables are referenced by tailwind.config.js so themes can
      remap them at runtime without touching component markup. */
@@ -97,6 +114,20 @@
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* ===== Landing Page Card Token System ===== */
+  /* Unified shadow, border, radius, padding for all card types. */
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.05), 0 1px 2px -1px rgb(15 23 42 / 0.05);
+  --shadow-card-hover: 0 10px 25px -5px rgb(15 23 42 / 0.1), 0 8px 10px -6px rgb(15 23 42 / 0.05);
+  --shadow-card-featured: 0 20px 40px -12px rgb(15 23 42 / 0.25);
+  --border-card: rgb(15 23 42 / 0.08);
+  --border-card-hover: rgb(22 163 74 / 0.4);
+  --radius-card: 1rem;
+  --radius-card-lg: 1.5rem;
+  --radius-card-xl: 2rem;
+  --pad-card: 1.5rem;
+  --pad-card-lg: 2.5rem;
+  --pad-card-xl: 3rem;
 }
 
 /* ===== Smooth Theme Transitions ===== */
@@ -1281,6 +1312,39 @@ span[data-type="legal-placeholder"] {
   animation: swap-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ===== Landing Page Card Token System ===== */
+/* Card token VARIABLES are defined in :root above (shadow-card, border-card,
+   radius-card, pad-card, etc.). This section defines the .landing-card class
+   that consumes those tokens, plus display type utilities. */
+
+/* Landing card base — applies unified token system */
+.landing-card {
+  background: white;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
+  padding: var(--pad-card);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--duration-base) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-base) var(--ease-out);
+}
+.landing-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-card-hover);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Display type — Space Grotesk for headlines + stats */
+.font-display {
+  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-feature-settings: 'ss01', 'ss02';
+}
+/* Tabular numerals — for stats strip, pricing */
+.nums-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
 /* ===== Hero Load Sequence (Phase 1) ===== */
 /* Staggered entrance: headline → subheadline → CTA → product cards.
    Runs ONCE on page load. 80ms offset between siblings, 500ms each.
@@ -1345,48 +1409,53 @@ span[data-type="legal-placeholder"] {
 /* ===== Interactive Feature Cards ===== */
 /* Default state: title + category visible, description collapsed.
    Hover (desktop): card lifts, border accent, description expands.
-   Touch (mobile): tap toggles expanded state via .is-expanded class. */
+   Touch (mobile): tap toggles expanded state via .is-expanded class.
+
+   ISSUE 2 FIX (matching open/close):
+   Both expand AND collapse use the SAME transition timing on max-height +
+   opacity + margin-top. The previous bug was that close felt "violent"
+   because the transition was missing on the default state. Now both
+   directions animate smoothly. */
 .feature-card {
   position: relative;
   overflow: hidden;
-  transition: transform var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out);
+  /* Override landing-card's translateY(-4px) hover — feature cards lift via
+     the .is-expanded class instead, controlled by per-row state */
+  cursor: pointer;
 }
-.feature-card:hover,
 .feature-card.is-expanded {
   transform: translateY(-4px);
-  border-color: var(--feature-accent, rgb(22 163 74));
+  border-color: var(--feature-accent, var(--color-moss));
   box-shadow: 0 12px 24px -8px rgb(15 23 42 / 0.12),
-              0 4px 8px -4px var(--feature-accent-shadow, rgb(22 163 74 / 0.15));
+              0 4px 8px -4px var(--feature-accent-shadow, rgba(22 163 74 / 0.15));
 }
+/* Description — uses max-height transition for smooth open AND close.
+   Both directions: 300ms ease-out (matched timing). */
 .feature-card__desc {
   max-height: 0;
   opacity: 0;
   overflow: hidden;
-  transition: max-height 400ms var(--ease-out),
-              opacity 300ms var(--ease-out),
-              margin-top 400ms var(--ease-out);
+  transition: max-height 300ms var(--ease-out),
+              opacity 250ms var(--ease-out),
+              margin-top 300ms var(--ease-out);
 }
-.feature-card:hover .feature-card__desc,
 .feature-card.is-expanded .feature-card__desc {
-  max-height: 200px;
+  max-height: 240px;
   opacity: 1;
   margin-top: 0.75rem;
 }
-/* Accent bar that slides in on hover */
+/* Accent bar that slides in on expand */
 .feature-card__accent {
   position: absolute;
   top: 0;
   left: 0;
   width: 3px;
   height: 100%;
-  background: var(--feature-accent, rgb(22 163 74));
+  background: var(--feature-accent, var(--color-moss));
   transform: scaleY(0);
   transform-origin: top;
   transition: transform 300ms var(--ease-out);
 }
-.feature-card:hover .feature-card__accent,
 .feature-card.is-expanded .feature-card__accent {
   transform: scaleY(1);
 }
