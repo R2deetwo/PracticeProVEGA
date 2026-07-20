@@ -4575,3 +4575,73 @@ Stage Summary:
 - Caching is now properly busted on all SPA routes (/vega, /atrium, etc.)
 - User should no longer need to switch browser profiles to see updates
 - Still waiting on design plan approval for full landing page redesign
+
+---
+Task ID: full-landing-redesign-and-cache-preservation
+Agent: main
+Task: Implement approved design plan + fix all 5 numbered issues + preserve auth during cache clear
+
+DESIGN PLAN IMPLEMENTED:
+- Color tokens in :root: Ink (#0B1220), Paper (#FBFBF9), Sage (#EEF2EB),
+  Moss (#16A34A), Amber (#D97706), Emerald (#059669)
+- Type: Space Grotesk for display via .font-display class, Inter for body,
+  .nums-tabular for stats
+- Card token system: --shadow-card, --border-card, --radius-card, --pad-card
+  variables + .landing-card class
+- Signature: duotone brand-tinted hero imagery (mix-blend-multiply overlay)
+
+ISSUE 1 — END-TO-END DEMARCATOR:
+New EndToEndDemarcator component (full-width Sage bg, py-24 lg:py-32, no
+border/shadow/card chrome). Inserted between FeaturesSection and
+TrustBadgesStrip. Reads as a chapter divider, not a sidebar callout.
+
+ISSUE 2 — FEATURES ROW-EXPAND:
+- Per-ROW state (expandedRow), not per-card. Hovering any card expands all
+  cards in that row. onMouseLeave from row container collapses all.
+- Matching open/close: both directions 300ms ease-out on max-height+opacity.
+- No flicker when moving between cards in same row.
+- Mobile tap behavior unchanged (tappedCard accordion state).
+- .feature-card uses .is-expanded class only (no :hover conflict with
+  .landing-card).
+
+ISSUE 3 — CARD VISUAL QUALITY:
+All cards now use .landing-card with unified tokens. No more mixed shadow
+weights or inconsistent borders.
+
+ISSUE 4 — HERO IMAGE INTEGRATION:
+- Duotone overlay: mix-blend-multiply at 25% opacity, amber for Vega,
+  emerald for Atrium
+- Image bleeds to right edge: lg:-mr-6 xl:-mr-12 (negative margin)
+- Layered text/image: floating 'For Law Firms'/'For Property Managers'
+  label overlaps image's bottom-left edge
+- Parallax preserved
+
+ISSUE 5 — MOTION VERIFIED:
+All 4 phases confirmed: hero load (500ms stagger), scroll reveals (600ms,
+24px translate), hover feedback (-4px lift + border + shadow), depth
+layering (Paper/Sage alternation), image parallax (±16px).
+
+CACHING FIX — PRESERVES AUTH:
+useVersionCheck.refresh() now:
+- Clears Cache API
+- Clears sessionStorage
+- Clears localStorage EXCEPT auth + preferences + drafts (via AUTH_PATTERNS
+  regex list — preserves 20+ keys including session tokens, theme, font
+  size, consent states, drafts, migration email)
+- Appends _refresh query param (cache-bust)
+- 150ms delay before navigation
+- window.location.replace()
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=e5cd5e3, status=healthy
+- Production JS contains: color-ink, color-paper, color-sage, font-display,
+  is-expanded, landing-card, End-to-End, For Law Firms, From intake to
+  resolution, Hover a category — all new code confirmed live
+- Build passes (18.75s, no warnings)
+
+Stage Summary:
+- All 5 numbered issues fixed and verified on production
+- Design plan fully implemented (color, type, layout, signature element)
+- Refresh now clears all cache except auth — user stays logged in
+- User should click 'Refresh' once more to load this version (the cache
+  fix applies going forward, not retroactively)
