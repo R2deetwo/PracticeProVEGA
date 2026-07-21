@@ -13,6 +13,7 @@ import { api } from '../../convex/_generated/api';
 import { parseAloaMarkdown } from '../utils/markdownUtils';
 import { useProduct } from '../contexts/ProductContext';
 import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
+import TeamMessageModal from './modals/TeamMessageModal';
 import { AtriumInbox } from './atrium/AtriumInbox';
 import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
@@ -600,6 +601,7 @@ const MessagesView: React.FC = () => {
 
     // ── Compose modal for inbox replies ──
     const [showCompose, setShowCompose] = useState(false);
+    const [showTeamMessage, setShowTeamMessage] = useState(false);
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     const logAutomation = useMutation(api.sentry.logAutomation);
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
@@ -1185,10 +1187,10 @@ const MessagesView: React.FC = () => {
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Messages</h2>
                     <div className="flex items-center gap-2">
                         <button
-                            onClick={() => setShowCompose(true)}
+                            onClick={() => activeTab === 'team' ? setShowTeamMessage(true) : setShowCompose(true)}
                             className="p-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-opacity shadow-sm flex items-center gap-2 text-xs font-bold min-h-[40px]"
                         >
-                            <PlusIcon className="w-4 h-4" /> Compose
+                            <PlusIcon className="w-4 h-4" /> {activeTab === 'team' ? 'New Message' : 'Compose'}
                         </button>
                     </div>
                 </div>
@@ -2058,7 +2060,7 @@ const MessagesView: React.FC = () => {
                             )}
                         </div>
 
-                        {/* Compose Modal */}
+                        {/* Compose Modal (for inbox/portal messages) */}
                         {showCompose && firmId && (
                             <ComposeModal
                                 firmId={firmId}
@@ -2067,10 +2069,85 @@ const MessagesView: React.FC = () => {
                                 onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') ? 'error' : 'success' })}
                             />
                         )}
+
+                        {/* Team Message Modal (for in-app team messages) */}
+                        {showTeamMessage && (
+                            <TeamMessageModal onClose={() => setShowTeamMessage(false)} />
+                        )}
                     </div>
                 )}
 
-                {/* TEAM CHAT TAB REMOVED — subsumed into All Conversations */}
+                {/* ═══ TEAM TAB ═══ — in-app team messaging via chatConversations/chatMessages */}
+                {activeTab === 'team' && (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Team conversations list */}
+                        <div className="flex-1 overflow-y-auto">
+                            {(coreState.chatConversations || []).filter((c: any) =>
+                                c.type === 'direct' &&
+                                c.memberIds?.includes(currentUser?.id || '')
+                            ).length === 0 ? (
+                                <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+                                    <div className="w-14 h-14 rounded-2xl bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center mb-4">
+                                        <svg className="w-7 h-7 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                    </div>
+                                    <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">No team messages yet</h3>
+                                    <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">Send a direct message to a team member to start a conversation.</p>
+                                    <button
+                                        onClick={() => setShowTeamMessage(true)}
+                                        className="px-4 py-2 bg-violet-600 text-white text-sm font-bold rounded-lg hover:bg-violet-700 transition-colors"
+                                    >
+                                        New Message
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-slate-100 dark:divide-zinc-800">
+                                    {(coreState.chatConversations || [])
+                                        .filter((c: any) =>
+                                            c.type === 'direct' &&
+                                            c.memberIds?.includes(currentUser?.id || '')
+                                        )
+                                        .map((conv: any) => {
+                                            // Find the OTHER member (not current user)
+                                            const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id);
+                                            const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId);
+                                            // Get last message
+                                            const convMessages = (coreState.chatMessages || []).filter(
+                                                (m: any) => m.conversationId === conv.id && !m.isDeleted
+                                            );
+                                            const lastMsg = convMessages[convMessages.length - 1];
+
+                                            return (
+                                                <button
+                                                    key={conv.id}
+                                                    onClick={() => {
+                                                        setSelectedId(conv.id);
+                                                    }}
+                                                    className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left"
+                                                >
+                                                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-700 dark:text-violet-400 font-bold text-sm flex-shrink-0">
+                                                        {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                                            {otherMember?.name || 'Unknown'}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                                                            {lastMsg?.content || 'No messages yet'}
+                                                        </p>
+                                                    </div>
+                                                    {lastMsg && (
+                                                        <span className="text-2xs text-slate-400 flex-shrink-0">
+                                                            {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {/* ═══ NOTICE BOARD TAB ═══ — available for ALL firms */}
                 {activeTab === 'notices' && (
