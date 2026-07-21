@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useMutation, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useDataActions } from '../../contexts/DataContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
@@ -44,7 +46,7 @@ const getMsgTypeLabel = (type: string) => (MSG_TYPE_LABELS as any)[type] || type
 const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileText className="w-3.5 h-3.5" />;
 const CHANNEL_COLORS: Record<AutomationChannel, string> = {
   whatsapp: 'text-green-400 bg-green-900/30', email: 'text-blue-400 bg-blue-900/30',
-  portal: 'text-emerald-400 bg-emerald-900/30',
+  portal: 'text-emerald-400 bg-emerald-900/30', 'in-app': 'text-violet-400 bg-violet-900/30',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -198,6 +200,7 @@ interface SelectableRecipient {
 }
 
 export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToast: (m: string) => void; prefill?: ComposeModalPrefill }> = ({ firmId, onClose, onToast, prefill }) => {
+  const actions = useDataActions();
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
   const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
@@ -212,6 +215,8 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   // ── State ────────────────────────────────────────────────────────────
   const [msgType, setMsgType] = useState<AutomationMessageType>('custom');
   const [channel, setChannel] = useState<AutomationChannel>(() => {
+    // Default to 'in-app' when the prefill recipient is a team member
+    if (prefill?.recipientType === 'team') return 'in-app';
     const waAllowed = isGrowthOrAbove || isKompleteFirm;
     const preferred = prefill?.channel || (prefill?.tenantPhone ? 'whatsapp' : prefill?.tenantEmail ? 'email' : 'whatsapp');
     return (preferred === 'whatsapp' && !waAllowed) ? 'email' : preferred;
@@ -525,28 +530,30 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       let simulatedCount = 0;
 
       for (const r of selectedRecipients) {
-        if (channel === 'portal') {
-          // Portal doesn't need phone/email, just a valid unit/recipient
+        if (channel === 'in-app' || channel === 'portal') {
+          // In-app and Portal don't need phone/email, just a valid recipient ID
           if (!r.id) {
             failCount++;
             continue;
           }
         } else {
-          const recipient = channel === 'email' 
-            ? (r.tenantEmail || '') 
-            : (r.tenantPhone || '');
-          
+          const recipient = channel === 'email'
+            ? (r.tenantEmail || r.email || '')
+            : (r.tenantPhone || r.phone || '');
+
           if (!recipient) {
             failCount++;
             continue;
           }
         }
 
-        const finalRecipient = channel === 'portal'
+        const finalRecipient = channel === 'in-app'
           ? (r.id || '')
-          : channel === 'email'
-            ? (r.tenantEmail || '')
-            : `${countryCode}${(r.tenantPhone || '').replace(/^0+/, '')}`;
+          : channel === 'portal'
+            ? (r.id || '')
+            : channel === 'email'
+              ? (r.tenantEmail || r.email || '')
+              : `${countryCode}${(r.tenantPhone || r.phone || '').replace(/^0+/, '')}`;
 
         // Build personalized message for this recipient
         const name = r.tenantName || 'Resident';
@@ -571,7 +578,47 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
         let sendResult: { success: boolean; simulated?: boolean; error?: string } = { success: true, simulated: true };
 
         try {
-          if (channel === 'portal') {
+          if (channel === 'in-app') {
+            // Send in-app message to team member via chatMessages/chatConversations.
+            // This creates a direct message conversation between the sender and
+            // the recipient, and saves the message content + sends a notification.
+            try {
+              const cid = uuidv4();
+              await actions.addItem('chatConversations', {
+                id: cid,
+                type: 'direct',
+                memberIds: [currentUser?.id || '', r.id],
+                name: 'Direct Message',
+                matterId: null,
+                createdAt: new Date().toISOString(),
+                hiddenForUserIds: [],
+                firmId,
+              }, 'Conversation');
+              await actions.addItem('chatMessages', {
+                conversationId: cid,
+                content: personalizedMessage,
+                authorId: currentUser?.id || '',
+                timestamp: new Date().toISOString(),
+                firmId,
+                isDeleted: false,
+                status: 'sent',
+              }, 'Chat Message');
+              // Send notification to the recipient
+              await actions.addItem('notifications', {
+                userId: r.id,
+                title: 'New Message',
+                message: `${currentUser?.name || 'A colleague'} sent you a message.`,
+                type: 'message',
+                isRead: false,
+                createdAt: new Date().toISOString(),
+                link: { view: 'messaging', id: cid, context: { activeConversationId: cid } },
+                firmId,
+              }, 'Notification');
+              sendResult = { success: true, simulated: false };
+            } catch (inAppErr: any) {
+              sendResult = { success: false, error: inAppErr.message };
+            }
+          } else if (channel === 'portal') {
             // Send message to tenant's portal inbox
             try {
               await convex.mutation(api.portals.sendPortalMessage, {
@@ -699,7 +746,11 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               <div>
                 <label className="block text-xs text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wider font-bold">Channel</label>
                 <div className="flex gap-1.5">
-                  {(['whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
+                  {(['in-app', 'whatsapp', 'email', 'portal'] as AutomationChannel[]).map(ch => {
+                    // 'in-app' is only for team recipients
+                    if (ch === 'in-app' && recipientTab !== 'team') return null;
+                    // 'portal' is only for client/tenant recipients, not team
+                    if (ch === 'portal' && recipientTab === 'team') return null;
                     const waAllowed = ch !== 'whatsapp' || (isGrowthOrAbove || isKompleteFirm);
                     return (
                       <button
@@ -715,7 +766,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                               : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
                         }`}
                       >
-                        {ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
+                        {ch === 'in-app' ? '💬 In-App' : ch === 'whatsapp' ? '📱 WA' : ch === 'email' ? '✉️ Email' : '🏠 Portal'}
                         {!waAllowed && <Lock className="w-2.5 h-2.5 absolute top-1 right-1 text-slate-400" />}
                       </button>
                     );
