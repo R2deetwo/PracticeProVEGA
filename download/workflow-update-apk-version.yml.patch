@@ -1,0 +1,39 @@
+# ── MANUAL WORKFLOW UPDATE (requires GitHub `workflow` scope token) ──
+#
+# The founder needs to manually add these steps to .github/workflows/build-apk.yml
+# AFTER the "Publish APK as release asset" step. The PAT used by the AI agent
+# doesn't have `workflow` scope, so it can't push workflow file changes.
+#
+# Add these two steps after the "Publish APK as release asset" step:
+
+      - name: Update version.json with APK release info
+        run: |
+          APK_URL="https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/PracticePro-v${{ env.APK_VERSION }}.apk"
+          echo "APK download URL: $APK_URL"
+          node -e "
+            const fs = require('fs');
+            const path = './public/version.json';
+            const v = JSON.parse(fs.readFileSync(path, 'utf8'));
+            v.apkUrl = process.env.APK_URL;
+            v.apkBuildStatus = 'healthy';
+            v.apkBuiltAt = new Date().toISOString();
+            fs.writeFileSync(path, JSON.stringify(v, null, 2) + '\n');
+            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkBuildStatus: v.apkBuildStatus }));
+          "
+        env:
+          APK_URL: https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/PracticePro-v${{ env.APK_VERSION }}.apk
+
+      - name: Commit version.json with APK info
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/version.json
+          git commit -m "chore: update version.json with APK release info [build-${{ github.run_number }}]" || echo "No changes to commit"
+          git push origin HEAD:main 2>&1 || true
+
+# These steps:
+# 1. Update public/version.json with the APK download URL and set apkBuildStatus='healthy'
+# 2. Commit the updated version.json back to main so Vercel deploys it
+# 3. Only run AFTER the APK build + release publish succeed — failed builds
+#    never reach this step, so apkBuildStatus stays 'building' and users are
+#    never prompted to download a failed build
