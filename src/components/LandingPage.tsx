@@ -167,7 +167,7 @@ const NavBar: React.FC<{
                         <span className="relative h-5 w-28 overflow-hidden flex items-center">
                             {/* Default state: product name (VEGA in amber, ATRIUM in emerald) */}
                             <span
-                                className={`absolute inset-0 flex items-center text-[15px] font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-emerald-600'}`}
+                                className={`absolute inset-0 flex items-center text-[15px] font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-amber-500' : 'text-violet-400'}`}
                             >
                                 {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
                             </span>
@@ -620,16 +620,6 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                             />
                             {/* Subtle gradient overlay for depth */}
                             <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" style={{ zIndex: 4 }} aria-hidden="true" />
-                        </div>
-                        {/* Floating label that overlaps the image edge (layered text/image integration) */}
-                        <div
-                            className="hidden lg:block absolute -bottom-4 -left-4 px-4 py-2 rounded-xl bg-white shadow-xl border border-slate-200/60"
-                            style={{ zIndex: 5 }}
-                            aria-hidden="true"
-                        >
-                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: accentColorValue }}>
-                                {isVega ? 'For Law Firms' : 'For Property Managers'}
-                            </span>
                         </div>
                     </div>
                 </div>
