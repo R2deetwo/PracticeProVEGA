@@ -2237,6 +2237,9 @@ const INDEXED_CUSTOM_ID_TABLES = [
   "researchSources",
   "researchMessages",
   "users",
+  "chatMessages",
+  "chatConversations",
+  "notifications",
 ];
 
 /** Recursively strip undefined values from nested objects/arrays so Convex serialization never throws. */

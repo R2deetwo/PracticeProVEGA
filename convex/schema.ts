@@ -283,6 +283,7 @@ export default defineSchema({
 
   notifications: defineTable({
     firmId: nullableString,
+    id: nullableString,
     userId: nullableString,
     message: nullableString,
     title: nullableString,
@@ -295,7 +296,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   invoices: defineTable({
     firmId: nullableString,
@@ -401,9 +402,10 @@ export default defineSchema({
 
   chatMessages: defineTable({
     firmId: nullableString,
+    id: nullableString,
     conversationId: nullableString,
     authorId: nullableString,
-    userId: nullableString, // Legacy field — kept for backward compatibility
+    userId: nullableString,
     content: nullableString,
     timestamp: nullableString,
     deletedForUserIds: v.optional(v.array(v.string())),
@@ -413,22 +415,23 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]),
+  }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   chatConversations: defineTable({
     firmId: nullableString,
+    id: nullableString,
     type: nullableString,
     name: nullableString,
     memberIds: v.optional(v.array(v.string())),
     creatorId: nullableString,
     hiddenForUserIds: v.optional(v.array(v.string())),
     matterId: nullableString,
-    userId: nullableString, // Legacy field — kept for backward compatibility
+    userId: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]),
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   noteNotebooks: defineTable({
     name: nullableString,
