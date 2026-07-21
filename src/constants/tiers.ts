@@ -197,7 +197,7 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users', 'Unlimited matters', 'Custom court document archives', 'Contact sales for onboarding'],
+    features: ['Unlimited users', 'Unlimited matters', 'Custom court document archives', 'Court Date Reminders — automated WhatsApp alerts 7/3/1 days before hearings', 'Contact sales for onboarding'],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,

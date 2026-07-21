@@ -1108,7 +1108,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                         placeholder="Select next hearing date"
                                     />
                                 </div>
-                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before).</p>
+                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before). <span className="font-semibold text-primary-600">Pro plan feature.</span></p>
                             </div>
                         </div>
                     )}

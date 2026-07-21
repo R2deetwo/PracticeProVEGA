@@ -835,6 +835,12 @@ export const sendCourtReminders = internalMutation({
     for (const firm of firms) {
       const firmId = firm._id as string;
 
+      // ── TIER GATE: Court Date Reminders is a Pro-only feature ──
+      // Only firms on Pro or Enterprise plans get court reminders.
+      // Core and Growth firms are skipped entirely.
+      const plan = (firm as any).subscriptionPlan;
+      if (plan !== 'Pro' && plan !== 'Enterprise') continue;
+
       // Query all matters for this firm that have a nextAdjournedDate
       const matters = await ctx.db
         .query("matters")
