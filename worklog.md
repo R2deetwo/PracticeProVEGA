@@ -4700,3 +4700,45 @@ Stage Summary:
 - 6 new images with younger subjects, auto-cycling every 6s
 - Image caching fixed: 1-year immutable + build-SHA cache-bust
 - Route caching fixed: no-cache on /, /vega, /atrium
+
+---
+Task ID: sce-calculator-and-pricing-fix
+Agent: main
+Task: Fix SCE tooltip obscuring price, remove duplication, add SCE calculator tool
+
+1. REMOVED SCE TOOLTIP + SCE BOX FROM EACH CARD:
+   - Was: bordered box with 'Service Charge Equiv.' label + tooltip icon
+     that obscured the price on hover
+   - Now: single clean inline line '~₦X/tenant/mo (SCE)' below price
+   - Price is always visible. No duplication across 3 cards.
+
+2. UPDATED 'BILLED ANNUALLY' BANNER:
+   - Added green 'Calculate your SCE' button next to the pill
+   - Opens SCE Calculator modal
+
+3. NEW SCE CALCULATOR MODAL (SceCalculatorModal):
+   - Inputs: units under management (default 50), avg annual rent per unit
+     (default ₦1,500,000)
+   - Results table: one row per tier (Core, Growth, Pro) showing:
+     · Tier name + 'Exceeds tier cap' warning if units > tier.maxUnits
+     · SCE per tenant per month (annual price ÷ 12 ÷ units)
+     · SCE as % of rent (contextualized against typical rent)
+     · Absorbability badge: Easy/Moderate/Tight
+   - Absorbability logic (Lagos SC benchmark):
+     · Easy: <₦2,000/mo — residents barely notice
+     · Moderate: ₦2,000-5,000/mo — noticeable but reasonable
+     · Tight: >₦5,000/mo — consider higher tier
+   - Explanation banner, legend, footer with Close + Get Started
+   - Clean white modal, emerald accent (Atrium brand), always light
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=31d2736, status=healthy
+- Production JS contains: 'Calculate your SCE', 'Exceeds tier cap',
+  'absorbability' — all new code confirmed live
+- Build passes (19.34s)
+
+Stage Summary:
+- Price is no longer obscured by SCE tooltip
+- SCE info is no longer duplicated across 3 cards
+- Property managers can now model their portfolio and see if Atrium
+  makes economic sense (absorbability by residents)
