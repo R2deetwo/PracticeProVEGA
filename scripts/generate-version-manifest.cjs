@@ -51,6 +51,27 @@ const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 // after the smoke test passes. If the smoke test fails, it stays 'building'
 // (which the client treats as "don't prompt yet") and a subsequent fix
 // push will overwrite it.
+//
+// APK fields: read from android/app/version.properties if it exists.
+// These are populated at build time. The GH Actions workflow updates
+// apkUrl after publishing the release. apkBuildStatus starts as 'building'
+// and is set to 'healthy' only after the APK build succeeds + release is
+// published. Failed APK builds leave apkBuildStatus as 'building' (or
+// 'broken' if explicitly set), so the APK update check never prompts
+// users to download a failed build.
+
+const versionPropsPath = path.join(ROOT, 'android', 'app', 'version.properties');
+let apkVersion = null;
+let apkVersionCode = null;
+if (fs.existsSync(versionPropsPath)) {
+  const props = fs.readFileSync(versionPropsPath, 'utf8');
+  const major = parseInt((props.match(/^MAJOR=(\d+)/m) || [])[1] || '1');
+  const minor = parseInt((props.match(/^MINOR=(\d+)/m) || [])[1] || '0');
+  const patch = parseInt((props.match(/^PATCH=(\d+)/m) || [])[1] || '0');
+  apkVersion = `${major}.${minor}.${patch}`;
+  apkVersionCode = major * 10000 + minor * 100 + patch;
+}
+
 const manifest = {
   sha,
   branch,
@@ -58,6 +79,12 @@ const manifest = {
   commitTime: isoTimestamp,
   status: 'building',        // 'building' | 'healthy' | 'broken'
   stableSince: null,         // ISO timestamp when status became 'healthy'
+  // APK update fields — used by useApkVersionCheck hook on native platforms
+  apkVersion,                // e.g. "1.0.271" — matches Android versionName
+  apkVersionCode,            // e.g. 10271 — matches Android versionCode
+  apkUrl: null,              // set by GH Actions after release publish
+  apkBuildStatus: 'building', // 'building' | 'healthy' | 'broken'
+  apkBuiltAt: timestamp,     // when this APK build was initiated
 };
 
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + '\n', 'utf8');

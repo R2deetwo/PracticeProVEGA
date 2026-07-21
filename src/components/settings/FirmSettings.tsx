@@ -179,8 +179,13 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
     };
 
     const handleRoleChange = async (userId: string, newRole: UserRole) => {
-        await handleUpdateUser(userId, { role: newRole });
-        addToast("User role updated successfully.", { type: 'success' });
+        try {
+            await handleUpdateUser(userId, { role: newRole });
+            addToast(`User access updated to ${newRole}.`, { type: 'success' });
+        } catch (e: any) {
+            console.error('[FirmSettings] handleRoleChange failed:', e);
+            addToast(e?.message || "Failed to update user role. Please try again.", { type: 'error' });
+        }
     };
 
     const handleCopyInviteCode = () => {

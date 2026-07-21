@@ -68,6 +68,7 @@ import SplashScreen from './SplashScreen';
 import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
+import ApkUpdateBanner from './ApkUpdateBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 
 import { LandingPage } from './LandingPage';
@@ -402,6 +403,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     in DraftPro. Previously this was missing from the editor
                     early-return, so users in DraftPro never saw the prompt. */}
                 <VersionRefreshBanner />
+                <ApkUpdateBanner />
             </main>
         );
     }
@@ -1302,6 +1304,9 @@ export const App: React.FC = () => {
             {/* Detects new deploys and prompts the user to refresh — bypasses
                 browser/CDN caches that may serve stale HTML/JS. */}
             <VersionRefreshBanner />
+            {/* APK update banner — native only. No-op on web. Shows update
+                prompt when a new APK build is available and verified healthy. */}
+            <ApkUpdateBanner />
             {/* In-app confirmation dialog — replaces browser window.confirm() */}
             {confirmDialogNode}
         </div>
