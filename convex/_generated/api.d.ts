@@ -30,6 +30,8 @@ import type * as legalRepo from "../legalRepo.js";
 import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as migrations from "../migrations.js";
 import type * as myFunctions from "../myFunctions.js";
+import type * as payments from "../payments.js";
+import type * as paystack from "../paystack.js";
 import type * as portalSecurity from "../portalSecurity.js";
 import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
@@ -76,6 +78,8 @@ declare const fullApi: ApiFromModules<{
   "lib/withAuth": typeof lib_withAuth;
   migrations: typeof migrations;
   myFunctions: typeof myFunctions;
+  payments: typeof payments;
+  paystack: typeof paystack;
   portalSecurity: typeof portalSecurity;
   portals: typeof portals;
   proactive: typeof proactive;

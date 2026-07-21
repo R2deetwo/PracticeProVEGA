@@ -25,7 +25,7 @@
 
 import { internalAction, httpAction } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 // ─── INITIATE PAYSTACK TRANSACTION ──────────────────────────────────────────
 
@@ -132,9 +132,7 @@ export const verifyPaystackPayment = internalAction({
 // This is the ONLY path that should set invoice status to 'Paid' for Paystack
 // transactions — NOT the client-side auto-flip.
 
-export const handlePaystackWebhook = httpAction({
-  args: {},
-  handler: async (ctx, request) => {
+export const handlePaystackWebhook = httpAction(async (ctx, request) => {
     // Verify Paystack signature
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
     if (!secretKey) {
@@ -148,12 +146,23 @@ export const handlePaystackWebhook = httpAction({
       return new Response("Missing signature", { status: 400 });
     }
 
-    // Verify HMAC signature
-    const crypto = await import("crypto");
-    const expectedSignature = crypto
-      .createHmac("sha512", secretKey)
-      .update(body)
-      .digest("hex");
+    // Verify HMAC-SHA512 signature using Web Crypto API (works in Convex's
+    // default runtime without needing "use node" directive)
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secretKey);
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-512" },
+      false,
+      ["sign"]
+    );
+    const data = encoder.encode(body);
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, data);
+    // Convert ArrayBuffer to hex string
+    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, "0"))
+      .join("");
 
     if (signature !== expectedSignature) {
       return new Response("Invalid signature", { status: 401 });
@@ -184,5 +193,4 @@ export const handlePaystackWebhook = httpAction({
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  },
-});
+  });

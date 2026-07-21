@@ -21,61 +21,21 @@
  * The actual Paystack implementation lives in convex/paystack.ts.
  */
 
-import { internalMutation, internalAction, httpAction } from "./_generated/server";
+import { internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
-
-// ─── PAYMENT PROVIDER INTERFACE ─────────────────────────────────────────────
-
-export interface PaymentSession {
-  reference: string;        // provider transaction reference
-  authorizationUrl: string; // URL for the user to complete payment (Paystack)
-  accessCode: string;       // Paystack access code
-}
-
-export interface PaymentStatus {
-  status: 'success' | 'failed' | 'pending' | 'abandoned';
-  amount: number;           // in kobo (for Paystack) or naira
-  paidAt?: string;          // ISO timestamp
-  channel?: string;         // 'card' | 'bank' | 'ussd' | 'bank_transfer'
-  reference: string;
-}
-
-export interface PaymentEvent {
-  eventType: 'payment.success' | 'payment.failed' | 'payment.pending';
-  reference: string;
-  amount: number;
-  paidAt?: string;
-  channel?: string;
-}
+import { internal } from "./_generated/api";
 
 // ─── PROVIDER SELECTION ─────────────────────────────────────────────────────
 
-/**
- * Determines which payment provider is active.
- * Returns 'paystack' ONLY if PAYSTACK_ENABLED is explicitly 'true' AND
- * PAYSTACK_SECRET_KEY is set. Otherwise returns 'manual'.
- *
- * This is a deliberate, single-flag flip — Paystack does NOT activate
- * itself just because keys happen to exist in env config.
- */
-export function getActiveProvider(): 'manual' | 'paystack' {
-  const enabled = process.env.PAYSTACK_ENABLED;
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
-
-  if (enabled === 'true' && secretKey && secretKey.length > 0) {
-    return 'paystack';
-  }
-  return 'manual';
-}
-
-/**
- * Check if online payment is available (for UI conditional rendering).
- * The UI should only show "Pay Online" when this returns true.
- */
-export const isOnlinePaymentEnabled = (): boolean => {
-  return getActiveProvider() === 'paystack';
-};
+// Determines which payment provider is active.
+// Returns 'paystack' ONLY if PAYSTACK_ENABLED is explicitly 'true' AND
+// PAYSTACK_SECRET_KEY is set. Otherwise returns 'manual'.
+// Inlined (not exported) to avoid Convex module parsing issues.
+const ACTIVE_PROVIDER = (
+  process.env.PAYSTACK_ENABLED === 'true' &&
+  !!process.env.PAYSTACK_SECRET_KEY &&
+  process.env.PAYSTACK_SECRET_KEY.length > 0
+) ? 'paystack' : 'manual';
 
 // ─── MANUAL PAYMENT PROVIDER (DEFAULT — reproduces current behavior) ────────
 
@@ -136,7 +96,7 @@ export const manualRevertPayment = internalMutation({
 export const getPaymentProviderStatus = internalAction({
   args: {},
   handler: async (ctx) => {
-    const provider = getActiveProvider();
+    const provider = ACTIVE_PROVIDER;
     return {
       activeProvider: provider,
       onlinePaymentEnabled: provider === 'paystack',
