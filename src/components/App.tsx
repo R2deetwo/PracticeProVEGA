@@ -492,7 +492,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     screens < 768px (md breakpoint) and 0 on desktop. */}
                 <main id="main-content" className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
-                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-14 md:pb-0 min-h-0">
+                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 min-h-0">
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>

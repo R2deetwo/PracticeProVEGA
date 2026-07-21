@@ -11,6 +11,7 @@ import PrivacyPolicy from './PrivacyPolicy';
 import TermsOfService from './TermsOfService';
 import DataProcessingAgreement from './DataProcessingAgreement';
 import CookiePolicy from './CookiePolicy';
+import UsagePolicy from './UsagePolicy';
 import ResourcesPage from './ResourcesPage';
 import {
     getDisplayTiersForProduct,
@@ -149,7 +150,7 @@ const NavBar: React.FC<{
         {/* Glass layer — always light on landing page */}
         <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
 
-        <div className="relative container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Logo + back-to-hub breadcrumb */}
             <div className="flex items-center gap-3">
                 <button onClick={() => productChosen ? scrollTo('home') : undefined} className="flex items-center gap-2 group">
@@ -242,7 +243,7 @@ const NavBar: React.FC<{
                 >
                     Log In
                 </button>
-                <PrimaryButton onClick={onSignup} className="!px-3 !py-1.5 !rounded-lg !text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
+                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 md:ml-2 md:!text-sm md:!px-5 md:!py-2.5 md:!rounded-xl">
                     Get Started Free
                 </PrimaryButton>
             </div>
@@ -252,7 +253,7 @@ const NavBar: React.FC<{
 
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
-const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
+const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onUsageClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
     <footer className="bg-slate-950 dark:bg-black border-t border-white/5 py-10 md:py-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10 mb-12">
@@ -316,6 +317,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Privacy Policy</span>
                         <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Terms of Service</span>
                         <span onClick={onCookieClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Cookie Policy</span>
+                        <span onClick={onUsageClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Usage Policy</span>
                         <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Contact Sales</span>
                         <a href="mailto:dpo@practicepro.ng" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Email Us</a>
                         <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors">Security</span>
@@ -341,14 +343,14 @@ const BADGES = [
 const TrustBadgesStrip: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
     return (
-        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200/60 py-5 px-6">
-            <div className="container mx-auto flex flex-wrap items-center justify-center gap-6 md:gap-10">
+        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200/60 py-5 px-4 sm:px-6">
+            <div className="container mx-auto flex flex-wrap items-center justify-center gap-4 sm:gap-6 md:gap-10">
                 {BADGES.map((b, i) => (
                     <div key={i} className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-50 shadow-sm border border-slate-200/60 flex items-center justify-center">
                             <b.Icon className="w-4 h-4 text-slate-500" />
                         </div>
-                        <span className="text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
+                        <span className="text-[11px] sm:text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
                             {b.label}
                         </span>
                     </div>
@@ -374,7 +376,7 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     return (
         <section
             ref={ref}
-            className="scroll-reveal w-full py-16 lg:py-20 px-6"
+            className="scroll-reveal w-full py-10 sm:py-16 lg:py-20 px-4 sm:px-6"
             style={{ background: 'var(--color-sage)' }}
         >
             <div className="max-w-5xl mx-auto">
@@ -382,7 +384,7 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                     {stats.map((s, i) => (
                         <div key={i} className="flex flex-col items-center">
                             <p
-                                className="font-display nums-tabular text-3xl md:text-4xl lg:text-5xl font-bold mb-2 whitespace-nowrap"
+                                className="font-display nums-tabular text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 whitespace-nowrap"
                                 style={{ color: 'var(--color-ink)' }}
                             >
                                 {s.value}
@@ -414,9 +416,9 @@ const HubHero: React.FC<{
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
             {/* hero-stagger: orchestrates headline → subheadline → cards → auth link */}
-            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-28 pb-20 px-6 text-center">
+            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-16 px-4 sm:px-6 text-center">
 
-                <h1 className="font-display text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
+                <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.06] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
                     Professional Practice,
                     <br />
                     <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
@@ -545,12 +547,12 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
             {/* ── Hero Content — 2-column on desktop, stacked on mobile ── */}
-            <div className="hero-stagger relative z-10 pt-36 pb-24 lg:pt-48 lg:pb-32 px-6">
-                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="hero-stagger relative z-10 pt-24 pb-16 px-4 sm:px-6 lg:pt-48 lg:pb-32">
+                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
                         {/* Headline — Space Grotesk display */}
-                        <h1 className="font-display text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6" style={{ color: 'var(--color-ink)' }}>
+                        <h1 className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-6" style={{ color: 'var(--color-ink)' }}>
                             {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
                             <br className="hidden md:block" />
                             for{' '}
@@ -581,14 +583,18 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                                 <button
                                     key={i}
                                     onClick={() => setCurrentImageIdx(i)}
-                                    className="h-1.5 rounded-full transition-all duration-300"
-                                    style={{
-                                        width: i === currentImageIdx ? '24px' : '8px',
-                                        backgroundColor: i === currentImageIdx ? accentColorValue : 'rgb(203 213 225)',
-                                    }}
+                                    className="p-2.5 flex items-center justify-center touch-target"
                                     aria-label={`View image ${i + 1}`}
                                     aria-pressed={i === currentImageIdx}
-                                />
+                                >
+                                    <span
+                                        className="h-1.5 rounded-full transition-all duration-300 block"
+                                        style={{
+                                            width: i === currentImageIdx ? '24px' : '8px',
+                                            backgroundColor: i === currentImageIdx ? accentColorValue : 'rgb(203 213 225)',
+                                        }}
+                                    />
+                                </button>
                             ))}
                         </div>
                     </div>
@@ -723,14 +729,14 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     const accentShadow = isVega ? 'rgba(217, 119, 6, 0.15)' : 'rgba(5, 150, 105, 0.15)';
 
     return (
-        <section id="features" className="py-20 lg:py-28" style={{ background: 'var(--color-paper)' }}>
-            <div className="container mx-auto px-6 max-w-7xl">
+        <section id="features" className="py-12 sm:py-20 lg:py-28" style={{ background: 'var(--color-paper)' }}>
+            <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
                 {/* Header */}
                 <div ref={headerRef} className="scroll-reveal text-center mb-16">
                     <Pill className="mb-5 bg-primary-50 text-primary-700 border-primary-200">
                         Features
                     </Pill>
-                    <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
+                    <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
                         {isVega ? <>Case Management &<br />Legal Intelligence</> : <>Property Management &<br />Revenue Operations</>}
                     </h2>
                     <p className="text-lg max-w-2xl mx-auto leading-relaxed text-slate-600">
@@ -920,7 +926,7 @@ const SceCalculatorModal: React.FC<{
     // position:fixed elements and causing the "empty glass slate" bug).
     return createPortal(
         <div
-            className="fixed inset-0 z-[3000] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4"
             role="dialog"
             aria-modal="true"
             aria-labelledby="sce-calc-title"
@@ -933,12 +939,12 @@ const SceCalculatorModal: React.FC<{
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
                 {/* Brand accent bar */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-2xl" />
+                <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-2xl sm:rounded-t-2xl" />
 
                 {/* Header */}
-                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+                <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
                     <div>
                         <h2 id="sce-calc-title" className="font-display text-lg font-bold text-slate-900">SCE Calculator</h2>
                         <p className="text-xs text-slate-500 mt-0.5">See how Atrium fits your portfolio</p>
@@ -953,7 +959,7 @@ const SceCalculatorModal: React.FC<{
                 </div>
 
                 {/* Body */}
-                <div className="px-6 py-5 space-y-5">
+                <div className="px-4 sm:px-6 py-5 space-y-5">
                     {/* Explanation */}
                     <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
                         <p className="text-xs text-emerald-900 leading-relaxed">
@@ -990,8 +996,45 @@ const SceCalculatorModal: React.FC<{
                         </label>
                     </div>
 
-                    {/* Results table */}
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    {/* Results — stacked cards on mobile, table on desktop */}
+                    <div className="space-y-3 sm:hidden">
+                        {calculations.map(calc => (
+                            <div key={calc.id} className="border border-slate-200 rounded-xl p-3">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</p>
+                                        {calc.exceedsCapacity && (
+                                            <p className="text-3xs text-amber-600 font-bold mt-0.5">Exceeds tier cap ({calc.tierMaxUnits} units)</p>
+                                        )}
+                                    </div>
+                                    <span
+                                        className={`inline-block px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${
+                                            calc.absorbability === 'easy'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : calc.absorbability === 'moderate'
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-red-100 text-red-700'
+                                        }`}
+                                    >
+                                        {calc.absorbability}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <p className="text-slate-400 uppercase tracking-wider text-3xs font-bold">SCE/tenant/mo</p>
+                                        <p className="font-display nums-tabular font-bold text-slate-900">{fmtNaira(calc.scePerTenantMonthly)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-slate-400 uppercase tracking-wider text-3xs font-bold">% of rent</p>
+                                        <p className="nums-tabular text-slate-600">{avgRent > 0 ? `${calc.sceAsPercentOfRent.toFixed(2)}%` : '—'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden">
                         <div className="grid grid-cols-4 gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
                             <span>Tier</span>
                             <span className="text-right">SCE / tenant / mo</span>
@@ -1039,7 +1082,7 @@ const SceCalculatorModal: React.FC<{
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
                     <p className="text-xs text-slate-500">
                         {units} units · {fmtNaira(parseInt(avgRentPerUnit) || 0)}/unit/yr
                     </p>
@@ -1108,11 +1151,11 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     });
 
     return (
-    <section id="pricing" className="min-h-[100dvh] pt-24 pb-24 px-6" style={{ background: 'var(--color-paper)' }}>
+    <section id="pricing" className="min-h-[100dvh] pt-16 pb-16 px-4 sm:px-6" style={{ background: 'var(--color-paper)' }}>
         <div className="container mx-auto max-w-7xl">
             {/* Header */}
             <div ref={headerRef} className="scroll-reveal text-center mb-16">
-                <h2 className="font-display text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
+                <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4" style={{ color: 'var(--color-ink)' }}>
                     {isVega ? 'Transparent Pricing. Professional Grade.' : 'Institutional Property Management. Simplified.'}
                 </h2>
                 <p className="text-slate-500 max-w-lg mx-auto text-lg leading-relaxed mb-6">
@@ -1125,9 +1168,9 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         <span className={`text-sm font-bold ${billingCycle === 'monthly' ? 'text-slate-900' : 'text-slate-400'}`}>Monthly</span>
                         <button 
                             onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'annual' : 'monthly')}
-                            className="relative w-14 h-7 bg-slate-200 rounded-full transition-colors"
+                            className="relative w-16 h-9 bg-slate-200 rounded-full transition-colors"
                         >
-                            <div className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
+                            <div className={`absolute top-1 left-1 w-7 h-7 bg-white rounded-full shadow-md transition-transform duration-300 ${billingCycle === 'annual' ? 'translate-x-7' : ''}`} />
                         </button>
                         <div className="flex items-center gap-2">
                             <span className={`text-sm font-bold ${billingCycle === 'annual' ? 'text-slate-900' : 'text-slate-400'}`}>Annual</span>
@@ -1186,7 +1229,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 {dynamicPlans.map((plan) => (
                     <div
                         key={plan.id}
-                        className={`pricing-card group rounded-[40px] border p-8 md:p-10 flex flex-col relative ${plan.highlighted
+                        className={`pricing-card group rounded-3xl sm:rounded-[40px] border p-5 sm:p-8 md:p-10 flex flex-col relative ${plan.highlighted
                             ? 'bg-slate-900 border-transparent shadow-2xl shadow-slate-900/30 lg:-translate-y-4'
                             : 'bg-white border-slate-200 shadow-lg shadow-slate-900/5 hover:shadow-2xl hover:border-primary-300'
                             }`}
@@ -1330,6 +1373,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     const [showCookiePolicy, setShowCookiePolicy] = useState(false);
     const [showResources, setShowResources] = useState(false);
     const [showDPA, setShowDPA] = useState(false);
+    const [showUsagePolicy, setShowUsagePolicy] = useState(false);
 
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -1481,13 +1525,14 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     if (showTerms) return <TermsOfService onBack={() => setShowTerms(false)} activeProduct={activeProduct} />;
     if (showDPA) return <DataProcessingAgreement onBack={() => setShowDPA(false)} />;
     if (showCookiePolicy) return <CookiePolicy onBack={() => setShowCookiePolicy(false)} />;
+    if (showUsagePolicy) return <UsagePolicy onBack={() => setShowUsagePolicy(false)} />;
     if (showResources) return <ResourcesPage onBack={() => setShowResources(false)} onPrivacyClick={() => { setShowResources(false); setShowPrivacy(true); }} onTermsClick={() => { setShowResources(false); setShowTerms(true); }} onDPAClick={() => { setShowResources(false); setShowDPA(true); }} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />;
 
     return (
         <div
             ref={scrollRef}
-            className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth"
-            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', scrollbarGutter: 'stable' }}
+            className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable]"
+            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)' }}
         >
             <NavBar
                 activeSection={activeSection}
@@ -1522,6 +1567,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 onPrivacyClick={() => setShowPrivacy(true)}
                 onTermsClick={() => setShowTerms(true)}
                 onCookieClick={() => setShowCookiePolicy(true)}
+                onUsageClick={() => setShowUsagePolicy(true)}
                 onResources={() => setShowResources(true)}
                 onContactSales={() => openContactSales('Footer')}
                 activeProduct={activeProduct}
