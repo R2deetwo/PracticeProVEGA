@@ -4742,3 +4742,44 @@ Stage Summary:
 - SCE info is no longer duplicated across 3 cards
 - Property managers can now model their portfolio and see if Atrium
   makes economic sense (absorbability by residents)
+
+---
+Task ID: sce-portal-hover-behavior-copy-image
+Agent: main
+Task: Fix empty SCE calculator, implement hover behavior, update Atrium copy, fix couple image
+
+1. SCE CALCULATOR EMPTY GLASS SLATE — FIXED:
+   Root cause: modal was inside <main className="animate-swap-in"> which
+   applies a CSS transform (even after animation, due to 'both' fill mode).
+   Transform creates containing block for position:fixed, trapping the modal.
+   Fix: wrapped modal return in createPortal(..., document.body) — escapes
+   any transformed parent. Modal now displays correctly centered.
+
+2. HOVER BEHAVIOR FOR CALCULATE BUTTON + TOOLTIP:
+   - hasHoveredPlan: set true on mouseEnter of pricing grid (stays true)
+   - isHoveringArea: set on mouseEnter/Leave of pill area
+   - Calculate button: visible when hasHoveredPlan && isHoveringArea
+     Slides in via max-w-0 → max-w-[200px] + opacity + ml transition (500ms)
+   - SCE tooltip: shows when isHoveringArea, slides up with opacity (300ms)
+   - Pill stays centered via flex justify-center; Calculate slides in
+     next to it; when area unhovered, Calculate slides out, pill recenters
+   - Tooltip contains full SCE explanation (no duplication, no obscuring)
+
+3. ATRIUM SUB-COPY UPDATED:
+   Old: 'Revenue monitoring, rent collection, and defaulter management —
+   purpose-built for Nigerian property portfolios and estate operations.'
+   New: 'Facilities management, service charge collection, and a residents'
+   portal — purpose-built for Nigerian property managers.'
+   - 'Revenue monitoring' → 'Facilities management' (avoids hero repetition)
+   - 'rent collection' → 'service charge collection' (more accurate for Nigeria)
+   - 'defaulter management' → 'residents' portal' (positive framing)
+   - 'portfolios' → 'property managers' (portfolios stays in hero)
+
+4. COUPLE IMAGE — NO TV BEHIND THEM:
+   Regenerated atrium-hero-3.jpg: couple now faces a large window with
+   city view. NO TV behind them, NO TV visible anywhere.
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=f54ce18, status=healthy
+- Production JS contains: createPortal, 'Facilities management', 'What is SCE'
+- Build passes (19.39s)
