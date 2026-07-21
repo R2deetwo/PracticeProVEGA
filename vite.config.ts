@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { execSync } from 'child_process'
+import fs from 'fs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -16,12 +17,74 @@ function gitSha(fallback = 'unknown') {
   }
 }
 
+// Vite plugin that generates public/version.json BEFORE the build runs.
+// This ensures version.json always exists — whether the build is triggered
+// via `npm run build` (which runs prebuild) or `npx vite build` (which
+// does NOT run prebuild, e.g. in the GH Actions APK workflow).
+function generateVersionManifest() {
+  return {
+    name: 'generate-version-manifest',
+    buildStart() {
+      const publicDir = path.join(__dirname, 'public');
+      const versionFile = path.join(publicDir, 'version.json');
+
+      // Don't overwrite if it already exists (prebuild may have created it)
+      if (fs.existsSync(versionFile)) {
+        console.log('[version] public/version.json already exists — skipping generation');
+        return;
+      }
+
+      const sha = gitSha();
+      const branch = (() => {
+        try { return execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim(); }
+        catch { return 'unknown'; }
+      })();
+      const timestamp = new Date().toISOString();
+      const isoTimestamp = (() => {
+        try { return execSync('git log -1 --format=%cI', { encoding: 'utf8' }).trim(); }
+        catch { return timestamp; }
+      })();
+
+      // Read version.properties for APK version info
+      const versionPropsPath = path.join(__dirname, 'android', 'app', 'version.properties');
+      let apkVersion = null;
+      let apkVersionCode = null;
+      if (fs.existsSync(versionPropsPath)) {
+        const props = fs.readFileSync(versionPropsPath, 'utf8');
+        const major = parseInt((props.match(/^MAJOR=(\d+)/m) || [])[1] || '1');
+        const minor = parseInt((props.match(/^MINOR=(\d+)/m) || [])[1] || '0');
+        const patch = parseInt((props.match(/^PATCH=(\d+)/m) || [])[1] || '0');
+        apkVersion = `${major}.${minor}.${patch}`;
+        apkVersionCode = major * 10000 + minor * 100 + patch;
+      }
+
+      const manifest = {
+        sha,
+        branch,
+        builtAt: timestamp,
+        commitTime: isoTimestamp,
+        status: 'building',
+        stableSince: null,
+        apkVersion,
+        apkVersionCode,
+        apkUrl: null,
+        apkBuildStatus: 'building',
+        apkBuiltAt: timestamp,
+      };
+
+      fs.mkdirSync(publicDir, { recursive: true });
+      fs.writeFileSync(versionFile, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
+      console.log(`[version] Generated public/version.json  sha=${sha.slice(0, 8)}  branch=${branch}`);
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
 
   return {
-    plugins: [react()],
+    plugins: [react(), generateVersionManifest()],
     server: {
       port: 5000,
       host: true,
