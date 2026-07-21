@@ -989,6 +989,111 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     )}
                 </div>
 
+                {/* What's New */}
+                <section className="mb-16">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">What's New</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Latest updates and major feature releases</p>
+                        </div>
+                    </div>
+                    <div className="space-y-6">
+                        {/* July 2026 — Court Date Reminders + Paystack-Ready Billing */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">Court Date Reminders + Paystack-Ready Billing</h3>
+                                    <span className="text-xs text-slate-400">July 2026</span>
+                                </div>
+                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">New</span>
+                            </div>
+                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Court Date Reminders</strong> — automated WhatsApp reminders sent 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s). Set your matter's adjourned date, and PracticePro handles the rest. <span className="text-xs px-1.5 py-0.5 rounded bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-bold">Pro</span></span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Paystack-Ready Billing Architecture</strong> — the billing system now includes a payment provider abstraction layer. Online card payments via Paystack are built and code-reviewed, but dormant until activated. All current billing flows (manual bank transfer + mark-as-paid) remain unchanged.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Monthly WhatsApp Quota Reset</strong> — fixed a bug where monthly message limits (100/500) were effectively lifetime caps. Quotas now reset on the 1st of each month.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Trust Model Fix</strong> — clients can no longer auto-mark invoices as "Paid" from the portal. Only the firm (manual verification) or Paystack webhooks (when activated) can set an invoice to Paid.</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* July 2026 — Landing Page Redesign */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">Landing Page Redesign + SCE Calculator</h3>
+                                    <span className="text-xs text-slate-400">July 2026</span>
+                                </div>
+                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400">Update</span>
+                            </div>
+                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">New Brand System</strong> — warm Paper background, Space Grotesk display type, unified card token system, duotone brand-tinted hero imagery.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">SCE Calculator</strong> — property managers can model their portfolio (units + average rent) and see per-tenant SCE for each tier, with absorbability ratings (Easy / Moderate / Tight).</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Image Cycling</strong> — hero images auto-rotate through 3 photos per product with crossfade transitions.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Usage Policy</strong> — new comprehensive 15-section policy covering acceptable use, AI features, portal access, billing, and compliance.</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Earlier 2026 — Foundation */}
+                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6">
+                            <div className="flex items-start justify-between mb-3">
+                                <div>
+                                    <h3 className="font-bold text-slate-900 dark:text-white text-base mb-1">PracticePro Systems Limited + Product Foundation</h3>
+                                    <span className="text-xs text-slate-400">Earlier 2026</span>
+                                </div>
+                                <span className="px-2 py-1 text-2xs font-bold uppercase rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Foundation</span>
+                            </div>
+                            <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Parent Company</strong> — renamed to PracticePro Systems Limited (CAC registration pending).</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">Product-Aware Architecture</strong> — full Komplete (unified) product support across documents, contacts, compose, messages, calendar, and portal settings.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">DraftPro Editor</strong> — A4 pagination, Nigerian legal fonts, placeholder guardrails, print-to-PDF.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">ALOA AI Copilot</strong> — legal intelligence for matter research, case summaries, and precedent analysis.</span>
+                                </li>
+                                <li className="flex items-start gap-2">
+                                    <span className="text-primary-500 mt-0.5">•</span>
+                                    <span><strong className="text-slate-800 dark:text-slate-200">NDPA 2023 Compliance</strong> — Privacy Policy, Data Processing Agreement, Cookie Policy, and DPO appointment.</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
                 {/* White Papers */}
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
