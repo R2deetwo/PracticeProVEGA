@@ -804,3 +804,113 @@ ${data.recentAnomalies.map((a: any) => `- [${a.severity.toUpperCase()}] ${a.titl
 
 Generate the morning briefing now.`;
 }
+
+// ─── COURT DATE REMINDERS ────────────────────────────────────────────────────
+// Scans matters with nextAdjournedDate set. For each matter where the
+// hearing date is 7, 3, or 1 day(s) away, inserts a scheduled_messages
+// row with messageType "court_reminder". The existing processScheduledMessages
+// cron (every 5 min) will deliver it via WhatsApp/email.
+//
+// Duplicate prevention: before inserting, checks if a reminder for the
+// same matter + milestone (7/3/1) already exists in scheduled_messages.
+//
+// Recipients: the assigned lawyer(s) on the matter (from assignedUsers).
+// Client-facing reminders are OFF by default (court dates can be sensitive).
+
+export const sendCourtReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const ONE_DAY = 86400000;
+    const milestones = [
+      { days: 7, label: "7 days" },
+      { days: 3, label: "3 days" },
+      { days: 1, label: "1 day" },
+    ];
+    let created = 0;
+
+    // Fetch all firms
+    const firms = await ctx.db.query("firms").take(500);
+
+    for (const firm of firms) {
+      const firmId = firm._id as string;
+
+      // Query all matters for this firm that have a nextAdjournedDate
+      const matters = await ctx.db
+        .query("matters")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .filter((q) => q.neq(q.field("nextAdjournedDate"), undefined))
+        .filter((q) => q.neq(q.field("nextAdjournedDate"), ""))
+        .collect();
+
+      for (const matter of matters) {
+        if (!matter.nextAdjournedDate) continue;
+
+        const hearingDate = new Date(matter.nextAdjournedDate).getTime();
+        if (isNaN(hearingDate)) continue;
+
+        // Calculate days until hearing
+        const daysUntil = Math.floor((hearingDate - now) / ONE_DAY);
+
+        // Check each milestone
+        for (const milestone of milestones) {
+          if (daysUntil !== milestone.days) continue;
+
+          // Duplicate check: look for existing scheduled message with same matter + milestone
+          const existing = await ctx.db
+            .query("scheduled_messages")
+            .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+            .filter((q) => q.eq(q.field("messageType"), "court_reminder"))
+            .filter((q) => q.eq(q.field("status"), "scheduled"))
+            .collect();
+
+          // Check if any existing message references this matter + milestone
+          const dedupKey = `matter:${matter._id}:milestone:${milestone.days}`;
+          const alreadyScheduled = existing.some((msg) =>
+            msg.content.includes(dedupKey)
+          );
+
+          if (alreadyScheduled) continue;
+
+          // Build reminder content
+          const hearingDateStr = new Date(matter.nextAdjournedDate).toLocaleDateString("en-NG", {
+            weekday: "long", day: "numeric", month: "long", year: "numeric",
+          });
+
+          const courtInfo = matter.court ? ` at ${matter.court}` : "";
+          const courtRoomInfo = matter.courtRoom ? ` (${matter.courtRoom})` : "";
+
+          const content = `⚖️ COURT REMINDER: ${matter.title}\n\n` +
+            `Your next hearing is in ${milestone.label}${courtInfo}${courtRoomInfo}.\n` +
+            `Date: ${hearingDateStr}\n\n` +
+            `This is an automated reminder from PracticePro.\n` +
+            `<!--${dedupKey}-->`;
+
+          // Get assigned lawyers
+          const assignedUsers = (matter as any).assignedUsers || [];
+          if (assignedUsers.length === 0) continue;
+
+          // Insert into scheduled_messages — processScheduledMessages cron
+          // (every 5 min) will pick this up and send via WhatsApp
+          await ctx.db.insert("scheduled_messages", {
+            firmId,
+            messageType: "court_reminder",
+            channel: "whatsapp",
+            content,
+            scheduledFor: now, // deliver immediately
+            status: "scheduled",
+            isAutomation: true,
+            tenantIds: assignedUsers, // reuse field for lawyer userIds
+            skipConversation: true, // don't create portal conversation
+            createdAt: now,
+            updatedAt: now,
+          });
+          created++;
+        }
+      }
+    }
+
+    console.log(`[sendCourtReminders] Created ${created} court reminder(s).`);
+    return { created };
+  },
+});

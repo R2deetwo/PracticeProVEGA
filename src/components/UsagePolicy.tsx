@@ -160,7 +160,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>6.1 WhatsApp and SMS Notifications</h3>
                     <p>
-                        The Platform may send notifications via WhatsApp Business API and SMS gateways, including rent reminders, demand notices, court date alerts, and matter updates. Message volumes are subject to your subscription tier's limits. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before enabling notifications on their behalf.
+                        The Platform may send notifications via WhatsApp Business API and SMS gateways, including rent reminders, demand notices, <strong>court date reminders</strong>, and matter updates. <strong>Court date reminders</strong> are sent automatically 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s) on the matter. Client-facing court reminders are disabled by default — lawyers must explicitly opt in per matter if they want clients to receive hearing notifications. Message volumes are subject to your subscription tier's monthly limits (Core: 100, Growth: 500, Pro: unlimited). Monthly quotas reset on the 1st of each month. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before enabling notifications on their behalf.
                     </p>
 
                     <h3>6.2 Email Communications</h3>
@@ -182,7 +182,10 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>7.3 Payment Methods</h3>
                     <p>
-                        Payments are processed via bank transfer to PracticePro's designated Nigerian bank account. Invoice details, including account numbers and payment references, are displayed on each invoice. PracticePro does not currently support card payments or international payment methods.
+                        Subscription payments are processed via bank transfer to PracticePro's designated Nigerian bank account. Invoice details, including account numbers and payment references, are displayed on each invoice.
+                    </p>
+                    <p>
+                        <strong>Client invoice payments (Paystack readiness):</strong> The Platform includes a payment provider abstraction layer designed to support online card payments via Paystack. This feature is currently <strong>dormant</strong> — it will only be activated when PracticePro configures Paystack credentials and sets the <code>PAYSTACK_ENABLED</code> flag. Until then, all client invoice payments are processed manually (the firm verifies bank transfers and marks invoices as paid). When Paystack is activated, clients will see a "Pay Online" button on their invoices, and payment confirmations will be processed automatically via Paystack webhooks — no manual verification required. The firm retains the ability to mark invoices as paid manually at any time.
                     </p>
 
                     <h3>7.4 Tier Limits</h3>

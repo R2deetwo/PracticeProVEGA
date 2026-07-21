@@ -317,7 +317,13 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
+    // ── Paystack-ready billing fields (optional, additive) ──
+    // Existing invoices default to provider='manual' with no backfill needed.
+    // Paystack fields are only populated when a Paystack transaction is initiated.
+    provider: v.optional(v.string()),              // 'manual' | 'paystack' (defaults to 'manual')
+    providerReference: v.optional(v.string()),     // Paystack transaction reference
+    paymentMethod: v.optional(v.string()),         // 'card' | 'bank' | 'ussd' | 'bank_transfer' | 'manual'
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]),
 
   events: defineTable({
     firmId: nullableString,
@@ -1240,7 +1246,7 @@ export default defineSchema({
     firmId: v.string(),
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
-    tenantIds: v.optional(v.array(v.string())),  // multiple recipients
+    tenantIds: v.optional(v.array(v.string())),  // multiple recipients (can also be lawyer userIds for non-portal messages)
     messageType: v.string(),
     channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
     content: v.string(),
@@ -1251,6 +1257,7 @@ export default defineSchema({
     isAutomation: v.optional(v.boolean()),  // true if triggered by automation rule
     automationRuleId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),    // userId if manually triggered
+    skipConversation: v.optional(v.boolean()), // true = don't create portal conversation (for non-portal messages like court reminders)
     createdAt: v.number(),
     updatedAt: v.number(),
 })

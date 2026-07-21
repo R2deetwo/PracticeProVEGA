@@ -3456,6 +3456,26 @@ export const incrementWhatsAppQuota = mutation({
   }
 });
 
+// ─── MONTHLY WHATSAPP QUOTA RESET ────────────────────────────────────────────
+// Resets whatsappMessagesSent to 0 for all firms. Called by cron on the 1st
+// of each month. Fixes the bug where "per month" tier limits (100/500) were
+// effectively lifetime caps because the counter was never reset.
+export const resetWhatsAppQuotaMonthly = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const firms = await ctx.db.query("firms").collect();
+    let reset = 0;
+    for (const firm of firms) {
+      if ((firm as any).whatsappMessagesSent && (firm as any).whatsappMessagesSent > 0) {
+        await ctx.db.patch(firm._id, { whatsappMessagesSent: 0 } as any);
+        reset++;
+      }
+    }
+    console.log(`[resetWhatsAppQuotaMonthly] Reset WhatsApp quota for ${reset} firm(s).`);
+    return { reset };
+  },
+});
+
 
 /**
  * Add a single unit to a property's embedded units array.

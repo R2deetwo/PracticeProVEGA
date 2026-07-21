@@ -1094,6 +1094,22 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <label className={labelClass}>Originating Process</label>
                                 <input autoComplete="off" data-lpignore="true"  type="text" value={originatingProcess} onChange={e => setOriginatingProcess(e.target.value)} className={commonInputClass} placeholder="e.g. Originating Summons, Petition..." />
                             </div>
+                            <div className="space-y-1.5 md:col-span-2">
+                                <label className={labelClass}>Next Adjourned / Hearing Date</label>
+                                <div className="relative">
+                                    <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                    <input
+                                        autoComplete="off"
+                                        data-lpignore="true"
+                                        type="date"
+                                        value={nextAdjournedDate}
+                                        onChange={e => setNextAdjournedDate(e.target.value)}
+                                        className={`${commonInputClass} pl-11`}
+                                        placeholder="Select next hearing date"
+                                    />
+                                </div>
+                                <p className="text-xs text-slate-400">Used for court date reminders via WhatsApp/email (7, 3, and 1 day(s) before).</p>
+                            </div>
                         </div>
                     )}
                 </div>

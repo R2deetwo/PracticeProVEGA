@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { handleChakraWebhook } from "./sentryWebhook";
+import { handlePaystackWebhook } from "./paystack";
 
 const http = httpRouter();
 
@@ -9,6 +10,16 @@ http.route({
   path: "/chakra/webhook",
   method: "POST",
   handler: handleChakraWebhook,
+});
+
+// Paystack webhook — receives payment confirmation events.
+// DORMANT until PAYSTACK_ENABLED=true AND PAYSTACK_SECRET_KEY are set.
+// When active, this is the ONLY path that sets invoice status to 'Paid'
+// for Paystack transactions (not the client-side auto-flip).
+http.route({
+  path: "/paystack/webhook",
+  method: "POST",
+  handler: handlePaystackWebhook,
 });
 
 http.route({

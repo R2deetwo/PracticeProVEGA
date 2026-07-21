@@ -151,4 +151,26 @@ crons.interval(
   {}
 );
 
+// ─── COURT DATE REMINDERS ────────────────────────────────────────────────────
+// Daily at 6:00 UTC (7:00 AM WAT). Scans matters with nextAdjournedDate
+// set. For each hearing 7, 3, or 1 day(s) away, inserts a scheduled_messages
+// row. The processScheduledMessages cron (every 5 min) delivers it via WhatsApp.
+crons.daily(
+  "courtDateReminders",
+  { hourUTC: 6, minuteUTC: 0 },
+  internal.proactive.sendCourtReminders,
+  {}
+);
+
+// ─── MONTHLY WHATSAPP QUOTA RESET ────────────────────────────────────────────
+// 1st of each month at 0:15 UTC. Resets whatsappMessagesSent to 0 for all firms.
+// Fixes the bug where "per month" tier limits (100/500) were effectively lifetime
+// caps because the counter was never reset.
+crons.monthly(
+  "monthlyWhatsAppQuotaReset",
+  { day: 1, hourUTC: 0, minuteUTC: 15 },
+  internal.myFunctions.resetWhatsAppQuotaMonthly,
+  {}
+);
+
 export default crons;

@@ -2959,7 +2959,8 @@ export const processScheduledMessages = internalAction({
         }
 
         // ── Wire sent message into All Conversations ──
-        if (sendSuccess && msg.tenantIds && msg.tenantIds.length > 0) {
+        // Skip for non-portal messages (court reminders, etc.) where skipConversation is true
+        if (sendSuccess && msg.tenantIds && msg.tenantIds.length > 0 && !msg.skipConversation) {
           await ctx.runMutation(internal.portals.createConversationFromScheduled, {
             firmId: msg.firmId,
             tenantIds: msg.tenantIds,

@@ -307,7 +307,7 @@ export interface CalendarEvent {
     createdAt?: string;
 }
 export interface InvoiceLineItem { id: string; description: string; hours: number; rate: number; total: number; timeEntryId?: string; expenseId?: string; }
-export interface Invoice { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; }
+export interface Invoice { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; }
 export interface TimeEntry { id: string; firmId: string; matterId: string; user_id: string; date: string; duration: number; rate: number; description: string; billable: boolean; billedInInvoiceId?: string | null; }
 export interface Expense { id: string; firmId: string; matterId: string; date: string; amount: number; description: string; isBillable: boolean; billedInInvoiceId?: string | null; taxDeductibility?: { isDeductible: boolean; reason: string; }; }
 export interface NoteNotebook { id: string; firmId?: string; userId?: string; name: string; color: string; scope: NoteScope; isCore?: boolean; matterId?: string; }

@@ -31,10 +31,16 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
             description: 'Professional Legal Services',
             onConfirm: () => {
                 setProcessingId(id);
+                // TRUST MODEL FIX: Do NOT auto-flip invoice to Paid here.
+                // Previously, this called handlePayInvoice(id) after a 500ms timeout,
+                // which untrustedly marked the invoice as Paid from the client side.
+                // Now, the client only confirms the bank transfer was made — the firm
+                // must verify and mark as Paid manually (or via Paystack webhook when
+                // Paystack is activated). This prevents clients from self-marking
+                // invoices as paid without verification.
                 setTimeout(() => {
-                    handlePayInvoice(id);
                     setProcessingId(null);
-                    addToast("Payment confirmation recorded. The firm will verify your transfer.", { type: 'success' });
+                    addToast("Payment confirmation submitted. Your firm will verify the transfer and mark the invoice as paid.", { type: 'success' });
                 }, 500);
             }
         });
