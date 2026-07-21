@@ -17,6 +17,7 @@ import {
     DISPLAY_TIER_IDS,
     type ProductMode,
     type TierId,
+    type TierDef,
 } from '../constants/tiers';
 import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 
@@ -875,11 +876,205 @@ const TIER_CTAS: Record<TierId, string> = {
     Enterprise: 'Contact Sales',
 };
 
+// ─── SCE CALCULATOR MODAL (Atrium only) ─────────────────────────────────────
+// Lets property managers input their unit count and see:
+// - Per-tenant SCE for each tier
+// - Total annual cost
+// - Whether their residents can absorb the cost (based on a typical
+//   Lagos service charge benchmark of ₦2,000-5,000/unit/month)
+// Helps them decide if Atrium makes economic sense for their portfolio.
+
+const SceCalculatorModal: React.FC<{
+    tiers: Record<Exclude<TierId, 'Enterprise'>, TierDef>;
+    onClose: () => void;
+    onSignup: (productOverride?: ProductMode) => void;
+}> = ({ tiers, onClose, onSignup }) => {
+    const [unitCount, setUnitCount] = useState<string>('50');
+    const [avgRentPerUnit, setAvgRentPerUnit] = useState<string>('1500000');
+
+    const units = Math.max(1, parseInt(unitCount) || 0);
+    const avgRent = Math.max(0, parseInt(avgRentPerUnit) || 0);
+
+    // Calculate SCE per tenant per month for each tier
+    const calculations = (['Core', 'Growth', 'Pro'] as const).map(id => {
+        const tier = tiers[id];
+        const annualPrice = tier.annualPrice || 0;
+        const scePerTenantMonthly = units > 0 ? Math.round(annualPrice / 12 / units) : 0;
+        const totalAnnual = annualPrice;
+        // SCE as % of average annual rent (rent × 12)
+        const annualRent = avgRent * 12;
+        const sceAsPercentOfRent = annualRent > 0 ? (scePerTenantMonthly * 12 / annualRent) * 100 : 0;
+        // Absorbability: typical Lagos SC is ₦2,000-5,000/mo per unit
+        // If SCE < ₦2,000, residents barely notice it. If > ₦5,000, it's noticeable.
+        let absorbability: 'easy' | 'moderate' | 'tight' = 'easy';
+        if (scePerTenantMonthly > 5000) absorbability = 'tight';
+        else if (scePerTenantMonthly > 2000) absorbability = 'moderate';
+        return {
+            id,
+            tierName: tier.label,
+            tierMaxUnits: tier.maxUnits,
+            scePerTenantMonthly,
+            totalAnnual,
+            sceAsPercentOfRent,
+            absorbability,
+            exceedsCapacity: tier.maxUnits !== null && units > tier.maxUnits,
+        };
+    });
+
+    const fmtNaira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
+
+    return (
+        <div
+            className="fixed inset-0 z-[3000] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sce-calc-title"
+        >
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+                onClick={onClose}
+                aria-hidden="true"
+            />
+
+            {/* Modal */}
+            <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
+                {/* Brand accent bar */}
+                <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-2xl" />
+
+                {/* Header */}
+                <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100">
+                    <div>
+                        <h2 id="sce-calc-title" className="font-display text-lg font-bold text-slate-900">SCE Calculator</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">See how Atrium fits your portfolio</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                        aria-label="Close calculator"
+                    >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-5 space-y-5">
+                    {/* Explanation */}
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+                        <p className="text-xs text-emerald-900 leading-relaxed">
+                            <strong>Service Charge Equivalent (SCE)</strong> is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is <strong>not</strong> an additional fee charged by Atrium.
+                        </p>
+                    </div>
+
+                    {/* Inputs */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                        <label className="block">
+                            <span className="block text-sm font-semibold text-slate-700 mb-1.5">Units under management</span>
+                            <input
+                                type="number"
+                                min="1"
+                                value={unitCount}
+                                onChange={e => setUnitCount(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                placeholder="e.g. 50"
+                            />
+                            <span className="block text-xs text-slate-400 mt-1">Total units across all properties</span>
+                        </label>
+                        <label className="block">
+                            <span className="block text-sm font-semibold text-slate-700 mb-1.5">Avg. annual rent per unit (₦)</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="50000"
+                                value={avgRentPerUnit}
+                                onChange={e => setAvgRentPerUnit(e.target.value)}
+                                className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                                placeholder="e.g. 1,500,000"
+                            />
+                            <span className="block text-xs text-slate-400 mt-1">Used to calculate SCE as % of rent</span>
+                        </label>
+                    </div>
+
+                    {/* Results table */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-4 gap-2 px-4 py-2.5 bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
+                            <span>Tier</span>
+                            <span className="text-right">SCE / tenant / mo</span>
+                            <span className="text-right">% of rent</span>
+                            <span className="text-right">Absorbability</span>
+                        </div>
+                        {calculations.map(calc => (
+                            <div key={calc.id} className="grid grid-cols-4 gap-2 px-4 py-3 border-b border-slate-100 last:border-b-0 items-center">
+                                <div>
+                                    <p className="font-display font-bold text-slate-900 text-sm">{calc.tierName}</p>
+                                    {calc.exceedsCapacity && (
+                                        <p className="text-3xs text-amber-600 font-bold mt-0.5">Exceeds tier cap ({calc.tierMaxUnits} units)</p>
+                                    )}
+                                </div>
+                                <p className="text-right font-display nums-tabular font-bold text-slate-900 text-sm">
+                                    {fmtNaira(calc.scePerTenantMonthly)}
+                                </p>
+                                <p className="text-right nums-tabular text-slate-600 text-sm">
+                                    {avgRent > 0 ? `${calc.sceAsPercentOfRent.toFixed(2)}%` : '—'}
+                                </p>
+                                <div className="text-right">
+                                    <span
+                                        className={`inline-block px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wider ${
+                                            calc.absorbability === 'easy'
+                                                ? 'bg-emerald-100 text-emerald-700'
+                                                : calc.absorbability === 'moderate'
+                                                ? 'bg-amber-100 text-amber-700'
+                                                : 'bg-red-100 text-red-700'
+                                        }`}
+                                    >
+                                        {calc.absorbability}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Legend / guidance */}
+                    <div className="space-y-1.5 text-xs text-slate-500">
+                        <p className="font-semibold text-slate-700">How to read absorbability:</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5 align-middle"></span> <strong>Easy</strong> — SCE under ₦2,000/mo. Residents barely notice it on their service charge invoice.</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-amber-500 mr-1.5 align-middle"></span> <strong>Moderate</strong> — SCE ₦2,000-5,000/mo. Noticeable but reasonable vs typical Lagos SC.</p>
+                        <p><span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1.5 align-middle"></span> <strong>Tight</strong> — SCE over ₦5,000/mo. Consider a higher tier with more units to spread the cost.</p>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="flex-shrink-0 px-6 py-4 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p className="text-xs text-slate-500">
+                        {units} units · {fmtNaira(parseInt(avgRentPerUnit) || 0)}/unit/yr
+                    </p>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                            onClick={onClose}
+                            className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+                        >
+                            Close
+                        </button>
+                        <button
+                            onClick={() => { onClose(); onSignup('atrium'); }}
+                            className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm transition-all"
+                        >
+                            Get Started
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => void; onContactSales: (source: string) => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; setProductChosen: (v: boolean) => void }> = ({ onSignup, onContactSales, activeProduct, setActiveProduct, setProductChosen }) => {
     // FIX: Use activeProduct instead of useProduct() — same as FeaturesSection
     const isAtrium = activeProduct === 'atrium';
     const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
     const isVega = activeProduct === 'vega';
+    // SCE Calculator modal state (Atrium only)
+    const [showSceCalculator, setShowSceCalculator] = useState(false);
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
     const cycle = isVega ? billingCycle : 'annual';  // Atrium: always annual
@@ -944,9 +1139,18 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 )}
 
                 {!isVega && (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200">
-                        Billed Annually · SCE shown per unit
-                    </span>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200">
+                            Billed Annually · SCE shown per unit
+                        </span>
+                        <button
+                            onClick={() => setShowSceCalculator(true)}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 transition-colors shadow-sm"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            Calculate your SCE
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -975,29 +1179,15 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             <span className={`text-sm ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.per}</span>
                         </div>
 
-                        {/* Tenant Contribution Section (Atrium Only) */}
-                        {!isVega && (
-                            <div className={`mb-8 p-4 rounded-2xl border ${plan.highlighted ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
-                                <p className={`text-2xs font-black uppercase tracking-widest mb-1 ${plan.highlighted ? 'text-blue-400' : 'text-blue-600'}`}>
-                                    <span className="inline-flex items-center gap-1">
-                                        Service Charge Equiv.
-                                        <span className="group relative inline-flex items-center">
-                                            <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                            <span role="tooltip" className="pointer-events-none absolute left-1/2 bottom-full z-30 mb-2 w-60 -translate-x-1/2 scale-95 rounded-lg bg-slate-900 px-3 py-2 text-2xs font-normal normal-case tracking-normal leading-snug text-white opacity-0 shadow-xl transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
-                                                This is the annual subscription cost divided across your tenant base, shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost — it is not an additional fee charged by Atrium.
-                                            </span>
-                                        </span>
-                                    </span>
-                                </p>
-                                <div className="flex items-baseline gap-1">
-                                    <span className={`font-display nums-tabular text-lg font-bold ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.tenantContribution}</span>
-                                    <span className={`text-2xs ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>/tenant</span>
-                                </div>
-                                <p className={`text-3xs mt-1 leading-tight ${plan.highlighted ? 'text-slate-400' : 'text-slate-400'}`}>Cost benefit for the manager to pass on to the estate.</p>
-                            </div>
+                        {/* For Atrium: show SCE per tenant as a clean inline line (no tooltip, no box) */}
+                        {!isVega && plan.tenantContribution && (
+                            <p className={`text-xs mb-2 ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>
+                                <span className="font-semibold">~{plan.tenantContribution}</span> per tenant/mo (SCE)
+                            </p>
                         )}
 
-                        {isVega && <div className="mb-8" />}
+                        {/* Spacer to keep card heights consistent */}
+                        <div className="mb-8" />
 
                         {/* Features */}
                         <ul className="space-y-3.5 mb-8 flex-1">
@@ -1086,6 +1276,15 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 Start for free. Upgrade when you need to scale. Framework compliant with NDPA 2023.
             </p>
         </div>
+
+        {/* SCE Calculator Modal (Atrium only) */}
+        {showSceCalculator && (
+            <SceCalculatorModal
+                tiers={tiers}
+                onClose={() => setShowSceCalculator(false)}
+                onSignup={onSignup}
+            />
+        )}
     </section>
     );
 };
