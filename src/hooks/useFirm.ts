@@ -24,8 +24,13 @@ export const useFirm = (appState: AppState, actions: any) => {
      */
     const handleUpdateUser = useCallback(async (userId: string, data: any) => {
         await updateItemMutation({ table: 'users', id: userId, data });
-        updateCurrentUser(data);
-    }, [updateItemMutation, updateCurrentUser]);
+        // Only update the local current user state if we're updating OURSELVES.
+        // When an admin updates ANOTHER user (e.g. Grant Access), we must NOT
+        // overwrite our own currentUser with the other user's data.
+        if (currentUser?.id === userId || currentUser?._id === userId) {
+            updateCurrentUser(data);
+        }
+    }, [updateItemMutation, updateCurrentUser, currentUser]);
 
     /**
      * Update global firm details and settings.

@@ -222,7 +222,25 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
 
         if (!data.isVerified) return null;
-        if ((data as any).role === 'Pending') return null;
+
+        // Pending users: they joined a firm but haven't been approved yet.
+        // Instead of returning null (which makes them look logged out and
+        // bounces them to the landing page), return a user object with
+        // role='Pending' so the app can show a "Waiting for approval" screen.
+        if ((data as any).role === 'Pending') {
+            const pendingUser: User = {
+                id: (data as any)._id || (data as any).id || '',
+                firmId: data.firmId || null,
+                joinedFirmIds: data.joinedFirmIds || [],
+                name: data.name || '',
+                email: data.email || data.tokenIdentifier || '',
+                role: UserRole.Pending,
+                showProTips: false,
+                onboardingCompleted: true,
+                _id: (data as any)._id,
+            } as User;
+            return pendingUser;
+        }
 
         const rawRole = (data as any).role;
         const effectiveRole: string | undefined = (originalSessionToken && impersonationRoleOverride)

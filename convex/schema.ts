@@ -100,7 +100,7 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]),
+  }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]),
 
   // 3. Operational Data
   matters: defineTable({

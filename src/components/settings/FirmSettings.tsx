@@ -202,7 +202,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             onConfirm: async () => {
                 setIsRotating(true);
                 try {
-                    await regenerateInviteCode(firmDetails.id);
+                    await regenerateInviteCode(firmDetails._id || firmDetails.id || currentUser.firmId);
                     addToast("Invite Code Rotated!", { type: 'success' });
                 } catch (e) {
                     console.error(e);
@@ -345,7 +345,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             </SettingsCard>
 
             {permissions.canManageUsers && (
-                <SettingsCard title="Team Members" id="user-management">
+                <SettingsCard title="Team" id="user-management">
                     {/* Invitation Key Component */}
                     <div className="mb-8 p-6 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/10 shadow-lg relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-1/4 -translate-y-1/4 group-hover:scale-110 transition-transform">
@@ -376,7 +376,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                                     </div>
                                 </div>
                                 <div className="flex-shrink-0 text-sm text-slate-500 dark:text-slate-400 max-w-xs text-center sm:text-left">
-                                    Share this code with team members. They can join by selecting "Join Existing" during signup.
+                                    Share this code with your team. They can join by selecting "Join Existing" during signup.
                                 </div>
                             </div>
                         </div>

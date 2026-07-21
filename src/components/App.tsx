@@ -111,7 +111,7 @@ import { useHapticFeedback } from '../hooks/useHapticFeedback';
 const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes
 const IDLE_TIMEOUT_REMEMBER = 7 * 24 * 60 * 60 * 1000; // 7 days when Remember Me is on
 
-type FlowState = 'splash' | 'setup' | 'app';
+type FlowState = 'splash' | 'setup' | 'app' | 'pending_approval';
 
 // ViewWrapper now takes full height and acts as the mount point for major views
 const ViewWrapper: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
@@ -885,7 +885,12 @@ export const App: React.FC = () => {
                 // TASK: Reduced from 500ms to 100ms — the "Ready" delay was making the
                 // app feel sluggish. 100ms is enough for React to batch the state update.
                 const t = setTimeout(() => {
-                    if (!currentUser.firmId) {
+                    if (currentUser.role === UserRole.Pending) {
+                        // Pending user — joined a firm but waiting for admin approval.
+                        // Show the "Waiting for approval" screen instead of the app
+                        // or the landing page.
+                        setFlowState('pending_approval');
+                    } else if (!currentUser.firmId) {
                         setFlowState('setup');
                     } else {
                         setFlowState('app');
@@ -1155,6 +1160,35 @@ export const App: React.FC = () => {
                 location.pathname === '/atrium' ? 'atrium' :
                 location.pathname === '/komplet' ? 'vega' : undefined; // komplet maps to vega for landing purposes
             return <LandingPage initialProduct={urlProduct} />;
+        }
+
+        // Pending approval screen — user joined a firm but admin hasn't approved yet.
+        // Show a waiting screen instead of bouncing them to the landing page.
+        if (currentUser && currentUser.role === UserRole.Pending && flowState === 'pending_approval') {
+            return (
+                <div className="h-[100dvh] w-full flex items-center justify-center bg-slate-50 px-6">
+                    <div className="max-w-md w-full text-center">
+                        <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-amber-100 flex items-center justify-center">
+                            <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </div>
+                        <h1 className="text-2xl font-bold text-slate-900 mb-3">Awaiting Approval</h1>
+                        <p className="text-slate-600 mb-6 leading-relaxed">
+                            Your request to join the workspace has been sent. The firm administrator will review your request and grant access shortly.
+                        </p>
+                        <p className="text-sm text-slate-400 mb-6">
+                            You'll be automatically redirected once access is granted. No need to do anything else — just keep the app open.
+                        </p>
+                        <button
+                            onClick={() => { logout(); }}
+                            className="text-sm text-slate-500 hover:text-slate-700 underline"
+                        >
+                            Sign out and return to landing page
+                        </button>
+                    </div>
+                </div>
+            );
         }
 
         // New User Flow: Go straight to setup if no firm exists

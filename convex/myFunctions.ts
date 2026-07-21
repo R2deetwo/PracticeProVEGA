@@ -1836,7 +1836,7 @@ export const joinFirm = mutation({
       await ctx.db.insert("notifications", {
         firmId: firm._id,
         userId: admin._id,
-        message: `New user ${args.userName || args.userEmail || "joined"} requested to join the workspace. Please review in Settings > Users.`,
+        message: `New user ${args.userName || args.userEmail || "joined"} requested to join the workspace. Please review in Settings > Firm > Team.`,
         link: { view: "settings", id: null, context: { settingsTargetId: "user-management" } },
         timestamp: new Date().toISOString(),
         isRead: false
@@ -2236,6 +2236,7 @@ const INDEXED_CUSTOM_ID_TABLES = [
   "researchNotebooks",
   "researchSources",
   "researchMessages",
+  "users",
 ];
 
 /** Recursively strip undefined values from nested objects/arrays so Convex serialization never throws. */
