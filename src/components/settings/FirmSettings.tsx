@@ -133,17 +133,26 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             if (u && u.id) uniqueUsersMap.set(u.id, u);
         });
         const uniqueUsers = Array.from(uniqueUsersMap.values());
-        // Filter OUT portal users (clients, tenants, external counsel, pending)
+        // Filter OUT portal users (clients, tenants, external counsel)
         // from the team management table. Portal users are managed separately
-        // in the Portal Access settings tab. Previously all users were mixed
-        // in one table, causing confusion between app users and portal users.
+        // in the Portal Access settings tab.
+        // NOTE: Pending users ARE included here so admins can see and accept/reject
+        // join requests. Previously Pending was filtered out, making join requests
+        // invisible to admins — they'd get the notification but couldn't see the
+        // user in the list to accept them.
         const teamUsers = uniqueUsers.filter(u =>
             u.role !== UserRole.Client &&
             u.role !== UserRole.Tenant &&
-            u.role !== UserRole.ExternalCounsel &&
-            u.role !== UserRole.Pending
+            u.role !== UserRole.ExternalCounsel
         );
-        const sortedUsers = teamUsers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // Sort: Pending users first (so admins see join requests immediately),
+        // then alphabetical by name
+        const sortedUsers = teamUsers.sort((a, b) => {
+            const aPending = a.role === UserRole.Pending ? 0 : 1;
+            const bPending = b.role === UserRole.Pending ? 0 : 1;
+            if (aPending !== bPending) return aPending - bPending;
+            return (a.name || '').localeCompare(b.name || '');
+        });
 
         if (!userSearchTerm.trim()) {
             return sortedUsers;
