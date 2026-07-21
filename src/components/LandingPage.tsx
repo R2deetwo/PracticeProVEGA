@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Logo, CheckIcon, ZapIcon,
     ScalesIcon, ShieldCheckIcon, DocumentIcon, MattersIcon, SparklesIcon,
@@ -564,7 +565,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
                             {isVega
                                 ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
-                                : 'Revenue monitoring, rent collection, and defaulter management — purpose-built for Nigerian property portfolios and estate operations.'}
+                                : 'Facilities management, service charge collection, and a residents\' portal — purpose-built for Nigerian property managers.'}
                         </p>
 
                         {/* CTAs */}
@@ -913,7 +914,11 @@ const SceCalculatorModal: React.FC<{
 
     const fmtNaira = (n: number) => `₦${n.toLocaleString('en-NG')}`;
 
-    return (
+    // Use createPortal to render at document.body level — escapes any
+    // transformed parent (like <main className="animate-swap-in"> which
+    // applies a CSS transform that creates a containing block, trapping
+    // position:fixed elements and causing the "empty glass slate" bug).
+    return createPortal(
         <div
             className="fixed inset-0 z-[3000] flex items-center justify-center p-4"
             role="dialog"
@@ -1054,7 +1059,8 @@ const SceCalculatorModal: React.FC<{
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
@@ -1065,6 +1071,10 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
     const isVega = activeProduct === 'vega';
     // SCE Calculator modal state (Atrium only)
     const [showSceCalculator, setShowSceCalculator] = useState(false);
+    // Hover behavior: Calculate button hidden until user hovers a plan,
+    // then slides in when hovering the pill area
+    const [hasHoveredPlan, setHasHoveredPlan] = useState(false);
+    const [isHoveringArea, setIsHoveringArea] = useState(false);
     const productMode: ProductMode = isVega ? 'legal' : 'property';
     const tiers = getDisplayTiersForProduct(productMode);
     const cycle = isVega ? billingCycle : 'annual';  // Atrium: always annual
@@ -1129,23 +1139,50 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 )}
 
                 {!isVega && (
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
-                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200">
+                    <div
+                        className="flex justify-center items-center mt-2 relative"
+                        onMouseEnter={() => setIsHoveringArea(true)}
+                        onMouseLeave={() => setIsHoveringArea(false)}
+                    >
+                        {/* SCE explanation tooltip — shows when hovering the area */}
+                        <div
+                            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-80 max-w-[90vw] rounded-xl bg-slate-900 px-4 py-3 text-xs leading-relaxed text-white shadow-2xl transition-all duration-300 pointer-events-none ${
+                                isHoveringArea ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+                            }`}
+                        >
+                            <strong className="block mb-1">What is SCE?</strong>
+                            Service Charge Equivalent is your annual Atrium subscription divided across your tenant base — shown as a per-tenant monthly amount. You can itemize this on service charge invoices to offset the cost. It is not an additional fee charged by Atrium.
+                            {/* Arrow */}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-slate-900" />
+                        </div>
+
+                        {/* Pill — always centered */}
+                        <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap">
                             Billed Annually · SCE shown per unit
                         </span>
+
+                        {/* Calculate button — slides in gracefully after user has hovered a plan */}
                         <button
                             onClick={() => setShowSceCalculator(true)}
-                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 transition-colors shadow-sm"
+                            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-600 text-white text-sm font-bold border border-emerald-700 hover:bg-emerald-700 transition-all duration-500 ease-out whitespace-nowrap overflow-hidden ${
+                                hasHoveredPlan && isHoveringArea
+                                    ? 'opacity-100 max-w-[200px] ml-3'
+                                    : 'opacity-0 max-w-0 ml-0'
+                            }`}
                         >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                            Calculate your SCE
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                            <span>Calculate your SCE</span>
                         </button>
                     </div>
                 )}
             </div>
 
             {/* Grid */}
-            <div ref={gridRef} className="scroll-reveal scroll-reveal-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto">
+            <div
+                ref={gridRef}
+                className="scroll-reveal scroll-reveal-stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8 items-stretch pb-12 max-w-5xl mx-auto"
+                onMouseEnter={() => setHasHoveredPlan(true)}
+            >
                 {dynamicPlans.map((plan) => (
                     <div
                         key={plan.id}
