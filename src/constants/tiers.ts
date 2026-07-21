@@ -178,6 +178,7 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
         'ALOA™ AI copilot (Uncapped Priority)',
         'Automated Retainer Billing & Client Auto-Invoicing',
         'Billing Monitor — pending queue, lawyer override controls',
+        'Court Date Reminders — automated WhatsApp alerts 7/3/1 days before hearings',
       ],
     }),
     maxUsers: null,
