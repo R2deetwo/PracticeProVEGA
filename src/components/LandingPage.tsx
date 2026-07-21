@@ -1201,7 +1201,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
                         {/* Pill — always centered */}
                         <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap">
-                            Billed Annually · SCE shown per unit
+                            Billed Annually · SCE shown per unit<span className="text-blue-500 font-bold">*</span>
                         </span>
 
                         {/* Calculate button — slides in gracefully after user has hovered a plan */}
