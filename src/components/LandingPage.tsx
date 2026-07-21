@@ -558,7 +558,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                             for{' '}
                             <span className="relative">
                                 <span className="text-transparent bg-clip-text" style={{ backgroundImage: `linear-gradient(to right, ${accentColorValue}, var(--color-moss))` }}>
-                                    {isVega ? 'Nigerian Law Firms' : 'Modern Portfolios'}
+                                    {isVega ? 'Nigerian Law Firms' : 'Property Managers'}
                                 </span>
                             </span>
                         </h1>
@@ -567,7 +567,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
                             {isVega
                                 ? 'Enterprise-grade case management, AI-assisted drafting, and automated billing — built from the ground up for Nigerian legal practice.'
-                                : 'Facilities management, service charge collection, and a residents\' portal — purpose-built for Nigerian property managers.'}
+                                : 'Purpose-built for Nigerian property portfolios — facilities management, service charge collection, and a residents\' portal.'}
                         </p>
 
                         {/* CTAs */}
