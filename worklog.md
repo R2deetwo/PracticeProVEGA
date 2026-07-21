@@ -4783,3 +4783,49 @@ VERIFIED ON PRODUCTION:
 - version.json: sha=f54ce18, status=healthy
 - Production JS contains: createPortal, 'Facilities management', 'What is SCE'
 - Build passes (19.39s)
+
+---
+Task ID: portrait-optimization-usage-policy-image
+Agent: main
+Task: Portrait/mobile optimization, comprehensive Usage Policy, younger couple image
+
+1. PORTRAIT/MOBILE OPTIMIZATION (comprehensive audit + fixes):
+   Audited LandingPage, Modal, App.tsx via sub-agent. Fixed all high-impact issues:
+   - NavBar: mobile padding, button touch target (was 22px, now 44px)
+   - TrustBadgesStrip: mobile padding, tighter gaps, smaller text
+   - StatsDemarcator: less vertical space, smaller headline on mobile
+   - HubHero: less padding, text-5xl → text-4xl on mobile
+   - HomeSection: less padding, smaller gap, pagination dots wrapped in 44px touch targets
+   - FeaturesSection: less padding, smaller headline
+   - PricingSection: less padding, smaller headline, billing toggle 28px → 36px, card padding/radius responsive
+   - SceCalculatorModal: bottom-sheet on mobile, responsive padding, stacked card results on mobile
+   - Root: scrollbarGutter only on desktop (was wasting 15px on mobile)
+   - App.tsx: pb-14 → pb-[calc(3.5rem+env(safe-area-inset-bottom))] (iPhone home indicator fix)
+
+2. COMPREHENSIVE USAGE POLICY (new document):
+   Created src/components/UsagePolicy.tsx — 15-section policy covering:
+   - Acceptable Use (permitted + prohibited, Nigerian laws: EFCC, Corrupt Practices, Legal Practitioners)
+   - Account Responsibilities (security, MFA)
+   - Content and Data (ownership, standards, retention, NDPA data subject rights)
+   - AI-Powered Features (ALOA restrictions, output disclaimer)
+   - Portal Access (Client + Residents' Portal)
+   - Communication (WhatsApp/SMS, email)
+   - Payment and Billing (fees, SCE, payment methods, tier limits)
+   - Intellectual Property (ownership, trademarks, feedback)
+   - Service Availability (uptime, support)
+   - Termination and Suspension
+   - Disclaimers and Limitations (no legal advice, liability cap)
+   - Compliance (NDPA 2023, law enforcement, reporting)
+   - Modifications, Governing Law (Nigeria, Lagos), Contact Info
+   Wired into footer between Cookie Policy and Contact Sales.
+
+3. COUPLE IMAGE — YOUNGER, MORE DIGNIFIED:
+   Regenerated atrium-hero-3.jpg: couple now late 30s (man in white linen,
+   wife in olive-green blouse). Dignified, content, confident. Still
+   facing window with city view (no TV).
+
+VERIFIED ON PRODUCTION:
+- version.json: sha=5a2ebf0, status=healthy
+- Production JS contains: UsagePolicy, 'Usage Policy', 'Facilities management',
+  safe-area-inset — all new code confirmed live
+- Build passes (19.49s)
