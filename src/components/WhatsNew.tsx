@@ -117,6 +117,15 @@ const IconPen: React.FC = () => (
     </IconPill>
 );
 
+// Chat / Messages
+const IconChat: React.FC = () => (
+    <IconPill color="16, 163, 74">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(74,222,128)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+    </IconPill>
+);
+
 // Icon map — use these in CHANGELOG entries by name
 export const FEATURE_ICONS: Record<string, React.FC> = {
     brain: IconBrain,
@@ -128,6 +137,7 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
     theme: IconTheme,
     portal: IconPortal,
     pen: IconPen,
+    chat: IconChat,
 };
 
 // ─── CHANGELOG DATA ──────────────────────────────────────────────────────────
@@ -144,6 +154,23 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // - Each feature bullet should be 1-2 sentences max
 // - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        id: 'v1.18.0',
+        version: '1.18.0',
+        date: '2026-07-22',
+        title: 'Enterprise Onboarding, Court Date Reminders & Reliable Team Chat',
+        description: 'A major release focused on enterprise readiness and reliability. Multi-tenant onboarding now lets law firms and property managers invite their whole team with role-based access. Pro-tier firms get automated court date reminders via WhatsApp. We also rebuilt the team-chat notification engine from the ground up — messages and notifications are now written together on the server, so a bell badge is guaranteed for every new message.',
+        features: [
+            { icon: 'shield', label: 'Multi-Tenant Enterprise Onboarding', text: 'Firms can now invite multiple team members (Admins, Lawyers, Paralegals, Managers) with role-based permissions. Pending invites show in a dedicated queue until an admin grants access. Team messages are scoped per-firm — no cross-tenant data leakage.' },
+            { icon: 'calendar', label: 'Court Date Reminders (Pro)', text: 'Vega Pro firms get automatic WhatsApp reminders 7, 3, and 1 days before every court date. Built with a duplicate-prevention guard so rescheduled matters never spam you. Visible on the matter card and in the calendar module.' },
+            { icon: 'chat', label: 'Reliable Team Chat Notifications', text: 'We replaced the old two-step save-message-then-save-notification client flow with a single server-side mutation. If the message lands, the recipient\'s bell badge is guaranteed. This also fixes the bug where replies inside an existing conversation never triggered a notification.' },
+            { icon: 'bolt', label: 'Premium Retainer Automation', text: 'Vega Growth+ firms can configure retainer billing frequency (Weekly, Monthly, Quarterly, Bi-Annually, Annually) per matter. The system auto-stages draft invoices, which surface in the new Billing Monitor — approve and send, pause to edit, skip a cycle, or retry failed sends.' },
+            { icon: 'shield', label: 'Paystack-Ready Billing Engine', text: 'A new provider abstraction layer powers the billing system. Manual provider is live by default; Paystack is wired and dormant, ready to flip on. Webhooks are routed through a single trusted endpoint with idempotency keys to prevent double-charges.' },
+            { icon: 'portal', label: 'APK Update Notifications', text: 'Android users now see a banner when a new APK is available, with a one-tap install. A version manifest exposes build SHA and health status so the app never prompts you to refresh into a known-broken build.' },
+            { icon: 'theme', label: 'Layout-Aware Onboarding Tour', text: 'The in-app tour now adapts to mobile and desktop independently. Mobile users get a bottom-sheet anchored above the nav bar with thumb-friendly tap targets; desktop users get a side-anchored tooltip with an arrow. Viewport changes mid-tour are handled gracefully.' },
+            { icon: 'document', label: 'Comprehensive Usage Policy', text: 'A new 15-section Usage Policy covers acceptable use, account security, AI features, portal access, communication, payments, IP, compliance (NDPA 2023), and Nigerian governing law. Linked from the footer alongside the existing Terms and Privacy Policy.' },
+        ],
+    },
     {
         id: 'v1.17.0',
         version: '1.17.0',

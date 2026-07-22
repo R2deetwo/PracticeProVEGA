@@ -165,6 +165,9 @@ export function useVersionCheck(): VersionCheckState {
     //   - practicepro_content_protection (user setting)
     //   - practicepro_tour_completed (onboarding state)
     //   - practicepro_dismissed_tips (user's dismissed tips)
+    //   - practicepro_last_seen_version (What's New dismissal — without this,
+    //     refresh wipes the localStorage key and the user sees the same
+    //     What's New floater again immediately after dismissing it)
     //   - draft_* (form drafts — never clear, user data)
     //   - local_cached_files (offline file cache, user data)
     //   - pp_migration_email (migration flow state)
@@ -187,6 +190,7 @@ export function useVersionCheck(): VersionCheckState {
       /^practicepro_content_protection$/,
       /^practicepro_tour_completed$/,
       /^practicepro_dismissed_tips$/,
+      /^practicepro_last_seen_version$/, // What's New dismissal — without this, refresh wipes the localStorage key and the same What's New floater re-appears after the user already dismissed it
       /^practicepro_push_registered_this_session$/,
       /^practicepro_last_briefing_date$/,
       /^practicepro_aloa_model$/,

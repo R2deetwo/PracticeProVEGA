@@ -4829,3 +4829,124 @@ VERIFIED ON PRODUCTION:
 - Production JS contains: UsagePolicy, 'Usage Policy', 'Facilities management',
   safe-area-inset — all new code confirmed live
 - Build passes (19.49s)
+
+---
+Task ID: notification-fix-and-whatsnew-update
+Agent: main
+Task: Fix team chat notifications (stopped working), add v1.18.0 What's New entry, fix What's New re-showing after refresh dismissal
+
+DIAGNOSIS — WHY NOTIFICATIONS STOPPED WORKING:
+The "is this a webhook?" question was the key clue. NO — team chat
+notifications are NOT triggered by a webhook. They are created
+client-side by the SAME React code that creates the chat message.
+
+Root cause: TWO separate code paths created chat messages, and only
+ONE of them created notifications:
+
+1. TeamMessageModal.tsx (New Team Message modal): created the message
+   via `addItem('chatMessages')`, THEN created a notification via a
+   SEPARATE `addItem('notifications')` call. This worked — BUT if the
+   second call failed (network blip, client crashed, user navigated
+   away), the message landed without a notification.
+
+2. MessagesView.tsx sendTeamReply (inline reply in existing
+   conversation): created the message via `addItem('chatMessages')`
+   and NEVER created a notification at all. This was the silent
+   failure — recipients saw the message appear (because chatMessages
+   is loaded via useQuery), but never got a bell badge or toast.
+
+So "the notifications that was working not too long ago stopped
+working" likely happened because the user was replying IN an existing
+conversation (path 2) rather than starting a new one (path 1).
+
+Also: useMessaging.ts (used by CommsView, ShareDocumentModal,
+NewDirectMessageForm) had the dual-call pattern with the same race
+condition risk as path 1.
+
+FIX — SERVER-SIDE ATOMIC MUTATION:
+Created `convex/myFunctions.ts:sendChatMessage` — a single Convex
+mutation that atomically:
+  1. Resolves (or creates) the conversation
+  2. Inserts the chatMessage
+  3. Inserts a notification for every OTHER member of the conversation
+     (sender excluded)
+
+All in one Convex transaction. Either all three succeed, or none do.
+The recipient is now GUARANTEED to get a notification if the message
+lands.
+
+Updated three call sites to use the new mutation:
+  - src/components/MessagesView.tsx sendTeamReply
+  - src/components/modals/TeamMessageModal.tsx handleSend
+  - src/hooks/useMessaging.ts handleSendMessage (used by CommsView,
+    ShareDocumentModal, NewDirectMessageForm)
+
+The createItem-based notification creation path has been REMOVED from
+all three. There is now ONE path: api.myFunctions.sendChatMessage.
+
+ANSWER TO "IS THIS DONE BY WEBHOOK?":
+No. Webhooks are for cross-system events (e.g. Paystack → PracticePro
+when a payment succeeds). Team chat notifications are an IN-SYSTEM
+event — the sender's client calls a Convex mutation directly, and
+that mutation writes both the message and the notifications in one
+transaction. No webhook involved.
+
+WHAT'S NEW — v1.18.0 CHANGELOG ENTRY:
+Added v1.18.0 entry at the top of CHANGELOG in WhatsNew.tsx covering
+8 recent features:
+  - Multi-Tenant Enterprise Onboarding
+  - Court Date Reminders (Pro)
+  - Reliable Team Chat Notifications (this fix)
+  - Premium Retainer Automation
+  - Paystack-Ready Billing Engine
+  - APK Update Notifications
+  - Layout-Aware Onboarding Tour
+  - Comprehensive Usage Policy
+
+Also added a new `chat` icon (green speech bubble) to FEATURE_ICONS
+since the new entry references it and the old v1.15.0 entry was
+silently missing it too.
+
+WHAT'S NEW PERSISTENCE — NO RE-SHOW AFTER REFRESH:
+Root cause: useVersionCheck.refresh() aggressively clears localStorage
+on every refresh — it wipes everything EXCEPT a hardcoded whitelist
+(AUTH_PATTERNS). `practicepro_last_seen_version` was NOT in the
+whitelist, so every refresh wiped the dismissal state. On next page
+load, getUnseenUpdate() saw no lastSeen value and re-showed the
+floater for the same version the user had already dismissed.
+
+Fix: Added `/^practicepro_last_seen_version$/` to the AUTH_PATTERNS
+whitelist in src/hooks/useVersionCheck.ts. Now refresh preserves the
+dismissal — a user who has seen and dismissed v1.18.0 will NOT see
+the floater again on refresh.
+
+VERIFICATION:
+- npx tsc --noEmit (convex) → clean
+- npx tsc --noEmit (frontend) → only pre-existing errors (zero new
+  errors introduced by this change)
+- npx vite build → succeeds in 19.26s
+- Production bundle grep confirms:
+  - sendChatMessage in index-C9sml71B.js ✓
+  - "v1.18.0", "Enterprise Onboarding", "Court Date Reminders",
+    "Reliable Team Chat" in module-settings-*.js ✓
+  - "practicepro_last_seen_version" in index-*.js ✓
+
+CRITICAL DEPLOYMENT NOTE:
+The new `sendChatMessage` mutation in convex/myFunctions.ts is NOT
+yet pushed to the Convex backend. The user MUST run `npx convex dev`
+(or `npx convex deploy`) BEFORE the Vercel deploy goes live —
+otherwise frontend calls to api.myFunctions.sendChatMessage will
+fail with "function not found" and team chat will be broken.
+
+Recommended deploy sequence:
+  1. npx convex dev  (push new mutation to Convex backend)
+  2. git commit + push to main  (triggers Vercel deploy)
+  3. Verify on production: send a team message, check recipient
+     sees bell badge + toast
+
+Stage Summary:
+- Team chat notifications now GUARANTEED via server-side atomic mutation
+- All three message-sending paths unified through single mutation
+- v1.18.0 changelog entry covers 8 recent major features
+- What's New floater will no longer re-appear after refresh dismissal
+- Convex backend must be deployed before Vercel frontend goes live

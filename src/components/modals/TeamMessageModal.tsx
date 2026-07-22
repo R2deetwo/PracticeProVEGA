@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
-import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { XIcon, SendIcon } from '../../constants';
 
@@ -11,8 +12,14 @@ import { XIcon, SendIcon } from '../../constants';
  * to team members. Clear and separate from the ComposeModal (which handles
  * external channels like WhatsApp/Email/Portal).
  *
- * Creates a chatConversations direct message + chatMessages entry.
- * Sends a notification to the recipient.
+ * Uses the server-side `sendChatMessage` mutation which atomically creates
+ * the chat message AND notifications for the recipient in a single Convex
+ * transaction. This is the reliable path — if the message is saved, the
+ * notification is guaranteed to be saved too.
+ *
+ * Note: This is NOT a webhook. Webhooks are for cross-system events
+ * (e.g. Paystack → PracticePro). Internal chat notifications are a
+ * server-side mutation called directly by the sender's client.
  */
 interface TeamMessageModalProps {
     onClose: () => void;
@@ -21,11 +28,13 @@ interface TeamMessageModalProps {
 const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
     const { currentUser } = useAuth();
     const { coreState } = useCoreState();
-    const actions = useDataActions();
     const { addToast } = useUI();
     const [recipientId, setRecipientId] = useState('');
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
+
+    // Server-side mutation: atomically creates chat message + notification.
+    const sendChatMessage = useMutation(api.myFunctions.sendChatMessage);
 
     // Get team members (exclude self, clients, tenants, external counsel)
     const teamMembers = (coreState.users || []).filter(
@@ -54,62 +63,48 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
         try {
             const now = new Date().toISOString();
 
-            // Check if a direct conversation already exists between these two users
-            // Check both id and _id formats since different parts of the app use different ones
-            const myId = currentUser?.id || currentUser?._id || '';
+            // Resolve the recipient user (to get their _id for the conversation membership)
+            const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
+            const recipientIdForStorage = recipientUser?._id || recipientUser?.id || recipientId;
+            const myIdForStorage = currentUser?._id || currentUser?.id || '';
+
+            // Check if a direct conversation already exists between these two users.
+            // We check both id and _id formats since different parts of the app use different ones.
             const existingConv = (coreState.chatConversations || []).find((c: any) =>
                 c.type === 'direct' &&
                 c.memberIds &&
-                (c.memberIds.includes(myId) || c.memberIds.includes(currentUser?._id || '')) &&
-                (c.memberIds.includes(recipientId) || c.memberIds.includes((coreState.users || []).find((u: any) => u.id === recipientId)?._id || ''))
+                (c.memberIds.includes(myIdForStorage) || c.memberIds.includes(currentUser?._id || '')) &&
+                (c.memberIds.includes(recipientIdForStorage) || c.memberIds.includes(recipientUser?._id || ''))
             );
 
-            let cid: string;
+            let conversationId: string;
+            let createConversationIfMissing = false;
+            let conversationMembers: string[] | undefined;
+
             if (existingConv) {
-                // Reuse existing conversation
-                cid = existingConv.id || existingConv._id;
+                // Reuse existing conversation — server will look it up by id.
+                conversationId = existingConv.id || existingConv._id;
             } else {
-                // Create new conversation
-                cid = uuidv4();
-                const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
-                const recipientIdForStorage = recipientUser?._id || recipientUser?.id || recipientId;
-                const myIdForStorage = currentUser?._id || currentUser?.id || '';
-                await actions.addItem('chatConversations', {
-                    id: cid,
-                    type: 'direct',
-                    memberIds: [myIdForStorage, recipientIdForStorage],
-                    name: 'Direct Message',
-                    matterId: null,
-                    createdAt: now,
-                    hiddenForUserIds: [],
-                    firmId: currentUser.firmId,
-                }, 'Conversation');
+                // Tell the server to create a new conversation inline.
+                conversationId = uuidv4();
+                createConversationIfMissing = true;
+                conversationMembers = [myIdForStorage, recipientIdForStorage];
             }
 
-            // Save the message
-            await actions.addItem('chatMessages', {
-                conversationId: cid,
+            // Single server-side call — atomically creates the message + notification(s).
+            // If this succeeds, the recipient is GUARANTEED to get a notification.
+            await sendChatMessage({
+                conversationId,
                 content: message.trim(),
-                authorId: currentUser?._id || currentUser?.id || '',
-                timestamp: now,
-                firmId: currentUser.firmId,
-                isDeleted: false,
-                status: 'sent',
-            }, 'Chat Message');
+                authorId: myIdForStorage || undefined,
+                authorName: currentUser?.name || undefined,
+                userEmail: currentUser?.email,
+                createConversationIfMissing,
+                conversationMembers,
+                conversationName: 'Direct Message',
+            });
 
-            // Send notification to recipient
-            const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
-            await actions.addItem('notifications', {
-                userId: recipientUser?._id || recipientUser?.id || recipientId,
-                title: 'New Message',
-                message: `${currentUser?.name || 'A colleague'} sent you a message.`,
-                type: 'message',
-                isRead: false,
-                createdAt: now,
-                link: { view: 'messaging', id: cid, context: { activeConversationId: cid } },
-                firmId: currentUser.firmId,
-            }, 'Notification');
-
+            void now; // (kept for potential future use — e.g. local optimistic timestamp)
             addToast('Message sent!', { type: 'success' });
             onClose();
         } catch (e: any) {

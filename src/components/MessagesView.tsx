@@ -750,6 +750,15 @@ const MessagesView: React.FC = () => {
     const markPortalRead = useMutation(api.portals.markPortalMessageRead);
     const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
 
+    // ── Team Chat: server-side message + notification mutation ──
+    // This atomically creates the chat message AND notifications for all
+    // other conversation members. Replaces the old client-side dual-call
+    // pattern (addItem('chatMessages') + addItem('notifications')) which
+    // silently dropped notifications if the second call failed or was
+    // missing entirely (the root cause of the "notifications stopped
+    // working" bug).
+    const sendChatMessageMutation = useMutation(api.myFunctions.sendChatMessage);
+
     // ── Ticketing: status update mutations ──
     const updateTicketStatus = useMutation(api.portals.updateMaintenanceTicketStatus);
     const updateRequestStatus = useMutation(api.portals.updateClientServiceRequestStatus);
@@ -2194,15 +2203,19 @@ const MessagesView: React.FC = () => {
                                     const text = teamReplyText.trim();
                                     setTeamReplyText('');
                                     try {
-                                        await actionsAddItem('chatMessages', {
+                                        // Server-side mutation: atomically creates the
+                                        // chat message AND notifications for all other
+                                        // conversation members. Replaces the old client-side
+                                        // addItem('chatMessages') call that forgot to create
+                                        // notifications — fixing the "notifications stopped
+                                        // working" bug where recipients never got a bell badge.
+                                        await sendChatMessageMutation({
                                             conversationId: selectedId,
                                             content: text,
-                                            authorId: currentUser?._id || currentUser?.id || '',
-                                            timestamp: new Date().toISOString(),
-                                            firmId: currentUser?.firmId,
-                                            isDeleted: false,
-                                            status: 'sent',
-                                        }, 'Chat Message');
+                                            authorId: currentUser?._id || currentUser?.id || undefined,
+                                            authorName: currentUser?.name || undefined,
+                                            userEmail: currentUser?.email,
+                                        });
                                     } catch (err) { console.error('[Team chat] Reply failed:', err); }
                                 };
 

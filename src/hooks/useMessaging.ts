@@ -1,49 +1,47 @@
 
 import { useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import { AppState } from '../types';
 
 /**
  * Hook for managing internal chat and client messaging.
+ *
+ * Team chat messages go through the server-side `sendChatMessage` mutation
+ * which atomically creates the message AND notifications for all other
+ * conversation members. This replaces the old client-side dual-call pattern
+ * (addItem('chatMessages') + addItem('notifications')) which silently
+ * dropped notifications if the second call failed.
+ *
+ * Note: This is NOT a webhook. Webhooks are for cross-system events
+ * (e.g. Paystack → PracticePro). Internal chat notifications are a
+ * server-side mutation called directly by the sender's client.
  */
 export const useMessaging = (appState: AppState, actions: any) => {
     const { currentUser } = useAuth();
     const { addToast } = useUI();
+    const sendChatMessageMutation = useMutation(api.myFunctions.sendChatMessage);
 
     const handleSendMessage = useCallback(async (conversationId: string, content: string, senderId: string, overrideMembers?: string[]) => {
-        await actions.addItem('chatMessages', { 
-            conversationId, 
-            content, 
-            authorId: senderId, 
-            timestamp: new Date().toISOString() 
-        }, 'Chat Message');
+        // Server-side mutation: atomically creates the chat message AND
+        // notifications for every other conversation member. If this call
+        // succeeds, the recipient is GUARANTEED to get a notification.
+        await sendChatMessageMutation({
+            conversationId,
+            content,
+            authorId: senderId,
+            authorName: currentUser?.name || undefined,
+            userEmail: currentUser?.email,
+        });
 
-        let membersToNotify = overrideMembers;
-        if (!membersToNotify) {
-            const conv = appState.chatConversations.find(c => c.id === conversationId);
-            if (conv && conv.memberIds) membersToNotify = conv.memberIds;
-        }
-
-        if (membersToNotify && membersToNotify.length > 0) {
-            const senderName = currentUser?.name || 'A colleague';
-            const notificationPromises = membersToNotify.map(memberId => {
-                if (memberId === senderId) return Promise.resolve();
-                return actions.addItem('notifications', {
-                    userId: memberId,
-                    title: 'New Message',
-                    message: `${senderName} sent a message.`,
-                    type: 'message',
-                    isRead: false,
-                    createdAt: new Date().toISOString(),
-                    link: { view: 'messaging', id: conversationId, context: { activeConversationId: conversationId } },
-                    firmId: currentUser?.firmId,
-                }, 'Notification');
-            });
-            await Promise.all(notificationPromises);
-        }
-    }, [appState.chatConversations, currentUser, actions]);
+        // Note: overrideMembers is no longer needed on the client side because
+        // the server resolves the conversation's memberIds directly. Kept in
+        // the signature for backwards-compat with existing callers.
+        void overrideMembers;
+    }, [sendChatMessageMutation, currentUser]);
 
     const handleCreateDirectMessage = useCallback(async (recipientId: string, firstMessage?: string, currentUserId?: string, matterId?: string) => {
         const cid = uuidv4();

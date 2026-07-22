@@ -2187,6 +2187,148 @@ export const createItem = mutation({
 });
 
 /**
+ * sendChatMessage — Server-side atomic chat message + notification creator.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * Previously, the client created the chat message via `createItem` and then
+ * SEPARATELY created notifications for each recipient via another `createItem`
+ * call. This had two problems:
+ *
+ *   1. If the sender's client crashed, lost connectivity, or simply navigated
+ *      away between the two calls, the message was saved but no notification
+ *      was ever created. The recipient never knew.
+ *
+ *   2. Different code paths forgot to create notifications entirely. For
+ *      example, `sendTeamReply` in MessagesView.tsx only called `createItem`
+ *      for the message — the notification step was missing, so recipients
+ *      never got a bell badge or toast.
+ *
+ * This mutation fixes both issues by writing the chat message AND all
+ * recipient notifications in a single Convex transaction. Either both
+ * succeed, or neither does.
+ *
+ * Note: This is NOT a webhook — webhooks are for cross-system events
+ * (e.g. Paystack → PracticePro). Internal chat notifications are a
+ * Convex server-side mutation triggered directly by the sender's client.
+ */
+export const sendChatMessage = mutation({
+  args: {
+    conversationId: v.string(),
+    content: v.string(),
+    authorId: v.optional(v.string()), // sender's _id (optional — derived from session if absent)
+    authorName: v.optional(v.string()), // sender's display name (for notification text)
+    userEmail: v.optional(v.string()),
+    // Optional: allow caller to create the conversation inline if it doesn't exist yet.
+    // Used by TeamMessageModal which sends the first message of a new DM.
+    createConversationIfMissing: v.optional(v.boolean()),
+    conversationMembers: v.optional(v.array(v.string())), // memberIds for new conversation
+    conversationName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // 1. Authenticate the caller (verifies session OR userEmail fallback).
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const firmId = auth.firmId;
+    const senderId = args.authorId || auth.userId;
+    const senderName = args.authorName || auth.user.name || "A colleague";
+    const now = new Date().toISOString();
+
+    // 2. Resolve the conversation. If createConversationIfMissing is set and
+    //    the conversation doesn't exist, create it. This supports the
+    //    TeamMessageModal flow where the first message creates the conversation.
+    let conversationId = args.conversationId;
+    let memberIds: string[] = [];
+
+    // Try to find an existing conversation by custom `id` field first
+    // (frontend uses uuidv4 ids), then by Convex _id.
+    let existingConv = await ctx.db
+      .query("chatConversations")
+      .withIndex("by_custom_id", (q) => q.eq("id", args.conversationId))
+      .first();
+
+    if (!existingConv) {
+      // Fallback: try as Convex _id
+      try {
+        existingConv = await ctx.db.get(args.conversationId as Id<"chatConversations">);
+      } catch { /* not a valid Convex id format — ignore */ }
+    }
+
+    if (existingConv) {
+      conversationId = existingConv._id.toString();
+      memberIds = (existingConv.memberIds as string[]) || [];
+    } else if (args.createConversationIfMissing && args.conversationMembers?.length) {
+      // Create the conversation inline
+      const newConvId = crypto.randomUUID();
+      await ctx.db.insert("chatConversations", {
+        id: newConvId,
+        type: "direct",
+        memberIds: args.conversationMembers,
+        name: args.conversationName || "Direct Message",
+        matterId: null,
+        createdAt: now,
+        updatedAt: now,
+        hiddenForUserIds: [],
+        firmId,
+      });
+      conversationId = newConvId;
+      memberIds = args.conversationMembers;
+    } else {
+      // Conversation doesn't exist and we weren't asked to create it.
+      // This is an error — don't save a message to a non-existent conversation.
+      throw new Error("Conversation not found. Please restart the chat.");
+    }
+
+    // 3. Save the chat message.
+    const messageId = crypto.randomUUID();
+    await ctx.db.insert("chatMessages", {
+      id: messageId,
+      conversationId,
+      content: args.content,
+      authorId: senderId,
+      timestamp: now,
+      createdAt: now,
+      updatedAt: now,
+      firmId,
+      isDeleted: false,
+      status: "sent",
+    });
+
+    // 4. Create notifications for every OTHER member of the conversation.
+    //    (The sender doesn't get a notification for their own message.)
+    //    This runs in the SAME transaction as the message insert, so it's
+    //    all-or-nothing. If the message is saved, the notifications are saved.
+    const recipientIds = memberIds.filter((id) => id && id !== senderId);
+    if (recipientIds.length > 0) {
+      const notificationPromises = recipientIds.map((recipientId) => {
+        const notificationId = crypto.randomUUID();
+        return ctx.db.insert("notifications", {
+          id: notificationId,
+          firmId,
+          userId: recipientId,
+          title: "New Message",
+          message: `${senderName} sent you a message.`,
+          type: "message",
+          isRead: false,
+          link: {
+            view: "messaging",
+            id: conversationId,
+            context: { activeConversationId: conversationId },
+          },
+          timestamp: now,
+          createdAt: now,
+          updatedAt: now,
+        });
+      });
+      await Promise.all(notificationPromises);
+    }
+
+    // 5. Return the message id + conversation id so the client can update
+    //    its optimistic UI state.
+    return { messageId, conversationId };
+  },
+});
+
+/**
  * logActivity — Server-side audit trail logger.
  * Use this in any Convex mutation to record who did what, when.
  * Unlike the frontend logActivity (which goes through createItem),
