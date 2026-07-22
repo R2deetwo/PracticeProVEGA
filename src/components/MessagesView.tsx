@@ -79,7 +79,8 @@ const CHANNEL_LABELS: Record<string, string> = {
 //   📋 = service request (Vega client portal)
 //   ✅ = admin resolution/update reply
 // Falls back to "portal" (regular 2-way chat) for everything else.
-type ConversationType = 'maintenance' | 'service_request' | 'portal' | 'admin_reply';
+// 'team' = internal direct message between team members (not a portal convo)
+type ConversationType = 'maintenance' | 'service_request' | 'portal' | 'admin_reply' | 'team';
 
 const CONVERSATION_TYPE_STYLES: Record<ConversationType, { badge: string; dot: string; label: string }> = {
     maintenance: {
@@ -105,6 +106,12 @@ const CONVERSATION_TYPE_STYLES: Record<ConversationType, { badge: string; dot: s
         badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
         dot: 'bg-emerald-500',
         label: 'Portal',
+    },
+    team: {
+        // Indigo — internal team direct message
+        badge: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+        dot: 'bg-indigo-500',
+        label: 'Team',
     },
 };
 
@@ -628,7 +635,7 @@ const MessagesView: React.FC = () => {
 
     // ── Inbox: selected conversation ──
     const [selectedInboxId, setSelectedInboxId] = useState<string | null>(null);
-    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | null>(null);
+    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | null>(null);
     const [inboxReply, setInboxReply] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
 
@@ -675,6 +682,53 @@ const MessagesView: React.FC = () => {
             return true;
         });
     }, [portalConversations, typeFilters, roleFilter, conversationSearch]);
+
+    // ── Team conversations for the unified inbox ──────────────────────────
+    // Builds a sorted list of the current user's team direct-message
+    // conversations, each enriched with: the other member's user object,
+    // their online status (from activePeers), and the last message preview.
+    // These render inline in the Conversations list alongside portal convos,
+    // with an indigo "Team" badge so users can tell them apart at a glance.
+    const teamConversationsForInbox = useMemo(() => {
+        const myId = currentUser?.id || currentUser?._id || '';
+        return (conversations as any[])
+            .filter((c: any) => c && c.type === 'direct' &&
+                (c.memberIds?.includes(myId) || c.memberIds?.includes(currentUser?._id || '')) &&
+                !c.hiddenForUserIds?.includes(myId))
+            .map((c: any) => {
+                const otherMemberId = (c.memberIds || []).find((id: string) => id !== myId && id !== currentUser?._id);
+                const otherMember = (users as any[]).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
+                const convMessages = (messages as any[]).filter((m: any) =>
+                    (m.conversationId === c.id || m.conversationId === c._id) && !m.isDeleted
+                );
+                const lastMsg = convMessages[convMessages.length - 1];
+                const unreadCount = (coreState.notifications || []).filter((n: any) =>
+                    !n.isRead &&
+                    n.userId === myId &&
+                    n.link?.view === 'messaging' &&
+                    (n.link?.id === c.id || n.link?.id === c._id ||
+                     n.link?.context?.activeConversationId === c.id ||
+                     n.link?.context?.activeConversationId === c._id)
+                ).length;
+                return {
+                    _id: c._id,
+                    id: c.id,
+                    otherMember,
+                    otherMemberId,
+                    isOnline: activePeers?.includes(otherMemberId) || false,
+                    lastMsg,
+                    lastMessageAt: lastMsg?.timestamp || lastMsg?.createdAt || c.createdAt,
+                    lastMessagePreview: lastMsg?.content || '',
+                    unreadCount,
+                    conversationId: c.id || c._id,
+                };
+            })
+            .sort((a: any, b: any) => {
+                const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+                const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+                return tb - ta;
+            });
+    }, [conversations, messages, users, currentUser, activePeers, coreState.notifications]);
 
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
@@ -959,13 +1013,15 @@ const MessagesView: React.FC = () => {
 
     // Auto-scroll team chat to bottom when messages change or conversation selected
     useEffect(() => {
-        if (activeTab === 'team' && selectedId) {
+        const activeTeamConvId = (activeTab === 'team' ? selectedId : null) ||
+                                  (selectedInboxType === 'team' ? selectedInboxId : null);
+        if (activeTeamConvId) {
             const timer = setTimeout(() => {
                 teamChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
             }, 100);
             return () => clearTimeout(timer);
         }
-    }, [activeTab, selectedId, messages]);
+    }, [activeTab, selectedId, selectedInboxType, selectedInboxId, messages]);
 
     const activeConversation = conversations?.filter(Boolean).find((c: any) => c && c.id === selectedId);
     const activeMessages = Array.isArray(messages) ? messages.filter((m: any) => m && m.conversationId?.toString() === selectedId) : [];
@@ -1550,6 +1606,108 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                             ))}
 
+                                            {/* ── Team direct messages (internal) ──────────────────────────
+                                                Shown inline in the unified Conversations list with an indigo
+                                                "Team" badge. Clicking opens the team chat thread in the right
+                                                panel (same as the Team tab does). Online status is shown via
+                                                a green dot on the avatar — the presence "moniker". */}
+                                            {teamConversationsForInbox.map((tc: any) => {
+                                                const convId = String(tc.conversationId);
+                                                const isThisSelected = selectedInboxId === convId && selectedInboxType === 'team';
+                                                const typeStyle = CONVERSATION_TYPE_STYLES.team;
+                                                const activeTint = 'bg-indigo-50 dark:bg-indigo-900/20 border-l-indigo-500';
+                                                return (
+                                                    <div
+                                                        key={convId}
+                                                        onClick={() => {
+                                                            setSelectedInboxId(convId);
+                                                            setSelectedInboxType('team');
+                                                            // Clear unread notifications for this conversation
+                                                            const notifIds = (coreState.notifications || [])
+                                                                .filter((n: any) => !n.isRead && n.userId === (currentUser?.id || currentUser?._id) &&
+                                                                    n.link?.view === 'messaging' &&
+                                                                    (n.link?.id === convId || n.link?.context?.activeConversationId === convId))
+                                                                .map((n: any) => n.id);
+                                                            if (notifIds.length > 0) handleMarkNotificationsRead(notifIds);
+                                                        }}
+                                                        className={`group relative p-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''}`}
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                {/* Avatar with online status dot (the "moniker") */}
+                                                                <div className="relative flex-shrink-0">
+                                                                    <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-xs">
+                                                                        {tc.otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                                    </div>
+                                                                    <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
+                                                                </div>
+                                                                {tc.unreadCount > 0 && <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />}
+                                                                <span className={`text-sm truncate max-w-[120px] ${tc.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                    {tc.otherMember?.name || 'Team member'}
+                                                                </span>
+                                                            </div>
+                                                            {/* Timestamp — padded right so the hover delete button doesn't overlap it */}
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
+                                                                {tc.lastMessageAt ? new Date(tc.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-2xs mb-1">
+                                                            {/* Single "Team" badge — indigo, shown once */}
+                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
+                                                                {typeStyle.label}
+                                                            </span>
+                                                            {tc.isOnline && (
+                                                                <span className="text-2xs font-bold text-green-600 dark:text-green-400 flex items-center gap-0.5">
+                                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+                                                                    Online
+                                                                </span>
+                                                            )}
+                                                            {tc.unreadCount > 1 && (
+                                                                <span className={`px-1.5 py-0.5 rounded-full text-white font-bold ${typeStyle.dot}`}>
+                                                                    {tc.unreadCount}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">
+                                                            {tc.lastMessagePreview || 'No messages yet'}
+                                                        </p>
+                                                        {/* Delete conversation button — positioned at right edge, doesn't overlap timestamp (timestamp has mr-7) */}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                const ok = await confirm({
+                                                                    title: 'Delete this conversation?',
+                                                                    message: `Your conversation with ${tc.otherMember?.name || 'this team member'} will be permanently removed. All messages in it will be deleted.`,
+                                                                    confirmLabel: 'Delete',
+                                                                    cancelLabel: 'Cancel',
+                                                                    danger: true,
+                                                                });
+                                                                if (!ok) return;
+                                                                try {
+                                                                    const convMessages = (messages as any[]).filter((m: any) =>
+                                                                        (m.conversationId === tc.conversationId || m.conversationId === tc._id) && !m.isDeleted
+                                                                    );
+                                                                    const messageIds = convMessages.map((m: any) => m.id || m._id);
+                                                                    await Promise.all(messageIds.map((mid: string) =>
+                                                                        Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
+                                                                    ));
+                                                                    await handleDeleteChat(tc.conversationId, true, currentUser?.id || currentUser?._id || '');
+                                                                    if (selectedInboxId === convId) { setSelectedInboxId(null); setSelectedInboxType(null); }
+                                                                    addToast('Conversation deleted.', { type: 'success', duration: 2500 });
+                                                                } catch (err: any) {
+                                                                    addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
+                                                                }
+                                                            }}
+                                                            className="absolute top-1/2 right-1.5 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                            title="Delete conversation"
+                                                            aria-label="Delete conversation"
+                                                        >
+                                                            <TrashIcon className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+
                                             {/* ── ALL portal conversations (clients AND residents) ──
                                                 Filtered by the type checkboxes in the inbox header. */}
                                             {filteredPortalConversations.map((conv: any) => {
@@ -1658,7 +1816,173 @@ const MessagesView: React.FC = () => {
 
                         {/* Inbox Thread Detail — bounded to viewport, no spillover */}
                         <div className={`${selectedInboxId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 min-h-0 overflow-hidden bg-slate-50 dark:bg-zinc-950`}>
-                            {selectedInboundMsg ? (
+                            {/* ── TEAM CHAT THREAD (rendered when a team conversation is selected from the unified inbox) ── */}
+                            {selectedInboxType === 'team' && selectedInboxId && (() => {
+                                const tc = teamConversationsForInbox.find((t: any) => String(t.conversationId) === String(selectedInboxId));
+                                if (!tc) return (
+                                    <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
+                                        Select a conversation
+                                    </div>
+                                );
+                                const convMessages = (messages as any[]).filter(
+                                    (m: any) => (m.conversationId === selectedInboxId || m.conversationId === tc._id) && !m.isDeleted
+                                ).sort((a: any, b: any) => {
+                                    const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
+                                    const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
+                                    return aTime - bTime; // ascending = oldest first, newest at bottom
+                                });
+                                return (
+                                    <>
+                                        {/* Team chat header — with online status + clear-all */}
+                                        <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-3 bg-white dark:bg-zinc-900">
+                                            <button onClick={() => { setSelectedInboxId(null); setSelectedInboxType(null); }} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0">
+                                                <ChevronRightIcon className="w-5 h-5 rotate-180" />
+                                            </button>
+                                            <div className="relative flex-shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-sm">
+                                                    {tc.otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                </div>
+                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tc.otherMember?.name || 'Unknown'}</p>
+                                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                                    {tc.isOnline ? (
+                                                        <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Active now</>
+                                                    ) : (
+                                                        <>{tc.otherMember?.role || ''}</>
+                                                    )}
+                                                </p>
+                                            </div>
+                                            {convMessages.length > 0 && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const ok = await confirm({
+                                                            title: 'Clear all messages?',
+                                                            message: `All ${convMessages.length} message(s) in this conversation will be permanently deleted. The conversation itself will remain.`,
+                                                            confirmLabel: 'Clear all',
+                                                            cancelLabel: 'Cancel',
+                                                            danger: true,
+                                                        });
+                                                        if (!ok) return;
+                                                        try {
+                                                            const messageIds = convMessages.map((m: any) => m.id || m._id);
+                                                            await Promise.all(messageIds.map((mid: string) =>
+                                                                Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
+                                                            ));
+                                                            addToast('All messages cleared.', { type: 'success', duration: 2500 });
+                                                        } catch (err: any) {
+                                                            addToast(err?.message || 'Failed to clear messages.', { type: 'error' });
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 text-2xs font-bold text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                    title="Clear all messages in this conversation"
+                                                    aria-label="Clear all messages"
+                                                >
+                                                    <TrashIcon className="w-3.5 h-3.5" />
+                                                    <span className="hidden sm:inline">Clear all</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                        {/* Messages */}
+                                        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+                                            {convMessages.length === 0 ? (
+                                                <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
+                                            ) : convMessages.map((msg: any) => {
+                                                const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
+                                                const msgId = msg.id || msg._id;
+                                                return (
+                                                    <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                        <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
+                                                            {msg.content}
+                                                            <span className={`block text-2xs mt-1 ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                                {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                const ok = await confirm({
+                                                                    title: 'Delete this message?',
+                                                                    message: 'This message will be permanently removed from the conversation.',
+                                                                    confirmLabel: 'Delete',
+                                                                    cancelLabel: 'Cancel',
+                                                                    danger: true,
+                                                                });
+                                                                if (!ok) return;
+                                                                try {
+                                                                    await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
+                                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                                } catch (err: any) {
+                                                                    addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+                                                                }
+                                                            }}
+                                                            className={`absolute -top-1.5 ${isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100`}
+                                                            title="Delete message"
+                                                            aria-label="Delete message"
+                                                        >
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
+                                            <div ref={teamChatEndRef} />
+                                        </div>
+                                        {/* Reply input */}
+                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900">
+                                            <input
+                                                type="text"
+                                                value={teamReplyText}
+                                                onChange={e => setTeamReplyText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        (async () => {
+                                                            if (!teamReplyText.trim()) return;
+                                                            const text = teamReplyText.trim();
+                                                            setTeamReplyText('');
+                                                            try {
+                                                                await sendChatMessageMutation({
+                                                                    conversationId: selectedInboxId,
+                                                                    content: text,
+                                                                    authorId: currentUser?._id || currentUser?.id || undefined,
+                                                                    authorName: currentUser?.name || undefined,
+                                                                    userEmail: currentUser?.email,
+                                                                });
+                                                            } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                                        })();
+                                                    }
+                                                }}
+                                                placeholder="Type a message..."
+                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none"
+                                            />
+                                            <button
+                                                onClick={async () => {
+                                                    if (!teamReplyText.trim()) return;
+                                                    const text = teamReplyText.trim();
+                                                    setTeamReplyText('');
+                                                    try {
+                                                        await sendChatMessageMutation({
+                                                            conversationId: selectedInboxId,
+                                                            content: text,
+                                                            authorId: currentUser?._id || currentUser?.id || undefined,
+                                                            authorName: currentUser?.name || undefined,
+                                                            userEmail: currentUser?.email,
+                                                        });
+                                                    } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                                }}
+                                                className="px-3 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-bold"
+                                            >
+                                                Send
+                                            </button>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                            {/* ── PORTAL / INBOUND THREAD (original inbox detail) ── */}
+                            {selectedInboxType !== 'team' && selectedInboundMsg ? (
                                 <>
                                     {/* Thread Header — adaptive flex, no hardcoded heights */}
                                     <div className="flex-shrink-0 min-h-[3.5rem] py-2 px-4 border-b border-slate-200 dark:border-zinc-700 flex items-center justify-between gap-2 bg-white dark:bg-zinc-800 z-20">
@@ -2166,11 +2490,13 @@ const MessagesView: React.FC = () => {
                                                             </p>
                                                         </div>
                                                         {lastMsg && (
-                                                            <span className="text-2xs text-slate-400 flex-shrink-0">
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
                                                                 {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
                                                             </span>
                                                         )}
-                                                        {/* Delete conversation button — appears on hover (desktop) or always (touch) */}
+                                                        {/* Delete conversation button — appears on hover (desktop) or always (touch).
+                                                            Positioned at the absolute right edge. The timestamp has mr-7 so it
+                                                            doesn't overlap this button. */}
                                                         <button
                                                             onClick={async (e) => {
                                                                 e.stopPropagation();
