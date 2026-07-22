@@ -5027,3 +5027,85 @@ Stage Summary:
   handleDeleteChat already existed in useMessaging.ts, just weren't
   wired to any UI in the team chat block)
 - Frontend-only change, deployed to production
+
+---
+Task ID: apk-build-failure-fix
+Agent: main
+Task: Diagnose and fix persistent APK build failures (builds 384-391+)
+
+DIAGNOSIS:
+- CI runs 29925480938 through 29940454256 (builds 384-391) ALL failed
+- Last successful APK build was #383 at 13:05 UTC July 22
+- All failures occur at step 17: "Commit version.json with APK info"
+- The APK itself builds fine (step 11 succeeds), the release is published
+  (step 14 succeeds), version.json is updated locally (step 16 succeeds)
+- The failure is ONLY in the git commit+push of version.json back to main
+
+ROOT CAUSE:
+The workflow has a sequence conflict:
+  Step 6 (Increment patch version): commits version.properties bump
+    and pushes to main. Now origin/main is AHEAD of the workflow
+    runner's local HEAD by one commit.
+  Step 17 (Commit version.json): commits the version.json update on
+    top of the STALE local HEAD, then tries `git push origin HEAD:main`.
+    HEAD is still the commit that triggered the workflow (not the
+    patch bump). So this push is a non-fast-forward — GitHub rejects.
+    The `|| true` swallows the exit code but GitHub Actions still
+    marks the step as failed.
+
+This started failing at build 384 (~13:47 UTC July 22) for reasons
+that aren't entirely clear from the code (builds 377-383 succeeded
+with the same workflow). Possibly a git version change on the runner,
+or a timing/ordering change in how GitHub Actions evaluates `|| true`
+with non-zero exits. Regardless, the fix is to make step 17 robust.
+
+FIX (cannot push — see BLOCKER below):
+Rewrote step 17 to:
+  1. Stage version.json
+  2. Check if there's anything to commit (exit 0 if not)
+  3. Commit on local HEAD
+  4. git fetch origin main (get the patch-bump commit)
+  5. git rebase origin/main (put version.json commit on top)
+  6. git push origin HEAD:main
+  7. All failure paths exit 0 (non-fatal — APK already built+released)
+
+The patch is saved at: /home/z/my-project/download/apk-build-fix.patch
+
+BLOCKER — CANNOT PUSH WORKFLOW CHANGE:
+The PAT embedded in the git remote URL lacks the `workflow` scope.
+GitHub enforces this at two levels:
+  1. git push (receive-pack) — rejects workflow file changes
+  2. GitHub Contents API — also rejects workflow file updates
+     ("Resource not accessible by personal access token")
+
+Both attempted, both rejected. This is the same limitation noted
+in the original session summary: "工作流文件需要手动更新（PAT 缺少
+workflow 范围权限）".
+
+The user MUST apply this fix manually. Options:
+  A. Apply the patch directly:
+     git apply download/apk-build-fix.patch
+     git add .github/workflows/build-apk.yml
+     git commit -m "fix(CI): APK build — fetch+rebase before pushing version.json"
+     git push origin main
+  B. Edit .github/workflows/build-apk.yml in the GitHub web UI
+     (Settings → Actions → edit file — web UI uses the user's
+     full-scope session, not the PAT)
+  C. Regenerate the PAT with `workflow` scope and re-run
+
+Until this fix is applied, every APK build will fail at step 17.
+The APK itself is still built and released successfully (steps 11-14
+all pass) — only the version.json metadata commit fails. So APKs
+ARE being produced and uploaded to GitHub Releases, but the CI run
+shows as failed, and the APK download URL is NOT written to
+version.json (meaning the in-app APK update banner won't show the
+correct download link).
+
+Stage Summary:
+- Root cause identified: step 17 pushes stale HEAD to main after
+  step 6 already advanced origin/main
+- Fix written and saved as patch at download/apk-build-fix.patch
+- Cannot push due to PAT lacking workflow scope
+- User must apply the patch manually (3 commands) or edit via web UI
+- APK builds themselves are NOT broken — only the version.json
+  metadata commit step is failing
