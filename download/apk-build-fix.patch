@@ -1,0 +1,41 @@
+diff --git a/.github/workflows/build-apk.yml b/.github/workflows/build-apk.yml
+index bd35f13..2ee2d34 100755
+--- a/.github/workflows/build-apk.yml
++++ b/.github/workflows/build-apk.yml
+@@ -169,9 +169,34 @@ jobs:
+         run: |
+           git config user.name "github-actions[bot]"
+           git config user.email "github-actions[bot]@users.noreply.github.com"
++          # Stage the version.json change
+           git add public/version.json
+-          git commit -m "chore: update version.json with APK release info [build-${{ github.run_number }}]" || echo "No changes to commit"
+-          git push origin HEAD:main 2>&1 || true
++          # Check if there's actually anything to commit
++          if git diff --cached --quiet; then
++            echo "No changes to version.json — skipping commit"
++            exit 0
++          fi
++          # Create the commit on top of the current HEAD
++          git commit -m "chore: update version.json with APK release info [build-${{ github.run_number }}]"
++          # CRITICAL: fetch the latest origin/main (the patch-bump step earlier in
++          # this workflow already pushed a commit, so origin/main is ahead of our
++          # local HEAD). We rebase our new commit on top of origin/main before
++          # pushing, otherwise the push is rejected as non-fast-forward.
++          git fetch origin main
++          # Rebase our new commit onto origin/main. If conflicts occur (unlikely
++          # since version.json is only touched by this step), abort and skip —
++          # the APK is already built and released, this commit is best-effort.
++          if ! git rebase origin/main; then
++            echo "⚠️  Rebase failed — aborting version.json commit (non-fatal)"
++            git rebase --abort 2>/dev/null || true
++            exit 0
++          fi
++          # Push the rebased commit to main
++          if ! git push origin HEAD:main 2>&1; then
++            echo "⚠️  Push failed (non-fatal) — version.json update will be picked up on next build"
++            exit 0
++          fi
++          echo "✓ version.json committed and pushed to main"
+ 
+       - name: Sync master branch with main (for Vercel native integration)
+         run: |
