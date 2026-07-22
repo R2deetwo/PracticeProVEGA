@@ -108,7 +108,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
             {/* Modal */}
             <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
                 {/* Accent bar */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-violet-600 to-indigo-600 rounded-t-2xl sm:rounded-t-2xl" />
+                <div className="h-1.5 w-full bg-gradient-to-r from-primary-600 to-primary-600 rounded-t-2xl sm:rounded-t-2xl" />
 
                 {/* Header */}
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
@@ -133,7 +133,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                         <select
                             value={recipientId}
                             onChange={e => setRecipientId(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all"
+                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
                         >
                             <option value="">Select a team member...</option>
                             {teamMembers.map((u: any) => (
@@ -152,7 +152,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                             onChange={e => setMessage(e.target.value)}
                             rows={5}
                             placeholder="Type your message..."
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none transition-all resize-none"
+                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
                         />
                     </div>
                 </div>
@@ -168,7 +168,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                     <button
                         onClick={handleSend}
                         disabled={sending || !recipientId || !message.trim()}
-                        className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-primary-600 to-primary-600 hover:from-primary-700 hover:to-primary-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         <SendIcon className="w-4 h-4" />
                         {sending ? 'Sending...' : 'Send'}
