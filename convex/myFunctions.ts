@@ -2406,7 +2406,7 @@ export const clearAllNotifications = mutation({
     const all = await ctx.db
       .query("notifications")
       .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-      .filter((q: any) => q.eq(q.field("userId"), user._id))
+      .filter((q: any) => q.eq(q.field("userId"), user._id) || q.eq(q.field("userId"), (user as any).id))
       .collect();
     for (const n of all) {
       try { await ctx.db.delete(n._id); } catch {}

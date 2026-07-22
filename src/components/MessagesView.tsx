@@ -170,6 +170,7 @@ const ChatWindow: React.FC<{
     const [newMessage, setNewMessage] = useState('');
     const [showMenu, setShowMenu] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const teamMessagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -581,6 +582,7 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId]);
 
     // ── Team Chat state (existing logic) ──
+    const teamChatEndRef = useRef<HTMLDivElement>(null);
     const [selectedId, setSelectedId] = useState<string | null>(activeConversationId || null);
     const [searchQuery, setSearchQuery] = useState('');
     const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
@@ -945,6 +947,16 @@ const MessagesView: React.FC = () => {
             setSelectedId(activeConversationId);
         }
     }, [activeConversationId]);
+
+    // Auto-scroll team chat to bottom when messages change or conversation selected
+    useEffect(() => {
+        if (activeTab === 'team' && selectedId) {
+            const timer = setTimeout(() => {
+                teamChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [activeTab, selectedId, messages]);
 
     const activeConversation = conversations?.filter(Boolean).find((c: any) => c && c.id === selectedId);
     const activeMessages = Array.isArray(messages) ? messages.filter((m: any) => m && m.conversationId?.toString() === selectedId) : [];
@@ -2171,7 +2183,11 @@ const MessagesView: React.FC = () => {
                                 const otherIsOnline = activePeers?.includes(otherMemberId);
                                 const convMessages = messages.filter(
                                     (m: any) => (m.conversationId === selectedId || m.conversationId === conv._id) && !m.isDeleted
-                                );
+                                ).sort((a: any, b: any) => {
+                                    const aTime = new Date(a.timestamp || a.createdAt || 0).getTime();
+                                    const bTime = new Date(b.timestamp || b.createdAt || 0).getTime();
+                                    return aTime - bTime; // ascending = oldest first, newest at bottom
+                                });
 
                                 const sendTeamReply = async () => {
                                     if (!teamReplyText.trim()) return;
@@ -2228,6 +2244,7 @@ const MessagesView: React.FC = () => {
                                                     </div>
                                                 );
                                             })}
+                                            <div ref={teamChatEndRef} />
                                         </div>
                                         {/* Reply input */}
                                         <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
