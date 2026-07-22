@@ -538,7 +538,7 @@ const MessagesView: React.FC = () => {
     const { matterState } = useMatterState();
     const { currentUser } = useAuth();
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat, addItem: actionsAddItem } = useDataActions();
-    const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast } = useUI();
+    const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast, activePeers } = useUI();
     const { isProperty, isLegal, isUnified, hasPropertyFeatures } = useProduct();
     const { confirm, ConfirmDialog } = useConfirm();
 
@@ -2106,6 +2106,7 @@ const MessagesView: React.FC = () => {
                                             .map((conv: any) => {
                                                 const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id);
                                                 const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId);
+                                                const otherIsOnline = activePeers?.includes(otherMemberId);
                                                 const convMessages = (coreState.chatMessages || []).filter(
                                                     (m: any) => m.conversationId === conv.id && !m.isDeleted
                                                 );
@@ -2117,8 +2118,11 @@ const MessagesView: React.FC = () => {
                                                         onClick={() => setSelectedId(conv.id)}
                                                         className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
                                                     >
-                                                        <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm flex-shrink-0">
-                                                            {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                        <div className="relative flex-shrink-0">
+                                                            <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
+                                                                {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                            </div>
+                                                            <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
@@ -2152,6 +2156,7 @@ const MessagesView: React.FC = () => {
                                 );
                                 const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id);
                                 const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId);
+                                const otherIsOnline = activePeers?.includes(otherMemberId);
                                 const convMessages = (coreState.chatMessages || []).filter(
                                     (m: any) => m.conversationId === selectedId && !m.isDeleted
                                 );
@@ -2161,12 +2166,21 @@ const MessagesView: React.FC = () => {
                                     <>
                                         {/* Chat header */}
                                         <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
-                                                {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                            <div className="relative flex-shrink-0">
+                                                <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
+                                                    {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                </div>
+                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                             </div>
                                             <div>
                                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{otherMember?.name || 'Unknown'}</p>
-                                                <p className="text-xs text-slate-400">{otherMember?.role || ''}</p>
+                                                <p className="text-xs text-slate-400 flex items-center gap-1">
+                                                    {otherIsOnline ? (
+                                                        <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Active now</>
+                                                    ) : (
+                                                        <>{otherMember?.role || ''}</>
+                                                    )}
+                                                </p>
                                             </div>
                                         </div>
                                         {/* Messages */}
