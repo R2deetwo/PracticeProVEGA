@@ -545,9 +545,15 @@ const MessagesView: React.FC = () => {
     if (!currentUser) return null;
 
     const conversations = coreState.chatConversations || [];
-    const messages = coreState.chatMessages || [];
     const users = coreState.users || [];
     const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
+
+    // Load chat messages from Convex (getFirmData returns chatMessages: [])
+    // This is the REAL data source — without this, messages disappear on refresh
+    const chatMessagesResult = useQuery(api.myFunctions.getChatMessages,
+        firmId ? { firmId } : 'skip'
+    );
+    const messages = chatMessagesResult || [];
     const activeConversationId = currentHistoryEntry.context?.activeConversationId;
     const onNavigate = (view: any, id: any, context: any) => navigateTo(view, id, context);
 
@@ -2083,6 +2089,10 @@ const MessagesView: React.FC = () => {
                                 {(coreState.chatConversations || []).filter((c: any) =>
                                     c.type === 'direct' &&
                                     c.memberIds?.includes(currentUser?.id || '')
+                                ).length === 0 &&
+                                (coreState.chatConversations || []).filter((c: any) =>
+                                    c.type === 'direct' &&
+                                    c.memberIds?.includes(currentUser?._id || '')
                                 ).length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                                         <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/20 flex items-center justify-center mb-4">
@@ -2102,14 +2112,15 @@ const MessagesView: React.FC = () => {
                                         {(coreState.chatConversations || [])
                                             .filter((c: any) =>
                                                 c.type === 'direct' &&
-                                                c.memberIds?.includes(currentUser?.id || '')
+                                                (c.memberIds?.includes(currentUser?.id || '') ||
+                                                 c.memberIds?.includes(currentUser?._id || ''))
                                             )
                                             .map((conv: any) => {
-                                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id);
-                                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId);
+                                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id && id !== currentUser?._id);
+                                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
                                                 const otherIsOnline = activePeers?.includes(otherMemberId);
-                                                const convMessages = (coreState.chatMessages || []).filter(
-                                                    (m: any) => m.conversationId === conv.id && !m.isDeleted
+                                                const convMessages = messages.filter(
+                                                    (m: any) => (m.conversationId === conv.id || m.conversationId === conv._id) && !m.isDeleted
                                                 );
                                                 const lastMsg = convMessages[convMessages.length - 1];
 
@@ -2149,17 +2160,17 @@ const MessagesView: React.FC = () => {
                         {/* Right panel: active chat thread (~67%) */}
                         <div className="hidden md:flex flex-1 flex-col overflow-hidden">
                             {selectedId && (() => {
-                                const conv = (coreState.chatConversations || []).find((c: any) => c.id === selectedId);
+                                const conv = (coreState.chatConversations || []).find((c: any) => c.id === selectedId || c._id === selectedId);
                                 if (!conv) return (
                                     <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
                                         Select a conversation
                                     </div>
                                 );
-                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id);
-                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId);
+                                const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id && id !== currentUser?._id);
+                                const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
                                 const otherIsOnline = activePeers?.includes(otherMemberId);
-                                const convMessages = (coreState.chatMessages || []).filter(
-                                    (m: any) => m.conversationId === selectedId && !m.isDeleted
+                                const convMessages = messages.filter(
+                                    (m: any) => (m.conversationId === selectedId || m.conversationId === conv._id) && !m.isDeleted
                                 );
 
                                 const sendTeamReply = async () => {
@@ -2170,7 +2181,7 @@ const MessagesView: React.FC = () => {
                                         await actionsAddItem('chatMessages', {
                                             conversationId: selectedId,
                                             content: text,
-                                            authorId: currentUser?.id || '',
+                                            authorId: currentUser?._id || currentUser?.id || '',
                                             timestamp: new Date().toISOString(),
                                             firmId: currentUser?.firmId,
                                             isDeleted: false,

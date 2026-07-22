@@ -55,24 +55,29 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
             const now = new Date().toISOString();
 
             // Check if a direct conversation already exists between these two users
+            // Check both id and _id formats since different parts of the app use different ones
+            const myId = currentUser?.id || currentUser?._id || '';
             const existingConv = (coreState.chatConversations || []).find((c: any) =>
                 c.type === 'direct' &&
                 c.memberIds &&
-                c.memberIds.includes(currentUser?.id || '') &&
-                c.memberIds.includes(recipientId)
+                (c.memberIds.includes(myId) || c.memberIds.includes(currentUser?._id || '')) &&
+                (c.memberIds.includes(recipientId) || c.memberIds.includes((coreState.users || []).find((u: any) => u.id === recipientId)?._id || ''))
             );
 
             let cid: string;
             if (existingConv) {
                 // Reuse existing conversation
-                cid = existingConv.id;
+                cid = existingConv.id || existingConv._id;
             } else {
                 // Create new conversation
                 cid = uuidv4();
+                const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
+                const recipientIdForStorage = recipientUser?._id || recipientUser?.id || recipientId;
+                const myIdForStorage = currentUser?._id || currentUser?.id || '';
                 await actions.addItem('chatConversations', {
                     id: cid,
                     type: 'direct',
-                    memberIds: [currentUser?.id || '', recipientId],
+                    memberIds: [myIdForStorage, recipientIdForStorage],
                     name: 'Direct Message',
                     matterId: null,
                     createdAt: now,
@@ -85,7 +90,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
             await actions.addItem('chatMessages', {
                 conversationId: cid,
                 content: message.trim(),
-                authorId: currentUser?.id || '',
+                authorId: currentUser?._id || currentUser?.id || '',
                 timestamp: now,
                 firmId: currentUser.firmId,
                 isDeleted: false,
