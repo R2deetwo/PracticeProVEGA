@@ -5109,3 +5109,111 @@ Stage Summary:
 - User must apply the patch manually (3 commands) or edit via web UI
 - APK builds themselves are NOT broken — only the version.json
   metadata commit step is failing
+
+---
+Task ID: unified-inbox-team-merge-presence
+Agent: main
+Task: Merge team conversations into unified Conversations inbox, fix delete overlap, implement online presence (moniker)
+
+USER REQUESTS:
+1. "ALL conversations should be included in Conversations which includes team"
+   — team conversations must appear in the main Conversations list
+2. "If they click on a team conversation, it should open the team and the conversation"
+   — clicking a team item in the unified list opens the team chat thread
+3. "If it is a team conversation, it should simply have Team on it, not to have the word Team on it twice"
+   — single 'Team' badge, no duplication
+4. "Keep the color-coding method"
+   — preserve the existing badge color system
+5. "Delete button overlaps with the time stamp on the conversation"
+   — fix the layout collision
+6. "Users should be able to see the team online" (the moniker)
+   — show online presence for team members
+
+INVESTIGATION:
+- The presence system was ALREADY fully implemented: sendHeartbeat
+  mutation (every 20s from UIContext), getActivePeers query, and
+  activePeers available in MessagesView. But it was only visible in
+  the separate Team tab — not in the main Conversations list.
+- The Conversations tab (activeTab === 'inbox') only showed portal
+  conversations, inbound WhatsApp/Email, and legacy client messages.
+  Team conversations were isolated in activeTab === 'team'.
+- The delete button on team conversation list items (added in the
+  previous task) used absolute positioning at right-2, which
+  overlapped the timestamp that also sat at the right edge.
+
+IMPLEMENTATION:
+
+1. NEW 'team' CONVERSATION TYPE:
+   Added 'team' to ConversationType union and CONVERSATION_TYPE_STYLES
+   with indigo color (bg-indigo-100/text-indigo-700). This gives team
+   conversations a distinct, color-coded badge that matches the
+   existing system (emerald=portal, amber=ticket, rose=request,
+   blue=replied, indigo=team).
+
+2. teamConversationsForInbox useMemo:
+   Builds a sorted list of the current user's team DM conversations,
+   each enriched with: otherMember (user object), isOnline (from
+   activePeers), lastMsg, lastMessageAt, lastMessagePreview, and
+   unreadCount (computed from notifications). Sorted by last message
+   time descending (most recent first).
+
+3. TEAM CONVERSATIONS IN UNIFIED LIST:
+   Inserted a new render block between the inbound WhatsApp/Email
+   section and the portal conversations section. Each team item shows:
+   - Avatar with online status dot (green if activePeers includes
+     the other member, grey otherwise) — the "moniker"
+   - Single indigo 'Team' badge (not duplicated)
+   - 'Online' text badge when the member is online
+   - Unread count badge when > 1 unread
+   - Last message preview (line-clamped to 2 lines)
+   - Timestamp with mr-7 so it doesn't overlap the delete button
+   - Hover delete button (absolute right-1.5) with confirm dialog
+   - Clicking sets selectedInboxType='team' + selectedInboxId
+
+4. TEAM CHAT THREAD IN INBOX RIGHT PANEL:
+   When selectedInboxType === 'team', the right panel renders the
+   full team chat thread instead of the portal/inbound thread:
+   - Header: back button (mobile), avatar with online dot, name,
+     online status text, 'Clear all' button
+   - Messages: same bubble layout as Team tab, with per-message
+     delete button on hover
+   - Reply input: Enter-to-send, uses sendChatMessageMutation
+   - Auto-scrolls to bottom on open and on new messages
+
+5. DELETE BUTTON OVERLAP FIX:
+   Both the unified inbox team items AND the Team tab list items
+   now have mr-7 (1.75rem right margin) on the timestamp. The delete
+   button sits at absolute right-1.5. The margin creates a gap so
+   they never overlap, on any screen size.
+
+6. AUTO-SCROLL UPDATE:
+   The team chat auto-scroll effect now triggers for team
+   conversations opened from EITHER the Team tab (selectedId) OR
+   the unified inbox (selectedInboxType === 'team' + selectedInboxId).
+
+7. NOTIFICATION CLEARING:
+   Clicking a team conversation in the unified inbox clears the
+   unread notifications for that conversation (same as the Team tab
+   does via the existing selectedId effect).
+
+VERIFICATION:
+- npx tsc --noEmit → only 2 pre-existing errors (offsetWidth on
+  Element, union-narrowing on ChatMessage|ClientMessage). Zero new
+  errors from this change.
+- npx vite build → succeeds in 18.20s
+- Production bundle grep confirms: "Active now", "Team member" present
+- Pushed commit e4388dd to main
+- Vercel deployed: sha=e4388dd, status=healthy (18:19 UTC)
+
+Stage Summary:
+- Team conversations now appear in the unified Conversations list
+  with a single indigo 'Team' badge and online presence indicator
+- Clicking opens the team chat thread inline (no tab switch)
+- Online presence (green dot + 'Online' text) is now visible in the
+  unified inbox — the "moniker" the user asked for
+- Delete button no longer overlaps the timestamp (mr-7 fix)
+- Color-coding preserved: indigo=team, emerald=portal, amber=ticket,
+  rose=request, blue=replied
+- Separate Team tab remains as a filtered view of just team convos
+- The presence system was already implemented — this change just
+  surfaces it in the unified inbox where users actually look
