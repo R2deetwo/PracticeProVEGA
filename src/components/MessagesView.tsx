@@ -602,6 +602,7 @@ const MessagesView: React.FC = () => {
     // ── Compose modal for inbox replies ──
     const [showCompose, setShowCompose] = useState(false);
     const [showTeamMessage, setShowTeamMessage] = useState(false);
+    const [teamReplyText, setTeamReplyText] = useState('');
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     const logAutomation = useMutation(api.sentry.logAutomation);
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
@@ -2160,7 +2161,23 @@ const MessagesView: React.FC = () => {
                                 const convMessages = (coreState.chatMessages || []).filter(
                                     (m: any) => m.conversationId === selectedId && !m.isDeleted
                                 );
-                                const [replyText, setReplyText] = React.useState('');
+
+                                const sendTeamReply = async () => {
+                                    if (!teamReplyText.trim()) return;
+                                    const text = teamReplyText.trim();
+                                    setTeamReplyText('');
+                                    try {
+                                        await actionsAddItem('chatMessages', {
+                                            conversationId: selectedId,
+                                            content: text,
+                                            authorId: currentUser?.id || '',
+                                            timestamp: new Date().toISOString(),
+                                            firmId: currentUser?.firmId,
+                                            isDeleted: false,
+                                            status: 'sent',
+                                        }, 'Chat Message');
+                                    } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                };
 
                                 return (
                                     <>
@@ -2205,45 +2222,16 @@ const MessagesView: React.FC = () => {
                                         <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
                                             <input
                                                 type="text"
-                                                value={replyText}
-                                                onChange={e => setReplyText(e.target.value)}
-                                                onKeyDown={async (e) => {
-                                                    if (e.key === 'Enter' && replyText.trim()) {
-                                                        const text = replyText.trim();
-                                                        setReplyText('');
-                                                        try {
-                                                            await actionsAddItem('chatMessages', {
-                                                                conversationId: selectedId,
-                                                                content: text,
-                                                                authorId: currentUser?.id || '',
-                                                                timestamp: new Date().toISOString(),
-                                                                firmId: currentUser?.firmId,
-                                                                isDeleted: false,
-                                                                status: 'sent',
-                                                            }, 'Chat Message');
-                                                        } catch (err) { console.error('[Team chat] Reply failed:', err); }
-                                                    }
+                                                value={teamReplyText}
+                                                onChange={e => setTeamReplyText(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') sendTeamReply();
                                                 }}
                                                 placeholder="Type a message..."
                                                 className="flex-1 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none"
                                             />
                                             <button
-                                                onClick={async () => {
-                                                    if (!replyText.trim()) return;
-                                                    const text = replyText.trim();
-                                                    setReplyText('');
-                                                    try {
-                                                        await actionsAddItem('chatMessages', {
-                                                            conversationId: selectedId,
-                                                            content: text,
-                                                            authorId: currentUser?.id || '',
-                                                            timestamp: new Date().toISOString(),
-                                                            firmId: currentUser?.firmId,
-                                                            isDeleted: false,
-                                                            status: 'sent',
-                                                        }, 'Chat Message');
-                                                    } catch (err) { console.error('[Team chat] Reply failed:', err); }
-                                                }}
+                                                onClick={sendTeamReply}
                                                 className="px-3 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-bold"
                                             >
                                                 Send
