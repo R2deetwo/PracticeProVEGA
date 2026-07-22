@@ -52,20 +52,34 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
 
         setSending(true);
         try {
-            const cid = uuidv4();
             const now = new Date().toISOString();
 
-            // Create the conversation
-            await actions.addItem('chatConversations', {
-                id: cid,
-                type: 'direct',
-                memberIds: [currentUser?.id || '', recipientId],
-                name: 'Direct Message',
-                matterId: null,
-                createdAt: now,
-                hiddenForUserIds: [],
-                firmId: currentUser.firmId,
-            }, 'Conversation');
+            // Check if a direct conversation already exists between these two users
+            const existingConv = (coreState.chatConversations || []).find((c: any) =>
+                c.type === 'direct' &&
+                c.memberIds &&
+                c.memberIds.includes(currentUser?.id || '') &&
+                c.memberIds.includes(recipientId)
+            );
+
+            let cid: string;
+            if (existingConv) {
+                // Reuse existing conversation
+                cid = existingConv.id;
+            } else {
+                // Create new conversation
+                cid = uuidv4();
+                await actions.addItem('chatConversations', {
+                    id: cid,
+                    type: 'direct',
+                    memberIds: [currentUser?.id || '', recipientId],
+                    name: 'Direct Message',
+                    matterId: null,
+                    createdAt: now,
+                    hiddenForUserIds: [],
+                    firmId: currentUser.firmId,
+                }, 'Conversation');
+            }
 
             // Save the message
             await actions.addItem('chatMessages', {
@@ -79,8 +93,9 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
             }, 'Chat Message');
 
             // Send notification to recipient
+            const recipientUser = (coreState.users || []).find((u: any) => u.id === recipientId);
             await actions.addItem('notifications', {
-                userId: recipientId,
+                userId: recipientUser?._id || recipientUser?.id || recipientId,
                 title: 'New Message',
                 message: `${currentUser?.name || 'A colleague'} sent you a message.`,
                 type: 'message',

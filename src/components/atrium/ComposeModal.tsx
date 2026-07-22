@@ -605,7 +605,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               }, 'Chat Message');
               // Send notification to the recipient
               await actions.addItem('notifications', {
-                userId: r.id,
+                userId: r._id || r.id,
                 title: 'New Message',
                 message: `${currentUser?.name || 'A colleague'} sent you a message.`,
                 type: 'message',

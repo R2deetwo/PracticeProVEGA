@@ -33,6 +33,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications, LocalNotificationSchema, ActionType } from '@capacitor/local-notifications';
+import { Haptics, NotificationType } from '@capacitor/haptics';
 import { haptics } from './haptics';
 
 const SOUND_KEY = 'practicepro_notification_sound';
@@ -146,9 +147,15 @@ export async function showLocalNotification(opts: {
         });
 
         // If app is in foreground, the notification won't show in the
-        // shade (Android behavior). So we also trigger haptic + the
-        // in-app toast handles the visual. The sound plays either way.
-        haptics.medium();
+        // shade (Android behavior). So we also trigger a proper notification
+        // vibration pattern + the in-app toast handles the visual.
+        // Using NotificationType (not ImpactStyle) for a proper vibration
+        // pattern that signals "new message" rather than just a tap.
+        try {
+            await Haptics.notification({ type: NotificationType.Success });
+        } catch {
+            haptics.medium(); // fallback
+        }
     } catch (err) {
         console.warn('[NotificationManager] showLocalNotification failed:', err);
     }
