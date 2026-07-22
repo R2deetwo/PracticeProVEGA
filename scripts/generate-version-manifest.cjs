@@ -59,6 +59,11 @@ const isoTimestamp = run('git log -1 --format=%cI', timestamp);
 // published. Failed APK builds leave apkBuildStatus as 'building' (or
 // 'broken' if explicitly set), so the APK update check never prompts
 // users to download a failed build.
+//
+// IMPORTANT: If an existing version.json is found (e.g. committed by the
+// GH Actions workflow with APK release info), PRESERVE the APK fields
+// (apkUrl, apkBuildStatus, apkBuiltAt) instead of overwriting them.
+// This ensures the APK update info survives Vercel's build process.
 
 const versionPropsPath = path.join(ROOT, 'android', 'app', 'version.properties');
 let apkVersion = null;
@@ -72,6 +77,22 @@ if (fs.existsSync(versionPropsPath)) {
   apkVersionCode = major * 10000 + minor * 100 + patch;
 }
 
+// Preserve APK fields from existing version.json if present
+let existingApkUrl = null;
+let existingApkBuildStatus = 'building';
+let existingApkBuiltAt = null;
+if (fs.existsSync(OUT)) {
+  try {
+    const existing = JSON.parse(fs.readFileSync(OUT, 'utf8'));
+    existingApkUrl = existing.apkUrl || null;
+    existingApkBuildStatus = existing.apkBuildStatus || 'building';
+    existingApkBuiltAt = existing.apkBuiltAt || null;
+    console.log(`[version] Preserving APK fields from existing version.json: apkUrl=${existingApkUrl ? 'set' : 'null'}, apkBuildStatus=${existingApkBuildStatus}`);
+  } catch {
+    // File exists but is invalid JSON — ignore and generate fresh
+  }
+}
+
 const manifest = {
   sha,
   branch,
@@ -79,12 +100,12 @@ const manifest = {
   commitTime: isoTimestamp,
   status: 'building',        // 'building' | 'healthy' | 'broken'
   stableSince: null,         // ISO timestamp when status became 'healthy'
-  // APK update fields — used by useApkVersionCheck hook on native platforms
-  apkVersion,                // e.g. "1.0.271" — matches Android versionName
-  apkVersionCode,            // e.g. 10271 — matches Android versionCode
-  apkUrl: null,              // set by GH Actions after release publish
-  apkBuildStatus: 'building', // 'building' | 'healthy' | 'broken'
-  apkBuiltAt: timestamp,     // when this APK build was initiated
+  // APK update fields — preserved from existing version.json if present
+  apkVersion,                // e.g. "1.0.282" — from version.properties
+  apkVersionCode,            // e.g. 10282
+  apkUrl: existingApkUrl,    // preserved from GH Actions workflow
+  apkBuildStatus: existingApkBuildStatus, // preserved — 'building' | 'healthy' | 'broken'
+  apkBuiltAt: existingApkBuiltAt || timestamp, // preserved or current
 };
 
 fs.writeFileSync(OUT, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
