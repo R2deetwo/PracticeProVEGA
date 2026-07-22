@@ -2146,10 +2146,10 @@ const MessagesView: React.FC = () => {
                                                 const lastMsg = convMessages[convMessages.length - 1];
 
                                                 return (
-                                                    <button
+                                                    <div
                                                         key={conv.id}
                                                         onClick={() => setSelectedId(conv.id)}
-                                                        className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
+                                                        className={`group relative w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
                                                     >
                                                         <div className="relative flex-shrink-0">
                                                             <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
@@ -2170,7 +2170,39 @@ const MessagesView: React.FC = () => {
                                                                 {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
                                                             </span>
                                                         )}
-                                                    </button>
+                                                        {/* Delete conversation button — appears on hover (desktop) or always (touch) */}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                const ok = await confirm({
+                                                                    title: 'Delete this conversation?',
+                                                                    message: `Your conversation with ${otherMember?.name || 'this team member'} will be permanently removed. All messages in it will be deleted.`,
+                                                                    confirmLabel: 'Delete',
+                                                                    cancelLabel: 'Cancel',
+                                                                    danger: true,
+                                                                });
+                                                                if (!ok) return;
+                                                                try {
+                                                                    // Delete all messages in the conversation first
+                                                                    const messageIds = convMessages.map((m: any) => m.id || m._id);
+                                                                    await Promise.all(messageIds.map((mid: string) =>
+                                                                        Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
+                                                                    ));
+                                                                    // Then delete the conversation itself
+                                                                    await handleDeleteChat(conv.id || conv._id, true, currentUser?.id || currentUser?._id || '');
+                                                                    if (selectedId === conv.id || selectedId === conv._id) setSelectedId(null);
+                                                                    addToast('Conversation deleted.', { type: 'success', duration: 2500 });
+                                                                } catch (err: any) {
+                                                                    addToast(err?.message || 'Failed to delete conversation.', { type: 'error' });
+                                                                }
+                                                            }}
+                                                            className="absolute top-1/2 right-2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                                            title="Delete conversation"
+                                                            aria-label="Delete conversation"
+                                                        >
+                                                            <TrashIcon className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
                                                 );
                                             })}
                                     </div>
@@ -2229,7 +2261,7 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                                 <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                             </div>
-                                            <div>
+                                            <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{otherMember?.name || 'Unknown'}</p>
                                                 <p className="text-xs text-slate-400 flex items-center gap-1">
                                                     {otherIsOnline ? (
@@ -2239,6 +2271,36 @@ const MessagesView: React.FC = () => {
                                                     )}
                                                 </p>
                                             </div>
+                                            {/* Clear conversation button — bulk-deletes all messages in this conversation */}
+                                            {convMessages.length > 0 && (
+                                                <button
+                                                    onClick={async () => {
+                                                        const ok = await confirm({
+                                                            title: 'Clear all messages?',
+                                                            message: `All ${convMessages.length} message(s) in this conversation will be permanently deleted. The conversation itself will remain.`,
+                                                            confirmLabel: 'Clear all',
+                                                            cancelLabel: 'Cancel',
+                                                            danger: true,
+                                                        });
+                                                        if (!ok) return;
+                                                        try {
+                                                            const messageIds = convMessages.map((m: any) => m.id || m._id);
+                                                            await Promise.all(messageIds.map((mid: string) =>
+                                                                Promise.resolve(handleDeleteMessage(mid, true, currentUser?.id || currentUser?._id || '')).catch(() => {})
+                                                            ));
+                                                            addToast('All messages cleared.', { type: 'success', duration: 2500 });
+                                                        } catch (err: any) {
+                                                            addToast(err?.message || 'Failed to clear messages.', { type: 'error' });
+                                                        }
+                                                    }}
+                                                    className="flex items-center gap-1 px-2.5 py-1.5 text-2xs font-bold text-slate-500 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors flex-shrink-0"
+                                                    title="Clear all messages in this conversation"
+                                                    aria-label="Clear all messages"
+                                                >
+                                                    <TrashIcon className="w-3.5 h-3.5" />
+                                                    <span className="hidden sm:inline">Clear all</span>
+                                                </button>
+                                            )}
                                         </div>
                                         {/* Messages */}
                                         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
@@ -2246,14 +2308,42 @@ const MessagesView: React.FC = () => {
                                                 <div className="flex items-center justify-center h-full text-slate-400 text-sm">No messages yet. Start the conversation below.</div>
                                             ) : convMessages.map((msg: any) => {
                                                 const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
+                                                const msgId = msg.id || msg._id;
                                                 return (
-                                                    <div key={msg.id || msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                    <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                         <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
                                                             {msg.content}
                                                             <span className={`block text-2xs mt-1 ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                 {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
                                                             </span>
                                                         </div>
+                                                        {/* Delete button — appears on hover (desktop) or always visible (mobile/touch) */}
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                const ok = await confirm({
+                                                                    title: 'Delete this message?',
+                                                                    message: 'This message will be permanently removed from the conversation.',
+                                                                    confirmLabel: 'Delete',
+                                                                    cancelLabel: 'Cancel',
+                                                                    danger: true,
+                                                                });
+                                                                if (!ok) return;
+                                                                try {
+                                                                    await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
+                                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                                } catch (err: any) {
+                                                                    addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+                                                                }
+                                                            }}
+                                                            className={`absolute -top-1.5 ${isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100`}
+                                                            title="Delete message"
+                                                            aria-label="Delete message"
+                                                        >
+                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
                                                 );
                                             })}
