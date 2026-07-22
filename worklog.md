@@ -4950,3 +4950,80 @@ Stage Summary:
 - v1.18.0 changelog entry covers 8 recent major features
 - What's New floater will no longer re-appear after refresh dismissal
 - Convex backend must be deployed before Vercel frontend goes live
+
+---
+Task ID: team-chat-delete-ui
+Agent: main
+Task: Add delete capability for team chat messages (was missing entirely)
+
+AUDIT FINDINGS — DELETE CAPABILITY ACROSS ALL MESSAGE TYPES:
+1. Portal conversation messages (admin side): DELETE already exists.
+   - Per-message delete button on hover (lines 1890-1918 of MessagesView)
+   - Calls adminDeletePortalMsg mutation (soft-delete for compliance)
+   - Confirm dialog with danger styling
+2. Atrium inbound messages (WhatsApp/Email): DELETE already exists.
+   - AtriumInbox.tsx handleDelete (line 132) with confirm dialog
+   - Calls deleteInboundMessage mutation
+3. Team chat messages: DELETE DID NOT EXIST. ← root cause of complaint
+   - sendTeamReply created messages but there was no delete button anywhere
+   - handleDeleteMessage existed in useMessaging.ts but was never wired
+     to any UI element in the team chat render block
+4. Client matter messages: only render in client portal (ClientMatterDetailView),
+   not on practitioner side. Clients shouldn't delete their own messages
+   for compliance. No practitioner UI surface exists to display them,
+   so no delete UI is needed. Acceptable.
+
+FIX — THREE NEW DELETE ENTRY POINTS IN TEAM CHAT:
+
+1. PER-MESSAGE DELETE (hover/focus):
+   - Each message bubble in the team chat thread now has a small × button
+     that appears at the top-left (incoming) or top-right (outgoing) corner
+     on hover (desktop) or focus (mobile/touch)
+   - Calls handleDeleteMessage(msgId, true, userId)
+   - Confirm dialog: "Delete this message?" / danger styling
+   - Toast on success: "Message deleted."
+
+2. PER-CONVERSATION DELETE (hover on list item):
+   - Each conversation in the left sidebar list now has a trash icon
+     button that appears on hover at the right edge
+   - stopPropagation prevents triggering conversation selection
+   - Deletes all messages in the conversation first (via Promise.all
+     of handleDeleteMessage calls), then deletes the conversation itself
+     (handleDeleteChat)
+   - Clears selectedId if the deleted conversation was active
+   - Confirm dialog: "Delete this conversation?" with recipient name
+   - Toast on success: "Conversation deleted."
+   - Note: converted list item from <button> to <div onClick> because
+     you can't nest a <button> inside a <button>
+
+3. CLEAR ALL MESSAGES IN CONVERSATION (chat header):
+   - "Clear all" button with trash icon in the chat header, next to
+     the recipient name/online status
+   - Only appears when convMessages.length > 0
+   - Bulk-deletes all messages in the active conversation via Promise.all
+     of handleDeleteMessage calls — keeps the conversation shell itself
+   - Confirm dialog: "Clear all messages?" with count
+   - Toast on success: "All messages cleared."
+
+ALL THREE use the existing useConfirm dialog for safety, with danger
+styling and explicit "Delete"/"Clear all"/"Cancel" buttons.
+
+VERIFICATION:
+- npx tsc --noEmit → only pre-existing errors (zero new errors)
+- npx vite build → succeeds in 19.19s
+- Production bundle grep confirms:
+  - "Delete this message" ✓
+  - "Delete this conversation" ✓
+  - "Clear all messages" ✓
+- Pushed commit f61899c to main
+- Vercel deployed: sha=f61899c, status=healthy (17:00 UTC)
+
+Stage Summary:
+- Team chat messages can now be deleted three ways: per-message,
+  per-conversation, or bulk-clear-all
+- All other message types (portal, Atrium inbound) already had delete
+  — confirmed in audit, no changes needed
+- No Convex backend changes needed (handleDeleteMessage and
+  handleDeleteChat already existed in useMessaging.ts, just weren't
+  wired to any UI in the team chat block)
+- Frontend-only change, deployed to production
