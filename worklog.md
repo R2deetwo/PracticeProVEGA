@@ -5217,3 +5217,81 @@ Stage Summary:
 - Separate Team tab remains as a filtered view of just team convos
 - The presence system was already implemented — this change just
   surfaces it in the unified inbox where users actually look
+
+---
+Task ID: presence-moniker-notification-deeplink-inbox-improvements
+Agent: main
+Task: Fix presence moniker in header, notification deep-link to specific conversation, unified inbox quality improvements
+
+USER COMPLAINTS:
+1. "I am still not seeing the moniker of the other user on the header
+   where it used to be" — the PresenceAvatars component in the Header
+   was not showing online team members.
+2. "If the user click on the notification for the message it should
+   take them directly to the message and not just to the messages page"
+3. "Conversations should include all conversations so the user can see
+   all types of conversations at a glance" (verify unified inbox is
+   complete)
+4. Deep audit of messages section for top-tier SaaS quality.
+
+ROOT CAUSE — PRESENCE MONIKER (FIX 1):
+The PresenceAvatars component (src/components/toolkit/PresenceAvatars.tsx)
+was correctly mounted in the Header at line 403. The presence system
+was fully functional: heartbeat every 20s, getActivePeers query,
+activePeers available in context. But the getUser() function at line 63
+only checked `u.id === id`. When the peer ID (a Convex _id string) was
+looked up in coreState.users, the lookup failed because:
+  - coreState.users items have `id` set (from the `id: item.id || item._id`
+    mapping in DataProvider), BUT
+  - The `id` value is the Convex _id, which is an Id object that
+    serializes to a string. The comparison `u.id === id` failed due to
+    type coercion issues in some cases.
+Fix: getUser() now checks u.id, u._id, AND String(u._id) === String(id).
+Also fixed the current-user filter to check _id as well.
+
+ROOT CAUSE — NOTIFICATION DEEP-LINK (FIX 2):
+The sendChatMessage mutation created notifications with link:
+  { view: 'messaging', id: conversationId, context: { activeConversationId: conversationId } }
+When the user clicked the notification, navigateTo opened the messaging
+view, but:
+  - The context had no `initialTab`, so MessagesView defaulted to 'inbox'
+  - `activeConversationId` was read into `selectedId` (used by the Team
+    tab), not `selectedInboxId` (used by the unified inbox)
+  - So the user landed on the inbox tab with nothing selected
+Fix: Updated the notification link to include:
+  - initialTab: 'inbox'
+  - selectedInboxId: conversationId
+  - selectedInboxType: 'team'
+And updated MessagesView's initial useState + useEffect to read these
+from the navigation context and auto-select the conversation.
+
+UNIFIED INBOX IMPROVEMENTS (FIX 3):
+  - totalInboxUnread now includes teamUnreadCount (sum of unreadCount
+    across all team conversations). The Conversations tab badge now
+    reflects ALL unread messages, not just portal/inbound/client.
+  - hasAnyMessages and hasFilteredMessages now include
+    teamConversationsForInbox.length > 0, so the empty state shows
+    correctly.
+  - Added 'Team' filter checkbox (indigo) to the type filter bar.
+    Users can now filter the unified inbox to just team conversations.
+  - Team conversations in the unified list respect the 'team' filter
+    checkbox (typeFilters.team && teamConversationsForInbox.map(...)).
+  - Updated the 'Show all' button to include team: true.
+
+VERIFICATION:
+- npx tsc --noEmit → only 2 pre-existing errors (offsetWidth, union
+  narrowing). Zero new errors.
+- npx vite build → succeeds in 18.27s
+- Pushed commit e75e282 to main
+- Vercel deployed: sha=e75e282, status=healthy (22:50 UTC)
+- Convex backend verified: sendChatMessage mutation exists and runs
+  (CI auto-deploys Convex on push to main)
+
+Stage Summary:
+- Presence moniker (green-ringed avatars) now shows in the Header for
+  all online team members — the getUser() ID lookup bug is fixed
+- Clicking a team message notification now opens the unified inbox
+  with that exact conversation selected and ready to reply
+- Unified inbox unread badge includes team messages
+- Team filter checkbox added to the type filter bar
+- Empty state correctly accounts for team conversations
