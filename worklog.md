@@ -5338,3 +5338,57 @@ Stage Summary:
 - Inbox header is compact — title + filters in one row, saves space
 - Right panel glitch fixed — selecting a team conversation now fills the
   entire right panel with the chat thread, no empty state behind it
+
+---
+Task ID: critical-app-freeze-presence-infinite-loop
+Agent: main
+Task: Fix app freeze caused by PresenceAvatars infinite render loop + remove mark-all-read button
+
+CRITICAL BUG — APP FREEZE:
+The user reported: "I just broke my app cause when I try to change
+pages I can see that the page changes on the space where the link
+appears in the browser dialog box but it does not change in the app
+at all."
+
+ROOT CAUSE:
+The PresenceAvatars component (src/components/toolkit/PresenceAvatars.tsx)
+had a teamMembers array computed with .filter() on every render. This
+creates a NEW array reference each time. The array was then used as a
+dependency in useEffect:
+
+  const teamMembers = (coreState.users || []).filter(...)  // new ref each render
+  useEffect(() => {
+      setDisplayList(...)
+  }, [activePeers, currentUser?.id, currentUser?._id, teamMembers])
+
+Since teamMembers was a new reference on every render, the effect fired
+on EVERY render. The effect called setDisplayList, which triggered a
+re-render, which created a new teamMembers, which fired the effect
+again — an INFINITE LOOP.
+
+This loop consumed all CPU and blocked React from processing navigation
+state changes. The URL in the browser address bar updated (react-router
+updated the URL), but the React tree was stuck in the render loop and
+couldn't re-render the view — so the app appeared frozen.
+
+FIX:
+Wrapped teamMembers in useMemo with stable dependencies:
+  const teamMembers = useMemo(() => ..., [coreState.users, currentUser?.id, currentUser?._id])
+The array reference is now stable across renders. The effect only fires
+when the actual users list or current user changes.
+
+ALSO: Removed the 'Mark all as read' button from the inbox header per
+user request. The header is now just the title + type filter checkboxes.
+
+VERIFICATION:
+- npx vite build → succeeds in 17.51s
+- Pushed commit 3cfa5b3 to main
+- Vercel deployed: sha=3cfa5b3, status=healthy (23:35 UTC)
+
+Stage Summary:
+- App freeze fixed — the infinite render loop in PresenceAvatars is
+  eliminated. Navigation works again.
+- Mark-all-read button removed from inbox header.
+- This was a regression introduced in the previous deploy (commit
+  6a217b7) when I reworked PresenceAvatars to always show team members.
+  The teamMembers array was added without useMemo, causing the loop.
