@@ -1396,25 +1396,68 @@ const MessagesView: React.FC = () => {
                     <div className="flex w-full h-full">
                         {/* Inbox Threads List */}
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
-                            <div className="flex-shrink-0 py-3 px-4 border-b border-slate-200 dark:border-zinc-800 flex justify-between items-center">
-                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                                    {isUnified ? 'All Conversations' : 'Conversations'}
-                                </h3>
-                                <div className="flex items-center gap-1.5">
-                                    {/* TASK 15: Mark all inbound messages as read (clears badge) */}
-                                    <button
-                                        onClick={handleMarkAllInboundRead}
-                                        title="Mark all inbound messages as read"
-                                        className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                                    >
-                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h1m18 0h1M12 2v1m0 18v1" />
-                                        </svg>
-                                    </button>
+                            {/* ── Merged header: title + mark-all-read + type filters in one row ──
+                                Saves vertical space by combining the "All Conversations" title
+                                bar with the type filter checkboxes into a single compact row. */}
+                            <div className="flex-shrink-0 px-3 py-2 border-b border-slate-200 dark:border-zinc-800">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                                        {isUnified ? 'All Conversations' : 'Conversations'}
+                                    </h3>
+                                    <div className="flex items-center gap-1.5">
+                                        {/* Mark all inbound messages as read (clears badge) */}
+                                        <button
+                                            onClick={handleMarkAllInboundRead}
+                                            title="Mark all inbound messages as read"
+                                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h1m18 0h1M12 2v1m0 18v1" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
+                                {/* Type filter checkboxes — inline below the title, compact */}
+                                {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        {([
+                                            { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
+                                            { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
+                                            { key: 'ticket'  as const, label: 'Tickets',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
+                                            { key: 'replied' as const, label: 'Replied',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
+                                            { key: 'portal'  as const, label: 'Portal',    style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-400' },
+                                        ]).map(f => (
+                                            <label
+                                                key={f.key}
+                                                className="inline-flex items-center gap-1 cursor-pointer select-none"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={typeFilters[f.key]}
+                                                    onChange={(e) => setTypeFilters(prev => ({ ...prev, [f.key]: e.target.checked }))}
+                                                    className="sr-only"
+                                                />
+                                                <span className={`w-3 h-3 rounded border-2 flex items-center justify-center transition-colors ${
+                                                    typeFilters[f.key]
+                                                        ? `${f.dot} border-transparent`
+                                                        : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900'
+                                                }`}>
+                                                    {typeFilters[f.key] && (
+                                                        <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </span>
+                                                <span className={`text-2xs font-bold px-1 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
+                                                    {f.label}
+                                                </span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            {/* TASK 15: Bulk action bar — shown when conversations are selected */}
+                            {/* Bulk action bar — shown when conversations are selected */}
                             {selectedConvIds.size > 0 && (
                                 <div className="flex-shrink-0 py-2 px-4 border-b border-slate-200 dark:border-zinc-800 bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-between gap-2">
                                     <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">
@@ -1440,47 +1483,6 @@ const MessagesView: React.FC = () => {
                                             Delete
                                         </button>
                                     </div>
-                                </div>
-                            )}
-                            {/* ── Type filter checkboxes ─────────────────────────────────
-                                Lets the practitioner filter conversations by type. Each
-                                checkbox is color-coded to match the conversation badge.
-                                Only shown when there are conversations to filter. */}
-                            {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
-                                <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 flex items-center gap-3 flex-wrap">
-                                    {([
-                                        { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
-                                        { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
-                                        { key: 'ticket'  as const, label: 'Tickets',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
-                                        { key: 'replied' as const, label: 'Replied',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
-                                        { key: 'portal'  as const, label: 'Portal',    style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-400' },
-                                    ]).map(f => (
-                                        <label
-                                            key={f.key}
-                                            className="inline-flex items-center gap-1.5 cursor-pointer select-none"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={typeFilters[f.key]}
-                                                onChange={(e) => setTypeFilters(prev => ({ ...prev, [f.key]: e.target.checked }))}
-                                                className="sr-only"
-                                            />
-                                            <span className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
-                                                typeFilters[f.key]
-                                                    ? `${f.dot} border-transparent`
-                                                    : 'border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-900'
-                                            }`}>
-                                                {typeFilters[f.key] && (
-                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                    </svg>
-                                                )}
-                                            </span>
-                                            <span className={`text-2xs font-bold px-1.5 py-0.5 rounded ${typeFilters[f.key] ? f.style : 'text-slate-400 dark:text-zinc-500 line-through'}`}>
-                                                {f.label}
-                                            </span>
-                                        </label>
-                                    ))}
                                 </div>
                             )}
                             {/* ── Role filter + search bar ───────────────────────────
@@ -2421,7 +2423,7 @@ const MessagesView: React.FC = () => {
                                         </div>
                                     </div>
                                 </>
-                            ) : (
+                            ) : selectedInboxType !== 'team' && !selectedInboundMsg && !selectedInboxId ? (
                                 <div className="flex-1 flex flex-col items-center justify-center text-slate-400 dark:text-zinc-600 p-8 text-center">
                                     <div className="w-20 h-20 bg-slate-50 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
                                         <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
@@ -2433,7 +2435,7 @@ const MessagesView: React.FC = () => {
                                         {isProperty ? 'WhatsApp, email, and portal messages from residents' : 'Messages from your clients on matters'}
                                     </p>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
 
                         {/* Compose Modal (for inbox/portal messages) — rendered outside tab blocks */}
