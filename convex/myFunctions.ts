@@ -2312,7 +2312,15 @@ export const sendChatMessage = mutation({
           link: {
             view: "messaging",
             id: conversationId,
-            context: { activeConversationId: conversationId },
+            // Include initialTab + selectedInboxId so clicking the notification
+            // opens the unified inbox with this specific team conversation
+            // selected — not just the messaging page.
+            context: {
+              activeConversationId: conversationId,
+              initialTab: "inbox",
+              selectedInboxId: conversationId,
+              selectedInboxType: "team",
+            },
           },
           timestamp: now,
           createdAt: now,

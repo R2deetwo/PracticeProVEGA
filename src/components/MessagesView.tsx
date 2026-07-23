@@ -585,8 +585,13 @@ const MessagesView: React.FC = () => {
         // If navigating to inbox with a specific inbound message ID, select it
         if (hint === 'inbox' && currentHistoryEntry.context?.selectedInboxId) {
             setSelectedInboxId(currentHistoryEntry.context.selectedInboxId);
+            // Also set the inbox type if provided (e.g. 'team' for team chat notifications)
+            const inboxType = currentHistoryEntry.context?.selectedInboxType;
+            if (inboxType === 'team' || inboxType === 'conversation' || inboxType === 'inbound' || inboxType === 'portal') {
+                setSelectedInboxType(inboxType);
+            }
         }
-    }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId]);
+    }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType]);
 
     // ── Team Chat state (existing logic) ──
     const teamChatEndRef = useRef<HTMLDivElement>(null);
@@ -634,8 +639,20 @@ const MessagesView: React.FC = () => {
     const convex = useConvex();
 
     // ── Inbox: selected conversation ──
-    const [selectedInboxId, setSelectedInboxId] = useState<string | null>(null);
-    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | null>(null);
+    // Initial state respects navigation context so that clicking a notification
+    // opens the specific conversation directly — not just the messaging page.
+    const [selectedInboxId, setSelectedInboxId] = useState<string | null>(() => {
+        const ctx = currentHistoryEntry.context;
+        if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) return ctx.selectedInboxId;
+        return null;
+    });
+    const [selectedInboxType, setSelectedInboxType] = useState<'inbound' | 'portal' | 'conversation' | 'team' | null>(() => {
+        const ctx = currentHistoryEntry.context;
+        if (ctx?.initialTab === 'inbox' && ctx?.selectedInboxId) {
+            return (ctx?.selectedInboxType as 'team' | 'conversation' | 'inbound' | 'portal') || null;
+        }
+        return null;
+    });
     const [inboxReply, setInboxReply] = useState('');
     const [isSendingReply, setIsSendingReply] = useState(false);
 
@@ -652,7 +669,8 @@ const MessagesView: React.FC = () => {
         ticket: boolean;
         replied: boolean;
         portal: boolean;
-    }>({ request: true, ticket: true, replied: true, portal: true });
+        team: boolean;
+    }>({ request: true, ticket: true, replied: true, portal: true, team: true });
 
     // Role filter: All / Client / Resident.
     // Product-aware: Vega only shows All+Clients, Atrium only shows All+Residents,
@@ -752,7 +770,9 @@ const MessagesView: React.FC = () => {
     // ── Inbox: compute unread counts ──
     const inboundUnreadCount = atriumInbound.filter((m: any) => !m.isRead).length;
     const portalUnreadCount = (portalConversations as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
-    const totalInboxUnread = inboundUnreadCount + portalUnreadCount + clientMessages.filter(m => !m.isRead).length;
+    // Team unread = sum of unreadCount across all team conversations in the unified inbox
+    const teamUnreadCount = teamConversationsForInbox.reduce((sum: number, tc: any) => sum + (tc.unreadCount || 0), 0);
+    const totalInboxUnread = inboundUnreadCount + portalUnreadCount + clientMessages.filter(m => !m.isRead).length + teamUnreadCount;
 
     // ── Inbox: find selected conversation/message ──
     const selectedInboundMsg = useMemo(() => {
@@ -1426,9 +1446,10 @@ const MessagesView: React.FC = () => {
                                 Lets the practitioner filter conversations by type. Each
                                 checkbox is color-coded to match the conversation badge.
                                 Only shown when there are conversations to filter. */}
-                            {(portalConversations as any[]).length > 0 && selectedConvIds.size === 0 && (
+                            {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
                                 <div className="flex-shrink-0 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/30 flex items-center gap-3 flex-wrap">
                                     {([
+                                        { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
                                         { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
                                         { key: 'ticket'  as const, label: 'Tickets',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
                                         { key: 'replied' as const, label: 'Replied',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
@@ -1537,14 +1558,16 @@ const MessagesView: React.FC = () => {
                                     const hasAnyMessages =
                                         atriumInbound.length > 0 ||
                                         (portalConversations as any[]).length > 0 ||
-                                        clientMessages.length > 0;
+                                        clientMessages.length > 0 ||
+                                        teamConversationsForInbox.length > 0;
 
                                     // If filters have hidden everything but messages DO exist,
                                     // show a "no matches" state instead of the generic empty state.
                                     const hasFilteredMessages =
                                         atriumInbound.length > 0 ||
                                         filteredPortalConversations.length > 0 ||
-                                        clientMessages.length > 0;
+                                        clientMessages.length > 0 ||
+                                        teamConversationsForInbox.length > 0;
 
                                     if (!hasAnyMessages) {
                                         return (
@@ -1567,7 +1590,7 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                                 <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">No conversations match your filters</p>
                                                 <button
-                                                    onClick={() => setTypeFilters({ request: true, ticket: true, replied: true, portal: true })}
+                                                    onClick={() => setTypeFilters({ request: true, ticket: true, replied: true, portal: true, team: true })}
                                                     className="mt-3 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
                                                 >
                                                     Show all
@@ -1610,8 +1633,9 @@ const MessagesView: React.FC = () => {
                                                 Shown inline in the unified Conversations list with an indigo
                                                 "Team" badge. Clicking opens the team chat thread in the right
                                                 panel (same as the Team tab does). Online status is shown via
-                                                a green dot on the avatar — the presence "moniker". */}
-                                            {teamConversationsForInbox.map((tc: any) => {
+                                                a green dot on the avatar — the presence "moniker".
+                                                Respects the 'team' type filter checkbox. */}
+                                            {typeFilters.team && teamConversationsForInbox.map((tc: any) => {
                                                 const convId = String(tc.conversationId);
                                                 const isThisSelected = selectedInboxId === convId && selectedInboxType === 'team';
                                                 const typeStyle = CONVERSATION_TYPE_STYLES.team;

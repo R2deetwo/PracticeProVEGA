@@ -27,7 +27,9 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
             const newList = [...prevList];
 
             current.forEach(peerId => {
-                if (peerId === currentUser?.id) return;
+                // Skip the current user — don't show their own presence avatar.
+                // Check both id and _id formats to be safe.
+                if (peerId === currentUser?.id || peerId === currentUser?._id || String(peerId) === String(currentUser?._id)) return;
                 
                 const existingIndex = newList.findIndex(item => item.id === peerId);
                 if (existingIndex >= 0) {
@@ -60,7 +62,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         return () => clearInterval(interval);
     }, []);
 
-    const getUser = (id: string) => coreState.users.find(u => u.id === id);
+    const getUser = (id: string) => coreState.users.find(u => u.id === id || u._id === id || String(u._id) === String(id));
 
     if (displayList.length === 0) return null;
 
