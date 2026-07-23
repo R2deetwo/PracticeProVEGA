@@ -1396,27 +1396,16 @@ const MessagesView: React.FC = () => {
                     <div className="flex w-full h-full">
                         {/* Inbox Threads List */}
                         <div className={`${selectedInboxId ? 'hidden md:block' : 'block'} w-full md:w-80 flex flex-col border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900`}>
-                            {/* ── Merged header: title + mark-all-read + type filters in one row ──
+                            {/* ── Merged header: title + type filters in one row ──
                                 Saves vertical space by combining the "All Conversations" title
-                                bar with the type filter checkboxes into a single compact row. */}
+                                bar with the type filter checkboxes into a single compact row.
+                                The mark-all-read button was removed per user request — users
+                                can mark individual messages as read by opening them. */}
                             <div className="flex-shrink-0 px-3 py-2 border-b border-slate-200 dark:border-zinc-800">
                                 <div className="flex items-center justify-between mb-1.5">
                                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                                         {isUnified ? 'All Conversations' : 'Conversations'}
                                     </h3>
-                                    <div className="flex items-center gap-1.5">
-                                        {/* Mark all inbound messages as read (clears badge) */}
-                                        <button
-                                            onClick={handleMarkAllInboundRead}
-                                            title="Mark all inbound messages as read"
-                                            className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                                        >
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M2 12h1m18 0h1M12 2v1m0 18v1" />
-                                            </svg>
-                                        </button>
-                                    </div>
                                 </div>
                                 {/* Type filter checkboxes — inline below the title, compact */}
                                 {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (

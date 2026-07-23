@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { User } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
@@ -25,7 +25,12 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
     // online members get a green ring while offline members are greyed.
     // Portal users (Clients/Tenants) are excluded — they don't belong in
     // the team presence strip.
-    const teamMembers = (coreState.users || []).filter((u: any) => {
+    //
+    // CRITICAL: wrapped in useMemo so the array reference is stable across
+    // renders. Without this, the useEffect below would fire on every render
+    // (new array reference each time), causing an infinite loop that freezes
+    // the entire app — the URL changes but the UI never updates.
+    const teamMembers = useMemo(() => (coreState.users || []).filter((u: any) => {
         if (!u) return false;
         // Exclude the current user
         if (u.id === currentUser?.id || u._id === currentUser?.id ||
@@ -34,7 +39,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         const role = u.role;
         if (role === 'Client' || role === 'Tenant' || role === 'Pending' || role === 'ExternalCounsel') return false;
         return true;
-    });
+    }), [coreState.users, currentUser?.id, currentUser?._id]);
 
     useEffect(() => {
         const now = Date.now();
