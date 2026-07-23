@@ -5295,3 +5295,46 @@ Stage Summary:
 - Unified inbox unread badge includes team messages
 - Team filter checkbox added to the type filter bar
 - Empty state correctly accounts for team conversations
+
+---
+Task ID: presence-always-visible-merged-header-rightpanel-glitch
+Agent: main
+Task: Fix presence moniker (always show team), merge inbox header bars, fix right-panel glitch
+
+FIX 1 — PRESENCE MONIKER ALWAYS VISIBLE:
+The PresenceAvatars component was only showing peers that were currently
+online (within a 60s heartbeat window). If no one else was online, the
+moniker strip was empty — the user saw nothing beside the bell.
+
+Reworked the component to ALWAYS show all team members (Admins, Lawyers,
+Paralegals, Managers — not Clients/Tenants). Online members get a green
+ring + green dot; offline members are greyed. The moniker is now always
+visible in the header. Also: limited to 5 avatars with '+N' overflow,
+removed the 10s offline timeout.
+
+FIX 2 — MERGED INBOX HEADER:
+The inbox had THREE separate header bars stacked vertically (wasted
+space). Merged the 'All Conversations' title bar with the type filter
+checkboxes into a single compact row: title left, mark-all-read right,
+filters directly below. The role filter + search remains as a second row.
+
+FIX 3 — RIGHT-PANEL GLITCH:
+When a team conversation was selected, the right panel rendered BOTH the
+team chat thread AND the 'Select a conversation to respond' empty state
+simultaneously — causing a visual glitch. Root cause: the ternary
+condition fell through to the empty state when selectedInboxType === 'team'.
+Fix: the empty state now only renders when there's truly no selection
+(!selectedInboxId && !selectedInboundMsg && selectedInboxType !== 'team').
+
+VERIFICATION:
+- npx tsc --noEmit → only 2 pre-existing errors, zero new
+- npx vite build → succeeds in 18.82s
+- Pushed commit 6a217b7 to main
+- Vercel deployed: sha=6a217b7, status=healthy (23:18 UTC)
+
+Stage Summary:
+- Presence moniker always shows all team members in the header — online
+  members have green rings, offline are greyed. No more empty strip.
+- Inbox header is compact — title + filters in one row, saves space
+- Right panel glitch fixed — selecting a team conversation now fills the
+  entire right panel with the chat thread, no empty state behind it
