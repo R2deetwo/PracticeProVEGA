@@ -60,4 +60,3 @@ _archive/
 node_modules/
 dist/
 src/app/
-public/version.json
