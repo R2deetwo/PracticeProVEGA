@@ -45,6 +45,18 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
         const now = Date.now();
         const current = activePeers || [];
 
+        // Normalize activePeers to an array of plain strings for reliable
+        // comparison. Convex Id objects serialize to strings, but strict
+        // equality (===) between a string and an Id object returns false
+        // even when they represent the same value. This was the root cause
+        // of all team members showing as "Away" even when both users were
+        // actively in conversation — the ID comparison was failing silently.
+        const peerIdStrings = current.map((pid: any) => String(pid));
+        const isPeerOnline = (memberId: any): boolean => {
+            const mid = String(memberId);
+            return peerIdStrings.includes(mid);
+        };
+
         setDisplayList(prevList => {
             const newList = [...prevList];
 
@@ -54,28 +66,23 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                 const memberId = member.id || member._id || '';
                 if (!memberId) return;
                 // Skip the current user
-                if (memberId === currentUser?.id || memberId === currentUser?._id ||
+                if (String(memberId) === String(currentUser?.id || '') ||
                     String(memberId) === String(currentUser?._id || '')) return;
 
-                const isOnline = current.includes(memberId) ||
-                                 current.includes(String(memberId)) ||
-                                 current.some((pid: string) => String(pid) === String(memberId));
+                const isOnline = isPeerOnline(memberId);
 
-                const existingIndex = newList.findIndex(item => item.id === memberId);
+                const existingIndex = newList.findIndex(item => item.id === String(memberId));
                 if (existingIndex >= 0) {
                     newList[existingIndex].isOnline = isOnline;
                     if (isOnline) newList[existingIndex].lastSeen = now;
                 } else {
-                    newList.push({ id: memberId, isOnline, lastSeen: now });
+                    newList.push({ id: String(memberId), isOnline, lastSeen: now });
                 }
             });
 
             // Mark items not in activePeers as offline
             newList.forEach(item => {
-                const stillOnline = current.includes(item.id) ||
-                                    current.includes(String(item.id)) ||
-                                    current.some((pid: string) => String(pid) === String(item.id));
-                if (!stillOnline) {
+                if (!isPeerOnline(item.id)) {
                     item.isOnline = false;
                 }
             });

@@ -208,7 +208,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const navigate = useNavigate();
     const location = useLocation();
     const sendHeartbeatMutation = useMutation(api.myFunctions.sendHeartbeat);
-    const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId } : "skip");
+    const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId, userEmail: currentUser?.email } : "skip");
 
     const [fontSize, setFontSize] = React.useState<FontSize>(() => {
         const stored = localStorage.getItem('practicepro_fontSize');
@@ -306,7 +306,12 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             sendHeartbeatMutation({
                 firmId: currentUser.firmId!,
                 userId: currentUser.id,
-                userName: currentUser.name
+                userName: currentUser.name,
+                // Pass userEmail so requireFirmUser can authenticate via the
+                // fallback path if ctx.auth.getUserIdentity() is unavailable.
+                // Without this, the heartbeat can fail silently with
+                // "Unauthenticated" — and no presence data is stored.
+                userEmail: currentUser.email,
             }).catch(() => { /* Heartbeat failure is non-critical; retry on next interval */ });
         };
 
@@ -316,7 +321,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         // Then every 20s
         const interval = setInterval(sendPulse, 20000);
         return () => clearInterval(interval);
-    }, [currentUser?.id, currentUser?.firmId, currentUser?.name]);
+    }, [currentUser?.id, currentUser?.firmId, currentUser?.name, currentUser?.email]);
 
     // Theme Effect - Applies class to HTML root
     React.useEffect(() => {
