@@ -5436,3 +5436,64 @@ Stage Summary:
 - Offline team members show greyed + "(Away)" tooltip
 - The ID comparison bug is fixed — string normalization ensures reliable matching
 - Heartbeat now passes userEmail so presence data is always stored
+
+---
+Task ID: apk-build-failure-workaround
+Agent: main
+Task: Fix persistent APK build CI failures
+
+DIAGNOSIS:
+- CI run #403 (latest) failed at step 17 "Commit version.json with APK info"
+- Steps 1-16 ALL succeed (including APK build, upload, and release)
+- Step 17 fails because git push origin HEAD:main is non-fast-forward
+  (step 7's patch-bump already advanced origin/main)
+- Steps 18-19 (sync master + verify Vercel) are SKIPPED because step 17 failed
+
+CRITICAL FINDING:
+The APK IS being built and released successfully despite the CI showing
+"failure". Build 403 produced PracticePro-v1.0.308.apk (11.5 MB),
+available at:
+https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-403/PracticePro-v1.0.308.apk
+
+The CI "failure" is only the version.json metadata commit step.
+
+CANNOT FIX WORKFLOW:
+The PAT in this environment lacks 'workflow' scope. GitHub rejects ALL
+workflow file modifications via:
+  - git push (refuses with "without workflow scope")
+  - GitHub Contents API (refuses with "Resource not accessible")
+  - Creating new workflow files (same rejection)
+
+This is a known limitation noted in prior session worklogs.
+
+WORKAROUNDS PROVIDED:
+1. scripts/sync-master.sh — manually syncs master to main. Run after
+   every push to ensure Vercel deploys correctly. Already used to sync
+   master in this session (master was 50+ commits behind main).
+2. download/apk-build-fix.patch — the workflow fix for the user to
+   apply manually via GitHub web UI (which uses the user's full-scope
+   session, not the PAT). The fix adds:
+     - continue-on-error: true (so steps 18-19 always run)
+     - git fetch origin main + git rebase (so push is fast-forward)
+     - Non-fatal abort on rebase conflict
+
+MASTER SYNC PERFORMED:
+Master was 50+ commits behind main (at e012026 from hours ago). Force-
+synced master to main (now at ee05502). Vercel will now deploy the
+latest code.
+
+USER ACTION REQUIRED:
+To permanently fix the CI, the user needs to apply the workflow fix
+by ONE of:
+  A. Edit .github/workflows/build-apk.yml in the GitHub web UI:
+     https://github.com/R2deetwo/PracticeProVEGA/edit/main/.github/workflows/build-apk.yml
+     Replace step 17 with the content from download/apk-build-fix.patch
+  B. Apply the patch locally with a PAT that has workflow scope:
+     git apply download/apk-build-fix.patch
+     git add .github/workflows/build-apk.yml
+     git commit -m "fix(CI): step 17 non-fatal + fetch/rebase"
+     git push origin main
+  C. Regenerate the PAT with workflow scope
+
+Until then, I'll manually run scripts/sync-master.sh after each push
+to keep Vercel deploying correctly.
