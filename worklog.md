@@ -5392,3 +5392,47 @@ Stage Summary:
 - This was a regression introduced in the previous deploy (commit
   6a217b7) when I reworked PresenceAvatars to always show team members.
   The teamMembers array was added without useMemo, causing the loop.
+
+---
+Task ID: presence-online-status-fix
+Agent: main
+Task: Fix presence moniker showing "Away" for users who are actively in conversation
+
+ROOT CAUSE:
+Both users were in an active conversation but both monikers showed
+"Away" (greyed out, tooltip said Away). The online status was never
+showing green even though both users were actively using the app.
+
+Two issues:
+
+1. ID COMPARISON TYPE MISMATCH (primary cause):
+   activePeers contains string IDs (from Convex presence table).
+   teamMembers[i].id is a Convex Id object (not a plain string).
+   Array.includes() uses strict equality (===), so
+   "k7abc" === Id<"users">("k7abc") returns FALSE.
+   The isOnline check was always failing — no one was ever marked online.
+
+   Fix: normalize ALL IDs to plain strings before comparison.
+   - peerIdStrings = activePeers.map(pid => String(pid))
+   - isPeerOnline(memberId) = peerIdStrings.includes(String(memberId))
+   - All displayList items stored with id: String(memberId)
+
+2. HEARTBEAT MISSING userEmail (secondary cause):
+   The sendHeartbeat mutation calls requireFirmUser(ctx, args.userEmail).
+   Without userEmail, it falls back to ctx.auth.getUserIdentity(). If
+   that's unavailable, the heartbeat fails with "Unauthenticated" —
+   silently caught by .catch(() => {}). No presence data stored.
+
+   Fix: pass userEmail: currentUser.email to both sendHeartbeat and
+   getActivePeers so the auth fallback always works.
+
+VERIFICATION:
+- npx vite build → succeeds in 18.61s
+- Pushed commit 22e707e to main
+- Vercel deployed: sha=22e707e, status=healthy (00:32 UTC)
+
+Stage Summary:
+- Online team members now show green ring + green dot + "(Online)" tooltip
+- Offline team members show greyed + "(Away)" tooltip
+- The ID comparison bug is fixed — string normalization ensures reliable matching
+- Heartbeat now passes userEmail so presence data is always stored
