@@ -1145,6 +1145,21 @@ body.aloax-is-processing .aloax-nav-badge {
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px) + 1rem);
   }
 
+  /* ── Chat input dock — canonical utility for chat reply containers ──
+   * On mobile: 3.5rem (bottom nav height) + safe-area-inset-bottom
+   * On desktop (md+): 0.75rem (no bottom nav)
+   * This replaces the inconsistent mix of pb-safe / pb-[calc(...)] / bare
+   * padding across chat input containers. Use: <div className="chat-input-dock ...">
+   */
+  .chat-input-dock {
+    padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .chat-input-dock {
+      padding-bottom: 0.75rem;
+    }
+  }
+
   /* dvh — dynamic viewport height for mobile browsers */
   .h-dvh { height: 100dvh; }
   .min-h-dvh { min-height: 100dvh; }

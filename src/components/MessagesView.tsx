@@ -18,6 +18,7 @@ import { AtriumInbox } from './atrium/AtriumInbox';
 import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
+import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
 
 // --- Icons (If not in constants) ---
 const DotsVerticalIcon = () => (
@@ -368,30 +369,18 @@ const ChatWindow: React.FC<{
                 </div>
             </div>
 
-            {/* Input — pb-safe + extra bottom padding for mobile bottom nav */}
-            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
-                <div className="max-w-3xl mx-auto flex items-end gap-2">
-                    <div className="flex-1 relative">
-                        <textarea
-                            ref={inputRef}
-                            value={newMessage}
-                            onChange={e => setNewMessage(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="Type a message..."
-                            rows={1}
-                            className="w-full pl-3 pr-10 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none transition-all"
-                            style={{ minHeight: '44px' }}
-                        />
-                    </div>
-                    <div className="flex gap-1 items-center pb-1 pr-1 flex-shrink-0">
-                        <button
-                            onClick={handleSend}
-                            disabled={!newMessage.trim()}
-                            className={`p-2.5 rounded-xl transition-all shadow-sm text-white transform active:scale-95 ${!newMessage.trim() ? 'bg-slate-300 dark:bg-zinc-700 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
-                        >
-                            <SendIcon />
-                        </button>
-                    </div>
+            {/* Input — uses .chat-input-dock for correct bottom-nav spacing */}
+            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 chat-input-dock">
+                <div className="max-w-3xl mx-auto">
+                    <AutoExpandingChatInput
+                        value={newMessage}
+                        onChange={setNewMessage}
+                        onSend={handleSend}
+                        placeholder="Type a message..."
+                        sendDisabled={!newMessage.trim()}
+                        sendIcon={<SendIcon />}
+                        sendAriaLabel="Send message"
+                    />
                 </div>
             </div>
         </div>
@@ -486,23 +475,21 @@ const InlineTicketReply: React.FC<{
                         Replying to this ticket thread
                     </span>
                 </div>
-                <textarea
-                    ref={textareaRef}
+                <AutoExpandingChatInput
                     value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                            e.preventDefault();
-                            handleSend();
-                        }
-                    }}
+                    onChange={setText}
+                    onSend={handleSend}
                     placeholder="Type your reply to the resident/client..."
-                    rows={2}
-                    className="w-full block box-border bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-base text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/40 focus:border-primary-400 resize-none"
+                    sendDisabled={!text.trim() || sending}
+                    sendLabel={sending ? 'Sending...' : 'Send Reply'}
+                    sendAriaLabel="Send reply"
+                    hint="Shift+Enter to send"
+                    containerClassName="w-full"
+                    textareaClassName="text-base bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700"
                 />
                 <div className="flex items-center justify-between mt-2">
                     <span className="text-2xs text-slate-400">
-                        ⌘+Enter to send
+                        Shift+Enter to send
                     </span>
                     <div className="flex gap-1.5">
                         <button
@@ -511,25 +498,6 @@ const InlineTicketReply: React.FC<{
                             className="px-2.5 py-1 text-2xs font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                         >
                             Cancel
-                        </button>
-                        <button
-                            onClick={handleSend}
-                            disabled={!text.trim() || sending}
-                            className="px-3 py-1 text-2xs font-bold text-white bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-600 rounded-lg shadow-sm transition-colors flex items-center gap-1"
-                        >
-                            {sending ? (
-                                <>
-                                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                    </svg>
-                                    Sending...
-                                </>
-                            ) : (
-                                <>
-                                    <SendIcon /> Send Reply
-                                </>
-                            )}
                         </button>
                     </div>
                 </div>
@@ -1939,37 +1907,12 @@ const MessagesView: React.FC = () => {
                                             })}
                                             <div ref={teamChatEndRef} />
                                         </div>
-                                        {/* Reply input — pb-safe + extra bottom padding for the
-                                            fixed bottom nav on mobile (APK + mobile web) */}
-                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
-                                            <input
-                                                type="text"
+                                        {/* Reply input — uses .chat-input-dock for correct bottom-nav spacing */}
+                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 chat-input-dock">
+                                            <AutoExpandingChatInput
                                                 value={teamReplyText}
-                                                onChange={e => setTeamReplyText(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
-                                                        (async () => {
-                                                            if (!teamReplyText.trim()) return;
-                                                            const text = teamReplyText.trim();
-                                                            setTeamReplyText('');
-                                                            try {
-                                                                await sendChatMessageMutation({
-                                                                    conversationId: selectedInboxId,
-                                                                    content: text,
-                                                                    authorId: currentUser?._id || currentUser?.id || undefined,
-                                                                    authorName: currentUser?.name || undefined,
-                                                                    userEmail: currentUser?.email,
-                                                                });
-                                                            } catch (err) { console.error('[Team chat] Reply failed:', err); }
-                                                        })();
-                                                    }
-                                                }}
-                                                placeholder="Type a message..."
-                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none"
-                                            />
-                                            <button
-                                                onClick={async () => {
+                                                onChange={setTeamReplyText}
+                                                onSend={async () => {
                                                     if (!teamReplyText.trim()) return;
                                                     const text = teamReplyText.trim();
                                                     setTeamReplyText('');
@@ -1983,10 +1926,11 @@ const MessagesView: React.FC = () => {
                                                         });
                                                     } catch (err) { console.error('[Team chat] Reply failed:', err); }
                                                 }}
-                                                className="px-3 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-bold"
-                                            >
-                                                Send
-                                            </button>
+                                                placeholder="Type a message..."
+                                                sendDisabled={!teamReplyText.trim()}
+                                                sendLabel="Send"
+                                                sendAriaLabel="Send team message"
+                                            />
                                         </div>
                                     </>
                                 );
@@ -2318,8 +2262,8 @@ const MessagesView: React.FC = () => {
                                         and makes the conversation a unified timeline. */}
 
                                     {/* Reply Input — sticky bottom action tray, card-based
-                                        Stays docked above the bottom nav via pb-safe. */}
-                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
+                                        Uses .chat-input-dock for correct bottom-nav spacing. */}
+                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 chat-input-dock">
                                         <div className="max-w-2xl mx-auto w-full box-border">
                                             {/* Pending file attachments for admin reply */}
                                             {adminAttachments.length > 0 && (
@@ -2385,24 +2329,21 @@ const MessagesView: React.FC = () => {
                                                         </button>
                                                     </>
                                                 )}
-                                                <textarea
+                                                <AutoExpandingChatInput
                                                     value={inboxReply}
-                                                    onChange={(e) => setInboxReply(e.target.value)}
+                                                    onChange={setInboxReply}
+                                                    onSend={handleInboxReply}
                                                     placeholder={selectedInboundMsg._inboxType === 'conversation'
                                                         ? (activeThreadTicketId ? 'General conversation reply... (ticket reply is above)' : 'Reply in conversation...')
                                                         : selectedInboundMsg._inboxType === 'portal'
                                                         ? 'Reply to portal user...'
                                                         : `Reply via ${selectedInboundMsg.channel || 'message'}...`}
-                                                    rows={Math.min(4, inboxReply.split('\n').length || 1)}
-                                                    className="flex-1 min-w-0 block box-border bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-base rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary-500/50 resize-none transition-all placeholder:text-slate-400"
+                                                    sendDisabled={(!inboxReply.trim() && adminAttachments.length === 0) || isSendingReply}
+                                                    sendIcon={<SendIcon />}
+                                                    sendAriaLabel="Send reply"
+                                                    containerClassName="flex-1 min-w-0"
+                                                    textareaClassName="text-base px-4 py-3"
                                                 />
-                                                <button
-                                                    onClick={handleInboxReply}
-                                                    disabled={(!inboxReply.trim() && adminAttachments.length === 0) || isSendingReply}
-                                                    className="p-3 bg-primary-600 hover:bg-primary-500 disabled:bg-slate-300 dark:disabled:bg-zinc-700 text-white rounded-xl shadow-sm transition-all flex-shrink-0 disabled:cursor-not-allowed"
-                                                >
-                                                    <SendIcon />
-                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -2687,23 +2628,16 @@ const MessagesView: React.FC = () => {
                                             <div ref={teamChatEndRef} />
                                         </div>
                                         {/* Reply input — pb-safe + extra bottom padding for mobile bottom nav */}
-                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
-                                            <input
-                                                type="text"
+                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 chat-input-dock">
+                                            <AutoExpandingChatInput
                                                 value={teamReplyText}
-                                                onChange={e => setTeamReplyText(e.target.value)}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === 'Enter') sendTeamReply();
-                                                }}
+                                                onChange={setTeamReplyText}
+                                                onSend={sendTeamReply}
                                                 placeholder="Type a message..."
-                                                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm rounded-xl border-0 focus:ring-2 focus:ring-primary-500 outline-none"
+                                                sendDisabled={!teamReplyText.trim()}
+                                                sendLabel="Send"
+                                                sendAriaLabel="Send team message"
                                             />
-                                            <button
-                                                onClick={sendTeamReply}
-                                                className="px-3 py-2 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors text-sm font-bold"
-                                            >
-                                                Send
-                                            </button>
                                         </div>
                                     </>
                                 );

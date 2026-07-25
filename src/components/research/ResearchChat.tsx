@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ResearchMessage, ResearchSource } from '../../types';
 import { ResearchIcon, SendIcon, UserCircleIcon } from '../../constants';
 import Tooltip from '../Tooltip';
+import { AutoExpandingChatInput } from '../toolkit/AutoExpandingChatInput';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
@@ -335,42 +336,38 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                 </div>
             </div>
 
-            {/* Input Area — highlighted when in Prompt-First prefill mode */}
-            <div className="px-4 py-3 sm:px-6 bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
+            {/* Input Area — uses .chat-input-dock for correct bottom-nav spacing */}
+            <div className="px-4 py-3 sm:px-6 chat-input-dock bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-800 shrink-0">
                 <div className="max-w-3xl mx-auto">
-                    <div className={`flex items-end gap-2 rounded-xl p-2 transition-all focus-within:ring-2
+                    <div className={`rounded-xl p-2 transition-all focus-within:ring-2
                         ${prefillQuery && hasAppliedPrefill && !input.trim()
                             ? 'bg-emerald-50 dark:bg-emerald-900/10 border-2 border-emerald-300 dark:border-emerald-700 focus-within:border-emerald-400 dark:focus-within:border-emerald-600 focus-within:ring-emerald-500/10'
                             : 'bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 focus-within:border-blue-400 dark:focus-within:border-blue-600 focus-within:ring-blue-500/10'
                         }`}>
-                        <textarea
-                            ref={textareaRef}
+                        <AutoExpandingChatInput
                             value={input}
-                            onChange={handleInput}
-                            onKeyDown={handleKeyDown}
+                            onChange={setInput}
+                            onSend={handleSend}
                             placeholder={isAiThinking
                                 ? "AI is analyzing..."
                                 : prefillQuery && hasAppliedPrefill
                                     ? "Review the AI-generated query above and press Enter to search…"
                                     : "Ask about your sources... (Enter to send)"}
                             disabled={isAiThinking}
-                            className="flex-1 bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 placeholder-slate-400 focus:ring-0 min-w-0 resize-none max-h-36 min-h-[36px] custom-scrollbar disabled:opacity-50"
-                            style={{ overflowY: input.split('\n').length > 1 ? 'auto' : 'hidden' }}
-                        />
-                        <button
-                            onClick={handleSend}
-                            disabled={!input.trim() || isAiThinking}
-                            className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all active:scale-95 shrink-0 shadow-sm"
-                            title={prefillQuery && hasAppliedPrefill ? "Run the search query" : "Send message"}
-                        >
-                            {prefillQuery && hasAppliedPrefill && !isAiThinking ? (
+                            sendDisabled={!input.trim() || isAiThinking}
+                            sendOnEnter={true}
+                            sendIcon={prefillQuery && hasAppliedPrefill && !isAiThinking ? (
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                                 </svg>
                             ) : (
                                 <SendIcon className="w-4 h-4" />
                             )}
-                        </button>
+                            sendAriaLabel={prefillQuery && hasAppliedPrefill ? "Run the search query" : "Send message"}
+                            containerClassName="flex-1"
+                            textareaClassName="bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 focus:ring-0"
+                            sendButtonClassName="bg-blue-600 hover:bg-blue-700"
+                        />
                     </div>
                     <p className="text-2xs text-slate-400 text-center mt-1.5">
                         {prefillQuery && hasAppliedPrefill

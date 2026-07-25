@@ -7,6 +7,7 @@ import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { PaperClipIcon, SendIcon, TrashIcon, DocumentIcon, ChevronRightIcon, ClockIcon, CheckIcon, DownloadIcon, PlusIcon, BellIcon, SparklesIcon } from '../constants';
+import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
 import { getUserColor, getInitials, timeAgo } from '../utils/colorUtils';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -476,8 +477,8 @@ const ChatWindow: React.FC<{
                 2. Changed bottom-0 to bottom-16 on mobile (md:bottom-0) to clear the BottomNav (approx 64px height).
                 3. Added border-t to create visual separation.
             */}
-            {/* Input Area: Changed from absolute to flex-shrink-0 for layout stability */}
-            <div className="flex-shrink-0 p-4 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 z-50">
+            {/* Input Area: uses .chat-input-dock for correct bottom-nav spacing */}
+            <div className="flex-shrink-0 p-4 chat-input-dock bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 z-50">
                 <div className="max-w-4xl mx-auto flex items-end gap-2 bg-slate-100 dark:bg-zinc-800 p-2 rounded-2xl border border-transparent focus-within:border-primary-300 dark:focus-within:border-primary-700 focus-within:bg-white dark:focus-within:bg-zinc-900 focus-within:ring-4 focus-within:ring-primary-100 dark:focus-within:ring-primary-900/20 transition-all shadow-sm">
 
                     {/* Left Actions */}
@@ -488,28 +489,18 @@ const ChatWindow: React.FC<{
                         </button>
                     </div>
 
-                    {/* Main Input */}
-                    <textarea
-                        ref={inputRef}
+                    {/* Main Input — auto-expanding */}
+                    <AutoExpandingChatInput
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={handleKeyDown}
+                        onChange={setNewMessage}
+                        onSend={handleSend}
                         placeholder="Type a message..."
-                        className="flex-grow bg-transparent border-none focus:ring-0 text-sm max-h-32 resize-none text-slate-800 dark:text-white placeholder-slate-400 ml-1 py-3 custom-scrollbar"
-                        rows={1}
-                        style={{ minHeight: '44px' }}
+                        sendDisabled={!newMessage.trim()}
+                        sendIcon={<SendIcon />}
+                        sendAriaLabel="Send message"
+                        containerClassName="flex-grow"
+                        textareaClassName="bg-transparent border-none focus:ring-0 text-sm text-slate-800 dark:text-white ml-1 py-3"
                     />
-
-                    {/* Right Actions: Send */}
-                    <div className="flex gap-1 items-center pb-1 pr-1 flex-shrink-0">
-                        <button
-                            onClick={handleSend}
-                            disabled={!newMessage.trim()}
-                            className={`p-2.5 rounded-xl transition-all shadow-sm text-white transform active:scale-95 ${!newMessage.trim() ? 'bg-slate-300 dark:bg-zinc-700 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
-                        >
-                            <SendIcon />
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>

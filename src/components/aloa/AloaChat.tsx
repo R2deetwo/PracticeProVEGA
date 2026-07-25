@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useConvex, useMutation, useAction, useQuery } from 'convex/react';
 import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
+import { AutoExpandingChatInput } from '../toolkit/AutoExpandingChatInput';
 import { GoogleGenAI } from '@google/genai';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -3214,7 +3215,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 )}
             </div>
 
-            <footer className="flex-shrink-0 p-4 sm:p-6 pb-safe bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
+            <footer className="flex-shrink-0 p-4 sm:p-6 chat-input-dock bg-white dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-900">
                 {/* Pending attachment chips */}
                 {pendingAttachments.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-2 px-1">
@@ -3276,39 +3277,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         )}
                     </button>
                     <div className={`flex-1 rounded-2xl flex items-end border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
-                        <textarea
-                            ref={chatInputRef}
-                            autoComplete="off"
-                            data-lpignore="true"
+                        <AutoExpandingChatInput
                             value={textInput}
-                            onChange={e => {
-                                setTextInput(e.target.value);
-                                // Auto-resize: reset height then set to scrollHeight
-                                e.target.style.height = 'auto';
-                                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
-                            }}
-                            onKeyDown={(e) => {
-                                // Enter = newline (default textarea behavior)
-                                // Ctrl+Enter OR Cmd+Enter = send
-                                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            rows={1}
-                            placeholder={
-                                isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`
-                            }
-                            className="flex-1 bg-transparent border-none text-base text-slate-900 dark:text-white p-3 placeholder-slate-400 focus:ring-0 min-w-0 resize-none overflow-hidden"
-                            style={{ maxHeight: '120px' }}
+                            onChange={setTextInput}
+                            onSend={handleSend}
+                            placeholder={isAtrium ? `Ask ${getAssistantName(isProperty)} about your properties…` : `Ask ${getAssistantName(isProperty)} about your practice…`}
+                            sendDisabled={!textInput.trim() && pendingAttachments.length === 0}
+                            sendIcon={<SendIcon />}
+                            sendAriaLabel="Send to ALOA"
+                            containerClassName="flex-1"
+                            textareaClassName="bg-transparent border-none text-base p-3 focus:ring-0"
                         />
-                        <button
-                            type="submit"
-                            disabled={!textInput.trim() && pendingAttachments.length === 0}
-                            className={`p-2 rounded-xl disabled:opacity-30 transition-all active:scale-95 shadow-md bg-primary-600 text-white flex-shrink-0 mb-1`}
-                        >
-                            <SendIcon />
-                        </button>
                     </div>
                 </form>
             </footer>
