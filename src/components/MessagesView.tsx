@@ -1641,11 +1641,12 @@ const MessagesView: React.FC = () => {
                                                                 )}
                                                             </div>
                                                             {/* Timestamp — padded right so the hover delete button doesn't overlap it */}
-                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
+                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7 leading-5">
                                                                 {tc.lastMessageAt ? new Date(tc.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                             </span>
                                                         </div>
-                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">
+                                                        {/* Message preview — left-aligned with the text content (avatar width + gap) */}
+                                                        <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2 pl-9">
                                                             {tc.lastMessagePreview || 'No messages yet'}
                                                         </p>
                                                         {/* Delete conversation button — positioned at right edge, doesn't overlap timestamp (timestamp has mr-7) */}
@@ -1870,9 +1871,9 @@ const MessagesView: React.FC = () => {
                                                 const msgId = msg.id || msg._id;
                                                 return (
                                                     <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
-                                                            {msg.content}
-                                                            <span className={`block text-2xs mt-1 ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                        <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
+                                                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                                                            <span className={`block text-2xs mt-1 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                 {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
                                                             </span>
                                                         </div>
@@ -2425,7 +2426,7 @@ const MessagesView: React.FC = () => {
                                                     <div
                                                         key={conv.id}
                                                         onClick={() => setSelectedId(conv.id)}
-                                                        className={`group relative w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
+                                                        className={`group relative w-full flex items-start gap-3 p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors text-left cursor-pointer ${selectedId === conv.id ? 'bg-primary-50 dark:bg-primary-900/10' : ''}`}
                                                     >
                                                         <div className="relative flex-shrink-0">
                                                             <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
@@ -2433,19 +2434,21 @@ const MessagesView: React.FC = () => {
                                                             </div>
                                                             <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                         </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                                                                {otherMember?.name || 'Unknown'}
-                                                            </p>
-                                                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
+                                                        <div className="flex-1 min-w-0 pr-7">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                                                                    {otherMember?.name || 'Unknown'}
+                                                                </p>
+                                                                {lastMsg && (
+                                                                    <span className="text-2xs text-slate-400 flex-shrink-0 leading-5">
+                                                                        {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">
                                                                 {lastMsg?.content || 'No messages yet'}
                                                             </p>
                                                         </div>
-                                                        {lastMsg && (
-                                                            <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
-                                                                {new Date(lastMsg.timestamp || lastMsg.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })}
-                                                            </span>
-                                                        )}
                                                         {/* Delete conversation button — appears on hover (desktop) or always (touch).
                                                             Positioned at the absolute right edge. The timestamp has mr-7 so it
                                                             doesn't overlap this button. */}
@@ -2589,9 +2592,9 @@ const MessagesView: React.FC = () => {
                                                 const msgId = msg.id || msg._id;
                                                 return (
                                                     <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
-                                                            {msg.content}
-                                                            <span className={`block text-2xs mt-1 ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                        <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
+                                                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                                                            <span className={`block text-2xs mt-1 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
                                                                 {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
                                                             </span>
                                                         </div>
