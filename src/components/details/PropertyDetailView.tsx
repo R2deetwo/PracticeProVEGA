@@ -2335,17 +2335,6 @@ const PropertyNoticeBoard: React.FC<{
                     </div>
                 </details>
             )}
-
-            {/* Bidirectional backlinks — notes that mention this property */}
-            <div className="mt-6">
-                <BacklinksPanel
-                    entityId={property.id}
-                    entityType="property"
-                    entityLabel={property.address}
-                    notes={documentState.notePages || []}
-                    navigateTo={navigateTo}
-                />
-            </div>
         </div>
     );
 };

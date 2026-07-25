@@ -369,7 +369,7 @@ const ChatWindow: React.FC<{
             </div>
 
             {/* Input — pb-safe + extra bottom padding for mobile bottom nav */}
-            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
+            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
                 <div className="max-w-3xl mx-auto flex items-end gap-2">
                     <div className="flex-1 relative">
                         <textarea
@@ -1941,7 +1941,7 @@ const MessagesView: React.FC = () => {
                                         </div>
                                         {/* Reply input — pb-safe + extra bottom padding for the
                                             fixed bottom nav on mobile (APK + mobile web) */}
-                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
+                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
                                             <input
                                                 type="text"
                                                 value={teamReplyText}
@@ -2319,7 +2319,7 @@ const MessagesView: React.FC = () => {
 
                                     {/* Reply Input — sticky bottom action tray, card-based
                                         Stays docked above the bottom nav via pb-safe. */}
-                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 pb-safe">
+                                    <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
                                         <div className="max-w-2xl mx-auto w-full box-border">
                                             {/* Pending file attachments for admin reply */}
                                             {adminAttachments.length > 0 && (
@@ -2687,7 +2687,7 @@ const MessagesView: React.FC = () => {
                                             <div ref={teamChatEndRef} />
                                         </div>
                                         {/* Reply input — pb-safe + extra bottom padding for mobile bottom nav */}
-                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
+                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-3">
                                             <input
                                                 type="text"
                                                 value={teamReplyText}
