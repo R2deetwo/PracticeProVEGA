@@ -368,8 +368,8 @@ const ChatWindow: React.FC<{
                 </div>
             </div>
 
-            {/* Input */}
-            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3">
+            {/* Input — pb-safe + extra bottom padding for mobile bottom nav */}
+            <div className="flex-shrink-0 border-t border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
                 <div className="max-w-3xl mx-auto flex items-end gap-2">
                     <div className="flex-1 relative">
                         <textarea
@@ -719,7 +719,9 @@ const MessagesView: React.FC = () => {
                 const convMessages = (messages as any[]).filter((m: any) =>
                     (m.conversationId === c.id || m.conversationId === c._id) && !m.isDeleted
                 );
-                const lastMsg = convMessages[convMessages.length - 1];
+                // messages array comes from getChatMessages in DESC order (newest first).
+                // So convMessages[0] is the NEWEST message, not the last element.
+                const lastMsg = convMessages[0];
                 const unreadCount = (coreState.notifications || []).filter((n: any) =>
                     !n.isRead &&
                     n.userId === myId &&
@@ -1657,31 +1659,23 @@ const MessagesView: React.FC = () => {
                                                                     <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                                 </div>
                                                                 {tc.unreadCount > 0 && <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />}
-                                                                <span className={`text-sm truncate max-w-[120px] ${tc.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
+                                                                <span className={`text-sm truncate max-w-[100px] ${tc.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                     {tc.otherMember?.name || 'Team member'}
                                                                 </span>
+                                                                {/* Team badge on same line as name — slimmer profile */}
+                                                                <span className={`px-1.5 py-0.5 rounded uppercase font-bold text-2xs ${typeStyle.badge} flex-shrink-0`}>
+                                                                    {typeStyle.label}
+                                                                </span>
+                                                                {tc.unreadCount > 1 && (
+                                                                    <span className={`px-1.5 py-0.5 rounded-full text-white font-bold text-2xs ${typeStyle.dot} flex-shrink-0`}>
+                                                                        {tc.unreadCount}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             {/* Timestamp — padded right so the hover delete button doesn't overlap it */}
                                                             <span className="text-2xs text-slate-400 flex-shrink-0 mr-7">
                                                                 {tc.lastMessageAt ? new Date(tc.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                             </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 text-2xs mb-1">
-                                                            {/* Single "Team" badge — indigo, shown once */}
-                                                            <span className={`px-1.5 py-0.5 rounded uppercase font-bold ${typeStyle.badge}`}>
-                                                                {typeStyle.label}
-                                                            </span>
-                                                            {tc.isOnline && (
-                                                                <span className="text-2xs font-bold text-green-600 dark:text-green-400 flex items-center gap-0.5">
-                                                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                                                                    Online
-                                                                </span>
-                                                            )}
-                                                            {tc.unreadCount > 1 && (
-                                                                <span className={`px-1.5 py-0.5 rounded-full text-white font-bold ${typeStyle.dot}`}>
-                                                                    {tc.unreadCount}
-                                                                </span>
-                                                            )}
                                                         </div>
                                                         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-2">
                                                             {tc.lastMessagePreview || 'No messages yet'}
@@ -1945,8 +1939,9 @@ const MessagesView: React.FC = () => {
                                             })}
                                             <div ref={teamChatEndRef} />
                                         </div>
-                                        {/* Reply input */}
-                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900">
+                                        {/* Reply input — pb-safe + extra bottom padding for the
+                                            fixed bottom nav on mobile (APK + mobile web) */}
+                                        <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 bg-white dark:bg-zinc-900 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
                                             <input
                                                 type="text"
                                                 value={teamReplyText}
@@ -2482,7 +2477,8 @@ const MessagesView: React.FC = () => {
                                                 const convMessages = messages.filter(
                                                     (m: any) => (m.conversationId === conv.id || m.conversationId === conv._id) && !m.isDeleted
                                                 );
-                                                const lastMsg = convMessages[convMessages.length - 1];
+                                                // messages array is DESC (newest first), so [0] is the latest
+                                                const lastMsg = convMessages[0];
 
                                                 return (
                                                     <div
@@ -2690,8 +2686,8 @@ const MessagesView: React.FC = () => {
                                             })}
                                             <div ref={teamChatEndRef} />
                                         </div>
-                                        {/* Reply input */}
-                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2">
+                                        {/* Reply input — pb-safe + extra bottom padding for mobile bottom nav */}
+                                        <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex gap-2 pb-safe" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}>
                                             <input
                                                 type="text"
                                                 value={teamReplyText}
