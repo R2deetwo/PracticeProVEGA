@@ -370,7 +370,34 @@ export function installBeforeUnloadGuard(isDirty: boolean): () => void {
         e.returnValue = '';
     };
     window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
+
+    // Also register in a global set so logout() can remove ALL active
+    // beforeunload listeners at once — not just rely on the suppress flag.
+    if (!(window as any).__beforeUnloadHandlers) {
+        (window as any).__beforeUnloadHandlers = new Set();
+    }
+    (window as any).__beforeUnloadHandlers.add(handler);
+
+    return () => {
+        window.removeEventListener('beforeunload', handler);
+        if ((window as any).__beforeUnloadHandlers) {
+            (window as any).__beforeUnloadHandlers.delete(handler);
+        }
+    };
+}
+
+/**
+ * Remove ALL active beforeunload listeners that were registered via
+ * installBeforeUnloadGuard. Called by logout() to ensure the browser
+ * never shows "Leave site?" after the user has already confirmed sign-out.
+ */
+export function removeAllBeforeUnloadGuards(): void {
+    if (typeof window === 'undefined') return;
+    const handlers = (window as any).__beforeUnloadHandlers as Set<() => void> | undefined;
+    if (handlers) {
+        handlers.forEach(h => window.removeEventListener('beforeunload', h as any));
+        handlers.clear();
+    }
 }
 
 /**

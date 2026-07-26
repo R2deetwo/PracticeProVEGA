@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { setSentryUser, clearSentryUser } from '../utils/sentry';
 import { identifyUser, resetUser as resetAnalyticsUser } from '../utils/analytics';
+import { removeAllBeforeUnloadGuards } from '../utils/tabNavigation';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
@@ -684,6 +685,13 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
         // Suppress beforeunload dialog
         window.onbeforeunload = null;
+        // Remove ALL beforeunload listeners registered by installBeforeUnloadGuard.
+        // This is the critical fix for the double-confirm bug: the suppress flag
+        // alone wasn't enough because some browsers still fire the native dialog
+        // if any beforeunload listener calls preventDefault. Removing the listeners
+        // entirely guarantees no "Leave site?" dialog after the user has already
+        // confirmed sign-out.
+        removeAllBeforeUnloadGuards();
 
         // Small delay to let React flush the state change before navigating
         setTimeout(() => {

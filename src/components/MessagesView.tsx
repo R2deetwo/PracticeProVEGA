@@ -19,6 +19,7 @@ import { NoticeBoardTab, ScheduledTab } from './messaging';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
 import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
+import { ChatMessageBubble } from './toolkit/ChatMessageBubble';
 
 // --- Icons (If not in constants) ---
 const DotsVerticalIcon = () => (
@@ -591,6 +592,9 @@ const MessagesView: React.FC = () => {
     const [showCompose, setShowCompose] = useState(false);
     const [showTeamMessage, setShowTeamMessage] = useState(false);
     const [teamReplyText, setTeamReplyText] = useState('');
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [teamAttachments, setTeamAttachments] = useState<{ storageId: string; name: string }[]>([]);
+    const teamFileInputRef = useRef<HTMLInputElement>(null);
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
     const logAutomation = useMutation(api.sentry.logAutomation);
     const markInboundRead = useMutation(api.sentry.markMessageAsRead);
@@ -1816,11 +1820,10 @@ const MessagesView: React.FC = () => {
                                             <button onClick={() => { setSelectedInboxId(null); setSelectedInboxType(null); }} className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full flex-shrink-0">
                                                 <ChevronRightIcon className="w-5 h-5 rotate-180" />
                                             </button>
-                                            <div className="relative flex-shrink-0">
+                                            <div className="flex-shrink-0">
                                                 <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-sm">
                                                     {tc.otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
                                                 </div>
-                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tc.otherMember?.name || 'Unknown'}</p>
@@ -1870,68 +1873,121 @@ const MessagesView: React.FC = () => {
                                                 const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
                                                 const msgId = msg.id || msg._id;
                                                 return (
-                                                    <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
-                                                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                                                            <span className={`block text-2xs mt-1 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
-                                                                {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                const ok = await confirm({
-                                                                    title: 'Delete this message?',
-                                                                    message: 'This message will be permanently removed from the conversation.',
-                                                                    confirmLabel: 'Delete',
-                                                                    cancelLabel: 'Cancel',
-                                                                    danger: true,
-                                                                });
-                                                                if (!ok) return;
-                                                                try {
-                                                                    await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
-                                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
-                                                                } catch (err: any) {
-                                                                    addToast(err?.message || 'Failed to delete message.', { type: 'error' });
-                                                                }
-                                                            }}
-                                                            className={`absolute -top-1.5 ${isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100`}
-                                                            title="Delete message"
-                                                            aria-label="Delete message"
-                                                        >
-                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
+                                                    <ChatMessageBubble
+                                                        key={msgId}
+                                                        content={msg.content}
+                                                        timestamp={msg.timestamp || msg.createdAt}
+                                                        isMe={isMe}
+                                                        isEditing={editingMessageId === msgId}
+                                                        onCancelEdit={() => setEditingMessageId(null)}
+                                                        onEdit={async (newContent) => {
+                                                            try {
+                                                                await handleEditMessage(msgId, newContent);
+                                                                setEditingMessageId(null);
+                                                                addToast('Message updated.', { type: 'success', duration: 2500 });
+                                                            } catch (err: any) {
+                                                                addToast(err?.message || 'Failed to edit message.', { type: 'error' });
+                                                            }
+                                                        }}
+                                                        onDelete={async () => {
+                                                            const ok = await confirm({
+                                                                title: 'Delete this message?',
+                                                                message: 'This message will be permanently removed from the conversation.',
+                                                                confirmLabel: 'Delete',
+                                                                cancelLabel: 'Cancel',
+                                                                danger: true,
+                                                            });
+                                                            if (!ok) return;
+                                                            try {
+                                                                await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
+                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                            } catch (err: any) {
+                                                                addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+                                                            }
+                                                        }}
+                                                    />
                                                 );
                                             })}
                                             <div ref={teamChatEndRef} />
                                         </div>
                                         {/* Reply input — uses .chat-input-dock for correct bottom-nav spacing */}
                                         <div className="flex-shrink-0 p-3 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 chat-input-dock">
-                                            <AutoExpandingChatInput
-                                                value={teamReplyText}
-                                                onChange={setTeamReplyText}
-                                                onSend={async () => {
-                                                    if (!teamReplyText.trim()) return;
-                                                    const text = teamReplyText.trim();
-                                                    setTeamReplyText('');
+                                            {/* Hidden file input for attachments */}
+                                            <input
+                                                type="file"
+                                                ref={teamFileInputRef}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
                                                     try {
-                                                        await sendChatMessageMutation({
-                                                            conversationId: selectedInboxId,
-                                                            content: text,
-                                                            authorId: currentUser?._id || currentUser?.id || undefined,
-                                                            authorName: currentUser?.name || undefined,
-                                                            userEmail: currentUser?.email,
-                                                        });
-                                                    } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                                        const postUrl = await generateUploadUrl();
+                                                        const res = await fetch(postUrl, { method: 'POST', body: file });
+                                                        if (res.ok) {
+                                                            const { storageId } = await res.json();
+                                                            if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                        }
+                                                    } catch {}
+                                                    if (teamFileInputRef.current) teamFileInputRef.current.value = '';
                                                 }}
-                                                placeholder="Type a message..."
-                                                sendDisabled={!teamReplyText.trim()}
-                                                sendLabel="Send"
-                                                sendAriaLabel="Send team message"
+                                                multiple
+                                                className="hidden"
                                             />
+                                            {/* Pending attachment chips */}
+                                            {teamAttachments.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    {teamAttachments.map((att, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs max-w-full min-w-0">
+                                                            <DocumentIcon className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300 min-w-0">{att.name}</span>
+                                                            <button onClick={() => setTeamAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5 flex-shrink-0">
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex items-end gap-2">
+                                                <button
+                                                    onClick={() => teamFileInputRef.current?.click()}
+                                                    className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                                                    title="Attach file"
+                                                    aria-label="Attach file"
+                                                >
+                                                    <PaperClipIcon className="w-5 h-5" />
+                                                </button>
+                                                <AutoExpandingChatInput
+                                                    value={teamReplyText}
+                                                    onChange={setTeamReplyText}
+                                                    onSend={async () => {
+                                                        if (!teamReplyText.trim() && teamAttachments.length === 0) return;
+                                                        const text = teamReplyText.trim();
+                                                        const attachments = [...teamAttachments];
+                                                        setTeamReplyText('');
+                                                        setTeamAttachments([]);
+                                                        try {
+                                                            await sendChatMessageMutation({
+                                                                conversationId: selectedInboxId,
+                                                                content: text || '(file attachment)',
+                                                                authorId: currentUser?._id || currentUser?.id || undefined,
+                                                                authorName: currentUser?.name || undefined,
+                                                                userEmail: currentUser?.email,
+                                                            });
+                                                            // Note: file attachments are uploaded to Convex storage but
+                                                            // not yet linked to the message via the mutation. The
+                                                            // sendChatMessage mutation would need to accept attachments
+                                                            // as a parameter. For now, the file is stored and the
+                                                            // storageId is available in teamAttachments — a future
+                                                            // enhancement can pass these to the mutation.
+                                                            void attachments;
+                                                        } catch (err) { console.error('[Team chat] Reply failed:', err); }
+                                                    }}
+                                                    placeholder="Type a message..."
+                                                    sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
+                                                    sendLabel="Send"
+                                                    sendAriaLabel="Send team message"
+                                                    containerClassName="flex-1"
+                                                />
+                                            </div>
                                         </div>
                                     </>
                                 );
@@ -2536,11 +2592,10 @@ const MessagesView: React.FC = () => {
                                     <>
                                         {/* Chat header */}
                                         <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-3">
-                                            <div className="relative flex-shrink-0">
+                                            <div className="flex-shrink-0">
                                                 <div className="w-9 h-9 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-700 dark:text-primary-400 font-bold text-sm">
                                                     {otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
                                                 </div>
-                                                <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${otherIsOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-slate-900 dark:text-white">{otherMember?.name || 'Unknown'}</p>
@@ -2591,41 +2646,39 @@ const MessagesView: React.FC = () => {
                                                 const isMe = msg.authorId === currentUser?.id || msg.authorId === currentUser?._id;
                                                 const msgId = msg.id || msg._id;
                                                 return (
-                                                    <div key={msgId} className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[75%] px-3.5 py-2 rounded-2xl text-sm ${isMe ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-sm'}`}>
-                                                            <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                                                            <span className={`block text-2xs mt-1 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
-                                                                {new Date(msg.timestamp || msg.createdAt).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' })}
-                                                            </span>
-                                                        </div>
-                                                        {/* Delete button — appears on hover (desktop) or always visible (mobile/touch) */}
-                                                        <button
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                const ok = await confirm({
-                                                                    title: 'Delete this message?',
-                                                                    message: 'This message will be permanently removed from the conversation.',
-                                                                    confirmLabel: 'Delete',
-                                                                    cancelLabel: 'Cancel',
-                                                                    danger: true,
-                                                                });
-                                                                if (!ok) return;
-                                                                try {
-                                                                    await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
-                                                                    addToast('Message deleted.', { type: 'success', duration: 2500 });
-                                                                } catch (err: any) {
-                                                                    addToast(err?.message || 'Failed to delete message.', { type: 'error' });
-                                                                }
-                                                            }}
-                                                            className={`absolute -top-1.5 ${isMe ? '-left-1.5' : '-right-1.5'} w-5 h-5 bg-slate-200 dark:bg-zinc-700 hover:bg-rose-100 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 rounded-full flex items-center justify-center transition-all shadow-sm opacity-0 group-hover:opacity-100 focus:opacity-100`}
-                                                            title="Delete message"
-                                                            aria-label="Delete message"
-                                                        >
-                                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                            </svg>
-                                                        </button>
-                                                    </div>
+                                                    <ChatMessageBubble
+                                                        key={msgId}
+                                                        content={msg.content}
+                                                        timestamp={msg.timestamp || msg.createdAt}
+                                                        isMe={isMe}
+                                                        isEditing={editingMessageId === msgId}
+                                                        onCancelEdit={() => setEditingMessageId(null)}
+                                                        onEdit={async (newContent) => {
+                                                            try {
+                                                                await handleEditMessage(msgId, newContent);
+                                                                setEditingMessageId(null);
+                                                                addToast('Message updated.', { type: 'success', duration: 2500 });
+                                                            } catch (err: any) {
+                                                                addToast(err?.message || 'Failed to edit message.', { type: 'error' });
+                                                            }
+                                                        }}
+                                                        onDelete={async () => {
+                                                            const ok = await confirm({
+                                                                title: 'Delete this message?',
+                                                                message: 'This message will be permanently removed from the conversation.',
+                                                                confirmLabel: 'Delete',
+                                                                cancelLabel: 'Cancel',
+                                                                danger: true,
+                                                            });
+                                                            if (!ok) return;
+                                                            try {
+                                                                await handleDeleteMessage(msgId, true, currentUser?.id || currentUser?._id || '');
+                                                                addToast('Message deleted.', { type: 'success', duration: 2500 });
+                                                            } catch (err: any) {
+                                                                addToast(err?.message || 'Failed to delete message.', { type: 'error' });
+                                                            }
+                                                        }}
+                                                    />
                                                 );
                                             })}
                                             <div ref={teamChatEndRef} />

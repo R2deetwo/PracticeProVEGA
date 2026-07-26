@@ -121,19 +121,19 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col border border-slate-200 dark:border-zinc-700">
                 {/* Accent bar */}
                 <div className="h-1.5 w-full bg-gradient-to-r from-primary-600 to-primary-600 rounded-t-2xl sm:rounded-t-2xl" />
 
                 {/* Header */}
-                <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
+                <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100 dark:border-zinc-800">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900">New Team Message</h2>
-                        <p className="text-xs text-slate-500 mt-0.5">Send a direct message to a team member</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">New Team Message</h2>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Send a direct message to a team member</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
                         aria-label="Close"
                     >
                         <XIcon className="w-5 h-5" />
@@ -144,11 +144,11 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                 <div className="px-4 sm:px-6 py-5 space-y-4">
                     {/* Recipient selector */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">To</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">To</label>
                         <select
                             value={recipientId}
                             onChange={e => setRecipientId(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
                         >
                             <option value="">Select a team member...</option>
                             {teamMembers.map((u: any) => (
@@ -161,22 +161,22 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
 
                     {/* Message input */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">Message</label>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">Message</label>
                         <textarea
                             value={message}
                             onChange={e => setMessage(e.target.value)}
                             rows={5}
                             placeholder="Type your message..."
-                            className="w-full bg-gray-50 border border-gray-300 rounded-lg shadow-sm p-3 text-slate-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
+                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
                         />
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+                <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-t border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900 flex justify-end gap-2">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors"
+                        className="px-4 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-700 transition-colors"
                     >
                         Cancel
                     </button>
