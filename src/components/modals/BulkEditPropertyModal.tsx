@@ -34,7 +34,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
             <ShieldCheckIcon className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">Bulk Edit Properties</h3>
+            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Bulk Edit Properties</h3>
             <p className="text-sm text-slate-500 font-medium">Updating <span className="text-primary-600 font-bold">{propertyIds.length}</span> selected properties.</p>
           </div>
         </div>
@@ -46,7 +46,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
               <select 
                 value={status} 
                 onChange={(e) => setStatus(e.target.value as PropertyStatus)}
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Status</option>
                 <option value="Available">Available</option>
@@ -63,7 +63,7 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
               <select 
                 value={category} 
                 onChange={(e) => setCategory(e.target.value as PropertyCategory)}
-                className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
+                className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Category</option>
                 <option value="Residential">Residential</option>
@@ -85,11 +85,11 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
             </p>
           </div>
 
-          <div className="flex flex-wrap-reverse sm:justify-end gap-3 pt-6 border-t border-slate-100">
+          <div className="flex flex-wrap-reverse sm:justify-end gap-3 pt-6 border-t border-slate-100 dark:border-zinc-800">
             <button 
               type="button" 
               onClick={onClose} 
-              className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 text-slate-600 text-2xs font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+              className="flex-1 sm:flex-none px-10 py-3 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-2xs font-black uppercase tracking-widest rounded-2xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
             >
               <XIcon className="w-4 h-4" /> Cancel
             </button>

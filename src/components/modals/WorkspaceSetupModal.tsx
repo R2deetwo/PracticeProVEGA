@@ -52,7 +52,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
         <LockClosedIcon className="w-8 h-8 text-blue-600" />
        </div>
-       <h3 className="text-xl font-bold text-slate-900">Activate Your Workspace</h3>
+       <h3 className="text-xl font-bold text-slate-900 dark:text-white">Activate Your Workspace</h3>
        <p className="text-sm text-slate-500 mt-2 max-w-sm">
          You are currently in <strong>Guest Mode</strong>. To {pendingAction ? pendingAction.toLowerCase() : 'save data'}, we need to initialize a secure workspace for you.
        </p>
@@ -61,7 +61,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
     {status === 'idle' && (
       <form onSubmit={handleSubmit} className="space-y-5 animate-fade-in">
         <div>
-          <label htmlFor="firmName" className="block text-sm font-bold text-slate-700 mb-1.5">
+          <label htmlFor="firmName" className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
             What is your {product === 'property' ? "Portfolio" : "Firm's"} Name?
           </label>
           <div className="relative">
@@ -71,7 +71,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
               id="firmName"
               value={firmName}
               onChange={(e) => setFirmName(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm text-slate-900"
+              className="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm text-slate-900 dark:text-white"
               placeholder={product === 'property' ? "e.g. Horizon Properties" : "e.g. Adeyemi & Co."}
               required
               autoFocus
@@ -80,18 +80,18 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
+          <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-2">
             What will you use PracticePro for?
           </label>
           <div className="grid grid-cols-3 gap-2">
-            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-xl transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 hover:border-slate-300'}`}>
-              <div className="font-bold text-xs text-slate-900">Vega (Legal)</div>
+            <button type="button" onClick={() => setProduct('legal')} className={`p-3 text-center border rounded-xl transition-all ${product === 'legal' ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+              <div className="font-bold text-xs text-slate-900 dark:text-white">Vega (Legal)</div>
             </button>
-            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-xl transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' : 'border-slate-200 hover:border-slate-300'}`}>
-              <div className="font-bold text-xs text-slate-900">Atrium (Property)</div>
+            <button type="button" onClick={() => setProduct('property')} className={`p-3 text-center border rounded-xl transition-all ${product === 'property' ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+              <div className="font-bold text-xs text-slate-900 dark:text-white">Atrium (Property)</div>
             </button>
-            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-xl transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-slate-300'}`}>
-              <div className="font-bold text-xs text-slate-900">Unified</div>
+            <button type="button" onClick={() => setProduct('unified')} className={`p-3 text-center border rounded-xl transition-all ${product === 'unified' ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300'}`}>
+              <div className="font-bold text-xs text-slate-900 dark:text-white">Unified</div>
             </button>
           </div>
         </div>
@@ -100,7 +100,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
           <button 
             type="button" 
             onClick={onClose} 
-            className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl font-bold text-sm transition-colors"
+            className="px-4 py-2.5 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:bg-zinc-800 rounded-xl font-bold text-sm transition-colors"
           >
             Cancel
           </button>
@@ -117,8 +117,8 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
 
     {status === 'processing' && (
       <div className="flex flex-col items-center justify-center py-8">
-        <div className="w-10 h-10 border-4 border-slate-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-bold text-slate-700">Creating your workspace...</p>
+        <div className="w-10 h-10 border-4 border-slate-200 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">Creating your workspace...</p>
       </div>
     )}
 
@@ -127,7 +127,7 @@ const WorkspaceSetupModal: React.FC<WorkspaceSetupModalProps> = ({ onSuccess, pe
         <div className="text-emerald-500 mb-3">
           <CheckCircleIcon className="w-12 h-12" />
         </div>
-        <p className="text-lg font-black text-slate-800">You're all set!</p>
+        <p className="text-lg font-black text-slate-800 dark:text-zinc-100">You're all set!</p>
         <p className="text-sm text-slate-500">Saving your {pendingAction?.toLowerCase() || 'item'} now...</p>
       </div>
     )}

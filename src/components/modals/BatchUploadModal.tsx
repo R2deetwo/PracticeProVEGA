@@ -150,7 +150,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
             <SparklesIcon className="w-3 h-3" /> Smart Indexing
           </span>
         </div>
-        <h3 className="text-xl font-bold text-slate-900 flex items-center justify-center gap-2">
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-2">
           DraftPro™ <span className="text-slate-400 font-normal">Internal Document Indexing</span>
         </h3>
         <p className="text-sm text-slate-500 mt-1">
@@ -158,15 +158,15 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         </p>
       </div>
 
-      <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-50/50 backdrop-blur-sm custom-scrollbar">
+      <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 dark:border-zinc-700 rounded-xl p-3 bg-slate-50 dark:bg-zinc-900/50 backdrop-blur-sm custom-scrollbar">
         {uploads.map((item, idx) => (
-          <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-slate-100 transition-all hover:border-primary-500/50">
-            <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div key={idx} className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800 transition-all hover:border-primary-500/50">
+            <div className="w-10 h-10 bg-slate-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center flex-shrink-0">
               <DocumentIcon className="w-5 h-5 text-slate-500" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-center mb-1.5">
-                <p className="text-sm font-bold truncate text-slate-800">{item.file.name}</p>
+                <p className="text-sm font-bold truncate text-slate-800 dark:text-zinc-100">{item.file.name}</p>
                 <span className={`text-2xs font-bold uppercase tracking-wider ${item.status === 'completed' ? 'text-green-600' :
                   item.status === 'failed' ? 'text-red-500' : 'text-primary-500 animate-pulse'
                   }`}>
@@ -208,10 +208,10 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         ))}
       </div>
 
-      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+      <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="flex items-center justify-between">
           <div>
-            <label className="block text-sm font-bold text-slate-800">Mark all as Court Processes</label>
+            <label className="block text-sm font-bold text-slate-800 dark:text-zinc-100">Mark all as Court Processes</label>
             <p className="text-xs text-slate-500">Enable if these documents require court filing tracking.</p>
           </div>
           <button
@@ -220,7 +220,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
             disabled={isProcessing}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ring-2 ring-primary-500/10 ${isCourtProcess ? 'bg-primary-600' : 'bg-slate-300'} ${isProcessing ? 'opacity-50' : ''}`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 transition-transform ${isCourtProcess ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
       </div>
@@ -231,7 +231,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
           onClick={onClose}
           className={`px-8 py-2.5 rounded-xl font-bold transition-all ${isDone
             ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-500/20'
-            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200'
             }`}
         >
           {isDone ? 'Close Window' : 'Continue in Background'}

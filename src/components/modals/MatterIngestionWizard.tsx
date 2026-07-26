@@ -281,20 +281,20 @@ export const MatterIngestionWizard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-[calc(95vh-60px)] w-full bg-white overflow-hidden">
+    <div className="flex flex-col h-[calc(95vh-60px)] w-full bg-white dark:bg-zinc-900 overflow-hidden">
       {/* Context Info (Replaced original header) */}
-      <div className="px-8 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center gap-3">
+      <div className="px-8 py-4 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-800 flex items-center gap-3">
         <div className="p-1.5 bg-primary-600 rounded-lg text-white">
           <SparklesIcon className="w-5 h-5" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Onboarding & Migration</h3>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-tight">Onboarding & Migration</h3>
           <p className="text-2xs text-slate-500 font-medium">Auto-detecting matters and docs from local directories</p>
         </div>
       </div>
 
       {/* Stepper (Visual only) */}
-      <div className="px-8 pt-4 pb-2 flex items-center justify-between border-b border-slate-100 bg-white flex-shrink-0">
+      <div className="px-8 pt-4 pb-2 flex items-center justify-between border-b border-slate-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex-shrink-0">
         {[
           { key: 'upload', label: 'Folder Selection', icon: FoldersIcon },
           { key: 'validation', label: 'AI Review & Mapping', icon: SearchIcon },
@@ -308,7 +308,7 @@ export const MatterIngestionWizard: React.FC = () => {
             <div key={s.key} className="flex items-center gap-2">
               <div className={`
                 w-7 h-7 rounded-full flex items-center justify-center text-2xs font-bold transition-all
-                ${isDone ? 'bg-green-500 text-white' : isActive ? 'bg-primary-600 text-white shadow-md scale-110' : 'bg-slate-100 text-slate-400'}
+                ${isDone ? 'bg-green-500 text-white' : isActive ? 'bg-primary-600 text-white shadow-md scale-110' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400'}
               `}>
                 {isDone ? <CheckCircleIcon className="w-4 h-4" /> : idx + 1}
               </div>
@@ -334,7 +334,7 @@ export const MatterIngestionWizard: React.FC = () => {
             <div className="w-24 h-24 bg-primary-100 rounded-full flex items-center justify-center mb-8 animate-pulse shadow-inner border-2 border-dashed border-primary-400">
               <FoldersIcon className="w-12 h-12 text-primary-600" />
             </div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-3">Drop Master Firm Folder Here</h3>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Drop Master Firm Folder Here</h3>
             <p className="text-slate-500 max-w-md mb-8 leading-relaxed">
               Drag and drop a master folder containing all your client matter directories here, or click to browse. ALOA will recursively scan the structure to detect matters, parties, and supported documents (Word, PDF, Excel, txt).
             </p>
@@ -361,7 +361,7 @@ export const MatterIngestionWizard: React.FC = () => {
 
         {/* STEP 2: SCANNING / MAPPING */}
         {step === 'scanning' && (
-          <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-slate-50/50">
+          <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-slate-50 dark:bg-zinc-900/50">
             <div className="relative w-32 h-32 mb-8">
               <div className="absolute inset-0 border-4 border-primary-100 rounded-full"></div>
               <div className="absolute inset-0 border-4 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
@@ -369,7 +369,7 @@ export const MatterIngestionWizard: React.FC = () => {
                 <SparklesIcon className="w-10 h-10 text-primary-600 animate-pulse" />
               </div>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">ALOA Intelligence at Work</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">ALOA Intelligence at Work</h3>
             <p className="text-slate-500 font-mono text-xs max-w-xs truncate">Scanning: {files[files.length - 1]?.path.join('/') || 'Analysing directories...'}</p>
             <div className="mt-8 flex gap-4">
               <div className="flex items-center gap-2 text-2xs font-bold text-slate-400 uppercase">
@@ -398,9 +398,9 @@ export const MatterIngestionWizard: React.FC = () => {
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer group">
                   <div className={`w-10 h-6 rounded-full p-1 transition-colors ${importDocuments ? 'bg-primary-600' : 'bg-slate-300'}`} onClick={() => setImportDocuments(!importDocuments)}>
-                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${importDocuments ? 'translate-x-4' : ''}`} />
+                    <div className={`w-4 h-4 bg-white dark:bg-zinc-900 rounded-full transition-transform ${importDocuments ? 'translate-x-4' : ''}`} />
                   </div>
-                  <span className="text-xs font-bold text-slate-600">Import Documents</span>
+                  <span className="text-xs font-bold text-slate-600 dark:text-zinc-400">Import Documents</span>
                 </label>
               </div>
             </div>
@@ -418,14 +418,14 @@ export const MatterIngestionWizard: React.FC = () => {
                 </thead>
                 <tbody>
                   {draftMatters.map(draft => (
-                    <tr key={draft.id} className="bg-slate-50 hover:bg-white transition-all rounded-xl shadow-sm border border-slate-100">
+                    <tr key={draft.id} className="bg-slate-50 hover:bg-white dark:bg-zinc-900 transition-all rounded-xl shadow-sm border border-slate-100 dark:border-zinc-800">
                       <td className="p-4 rounded-l-xl">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded flex items-center justify-center">
                             <MatterIcon className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-900 truncate">{draft.title}</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{draft.title}</p>
                             <p className="text-2xs text-slate-500 font-mono">{draft.reference}</p>
                           </div>
                         </div>
@@ -433,16 +433,16 @@ export const MatterIngestionWizard: React.FC = () => {
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <UsersIcon className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="text-sm text-slate-700">{draft.clientName}</span>
+                          <span className="text-sm text-slate-700 dark:text-zinc-300">{draft.clientName}</span>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="px-2 py-0.5 bg-slate-200 rounded text-2xs font-bold text-slate-600 whitespace-nowrap">
+                        <span className="px-2 py-0.5 bg-slate-200 rounded text-2xs font-bold text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                           {draft.type}
                         </span>
                       </td>
                       <td className="p-4 text-center">
-                        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${importDocuments ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400 opacity-50'}`}>
+                        <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${importDocuments ? 'bg-green-100 text-green-700' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 opacity-50'}`}>
                           <DocumentTextIcon className="w-3.5 h-3.5" />
                           <span className="text-xs font-bold">{draft.files.length}</span>
                         </div>
@@ -456,12 +456,12 @@ export const MatterIngestionWizard: React.FC = () => {
               </table>
             </div>
 
-            <div className="p-6 border-t border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div className="p-6 border-t border-slate-100 dark:border-zinc-800 flex justify-between items-center bg-slate-50 dark:bg-zinc-900/50">
               <div>
                 {ingestionError && (
                   <p className="text-xs font-bold text-red-600 mb-1">⚠ Last attempt failed: {ingestionError}</p>
                 )}
-                <p className="text-sm font-bold text-slate-900">Batch Ready</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Batch Ready</p>
                 <p className="text-xs text-slate-500">{draftMatters.length} Matters to be ingested. {importDocuments ? `${files.length} documents will be queued.` : 'Skipping document binary upload.'}</p>
               </div>
               <button
@@ -478,7 +478,7 @@ export const MatterIngestionWizard: React.FC = () => {
         {/* STEP 4: EXECUTING */}
         {step === 'executing' && (
           <div className="h-full flex flex-col items-center justify-center p-20 text-center">
-            <div className="w-full max-w-md bg-slate-100 h-3 rounded-full overflow-hidden mb-6 shadow-inner">
+            <div className="w-full max-w-md bg-slate-100 dark:bg-zinc-800 h-3 rounded-full overflow-hidden mb-6 shadow-inner">
               <div
                 className="bg-primary-600 h-full transition-all duration-500 shadow-[0_0_20px_rgba(37,99,235,0.5)]"
                 style={{ width: progress.total > 0 ? `${((progress.current) / progress.total) * 100}%` : '5%' }}
@@ -489,7 +489,7 @@ export const MatterIngestionWizard: React.FC = () => {
               <span className="text-xs font-mono font-bold text-primary-600">{Math.round((progress.current / progress.total) * 100)}%</span>
             </div>
             <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 font-medium">
                 <ArrowPathIcon className="w-4 h-4 animate-spin text-primary-500" />
                 Sequential Batching... Ensuring data integrity
               </div>
@@ -507,18 +507,18 @@ export const MatterIngestionWizard: React.FC = () => {
             <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-8 shadow-inner">
               <CheckCircleIcon className="w-12 h-12 text-green-600" />
             </div>
-            <h3 className="text-3xl font-bold text-slate-900 mb-2">Ingestion Successful!</h3>
+            <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Ingestion Successful!</h3>
             <p className="text-slate-500 max-w-md mb-12">
               All your legacy data has been mapped and securely migrated to PracticePro. Your team can now start working on these matters immediately.
             </p>
 
             <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-12">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-2xl font-bold text-slate-900">{draftMatters.length}</p>
+              <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{draftMatters.length}</p>
                 <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Matters Created</p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <p className="text-2xl font-bold text-slate-900">{importDocuments ? files.length : 0}</p>
+              <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{importDocuments ? files.length : 0}</p>
                 <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Documents Synced</p>
               </div>
             </div>

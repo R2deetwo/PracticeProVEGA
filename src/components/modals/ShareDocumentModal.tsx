@@ -83,12 +83,12 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-        <div className="p-2 bg-white rounded shadow-sm">
+      <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
+        <div className="p-2 bg-white dark:bg-zinc-900 rounded shadow-sm">
           <PaperClipIcon className="w-6 h-6 text-primary-600" />
         </div>
         <div>
-          <h4 className="font-bold text-slate-800 text-sm">{document.title}</h4>
+          <h4 className="font-bold text-slate-800 dark:text-zinc-100 text-sm">{document.title}</h4>
           <p className="text-xs text-slate-500">
             {matter ? `Matter: ${matter.title}` : 'General Document'}
           </p>
@@ -96,25 +96,25 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Select Colleagues</label>
-        <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-1">
+        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Select Colleagues</label>
+        <div className="max-h-48 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-lg p-1">
           {internalUsers.map(user => (
             <div
               key={user.id}
               onClick={() => handleToggleUser(user.id)}
-              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary-50' : 'hover:bg-slate-50'}`}
+              className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary-50' : 'hover:bg-slate-50 dark:bg-zinc-900'}`}
             >
               <input autoComplete="off" data-lpignore="true" 
                 type="checkbox"
                 checked={selectedUserIds.has(user.id)}
                 readOnly
-                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 pointer-events-none"
+                className="rounded border-gray-300 dark:border-zinc-700 text-primary-600 focus:ring-primary-500 pointer-events-none"
               />
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${getUserColor(user.name)}`}>
                 {getInitials(user.name)}
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-900">{user.name}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">{user.name}</p>
                 <p className="text-xs text-slate-500">{user.role}</p>
               </div>
             </div>
@@ -131,17 +131,17 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
       )}
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-2">Message (Optional)</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Message (Optional)</label>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          className="w-full p-3 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
+          className="w-full p-3 text-sm bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none resize-none"
           rows={2}
         />
       </div>
 
       <div className="flex justify-end gap-2 pt-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg hover:bg-slate-50 transition-colors">
           Cancel
         </button>
         <button

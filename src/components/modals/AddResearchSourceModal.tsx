@@ -16,8 +16,8 @@ const TabButton: React.FC<{ label: string; icon: React.ReactNode; isActive: bool
     onClick={onClick}
     type="button"
     className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium rounded-lg transition-all ${isActive
-        ? 'bg-white text-primary-600 shadow-sm ring-1 ring-slate-200'
-        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
+        ? 'bg-white dark:bg-zinc-900 text-primary-600 shadow-sm ring-1 ring-slate-200'
+        : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:bg-zinc-800'
       }`}
   >
     {icon}
@@ -153,7 +153,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200">
+      <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700">
         <TabButton label="Upload" icon={<UploadIcon className="w-4 h-4" />} isActive={activeTab === 'upload'} onClick={() => setActiveTab('upload')} />
         <TabButton label="Website" icon={<GlobeIcon className="w-4 h-4" />} isActive={activeTab === 'website'} onClick={() => setActiveTab('website')} />
         <TabButton label="Paste Text" icon={<ClipboardListIcon className="w-4 h-4" />} isActive={activeTab === 'paste'} onClick={() => setActiveTab('paste')} />
@@ -165,7 +165,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<GlobeIcon className="w-3.5 h-3.5" />} text="Enter a public URL with text-based content. The AI will extract key legal indices and context for your notebook." />
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Website URL</label>
+            <label className="block text-sm font-bold text-gray-700 dark:text-zinc-300 mb-1">Website URL</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                 <GlobeIcon className="w-5 h-5" />
@@ -182,7 +182,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Source Name (Optional)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Source Name (Optional)</label>
             <input autoComplete="off" data-lpignore="true" type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} placeholder="e.g., TechCrunch Article" />
           </div>
         </div>
@@ -192,15 +192,15 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<UploadIcon className="w-3.5 h-3.5" />} text="PDF and Text files only. Ensure documents are clearly legible for optimal AI extraction. Limit of 20 sources per notebook." />
           <div
-            className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:bg-slate-50 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-xl p-8 text-center hover:bg-slate-50 dark:bg-zinc-900 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
             <input autoComplete="off" data-lpignore="true" type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".pdf,.txt" multiple />
             <div className="flex flex-col items-center">
-              <div className="p-3 bg-slate-100 rounded-full mb-3 group-hover:scale-110 transition-transform">
+              <div className="p-3 bg-slate-100 dark:bg-zinc-800 rounded-full mb-3 group-hover:scale-110 transition-transform">
                 <UploadIcon className="w-6 h-6 text-slate-400" />
               </div>
-              <p className="font-semibold text-slate-700 text-sm">Click to upload files</p>
+              <p className="font-semibold text-slate-700 dark:text-zinc-300 text-sm">Click to upload files</p>
               <p className="text-2xs text-slate-500 mt-1 uppercase tracking-wider font-bold">PDF / TXT (Max 10MB each)</p>
             </div>
           </div>
@@ -208,7 +208,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
           {files.length > 0 && (
             <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
               {files.map((file, idx) => (
-                <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 rounded border border-slate-200">
+                <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 dark:bg-zinc-900 rounded border border-slate-200 dark:border-zinc-700">
                   <div className="flex items-center gap-2 overflow-hidden">
                     <DocumentLinkIcon className="w-4 h-4 text-blue-500" />
                     <span className="text-sm truncate font-medium">{file.name}</span>
@@ -226,11 +226,11 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<ClipboardListIcon className="w-3.5 h-3.5" />} text="Paste emails, case notes, or transcripts. The AI can analyze large text blocks (up to 50k characters)." />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Source Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Source Name</label>
             <input autoComplete="off" data-lpignore="true" type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} placeholder="e.g., Copied Email Content" required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Content</label>
             <textarea
               value={textContent}
               onChange={e => setTextContent(e.target.value)}
@@ -243,8 +243,8 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         </div>
       )}
 
-      <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-        <button type="button" onClick={onClose} className="px-5 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+      <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 dark:border-zinc-800">
+        <button type="button" onClick={onClose} className="px-5 py-2 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
         <button
           type="submit"
           disabled={processing}

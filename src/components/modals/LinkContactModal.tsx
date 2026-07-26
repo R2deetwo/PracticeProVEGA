@@ -50,17 +50,17 @@ const LinkContactModal: React.FC<LinkContactModalProps> = ({ matter, allContacts
           placeholder="Search contacts..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+          className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-md focus:ring-primary-500 focus:border-primary-500"
         />
       </div>
-      <div className="max-h-60 overflow-y-auto pr-2 space-y-2 border-t border-b border-slate-200 py-2">
+      <div className="max-h-60 overflow-y-auto pr-2 space-y-2 border-t border-b border-slate-200 dark:border-zinc-700 py-2">
         {filteredContacts.length > 0 ? filteredContacts.map(contact => (
-          <label key={contact.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-100 cursor-pointer">
+          <label key={contact.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-slate-100 dark:bg-zinc-800 cursor-pointer">
             <input autoComplete="off" data-lpignore="true" 
               type="checkbox"
               checked={selectedIds.has(contact.id)}
               onChange={() => handleToggle(contact.id)}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              className="h-4 w-4 rounded border-gray-300 dark:border-zinc-700 text-primary-600 focus:ring-primary-500"
             />
             <div>
               <p className="font-semibold">{contact.name}</p>
@@ -70,7 +70,7 @@ const LinkContactModal: React.FC<LinkContactModalProps> = ({ matter, allContacts
         )) : <p className="text-sm text-center text-slate-500 py-4">No contacts found.</p>}
       </div>
       <div className="pt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 rounded-xl font-bold text-sm text-slate-700 hover:bg-slate-200 transition-colors">Cancel</button>
+        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 rounded-xl font-bold text-sm text-slate-700 dark:text-zinc-300 hover:bg-slate-200 transition-colors">Cancel</button>
         <button type="submit" className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md">Save Links</button>
       </div>
     </form>

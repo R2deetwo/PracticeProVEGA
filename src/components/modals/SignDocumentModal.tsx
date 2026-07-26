@@ -137,23 +137,23 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
 
  return (
   <div className="space-y-4">
-   <p className="text-gray-600">
+   <p className="text-gray-600 dark:text-zinc-400">
     Please sign the document "<strong>{document.title}</strong>".
    </p>
 
    <div className="flex p-1 bg-slate-200 rounded-lg">
-    <button onClick={() => setActiveTab('type')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'type' ? 'bg-white shadow' : ''}`}>Type Signature</button>
-    <button onClick={() => setActiveTab('draw')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'draw' ? 'bg-white shadow' : ''}`}>Draw Signature</button>
+    <button onClick={() => setActiveTab('type')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'type' ? 'bg-white dark:bg-zinc-900 shadow' : ''}`}>Type Signature</button>
+    <button onClick={() => setActiveTab('draw')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'draw' ? 'bg-white dark:bg-zinc-900 shadow' : ''}`}>Draw Signature</button>
    </div>
 
-   <div className="relative border border-gray-300 rounded-lg bg-slate-50 min-h-[12rem]">
+   <div className="relative border border-gray-300 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 min-h-[12rem]">
     {activeTab === 'type' ? (
      <div className="p-4 flex flex-col items-center justify-center h-48">
       <input autoComplete="off" data-lpignore="true" 
        type="text"
        value={typedName}
        onChange={(e) => setTypedName(e.target.value)}
-       className="w-full text-center p-2 border-b-2 border-slate-300 bg-transparent focus:outline-none focus:border-primary-500 font-signature text-5xl"
+       className="w-full text-center p-2 border-b-2 border-slate-300 dark:border-zinc-700 bg-transparent focus:outline-none focus:border-primary-500 font-signature text-5xl"
        placeholder="Type Your Name"
       />
      </div>

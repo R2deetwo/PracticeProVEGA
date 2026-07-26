@@ -37,7 +37,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
     <div className="flex flex-col h-full max-h-[80vh]">
       <div className="mb-6">
         <p className="text-sm text-slate-500">
-          You are merging <span className="font-bold text-slate-900">{sourceContact.name}</span> into another contact. 
+          You are merging <span className="font-bold text-slate-900 dark:text-white">{sourceContact.name}</span> into another contact. 
           All matters, properties, and notes will be transferred to the target contact, and {sourceContact.name} will be deleted.
         </p>
       </div>
@@ -49,7 +49,7 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
           placeholder="Search target contact..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 outline-none"
         />
       </div>
 
@@ -62,17 +62,17 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
               className={`w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group ${
                 selectedTargetId === contact.id 
                 ? 'border-primary-500 bg-primary-50/50' 
-                : 'border-slate-100 hover:border-slate-300 hover:bg-slate-50'
+                : 'border-slate-100 hover:border-slate-300 dark:border-zinc-700 hover:bg-slate-50 dark:bg-zinc-900'
               }`}
             >
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                  selectedTargetId === contact.id ? 'bg-primary-100 text-primary-600' : 'bg-slate-100 text-slate-500'
+                  selectedTargetId === contact.id ? 'bg-primary-100 text-primary-600' : 'bg-slate-100 dark:bg-zinc-800 text-slate-500'
                 }`}>
                   {contact.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-bold text-slate-900 text-sm">{contact.name}</p>
+                  <p className="font-bold text-slate-900 dark:text-white text-sm">{contact.name}</p>
                   <p className="text-xs text-slate-500">{contact.email}</p>
                 </div>
               </div>
@@ -93,10 +93,10 @@ const MergeContactModal: React.FC<MergeContactModalProps> = ({ sourceContact, al
         )}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end gap-3">
+      <div className="mt-6 pt-4 border-t border-slate-100 dark:border-zinc-800 flex justify-end gap-3">
         <button 
           onClick={onClose}
-          className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700"
+          className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:text-zinc-300"
         >
           Cancel
         </button>

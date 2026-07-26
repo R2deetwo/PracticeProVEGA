@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -22,7 +23,9 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
         e.preventDefault();
         if (!title.trim()) return;
 
+        const now = new Date().toISOString();
         const newPage = {
+            id: uuidv4(),
             firmId: coreState.firmDetails?.id || currentUser?.firmId,
             title: title.trim(),
             content: '',
@@ -30,8 +33,8 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
             parentId: initialContext?.parentId || null,
             matterId: initialContext?.matterId,
             authorId: currentUser?.id || 'system',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            createdAt: now,
+            updatedAt: now,
             order: 0,
             type: 'user' as const
         };

@@ -429,12 +429,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         locked={!features.canUseReportGenerator}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
-                    {isLegal && (
-                        <NavItemLink
-                            item={{ view: 'compliance', text: 'Compliance', icon: <ShieldCheckIcon /> }}
-                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        />
-                    )}
+                    {/* Compliance page deprecated — moved to Settings */}
                     <NavItemLink
                         id="nav-settings-sidebar"
                         item={{ view: 'settings', text: 'Settings', icon: <CogIcon /> }}

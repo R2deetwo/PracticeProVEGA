@@ -29,17 +29,17 @@ const SendIntakeLinkModal: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-slate-600 dark:text-zinc-400">
         This simulates the email a prospective client would receive. Click the button below to view the intake portal from the client's perspective.
       </p>
 
-      <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+      <div className="border border-slate-200 dark:border-zinc-700 rounded-lg p-4 bg-slate-50 dark:bg-zinc-900">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <p><span className="font-semibold">From:</span> {coreState.firmDetails.name}</p>
           <p><span className="font-semibold">To:</span> {lead.email}</p>
         </div>
         <h3 className="font-bold text-lg mt-2">Subject: Your Legal Intake with {coreState.firmDetails.name}</h3>
-        <div className="mt-4 pt-4 border-t border-slate-200 text-sm space-y-3">
+        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-700 text-sm space-y-3">
           <p>Dear {lead.name},</p>
           <p>Thank you for reaching out to our firm. To help us understand your needs better and get started on your case, please follow the link below to access our secure intake portal.</p>
           <div className="text-center py-4">
@@ -53,7 +53,7 @@ const SendIntakeLinkModal: React.FC = () => {
       </div>
        <div className="pt-4 flex flex-col sm:flex-row justify-end gap-2">
         {/* FIX: Wrapped closeModal in an arrow function to prevent passing the event object and causing a type error. */}
-        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
+        <button type="button" onClick={() => closeModal()} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
           Close
         </button>
          <button 

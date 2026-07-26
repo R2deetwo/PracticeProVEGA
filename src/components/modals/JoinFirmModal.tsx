@@ -88,11 +88,11 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
 
   return (
     <div className="space-y-6">
-      <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-200">
+      <div className="text-center p-4 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700">
         <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
           <OfficeBuildingIcon className="w-6 h-6 text-primary-600" />
         </div>
-        <h3 className="text-lg font-bold text-slate-900">{isProperty ? 'Join Another Portfolio' : 'Join Another Firm'}</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">{isProperty ? 'Join Another Portfolio' : 'Join Another Firm'}</h3>
         <p className="text-sm text-slate-500 mt-2">
           Enter the Invite Code provided by the {isProperty ? 'manager' : 'firm administrator'}.
         </p>
@@ -144,7 +144,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
               placeholder="INV-XXXX" 
               value={inviteCode}
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
-              className="w-full p-4 text-2xl font-mono font-bold tracking-widest text-center border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-primary-500 transition-all uppercase"
+              className="w-full p-4 text-2xl font-mono font-bold tracking-widest text-center border border-slate-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 focus:ring-2 focus:ring-primary-500 transition-all uppercase"
               autoFocus
             />
           </div>
@@ -161,7 +161,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
                 <>Verify Code</>
               )}
             </button>
-            <button type="button" onClick={onClose} className="w-full py-2 text-sm text-slate-500 hover:text-slate-800 font-medium">
+            <button type="button" onClick={onClose} className="w-full py-2 text-sm text-slate-500 hover:text-slate-800 dark:text-zinc-100 font-medium">
               Cancel
             </button>
           </div>
@@ -186,7 +186,7 @@ const JoinFirmModal: React.FC<JoinFirmModalProps> = ({ onClose }) => {
                 <>Yes, Join Team</>
               )}
             </button>
-            <button onClick={() => setStep('input')} className="w-full py-2 text-sm text-slate-500 hover:text-slate-800 font-medium">
+            <button onClick={() => setStep('input')} className="w-full py-2 text-sm text-slate-500 hover:text-slate-800 dark:text-zinc-100 font-medium">
               Back
             </button>
           </div>

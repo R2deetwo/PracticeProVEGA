@@ -252,7 +252,7 @@ export const DockedModal: React.FC = () => {
             <div className="p-4">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 mb-1">Select Owner</h3>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Select Owner</h3>
                   <p className="text-xs text-slate-500">Choose a contact to add or manage their properties.</p>
                 </div>
                 <button 
@@ -272,21 +272,21 @@ export const DockedModal: React.FC = () => {
                   <button
                     key={c.id}
                     onClick={() => setSelectedContactId(c.id)}
-                    className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-primary-500 hover:bg-primary-50/50 transition-all flex items-center justify-between group"
+                    className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50/50 transition-all flex items-center justify-between group"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-primary-100 group-hover:text-primary-600">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-primary-100 group-hover:text-primary-600">
                         {c.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-sm text-slate-700 group-hover:text-primary-700">{c.name}</p>
+                        <p className="font-bold text-sm text-slate-700 dark:text-zinc-300 group-hover:text-primary-700">{c.name}</p>
                         <p className="text-2xs text-slate-500">{c.category} &bull; {c.email || 'No email'}</p>
                       </div>
                     </div>
                     <svg className="w-4 h-4 text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                   </button>
                 )) : (
-                  <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                  <div className="text-center py-12 bg-slate-50 dark:bg-zinc-900 rounded-xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
                     <p className="text-slate-500 font-medium text-sm mb-4">No contacts found.</p>
                     <button 
                       onClick={() => {
@@ -316,7 +316,7 @@ export const DockedModal: React.FC = () => {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
               <p className="text-gray-500 mb-4">Property not found for rent collection.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 rounded-lg">Close</button>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -359,7 +359,7 @@ export const DockedModal: React.FC = () => {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
               <p className="text-gray-500 mb-4">Select a matter to log time against.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 rounded-lg">Close</button>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -382,7 +382,7 @@ export const DockedModal: React.FC = () => {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
               <p className="text-gray-500 mb-4">Select a matter to record an expense.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 rounded-lg">Close</button>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -516,7 +516,7 @@ export const DockedModal: React.FC = () => {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
               <p className="text-gray-500 mb-4">Event not found.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 rounded-lg">Close</button>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -660,7 +660,7 @@ export const DockedModal: React.FC = () => {
         content = (
           <div className="text-center p-10 flex flex-col items-center justify-center h-full">
              <p className="text-gray-500 mb-4">This form type ({dockedModalType}) is not yet supported in the docked panel.</p>
-             <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 rounded-lg">Close</button>
+             <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
           </div>
         );
     }
@@ -677,14 +677,14 @@ export const DockedModal: React.FC = () => {
         <div
           className={`
             fixed top-0 right-0 h-full w-[480px] max-w-[90vw] z-[2101] flex flex-col 
-            bg-white/95 sm:backdrop-blur-xl shadow-2xl 
-            border-l border-slate-200 
+            bg-white dark:bg-zinc-900/95 sm:backdrop-blur-xl shadow-2xl 
+            border-l border-slate-200 dark:border-zinc-700 
             transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
             ${isVisible ? 'translate-x-0' : 'translate-x-full'}
           `}
         >
-          <header className="flex-shrink-0 flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 border-b border-slate-200/50 bg-slate-50/80">
-            <div className="text-base font-bold text-slate-800 truncate max-w-xs min-w-0">{title}</div>
+          <header className="flex-shrink-0 flex justify-between items-center px-4 sm:px-6 h-14 sm:h-16 border-b border-slate-200 dark:border-zinc-700/50 bg-slate-50 dark:bg-zinc-900/80">
+            <div className="text-base font-bold text-slate-800 dark:text-zinc-100 truncate max-w-xs min-w-0">{title}</div>
             <button onClick={() => closeModal()} className="active-press touch-target p-2 rounded-full text-slate-400 hover:bg-slate-200 transition-colors flex-shrink-0">
               <DismissIcon className="w-5 h-5" />
             </button>

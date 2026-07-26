@@ -310,14 +310,14 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           <Receipt className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-xl font-black text-slate-800 tracking-tight">Issue Rent Receipt</h3>
+          <h3 className="text-xl font-black text-slate-800 dark:text-zinc-100 tracking-tight">Issue Rent Receipt</h3>
           <p className="text-sm text-slate-500">Record rent collection for:</p>
-          <p className="text-sm font-bold text-slate-700 break-words">{unitDisplayLabel}</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
         </div>
         {lastPayment && (
           <button
             onClick={() => handleDownloadTenantReceipt(lastPayment)}
-            className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg flex items-center gap-2 border border-slate-200"
+            className="flex-shrink-0 px-3 py-2 text-xs font-bold bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 text-slate-700 dark:text-zinc-300 rounded-lg flex items-center gap-2 border border-slate-200 dark:border-zinc-700"
             title={lastPayment.paidDate ? `Last paid: ${new Date(lastPayment.paidDate).toLocaleDateString('en-GB')} for ${formatNaira(lastPayment.amount)}` : undefined}
           >
             <DownloadIcon className="w-4 h-4" /> Download Last Receipt
@@ -328,7 +328,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         {/* Left: Input Form */}
         <div className="space-y-4">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-2xl border border-slate-100 dark:border-zinc-800 space-y-4">
             <div className="space-y-1.5">
               <label className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Rent Amount</label>
               <div className="relative">
@@ -337,7 +337,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                   type="text"
                   value={displayAmount}
                   onChange={e => handleAmountChange(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                  className="w-full pl-10 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl font-bold text-slate-800 dark:text-zinc-100 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 />
               </div>
             </div>
@@ -354,7 +354,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                       setPaymentDate(e.target.value);
                       if (!periodStart) setPeriodStart(e.target.value);
                     }}
-                    className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -363,7 +363,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                 <select 
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                  className="w-full px-4 py-3 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 >
                   <option>Bank Transfer</option>
                   <option>Cheque</option>
@@ -382,7 +382,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     type="date"
                     value={periodStart}
                     onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white border border-primary-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -394,7 +394,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                     type="date"
                     value={periodEnd}
                     onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white border border-primary-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-primary-200 rounded-xl text-sm font-medium text-slate-700 dark:text-zinc-300 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   />
                 </div>
               </div>
@@ -407,7 +407,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-2xs font-bold text-primary-600 uppercase tracking-tight">Property / Unit</p>
-              <p className="text-xs font-bold text-slate-700 break-words">{unitDisplayLabel}</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-zinc-300 break-words">{unitDisplayLabel}</p>
             </div>
           </div>
         </div>
@@ -421,7 +421,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
           <div className="space-y-4 flex-grow">
             {/* Receipt amount — always the FULL amount */}
-            <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
+            <div className="p-4 bg-white dark:bg-zinc-900/5 rounded-2xl border border-white/10">
               <p className="text-2xs font-bold text-slate-400 uppercase tracking-widest mb-2">Amount Received (Full)</p>
               <p className="text-3xl font-black text-white"><NairaSymbol />{formatNaira(amountValue)}</p>
               <p className="text-3xs text-slate-500 mt-1">Receipt reflects full payment — no deductions</p>
@@ -489,7 +489,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       </div>
 
       <div className="flex justify-center">
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-zinc-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
           <XIcon className="w-4 h-4" /> Cancel
         </button>
       </div>

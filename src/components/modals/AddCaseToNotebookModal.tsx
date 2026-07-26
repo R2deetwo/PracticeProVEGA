@@ -51,7 +51,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-slate-600 mb-4">
+      <p className="text-sm text-slate-600 dark:text-zinc-400 mb-4">
         Save "<strong>{caseData.parties}</strong>" to a research notebook for later reference.
       </p>
 
@@ -59,14 +59,14 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
         <button
           type="button"
           onClick={() => setActiveTab('existing')}
-          className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'existing' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'existing' ? 'bg-white dark:bg-zinc-900 shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
         >
           Existing Notebook
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('new')}
-          className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'new' ? 'bg-white shadow text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`w-1/2 py-1.5 text-sm font-semibold rounded-md transition-colors ${activeTab === 'new' ? 'bg-white dark:bg-zinc-900 shadow text-slate-900 dark:text-white' : 'text-slate-500 hover:text-slate-700'}`}
         >
           Create New
         </button>
@@ -74,7 +74,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
 
       {activeTab === 'existing' ? (
         <div className="animate-fade-in">
-          <label htmlFor="notebook-select" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="notebook-select" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
             Select Notebook
           </label>
           <select
@@ -96,7 +96,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
       ) : (
         <div className="space-y-4 animate-fade-in">
           <div>
-            <label htmlFor="new-notebook-name" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="new-notebook-name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
               Notebook Name
             </label>
             <input autoComplete="off" data-lpignore="true" 
@@ -111,7 +111,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
             />
           </div>
           <div>
-            <label htmlFor="link-matter" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="link-matter" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
               Link to Matter (Optional)
             </label>
             <select
@@ -129,7 +129,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
         </div>
       )}
 
-      <div className="pt-4 flex justify-end space-x-2 border-t border-slate-200 mt-4">
+      <div className="pt-4 flex justify-end space-x-2 border-t border-slate-200 dark:border-zinc-700 mt-4">
         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
           Cancel
         </button>

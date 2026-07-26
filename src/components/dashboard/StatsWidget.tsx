@@ -64,9 +64,10 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
                 className={`relative overflow-hidden card-premium h-full flex flex-col cursor-pointer active:scale-[0.98] group`}
                 onClick={() => navigateTo(nav)}
             >
-                {/* Decorative background icon */}
+                {/* Decorative background icon — slightly smaller than StatCard
+                    to match the visual weight of the other cards */}
                 <div className="absolute -right-6 -top-6 opacity-[0.03] dark:opacity-[0.05] text-slate-900 dark:text-white pointer-events-none transform -rotate-12 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-0">
-                    <NairaCircleIcon className="w-32 h-32" />
+                    <NairaCircleIcon className="w-24 h-24" />
                 </div>
 
                 <div className="relative z-10 flex items-center justify-between flex-1 px-5">

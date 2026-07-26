@@ -374,7 +374,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'editor': return <React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense>;
             case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
-            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>;
+            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>; // Deprecated — will be moved to Settings
             case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
             case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
 

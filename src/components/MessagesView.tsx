@@ -2683,17 +2683,60 @@ const MessagesView: React.FC = () => {
                                             })}
                                             <div ref={teamChatEndRef} />
                                         </div>
-                                        {/* Reply input — pb-safe + extra bottom padding for mobile bottom nav */}
+                                        {/* Reply input — uses .chat-input-dock for correct bottom-nav spacing */}
                                         <div className="p-3 border-t border-slate-200 dark:border-zinc-800 chat-input-dock">
-                                            <AutoExpandingChatInput
-                                                value={teamReplyText}
-                                                onChange={setTeamReplyText}
-                                                onSend={sendTeamReply}
-                                                placeholder="Type a message..."
-                                                sendDisabled={!teamReplyText.trim()}
-                                                sendLabel="Send"
-                                                sendAriaLabel="Send team message"
+                                            <input
+                                                type="file"
+                                                ref={teamFileInputRef}
+                                                onChange={async (e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (!file) return;
+                                                    try {
+                                                        const postUrl = await generateUploadUrl();
+                                                        const res = await fetch(postUrl, { method: 'POST', body: file });
+                                                        if (res.ok) {
+                                                            const { storageId } = await res.json();
+                                                            if (storageId) setTeamAttachments(prev => [...prev, { storageId, name: file.name }]);
+                                                        }
+                                                    } catch {}
+                                                    if (teamFileInputRef.current) teamFileInputRef.current.value = '';
+                                                }}
+                                                multiple
+                                                className="hidden"
                                             />
+                                            {teamAttachments.length > 0 && (
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    {teamAttachments.map((att, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5 bg-slate-100 dark:bg-zinc-700 rounded-lg px-2.5 py-1.5 text-xs max-w-full min-w-0">
+                                                            <DocumentIcon className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                                            <span className="max-w-[120px] truncate text-slate-700 dark:text-zinc-300 min-w-0">{att.name}</span>
+                                                            <button onClick={() => setTeamAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500 ml-0.5 flex-shrink-0">
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex items-end gap-2">
+                                                <button
+                                                    onClick={() => teamFileInputRef.current?.click()}
+                                                    className="flex-shrink-0 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                                                    title="Attach file"
+                                                    aria-label="Attach file"
+                                                >
+                                                    <PaperClipIcon className="w-5 h-5" />
+                                                </button>
+                                                <AutoExpandingChatInput
+                                                    value={teamReplyText}
+                                                    onChange={setTeamReplyText}
+                                                    onSend={sendTeamReply}
+                                                    placeholder="Type a message..."
+                                                    sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
+                                                    sendLabel="Send"
+                                                    sendAriaLabel="Send team message"
+                                                    containerClassName="flex-1"
+                                                />
+                                            </div>
                                         </div>
                                     </>
                                 );

@@ -33,17 +33,17 @@ const FolderPermissionsModal: React.FC<FolderPermissionsModalProps> = ({ folder,
  return (
   <form onSubmit={handleSubmit} className="space-y-4">
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Grant Access to:</label>
-      <div className="space-y-2 p-3 border border-gray-200 rounded-md">
+      <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Grant Access to:</label>
+      <div className="space-y-2 p-3 border border-gray-200 dark:border-zinc-700 rounded-md">
       {allRoles.map(role => (
         <label key={role} className="flex items-center space-x-3 cursor-pointer">
           <input autoComplete="off" data-lpignore="true" 
             type="checkbox"
             checked={selectedRoles.has(role)}
             onChange={() => handleToggle(role)}
-            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            className="h-4 w-4 rounded border-gray-300 dark:border-zinc-700 text-primary-600 focus:ring-primary-500"
           />
-          <span className="text-sm text-gray-900">{role}</span>
+          <span className="text-sm text-gray-900 dark:text-white">{role}</span>
         </label>
       ))}
       </div>
@@ -55,7 +55,7 @@ const FolderPermissionsModal: React.FC<FolderPermissionsModalProps> = ({ folder,
     </p>
 
     <div className="pt-4 flex justify-end space-x-2">
-      <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
+      <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors">
       Cancel
       </button>
       <button type="submit" className="px-5 py-2 bg-primary-600 text-white rounded-xl font-bold text-sm hover:bg-primary-700 transition-colors shadow-md">

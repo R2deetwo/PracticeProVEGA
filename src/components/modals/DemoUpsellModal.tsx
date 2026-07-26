@@ -61,7 +61,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
   const { headline, subline, icon } = getContent();
 
   return (
-    <div className="flex flex-col items-center text-center p-8 md:p-12 max-w-lg mx-auto bg-white rounded-3xl overflow-hidden shadow-2xl relative border border-slate-100">
+    <div className="flex flex-col items-center text-center p-8 md:p-12 max-w-lg mx-auto bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl relative border border-slate-100 dark:border-zinc-800">
       {/* Visual background element */}
       <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-primary-500/10 to-transparent pointer-events-none" />
       
@@ -69,11 +69,11 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
         {icon}
       </div>
 
-      <h2 className="text-3xl font-black text-slate-800 mb-4 leading-tight">
+      <h2 className="text-3xl font-black text-slate-800 dark:text-zinc-100 mb-4 leading-tight">
         {headline}
       </h2>
       
-      <p className="text-slate-600 mb-10 text-lg leading-relaxed px-4">
+      <p className="text-slate-600 dark:text-zinc-400 mb-10 text-lg leading-relaxed px-4">
         {subline}
       </p>
 
@@ -88,13 +88,13 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
         
         <button
           onClick={onClose}
-          className="w-full py-3 text-slate-400 hover:text-slate-600 font-bold text-sm transition-colors"
+          className="w-full py-3 text-slate-400 hover:text-slate-600 dark:text-zinc-400 font-bold text-sm transition-colors"
         >
           Maybe later, I'm still exploring
         </button>
       </div>
 
-      <div className="mt-8 pt-8 border-t border-slate-100 w-full flex items-center justify-center gap-2">
+      <div className="mt-8 pt-8 border-t border-slate-100 dark:border-zinc-800 w-full flex items-center justify-center gap-2">
         <p className="text-xs font-black text-slate-400 uppercase tracking-widest">
           Already have an account?
         </p>

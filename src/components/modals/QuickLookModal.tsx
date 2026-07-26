@@ -12,11 +12,11 @@ const QuickLookModal: React.FC = () => {
   if (!item) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-6 text-center space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center">
           <MattersIcon className="w-6 h-6 text-slate-400" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-slate-700 tracking-tight">No item selected.</h3>
+          <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300 tracking-tight">No item selected.</h3>
           <p className="text-xs text-slate-500">Close this window and try again.</p>
         </div>
         <button
@@ -51,7 +51,7 @@ const QuickLookModal: React.FC = () => {
         <div className="p-3 bg-primary-50 rounded-xl shadow-sm">
           {getIcon()}
         </div>
-        <span className="px-3 py-1 bg-slate-100 text-slate-500 text-2xs font-black uppercase tracking-[0.2em] rounded-full">
+        <span className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-500 text-2xs font-black uppercase tracking-[0.2em] rounded-full">
           Quick Insight
         </span>
       </div>
@@ -59,25 +59,25 @@ const QuickLookModal: React.FC = () => {
       {/* Title */}
       <div>
         <p className="text-2xs font-black text-primary-600 uppercase tracking-widest mb-1">{type} Overview</p>
-        <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">
+        <h3 className="text-xl font-black text-slate-800 dark:text-zinc-100 tracking-tight leading-tight">
           {item.title || item.name}
         </h3>
       </div>
 
       {/* Content by type */}
       {type === 'Matter' && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">CLIENT</p>
-            <p className="text-sm font-bold text-slate-700">{item.clientName || 'N/A'}</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.clientName || 'N/A'}</p>
           </div>
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">CURRENT STAGE</p>
-            <p className="text-sm font-bold text-slate-700">{item.stage}</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.stage}</p>
           </div>
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">PRACTICE AREA</p>
-            <p className="text-sm font-bold text-slate-700">{item.type}</p>
+            <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.type}</p>
           </div>
           <div>
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-0.5">FILE REFERENCE</p>
@@ -92,14 +92,14 @@ const QuickLookModal: React.FC = () => {
             <span className={`px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest ${item.status === 'done' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
               {item.status.replace('_', ' ')}
             </span>
-            <span className="px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest bg-slate-100 text-slate-500">
+            <span className="px-2 py-0.5 rounded-md text-2xs font-black uppercase tracking-widest bg-slate-100 dark:bg-zinc-800 text-slate-500">
               Priority: {item.priority}
             </span>
           </div>
           
-          <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+          <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
             <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-1">DEADLINE</p>
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-zinc-300">
               <CalendarIcon className="w-4 h-4 text-primary-500" />
               {item.dueDate ? formatDueDate(item.dueDate) : 'No due date'}
             </div>
@@ -108,7 +108,7 @@ const QuickLookModal: React.FC = () => {
           {item.description && (
             <div>
               <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-1 px-1">DESCRIPTION</p>
-              <div className="p-3 bg-white border border-slate-100 rounded-xl text-sm text-slate-600 italic">
+              <div className="p-3 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-xl text-sm text-slate-600 dark:text-zinc-400 italic">
                 {item.description}
               </div>
             </div>
@@ -117,9 +117,9 @@ const QuickLookModal: React.FC = () => {
       )}
 
       {type === 'Contact' && (
-        <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+        <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-xl border border-slate-100 dark:border-zinc-800">
           <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mb-1">CATEGORY</p>
-          <p className="text-sm font-bold text-slate-700">{item.category || 'N/A'}</p>
+          <p className="text-sm font-bold text-slate-700 dark:text-zinc-300">{item.category || 'N/A'}</p>
           {item.email && (
             <>
               <p className="text-2xs font-black text-slate-400 uppercase tracking-widest mt-3 mb-1">EMAIL</p>
@@ -130,9 +130,9 @@ const QuickLookModal: React.FC = () => {
       )}
 
       {/* Open Full View */}
-      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-zinc-800">
         <span className="text-2xs font-bold text-slate-400 uppercase tracking-widest">
-          Press <strong className="text-slate-600">Enter</strong> for details
+          Press <strong className="text-slate-600 dark:text-zinc-400">Enter</strong> for details
         </span>
         <button 
           onClick={handleOpenFull}

@@ -9,11 +9,11 @@ interface ShortcutItemProps {
 
 const ShortcutItem: React.FC<ShortcutItemProps> = ({ keys, description }) => (
  <div className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-  <span className="text-sm text-gray-700">{description}</span>
+  <span className="text-sm text-gray-700 dark:text-zinc-300">{description}</span>
   <div className="flex gap-1">
    {keys.map((key, index) => (
     <React.Fragment key={index}>
-     <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-md">
+     <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md">
       {key}
      </kbd>
      {index < keys.length - 1 && <span className="text-xs text-gray-400 self-center">+</span>}
@@ -57,7 +57,7 @@ const KeyboardShortcutsModal: React.FC = () => {
    {categories.map((category, index) => (
     <div key={index}>
      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{category.title}</h3>
-     <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+     <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 border border-gray-200 dark:border-zinc-700">
       {category.shortcuts.map((shortcut, sIndex) => (
        <ShortcutItem key={sIndex} {...shortcut} />
       ))}

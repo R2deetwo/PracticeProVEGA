@@ -47,25 +47,25 @@ const LeadCaptureModal: React.FC = () => {
         <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4 scale-110 shadow-sm">
           <SparklesIcon className="w-8 h-8 text-primary-600" />
         </div>
-        <h3 className="text-2xl font-bold text-slate-900 mb-2 tracking-tight">Access Interactive Demo</h3>
+        <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Access Interactive Demo</h3>
         <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
           Experience the full PracticePro suite. Enter your work email for instant, password-free access.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="flex bg-slate-100 p-1 rounded-xl mb-4">
+        <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl mb-4">
           <button
             type="button"
             onClick={() => setSelectedProduct('vega')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'vega' ? 'bg-white text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'vega' ? 'bg-white dark:bg-zinc-900 text-primary-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300'}`}
           >
             Vega (Legal OS)
           </button>
           <button
             type="button"
             onClick={() => setSelectedProduct('atrium')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'atrium' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${selectedProduct === 'atrium' ? 'bg-white dark:bg-zinc-900 text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:text-zinc-300'}`}
           >
             Atrium (Property OS)
           </button>
@@ -80,13 +80,13 @@ const LeadCaptureModal: React.FC = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Work Email Address"
-            className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all outline-none text-slate-900 dark:text-white placeholder:text-slate-400"
             required
             autoFocus
           />
         </div>
 
-        <div className="bg-slate-100 p-4 rounded-xl border border-slate-200 flex items-start gap-3">
+        <div className="bg-slate-100 dark:bg-zinc-800 p-4 rounded-xl border border-slate-200 dark:border-zinc-700 flex items-start gap-3">
           <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           </div>
@@ -114,7 +114,7 @@ const LeadCaptureModal: React.FC = () => {
         </button>
         
         <p className="text-center text-xs text-slate-400">
-          By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600">Privacy Policy</button>.
+          By continuing, you agree to our <button type="button" onClick={() => { closeModal(); setTimeout(() => navigateTo('privacyPolicy'), 100); }} className="underline hover:text-slate-600 dark:text-zinc-400">Privacy Policy</button>.
         </p>
       </form>
     </div>

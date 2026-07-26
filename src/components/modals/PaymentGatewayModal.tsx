@@ -50,7 +50,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
   };
 
   return (
-    <div className="bg-slate-50 p-6 flex flex-col items-center justify-center min-h-[400px]">
+    <div className="bg-slate-50 dark:bg-zinc-900 p-6 flex flex-col items-center justify-center min-h-[400px]">
       {step === 'instructions' && (
         <div className="w-full max-w-sm space-y-6 animate-fade-in">
           {/* Header */}
@@ -59,20 +59,20 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               <BuildingLibraryIcon className="w-4 h-4 text-emerald-600" />
               <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Bank Transfer</span>
             </div>
-            <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">{title}</h3>
             {description && <p className="text-sm text-slate-500 mt-1">{description}</p>}
-            <p className="text-2xl font-bold text-slate-900 mt-4"><NairaSymbol />{formatNaira(amount)}</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white mt-4"><NairaSymbol />{formatNaira(amount)}</p>
           </div>
 
           {/* Bank Transfer Details */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-xl p-5 space-y-4">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Transfer to this account</p>
 
             {/* Bank Name */}
             <div className="flex items-center justify-between group">
               <div>
                 <p className="text-2xs font-bold text-slate-400 uppercase">Bank</p>
-                <p className="text-sm font-bold text-slate-900">{bankName}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{bankName}</p>
               </div>
               <button
                 onClick={() => copyToClipboard(bankName, 'Bank name')}
@@ -87,7 +87,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             <div className="flex items-center justify-between group">
               <div>
                 <p className="text-2xs font-bold text-slate-400 uppercase">Account Number</p>
-                <p className="text-sm font-mono font-bold text-slate-900 tracking-wider">{accountNumber}</p>
+                <p className="text-sm font-mono font-bold text-slate-900 dark:text-white tracking-wider">{accountNumber}</p>
               </div>
               <button
                 onClick={() => copyToClipboard(accountNumber, 'Account number')}
@@ -102,7 +102,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             <div className="flex items-center justify-between group">
               <div>
                 <p className="text-2xs font-bold text-slate-400 uppercase">Account Name</p>
-                <p className="text-sm font-bold text-slate-900">{accountName}</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{accountName}</p>
               </div>
               <button
                 onClick={() => copyToClipboard(accountName, 'Account name')}
@@ -114,7 +114,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
             </div>
 
             {/* Amount Reference */}
-            <div className="pt-3 border-t border-slate-200">
+            <div className="pt-3 border-t border-slate-200 dark:border-zinc-700">
               <div className="flex items-center justify-between group">
                 <div>
                   <p className="text-2xs font-bold text-slate-400 uppercase">Amount</p>
@@ -137,9 +137,9 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
               type="checkbox"
               checked={confirmChecked}
               onChange={(e) => setConfirmChecked(e.target.checked)}
-              className="mt-1 w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              className="mt-1 w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500"
             />
-            <span className="text-xs text-slate-600 leading-relaxed">
+            <span className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
               I have transferred the exact amount to the account above and understand that my payment will be verified manually by the firm.
             </span>
           </label>
@@ -167,7 +167,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
       {step === 'confirming' && (
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-6"></div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Recording Confirmation...</h3>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Recording Confirmation...</h3>
           <p className="text-slate-500">Your payment will be verified by the firm.</p>
         </div>
       )}
@@ -177,7 +177,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({ amount, email
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircleIcon className="w-12 h-12 text-emerald-600" />
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 mb-2">Payment Reported</h3>
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Payment Reported</h3>
           <p className="text-slate-500 mb-6">Your firm will verify the transfer and update the invoice status.</p>
           <button
             onClick={handleFinish}

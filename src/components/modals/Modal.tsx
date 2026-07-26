@@ -150,19 +150,19 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
    
    <div
     ref={modalRef}
-    className={`relative bg-white rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 ${modalWidthClass} ${modalAnimation}`}
+    className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 dark:border-zinc-700 ${modalWidthClass} ${modalAnimation}`}
     onClick={(e) => e.stopPropagation()}
    >
     {/* Brand Accent Bar */}
     <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
 
-    <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 bg-white/80 sm:backdrop-blur-md z-10">
+    <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 sm:backdrop-blur-md z-10">
      <div className="flex flex-col min-w-0">
-      <h2 id="modal-title" className="text-base sm:text-lg font-black text-slate-800 tracking-tight leading-tight truncate pr-4">{title}</h2>
+      <h2 id="modal-title" className="text-base sm:text-lg font-black text-slate-800 dark:text-zinc-100 tracking-tight leading-tight truncate pr-4">{title}</h2>
      </div>
      <button
       onClick={() => onClose()}
-      className="active-press touch-target group p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all flex-shrink-0"
+      className="active-press touch-target group p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-800 transition-all flex-shrink-0"
       aria-label="Close modal"
      >
       <XIcon className="h-5 w-5 transition-transform group-hover:rotate-90 duration-300" />

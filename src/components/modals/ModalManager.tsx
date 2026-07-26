@@ -199,7 +199,7 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
   return (
     <div className="p-6 space-y-5">
       <div>
-        <h3 className="text-lg font-bold text-slate-900">Record Rent Payment</h3>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Record Rent Payment</h3>
         <p className="text-xs text-slate-500 mt-0.5">
           {unitName}{tenantName ? ` • Tenant: ${tenantName}` : ''}
         </p>
@@ -213,16 +213,16 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Amount</label>
+          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Amount</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-slate-400">₦</span>
             <input type="number" value={amount} onChange={e => setAmount(e.target.value)} required min="0"
-              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 rounded-xl bg-white text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full pl-8 pr-3 py-2.5 border border-slate-200 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               placeholder="0.00" />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Did they pay?</label>
+          <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">Did they pay?</label>
           <div className="grid grid-cols-3 gap-2">
             {([
               ['cleared', 'Yes, paid', 'border-emerald-500 bg-emerald-50 text-emerald-700', <CheckCircle2 className="w-3.5 h-3.5" />], 
@@ -231,13 +231,13 @@ const RecordRentPaymentModalWrapper: React.FC<{ modalContext: any; closeModal: (
             ] as const).map(([val, label, activeClass, icon]) => (
               <button key={val as string} type="button" onClick={() => setStatus(val as any)}
                 className={`py-2 rounded-xl border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                  status === val ? activeClass : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-400'
+                  status === val ? activeClass : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 text-slate-500 hover:border-slate-400'
                 }`}>{icon} {label as string}</button>
             ))}
           </div>
         </div>
         <div className="flex gap-3 pt-2">
-          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
+          <button type="button" onClick={closeModal} className="flex-1 py-2.5 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:bg-zinc-900 transition-colors">Cancel</button>
           <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
             {loading ? 'Saving...' : 'Record Payment'}
           </button>
@@ -424,7 +424,7 @@ const ModalManager: React.FC = () => {
           <div className="p-1 sm:p-4">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Select Owner</h3>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Select Owner</h3>
                 <p className="text-sm text-slate-500">Select a contact to manage or add properties to their portfolio.</p>
               </div>
               <button 
@@ -440,14 +440,14 @@ const ModalManager: React.FC = () => {
                 <button
                   key={c.id}
                   onClick={() => openModal('newProperty', c.id)}
-                  className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-primary-500 hover:bg-primary-50/50 transition-all flex items-center justify-between group"
+                  className="w-full text-left p-4 rounded-xl border border-slate-200 dark:border-zinc-700 hover:border-primary-500 hover:bg-primary-50/50 transition-all flex items-center justify-between group"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 font-bold group-hover:bg-primary-100 group-hover:text-primary-600">
                       {c.name.charAt(0)}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-700 group-hover:text-primary-700">{c.name}</p>
+                      <p className="font-bold text-slate-700 dark:text-zinc-300 group-hover:text-primary-700">{c.name}</p>
                       <p className="text-xs text-slate-500">{c.category} • {c.email || 'No email'}</p>
                     </div>
                   </div>
@@ -456,8 +456,8 @@ const ModalManager: React.FC = () => {
                   </div>
                 </button>
               )) : (
-                <div className="text-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                <div className="text-center py-20 bg-slate-50 dark:bg-zinc-900 rounded-2xl border-2 border-dashed border-slate-200 dark:border-zinc-700">
+                  <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
                   </div>
                   <p className="text-slate-500 font-medium mb-6">No contacts found in your workspace.</p>
@@ -1001,7 +1001,11 @@ const ModalManager: React.FC = () => {
            'newEvent', 'editEvent', 'bulkEditProperty'];
   const smModals = ['leadCapture', 'deleteConfirmation', 'aiConsent', 'keyboardShortcuts',
            'noTeamMembers', 'aloaHelp', 'upgradePlan', 'sendIntakeLink',
-           'sendPostActivationEmail'];
+           'sendPostActivationEmail', 'newPage', 'newNotebook', 'newResearchNotebook',
+           'addResearchSource', 'addCaseToNotebook', 'mergeContact', 'linkContact',
+           'linkContactToMatter', 'linkMatterToContact', 'closeMatter', 'archiveMatter',
+           'workspaceSetup', 'joinFirm', 'folderPermissions', 'signDocument',
+           'demoUpsell', 'googleDrivePicker'];
   const modalSize = lgModals.includes(modal) ? 'lg'
     : smModals.includes(modal) ? 'sm'
     : 'md';

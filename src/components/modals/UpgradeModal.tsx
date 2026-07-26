@@ -53,7 +53,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
         <div className="w-14 h-14 bg-primary-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <SparklesIcon className="w-7 h-7 text-primary-600" />
         </div>
-        <h3 className="text-xl font-black text-slate-900 mb-1">Unlock {featureName}</h3>
+        <h3 className="text-xl font-black text-slate-900 dark:text-white mb-1">Unlock {featureName}</h3>
         <p className="text-sm text-slate-500">Upgrade to {planConfig.title} for full access.</p>
       </div>
 
@@ -64,14 +64,14 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
           {planConfig.features.map((feat, i) => (
             <li key={i} className="flex items-start gap-3">
               <div className="p-1 bg-emerald-100 rounded-full text-emerald-600 mt-0.5"><CheckIcon className="w-3 h-3" /></div>
-              <p className="text-sm font-semibold text-slate-700">{feat}</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-zinc-300">{feat}</p>
             </li>
           ))}
         </ul>
       </div>
 
       {/* Price + CTA */}
-      <div className="p-5 bg-slate-50 rounded-xl border border-slate-200 text-center">
+      <div className="p-5 bg-slate-50 dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 text-center">
         <div className="flex items-baseline justify-center gap-1 mb-4">
           <span className={`text-3xl font-black ${planConfig.accentColor}`}>{planConfig.price}</span>
           <span className="text-sm text-slate-500">/mo</span>
@@ -86,7 +86,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
       </div>
 
       <div className="text-center">
-        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 font-medium">
+        <button onClick={onClose} className="text-xs text-slate-500 hover:text-slate-800 dark:text-zinc-100 font-medium">
           Maybe Later
         </button>
       </div>
