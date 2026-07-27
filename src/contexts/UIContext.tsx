@@ -75,7 +75,7 @@ export interface UIContextType {
     viewState: ViewState;
     setViewState: React.Dispatch<React.SetStateAction<ViewState>>;
 
-    activePeers: string[];
+    activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
     isOnline: boolean;
 
     // Lock Screen Management

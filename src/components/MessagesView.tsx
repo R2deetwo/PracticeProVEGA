@@ -517,6 +517,29 @@ const MessagesView: React.FC = () => {
     const { retryMessage, handleMarkNotificationsRead, handleSendMessage, handleEditMessage, handleDeleteMessage, handleDeleteChat, addItem: actionsAddItem } = useDataActions();
     const { openModal, closeModal, navigateTo, currentHistoryEntry, addToast, activePeers } = useUI();
     const { isProperty, isLegal, isUnified, hasPropertyFeatures } = useProduct();
+
+    // Helper: check if a peer is online from the rich activePeers data.
+    // activePeers is now an array of { userId, updatedAt, isOnline } objects.
+    // Falls back to string comparison for backward compat.
+    const isPeerOnline = (userId: string): boolean => {
+        if (!activePeers || !userId) return false;
+        const uid = String(userId);
+        return activePeers.some((p: any) => {
+            if (typeof p === 'string') return p === uid;
+            return String(p.userId) === uid && p.isOnline;
+        });
+    };
+
+    // Helper: get last-seen timestamp for a peer
+    const getPeerLastSeen = (userId: string): number => {
+        if (!activePeers || !userId) return 0;
+        const uid = String(userId);
+        for (const p of activePeers as any[]) {
+            if (typeof p === 'string') { if (p === uid) return Date.now(); }
+            else if (String(p.userId) === uid) return p.updatedAt || 0;
+        }
+        return 0;
+    };
     const { confirm, ConfirmDialog } = useConfirm();
 
     if (!currentUser) return null;
@@ -707,7 +730,7 @@ const MessagesView: React.FC = () => {
                     id: c.id,
                     otherMember,
                     otherMemberId,
-                    isOnline: activePeers?.includes(otherMemberId) || false,
+                    isOnline: isPeerOnline(otherMemberId),
                     lastMsg,
                     lastMessageAt: lastMsg?.timestamp || lastMsg?.createdAt || c.createdAt,
                     lastMessagePreview: lastMsg?.content || '',
@@ -1830,6 +1853,20 @@ const MessagesView: React.FC = () => {
                                                 <p className="text-xs text-slate-400 flex items-center gap-1">
                                                     {tc.isOnline ? (
                                                         <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Active now</>
+                                                    ) : tc.otherMemberId ? (
+                                                        <>{(() => {
+                                                            const lastSeen = getPeerLastSeen(tc.otherMemberId);
+                                                            if (lastSeen > 0) {
+                                                                const diff = Date.now() - lastSeen;
+                                                                const mins = Math.floor(diff / 60000);
+                                                                if (mins < 1) return 'Last seen just now';
+                                                                if (mins < 60) return `Last seen ${mins}m ago`;
+                                                                const hours = Math.floor(mins / 60);
+                                                                if (hours < 24) return `Last seen ${hours}h ago`;
+                                                                return `Last seen ${new Date(lastSeen).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}`;
+                                                            }
+                                                            return tc.otherMember?.role || '';
+                                                        })()}</>
                                                     ) : (
                                                         <>{tc.otherMember?.role || ''}</>
                                                     )}
@@ -2471,7 +2508,7 @@ const MessagesView: React.FC = () => {
                                             .map((conv: any) => {
                                                 const otherMemberId = (conv.memberIds || []).find((id: string) => id !== currentUser?.id && id !== currentUser?._id);
                                                 const otherMember = (coreState.users || []).find((u: any) => u.id === otherMemberId || u._id === otherMemberId);
-                                                const otherIsOnline = activePeers?.includes(otherMemberId);
+                                                const otherIsOnline = isPeerOnline(otherMemberId);
                                                 const convMessages = messages.filter(
                                                     (m: any) => (m.conversationId === conv.id || m.conversationId === conv._id) && !m.isDeleted
                                                 );

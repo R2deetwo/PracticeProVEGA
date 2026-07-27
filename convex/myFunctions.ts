@@ -43,20 +43,18 @@ export const getActivePeers = query({
       } catch { return []; }
     }
     if (!args.firmId) return [];
-    const THRESHOLD = Date.now() - 60 * 1000;
-    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
-    const activePresence = allPresence.filter((p: any) => p.updatedAt > THRESHOLD);
 
-    // Check for portal users who have hidden their online status
-    // Property portal users (Tenants) have presence hidden by default
-    const activeUserIds = activePresence.map((p: any) => p.userId);
-    if (activeUserIds.length === 0) return [];
+    // Fetch ALL presence records for the firm (not just active ones).
+    // We return both active and inactive users with their lastSeen timestamp
+    // so the frontend can show an inactivity indicator (greyed out) and
+    // last-seen time on hover.
+    const allPresence = await ctx.db.query("presence").withIndex("by_firm", (q) => q.eq("firmId", args.firmId)).take(100);
 
     // Fetch users to check their visibility preferences
     const users: any[] = [];
-    for (const userId of activeUserIds) {
+    for (const p of allPresence) {
       try {
-        const user = await ctx.db.get(userId as any);
+        const user = await ctx.db.get(p.userId as any);
         if (user) users.push(user);
       } catch (e) { /* skip invalid IDs */ }
     }
@@ -64,20 +62,25 @@ export const getActivePeers = query({
     // Build a set of user IDs that should be hidden from presence
     const hiddenUserIds = new Set<string>();
     for (const user of users) {
-      // Property portal users (Tenants) have presence hidden by default
-      // unless they explicitly opted in via portalPresenceHidden: false
       if (user.role === 'Tenant' && user.portalPresenceHidden !== false) {
         hiddenUserIds.add(user._id.toString());
       }
-      // Any user who explicitly set portalPresenceHidden: true
       if (user.portalPresenceHidden === true) {
         hiddenUserIds.add(user._id.toString());
       }
     }
 
-    return activePresence
-      .map((p: any) => p.userId)
-      .filter((id: string) => !hiddenUserIds.has(id));
+    // Return rich presence data: userId, updatedAt (last seen), and isOnline
+    // Active = heartbeat within the last 60 seconds
+    const now = Date.now();
+    const ACTIVE_THRESHOLD = 60 * 1000;
+    return allPresence
+      .filter((p: any) => !hiddenUserIds.has(p.userId))
+      .map((p: any) => ({
+        userId: p.userId,
+        updatedAt: p.updatedAt,
+        isOnline: (now - p.updatedAt) < ACTIVE_THRESHOLD,
+      }));
   },
 });
 

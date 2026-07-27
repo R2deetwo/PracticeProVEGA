@@ -7,145 +7,108 @@ import { getInitials, getUserColor } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
 
 interface PresenceAvatarsProps {
-    activePeers: string[];
+    activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
     currentUser: User | null;
     className?: string;
 }
 
-export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, currentUser, className = '' }) => {
-    const { coreState, isDataLoaded } = useCoreState();
-    const { isOnline: deviceOnline } = useUI();
-    const [displayList, setDisplayList] = useState<{ id: string, isOnline: boolean, lastSeen: number }[]>([]);
+// Format a timestamp as a relative "last seen" string
+function formatLastSeen(ts: number): string {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(ts).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' });
+}
 
-    const OFFLINE_TIMEOUT = 10 * 1000;
+export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, currentUser, className = '' }) => {
+    const { coreState } = useCoreState();
+    const { isOnline: deviceOnline } = useUI();
 
     // Build the list of team members to show. We ALWAYS show team members
     // (Admins, Lawyers, Paralegals, Managers) — not just those currently
-    // online. This way the moniker is always visible in the header, and
-    // online members get a green ring while offline members are greyed.
-    // Portal users (Clients/Tenants) are excluded — they don't belong in
-    // the team presence strip.
-    //
-    // CRITICAL: wrapped in useMemo so the array reference is stable across
-    // renders. Without this, the useEffect below would fire on every render
-    // (new array reference each time), causing an infinite loop that freezes
-    // the entire app — the URL changes but the UI never updates.
+    // online. Online members get a green ring; inactive members are greyed
+    // out with a last-seen tooltip.
     const teamMembers = useMemo(() => (coreState.users || []).filter((u: any) => {
         if (!u) return false;
-        // Exclude the current user
         if (u.id === currentUser?.id || u._id === currentUser?.id ||
             String(u._id || '') === String(currentUser?._id || '')) return false;
-        // Only show team roles (not portal users)
         const role = u.role;
         if (role === 'Client' || role === 'Tenant' || role === 'Pending' || role === 'ExternalCounsel') return false;
         return true;
     }), [coreState.users, currentUser?.id, currentUser?._id]);
 
-    useEffect(() => {
-        const now = Date.now();
-        const current = activePeers || [];
-
-        // Normalize activePeers to an array of plain strings for reliable
-        // comparison. Convex Id objects serialize to strings, but strict
-        // equality (===) between a string and an Id object returns false
-        // even when they represent the same value. This was the root cause
-        // of all team members showing as "Away" even when both users were
-        // actively in conversation — the ID comparison was failing silently.
-        const peerIdStrings = current.map((pid: any) => String(pid));
-        const isPeerOnline = (memberId: any): boolean => {
-            const mid = String(memberId);
-            return peerIdStrings.includes(mid);
-        };
-
-        setDisplayList(prevList => {
-            const newList = [...prevList];
-
-            // Add all team members to the display list (not just active peers).
-            // This ensures the moniker always shows the team.
-            teamMembers.forEach(member => {
-                const memberId = member.id || member._id || '';
-                if (!memberId) return;
-                // Skip the current user
-                if (String(memberId) === String(currentUser?.id || '') ||
-                    String(memberId) === String(currentUser?._id || '')) return;
-
-                const isOnline = isPeerOnline(memberId);
-
-                const existingIndex = newList.findIndex(item => item.id === String(memberId));
-                if (existingIndex >= 0) {
-                    newList[existingIndex].isOnline = isOnline;
-                    if (isOnline) newList[existingIndex].lastSeen = now;
-                } else {
-                    newList.push({ id: String(memberId), isOnline, lastSeen: now });
+    // Build a map of peerId → { isOnline, lastSeen } from the activePeers data
+    const peerMap = useMemo(() => {
+        const map = new Map<string, { isOnline: boolean; lastSeen: number }>();
+        if (activePeers && Array.isArray(activePeers)) {
+            for (const p of activePeers) {
+                // Handle both old format (string) and new format (object)
+                if (typeof p === 'string') {
+                    map.set(String(p), { isOnline: true, lastSeen: Date.now() });
+                } else if (p && typeof p === 'object' && p.userId) {
+                    map.set(String(p.userId), { isOnline: !!p.isOnline, lastSeen: p.updatedAt || Date.now() });
                 }
-            });
-
-            // Mark items not in activePeers as offline
-            newList.forEach(item => {
-                if (!isPeerOnline(item.id)) {
-                    item.isOnline = false;
-                }
-            });
-
-            // Keep all team members in the list — online members show green,
-            // offline members show greyed. We don't remove offline members
-            // because the moniker should always show the team.
-            return newList;
-        });
-
-    }, [activePeers, currentUser?.id, currentUser?._id, teamMembers]);
-
-    useEffect(() => {
-        // No cleanup interval needed — team members stay visible.
-        // Online status is updated by the activePeers effect above.
-    }, []);
+            }
+        }
+        return map;
+    }, [activePeers]);
 
     const getUser = (id: string) => coreState.users.find(u => u.id === id || u._id === id || String(u._id) === String(id));
 
-    // Show the team members strip. If there are no team members at all
-    // (e.g. solo practice), don't render anything.
-    if (teamMembers.length === 0 && displayList.length === 0) return null;
+    if (teamMembers.length === 0) return null;
 
-    // Limit to 5 avatars to avoid overflow. Show "+N" for the rest.
     const MAX_AVATARS = 5;
-    const visibleList = displayList.slice(0, MAX_AVATARS);
-    const overflowCount = displayList.length - MAX_AVATARS;
+    const visibleList = teamMembers.slice(0, MAX_AVATARS);
+    const overflowCount = teamMembers.length - MAX_AVATARS;
 
     return (
         <div className={`flex items-center -space-x-2 transition-all duration-500 ${className}`}>
-            {visibleList.map(item => {
-                const user = getUser(item.id);
+            {visibleList.map(member => {
+                const memberId = String(member.id || member._id || '');
+                if (!memberId) return null;
+                const user = getUser(memberId);
                 if (!user) return null;
 
-                // TASK: The green dot only shows when BOTH:
-                // 1. The peer is marked online in presence data (item.isOnline)
-                // 2. The DEVICE has a network connection (deviceOnline)
-                // If the device goes offline, ALL green dots turn grey —
-                // the user immediately knows they've lost connection.
-                const showOnline = item.isOnline && deviceOnline;
+                const peerData = peerMap.get(memberId);
+                const isOnline = peerData?.isOnline ?? false;
+                const lastSeen = peerData?.lastSeen ?? 0;
+                const showOnline = isOnline && deviceOnline;
+
+                // Tooltip shows name + status + last seen (if inactive)
+                const statusText = showOnline
+                    ? '(Active now)'
+                    : lastSeen > 0
+                        ? `(Last seen ${formatLastSeen(lastSeen)})`
+                        : '(Offline)';
+                const tooltipText = `${user.name} ${statusText}`;
 
                 return (
-                    <Tooltip key={item.id} text={`${user.name} ${showOnline ? '(Online)' : deviceOnline ? '(Away)' : '(Offline)'}`}>
+                    <Tooltip key={memberId} text={tooltipText}>
                         <div
                             className={`
                                 relative w-8 h-8 rounded-full border-2 border-white dark:border-zinc-800
                                 flex items-center justify-center text-white font-bold text-xs
                                 transition-all duration-500
                                 ${getUserColor(user.name)}
-                                ${showOnline ? 'ring-2 ring-green-500' : 'opacity-60 grayscale filter ring-0'}
+                                ${showOnline ? 'ring-2 ring-green-500' : 'opacity-50 grayscale filter ring-0'}
                                 z-10 cursor-default
                             `}
                         >
                             {getInitials(user.name)}
                             {showOnline && (
-                                <span 
-                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20" 
+                                <span
+                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-green-500 z-20"
                                     style={{ transform: 'translate(25%, 25%)' }}
                                 />
                             )}
-                            {!showOnline && item.isOnline && (
-                                <span 
-                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-slate-400 z-20" 
+                            {!showOnline && lastSeen > 0 && (
+                                <span
+                                    className="absolute -bottom-0.5 -right-0.5 block h-3 w-3 rounded-full ring-2 ring-white dark:ring-zinc-800 bg-slate-400 z-20"
                                     style={{ transform: 'translate(25%, 25%)' }}
                                 />
                             )}
