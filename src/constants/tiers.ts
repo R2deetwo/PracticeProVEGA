@@ -48,6 +48,12 @@ export interface TierDef {
   requiresSetupFee?: boolean;
   scePer?: string;
   scePer_annual?: string;
+  /** Property: per-unit/month overage rate for units beyond included allotment */
+  overageRate?: number;
+  /** Property: unit number at which overage billing starts (e.g. 11 for Core = unit 11+) */
+  overageStartUnit?: number;
+  /** Property: hard cap at which further unit creation is blocked and upgrade is required */
+  forcedUpgradeCap?: number;
 }
 
 const fmt = (n: number) => `₦${n.toLocaleString('en-NG')}`;
@@ -215,72 +221,84 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     id: 'Core',
     label: 'Core',
     monthlyPrice: null,              // Atrium is annual-only — NO monthly option
-    annualPrice: 190000,
+    annualPrice: 490000,
     monthlyPriceDisplay: '—',        // No monthly option
-    annualPriceDisplay: fmt(190000),
+    annualPriceDisplay: fmt(490000),
     features: buildAtriumFeatures({
       maxUsers: 1,
-      maxUnits: 20,
-      maxManagedProperties: 15,
-      maxActiveTenants: 25,
+      maxUnits: 10,
+      maxManagedProperties: 10,
+      maxActiveTenants: 15,
       whatsappLimit: 100,
-      extras: ['Lease tracking & maintenance log'],
+      extras: ['Lease tracking & maintenance log', 'Includes 10 units, then ₦2,700/unit/month'],
     }),
     maxUsers: 1,
-    maxUnits: 20,
-    maxManagedProperties: 15,
-    maxActiveTenants: 25,
+    maxUnits: 10,
+    maxManagedProperties: 10,
+    maxActiveTenants: 15,
     whatsappLimit: 100,
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
-    ...calcSce(190000, 20),
+    // Overage pricing: ₦2,700/unit/month for units 11-25, forced upgrade at 25
+    overageRate: 2700,
+    overageStartUnit: 11,
+    forcedUpgradeCap: 25,
+    ...calcSce(490000, 10),
   },
   Growth: {
     id: 'Growth',
     label: 'Growth',
     monthlyPrice: null,              // Atrium is annual-only
-    annualPrice: 360000,
+    annualPrice: 965000,
     monthlyPriceDisplay: '—',
-    annualPriceDisplay: fmt(360000),
+    annualPriceDisplay: fmt(965000),
     features: buildAtriumFeatures({
       maxUsers: 5,
-      maxUnits: 150,
-      maxManagedProperties: 75,
-      maxActiveTenants: 200,
+      maxUnits: 25,
+      maxManagedProperties: 25,
+      maxActiveTenants: 50,
       whatsappLimit: 500,
-      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets"],
+      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month'],
     }),
     maxUsers: 5,
-    maxUnits: 150,
-    maxManagedProperties: 75,
-    maxActiveTenants: 200,
+    maxUnits: 25,
+    maxManagedProperties: 25,
+    maxActiveTenants: 50,
     whatsappLimit: 500,
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
-    ...calcSce(360000, 150),
+    // Overage pricing: ₦2,100/unit/month for units 26-100, forced upgrade at 100
+    overageRate: 2100,
+    overageStartUnit: 26,
+    forcedUpgradeCap: 100,
+    ...calcSce(965000, 25),
   },
   Pro: {
     id: 'Pro',
     label: 'Pro',
     monthlyPrice: null,              // Atrium is annual-only
-    annualPrice: 840000,
+    annualPrice: 2100000,
     monthlyPriceDisplay: '—',
-    annualPriceDisplay: fmt(840000),
+    annualPriceDisplay: fmt(2100000),
     features: buildAtriumFeatures({
       maxUsers: null,
-      maxUnits: null,
+      maxUnits: 100,
       maxManagedProperties: null,
       maxActiveTenants: null,
       whatsappLimit: null,
-      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', "Uncapped Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Morning WhatsApp notification throttle system'],
+      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', "Uncapped Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Morning WhatsApp notification throttle system', 'Includes 100 units, then ₦1,600/unit/month'],
     }),
     maxUsers: null,
-    maxUnits: null,
+    maxUnits: 100,
     maxManagedProperties: null,
     maxActiveTenants: null,
     whatsappLimit: null,
     maxCaseFileStorageGb: null,
     maxActiveMatters: null,
+    // Overage pricing: ₦1,600/unit/month for units 101-400, forced upgrade at 400
+    overageRate: 1600,
+    overageStartUnit: 101,
+    forcedUpgradeCap: 400,
     recommended: true,
     scePer: 'Scale-based',
     scePer_annual: 'Scale-based',
@@ -292,7 +310,7 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users, units & properties', 'Custom WhatsApp volume', "Uncapped Residents' Portal (all features)", 'Dedicated onboarding'],
+    features: ['Unlimited users, units & properties', 'Custom WhatsApp volume', "Uncapped Residents' Portal (all features)", 'Dedicated onboarding', '400+ units — custom scaling', 'Dedicated support & custom integrations'],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,

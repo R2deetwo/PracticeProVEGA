@@ -229,6 +229,8 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <li>Send notifications about account activity, new features, and system maintenance</li>
                                         <li>Request feedback and conduct user surveys</li>
                                         <li>Send marketing communications (only with your consent, and you may opt out at any time)</li>
+                                        <li><strong>Automated Multi-Channel Notifications:</strong> When tasks are assigned or reminders are triggered, the Platform may send notifications via in-app alerts, email, and WhatsApp. External stakeholders (clients/residents) receive email by default and WhatsApp only if explicitly opted in. Internal staff receive in-app notifications only. You may manage your notification preferences, including opting out of WhatsApp messages, at any time in Settings.</li>
+                                        <li><strong>Task-Related Communications:</strong> When a task is assigned to you, the Platform processes your name, email address, and (if applicable) phone number to deliver assignment notifications and reminders. This processing is necessary for the performance of the service contract between you and the firm using PracticePro.</li>
                                     </ul>
                                 </div>
 

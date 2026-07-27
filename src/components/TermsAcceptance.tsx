@@ -26,7 +26,7 @@ interface TermsAcceptanceProps {
     onClose?: () => void;
 }
 
-const TERMS_VERSION = '2026-07-19-v3';
+const TERMS_VERSION = '2026-07-27-v4';
 const TERMS_KEY = 'practicepro_terms_accepted_version';
 const PRODUCTION_URL = 'https://practice-pro-vega.vercel.app';
 
@@ -65,9 +65,10 @@ function getPreviousVersion(): string | null {
 function openLegalDocument(doc: 'terms' | 'privacy') {
     const path = doc === 'terms' ? '/terms-of-service' : '/privacy-policy';
     if (Capacitor.isNativePlatform()) {
-        window.open(`${PRODUCTION_URL}${path}`, '_blank');
+        window.open(`${PRODUCTION_URL}${path}`, '_blank', 'noopener,noreferrer');
     } else {
-        window.location.href = path;
+        // Open in a new tab so the user can review while the app stays open
+        window.open(path, '_blank', 'noopener,noreferrer');
     }
 }
 
