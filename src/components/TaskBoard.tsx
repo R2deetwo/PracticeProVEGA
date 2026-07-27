@@ -239,13 +239,13 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, users, matters, onUpdateTa
         onUpdateTaskStatus(draggableId, destination.droppableId as TaskStatus);
     };
 
-    const tasksByStatus = {
+    const tasksByStatus: Record<string, Task[]> = {
         // Normalize: any task with a non-standard status (e.g. 'Pending' from
         // checklist-applied tasks, undefined, or legacy values) is shown in
-        // the 'todo' column so it never disappears. This fixes the bug where
-        // dragging a task made it vanish if its original status was 'Pending'.
-        todo: tasks.filter(t => !t.status || t.status === 'todo' || (t.status !== 'in_progress' && t.status !== 'done')),
+        // the 'todo' column so it never disappears.
+        todo: tasks.filter(t => !t.status || t.status === 'todo' || (t.status !== 'in_progress' && t.status !== 'done' && t.status !== 'pending_verification')),
         in_progress: tasks.filter(t => t.status === 'in_progress'),
+        pending_verification: tasks.filter(t => t.status === 'pending_verification'),
         done: tasks.filter(t => t.status === 'done'),
     };
 

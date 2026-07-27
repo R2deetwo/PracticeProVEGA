@@ -155,6 +155,21 @@ export const FEATURE_ICONS: Record<string, React.FC> = {
 // - Don't overwhelm users — 3-5 bullets is the sweet spot
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        id: 'v1.19.0',
+        version: '1.19.0',
+        date: '2026-07-27',
+        title: 'Top-Tier Messaging, Task Intelligence & Dark Mode Polish',
+        description: 'A unified messaging hub, intelligent task assignment with multi-channel notifications, and a complete dark-mode audit across every modal.',
+        features: [
+            { icon: 'chat', label: 'Unified Conversations Inbox', text: 'Team chat, portal messages, tickets, and client communications now live in one unified inbox. Color-coded badges (Team, Portal, Ticket, Request) let you see every conversation type at a glance. Click any conversation to open it inline — no tab switching.' },
+            { icon: 'brain', label: 'Smart Presence & Inactivity', text: 'Team member avatars in the header show green when active, grey when inactive, with "Last seen Xm ago" on hover. No more guessing who\'s actually online.' },
+            { icon: 'bolt', label: 'Auto-Expanding Chat Input', text: 'Every chat input now expands line-by-line as you type (up to 3 lines), then scrolls internally. Enter creates a new line, Shift+Enter sends. Consistent across team chat, ALOA, research, and portal replies.' },
+            { icon: 'shield', label: 'Task Segmentation & Assignment', text: 'Tasks are now segmented: Internal Team, Client, or Resident. Assignees are mandatory. External stakeholders get email + WhatsApp notifications (with fallback). A "Pending Review" column lets you verify external work before closing.' },
+            { icon: 'pen', label: 'Message Context Menu', text: 'Hover any chat message for Copy, Edit (own messages only), and Delete (own messages only). The menu uses fixed positioning so it\'s never clipped by the scroll area.' },
+            { icon: 'theme', label: 'Complete Dark Mode Audit', text: 'Every modal in the app — 36 files — now has proper dark mode variants. No more bright white modals appearing in dark theme. The shared Modal primitive, all form modals, and every dialog box are fully dark-mode aware.' },
+        ],
+    },
+    {
         id: 'v1.18.0',
         version: '1.18.0',
         date: '2026-07-22',
