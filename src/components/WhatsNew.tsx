@@ -159,7 +159,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.18.0',
         date: '2026-07-22',
         title: 'Enterprise Onboarding, Court Date Reminders & Reliable Team Chat',
-        description: 'A major release focused on enterprise readiness and reliability. Multi-tenant onboarding now lets law firms and property managers invite their whole team with role-based access. Pro-tier firms get automated court date reminders via WhatsApp. We also rebuilt the team-chat notification engine from the ground up — messages and notifications are now written together on the server, so a bell badge is guaranteed for every new message.',
+        description: 'Enterprise onboarding, court date reminders, reliable team chat, retainer automation, and more.',
         features: [
             { icon: 'shield', label: 'Multi-Tenant Enterprise Onboarding', text: 'Firms can now invite multiple team members (Admins, Lawyers, Paralegals, Managers) with role-based permissions. Pending invites show in a dedicated queue until an admin grants access. Team messages are scoped per-firm — no cross-tenant data leakage.' },
             { icon: 'calendar', label: 'Court Date Reminders (Pro)', text: 'Vega Pro firms get automatic WhatsApp reminders 7, 3, and 1 days before every court date. Built with a duplicate-prevention guard so rescheduled matters never spam you. Visible on the matter card and in the calendar module.' },
@@ -383,7 +383,7 @@ const S = {
         border: '1px solid rgba(99,102,241,0.25)',
         borderRadius: '22px',
         padding: '1.5rem',
-        maxWidth: '400px',
+        maxWidth: '520px',
         width: 'calc(100% - 2rem)',
         maxHeight: '85vh',
         display: 'flex',
@@ -417,11 +417,12 @@ const S = {
         marginBottom: '0.4rem', lineHeight: 1.25,
     },
     desc: {
-        fontSize: '0.82rem', color: '#94a3b8', marginBottom: '1.25rem', lineHeight: 1.65,
+        fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.5,
     },
     featureList: {
         listStyle: 'none', padding: 0, margin: '0 0 1.5rem 0',
-        display: 'flex', flexDirection: 'column' as const, gap: '0.5rem',
+        display: 'flex', flexDirection: 'column' as const, gap: '0.6rem',
+        flex: 1, overflowY: 'auto' as const, paddingRight: '4px', marginRight: '-4px',
     },
     featureItem: {
         display: 'flex', alignItems: 'flex-start', gap: '0.75rem',

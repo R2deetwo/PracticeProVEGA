@@ -1653,7 +1653,6 @@ const MessagesView: React.FC = () => {
                                                                     </div>
                                                                     <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                                 </div>
-                                                                {tc.unreadCount > 0 && <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />}
                                                                 <span className={`text-sm truncate max-w-[100px] ${tc.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                     {tc.otherMember?.name || 'Team member'}
                                                                 </span>
@@ -1917,6 +1916,7 @@ const MessagesView: React.FC = () => {
                                                         isMe={isMe}
                                                         isEditing={editingMessageId === msgId}
                                                         onCancelEdit={() => setEditingMessageId(null)}
+                                                        onStartEdit={() => setEditingMessageId(msgId)}
                                                         onEdit={async (newContent) => {
                                                             try {
                                                                 await handleEditMessage(msgId, newContent);
@@ -2690,6 +2690,7 @@ const MessagesView: React.FC = () => {
                                                         isMe={isMe}
                                                         isEditing={editingMessageId === msgId}
                                                         onCancelEdit={() => setEditingMessageId(null)}
+                                                        onStartEdit={() => setEditingMessageId(msgId)}
                                                         onEdit={async (newContent) => {
                                                             try {
                                                                 await handleEditMessage(msgId, newContent);

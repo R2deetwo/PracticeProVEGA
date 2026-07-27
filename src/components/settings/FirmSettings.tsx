@@ -418,7 +418,9 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
                                 {filteredUsers.map(user => {
-                                    const isOnline = activePeers?.includes(user.id);
+                                    const isOnline = activePeers?.some((p: any) =>
+                                        typeof p === 'string' ? p === user.id : String(p.userId) === String(user.id) && p.isOnline
+                                    );
                                     const isInAnotherFirm = user.firmId !== firmDetails.id;
                                     const isMe = user.id === currentUser.id;
                                     

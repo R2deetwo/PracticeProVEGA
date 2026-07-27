@@ -20,7 +20,11 @@ export interface ChatMessageBubbleProps {
     authorName?: string;
     onDelete?: () => void;
     onEdit?: (newContent: string) => void;
+    /** Called when the user clicks "Edit" in the menu — parent should set isEditing=true */
+    onStartEdit?: () => void;
+    /** Whether the message is currently in edit mode (parent controls) */
     isEditing?: boolean;
+    /** Called when the user cancels editing */
     onCancelEdit?: () => void;
 }
 
@@ -31,6 +35,7 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
     authorName,
     onDelete,
     onEdit,
+    onStartEdit,
     isEditing = false,
     onCancelEdit,
 }) => {
@@ -72,13 +77,10 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
         let top = rect.bottom + 4;
         let left = isMe ? rect.right - menuWidth : rect.left;
 
-        // If menu would go off bottom of viewport, open ABOVE the trigger
         if (top + menuHeight > window.innerHeight) {
             top = rect.top - menuHeight - 4;
         }
-        // If menu would go off top, open downward anyway
         if (top < 8) top = rect.bottom + 4;
-        // Clamp left so menu doesn't go off-screen
         if (left < 8) left = 8;
         if (left + menuWidth > window.innerWidth - 8) left = window.innerWidth - menuWidth - 8;
 
@@ -92,11 +94,17 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
         });
     };
 
+    const handleEditClick = () => {
+        setShowMenu(false);
+        onStartEdit?.();
+    };
+
     const handleSaveEdit = () => {
         if (editText.trim() && editText.trim() !== content) {
             onEdit?.(editText.trim());
+        } else {
+            onCancelEdit?.();
         }
-        onCancelEdit?.();
     };
 
     const timeStr = new Date(timestamp).toLocaleTimeString('en-NG', { hour: 'numeric', minute: '2-digit' });
@@ -105,7 +113,6 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
         <div className={`group relative flex ${isMe ? 'justify-end' : 'justify-start'}`}>
             <div className={`relative max-w-[80%] sm:max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
                 {isEditing ? (
-                    // Edit mode — inline textarea
                     <div className="px-4 py-3 rounded-2xl bg-white dark:bg-zinc-800 border-2 border-primary-400 shadow-sm w-full">
                         <textarea
                             value={editText}
@@ -138,7 +145,6 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                         </div>
                     </div>
                 ) : (
-                    // Normal bubble — content is clearly readable
                     <div className={`px-4 py-2.5 rounded-2xl text-sm shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-br-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-md'}`}>
                         <p className="leading-relaxed whitespace-pre-wrap break-words break-all">{content}</p>
                         <span className={`block text-2xs mt-1.5 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
@@ -147,12 +153,12 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                     </div>
                 )}
 
-                {/* Three-dots action button — always visible on touch, hover on desktop */}
                 {!isEditing && (
                     <button
                         ref={triggerRef}
                         onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             if (showMenu) setShowMenu(false);
                             else openMenu();
                         }}
@@ -166,7 +172,6 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                 )}
             </div>
 
-            {/* Context menu — position:fixed so it's never clipped by overflow containers */}
             {showMenu && menuPos && (
                 <div
                     ref={menuRef}
@@ -182,9 +187,9 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                         </svg>
                         Copy
                     </button>
-                    {isMe && onEdit && (
+                    {isMe && onStartEdit && (
                         <button
-                            onClick={() => { setShowMenu(false); onEdit(editText); }}
+                            onClick={handleEditClick}
                             className="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700 flex items-center gap-2"
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
