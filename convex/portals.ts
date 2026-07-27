@@ -1,6 +1,7 @@
 import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import { requireFirmUser } from "./authHelpers";
 
 // ─── Portal Access Token Generator ──────────────────────────────────────────
 // Generates a UUID v4-style token for portal URLs.
@@ -254,6 +255,78 @@ export const updateMaintenanceTicketStatus = mutation({
         }
       }
     }
+  },
+});
+
+/**
+ * completePortalTask — Called by external stakeholders (clients/residents)
+ * from their portal when they mark a task as "Done".
+ *
+ * Instead of directly setting status='done', routes to 'pending_verification'
+ * so the assigned team member can review the work before fully closing it.
+ *
+ * Sends an in-app notification to the task creator / firm admins so they
+ * know the external stakeholder has completed their part.
+ */
+export const completePortalTask = mutation({
+  args: {
+    taskId: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const now = new Date().toISOString();
+
+    // Fetch the task — use by_firm index + filter (tasks table has no by_custom_id index)
+    const allTasks = await ctx.db
+      .query("tasks")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
+      .filter((q: any) => q.eq(q.field("id"), args.taskId))
+      .first();
+
+    if (!allTasks) {
+      throw new Error("Task not found.");
+    }
+
+    const task = allTasks;
+
+    if (task.firmId !== auth.firmId) {
+      throw new Error("Unauthorized. This task does not belong to your firm.");
+    }
+
+    // Route to 'pending_verification' instead of 'done'
+    await ctx.db.patch(task._id, {
+      status: "pending_verification",
+      updatedAt: now,
+    });
+
+    // Notify the task creator + firm admins
+    const firmAdmins = await ctx.db
+      .query("users")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
+      .filter((q: any) => q.eq(q.field("role"), "Admin"))
+      .collect();
+
+    const notifyPromises = (firmAdmins.length > 0 ? firmAdmins : [auth.user]).map((admin: any) => {
+      const notificationId = crypto.randomUUID();
+      return ctx.db.insert("notifications", {
+        id: notificationId,
+        firmId: auth.firmId,
+        userId: admin._id.toString(),
+        title: "Task Pending Verification",
+        message: `${auth.user.name || 'A portal user'} marked "${task.title}" as done. Please review and close it.`,
+        type: "task_pending_verification",
+        isRead: false,
+        link: { view: "tasks", id: args.taskId, context: { taskId: args.taskId } },
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    await Promise.all(notifyPromises);
+
+    return { success: true, status: "pending_verification" };
   },
 });
 

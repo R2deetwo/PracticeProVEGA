@@ -201,6 +201,10 @@ export default defineSchema({
     status: nullableString,
     dueDate: nullableString,
     assignedUsers: v.optional(v.array(v.string())),
+    // assigneeType: 'team' (internal staff), 'client' (legal client), 'tenant' (property resident)
+    assigneeType: nullableString,
+    // isSharedWithPortal: true when external stakeholders can see/complete this task in their portal
+    isSharedWithPortal: nullableBoolean,
     matterId: nullableString,
     creatorId: nullableString,
     priority: nullableString,
@@ -212,7 +216,8 @@ export default defineSchema({
     _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"])
     .index("by_status", ["firmId", "status"])
-    .index("by_dueDate", ["firmId", "dueDate"]),
+    .index("by_dueDate", ["firmId", "dueDate"])
+    .index("by_assignee_type", ["firmId", "assigneeType"]),
 
   documents: defineTable({
     firmId: nullableString,

@@ -85,12 +85,32 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
                     </div>
 
                     {matter && (
-                        <div className="mb-2">
+                        <div className="mb-2 flex items-center gap-1.5 flex-wrap">
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wide bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 max-w-full truncate">
                                 {matter.title}
                             </span>
                         </div>
                     )}
+
+                    {/* ASSIGNEE TYPE BADGE — color-coded: indigo=team, violet=client, amber=resident */}
+                    {(task as any).assigneeType && (task as any).assigneeType !== 'team' && (
+                        <div className="mb-2">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wide ${
+                                (task as any).assigneeType === 'client'
+                                    ? 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                            }`}>
+                                {(task as any).assigneeType === 'client' ? 'Client Task' : 'Resident Task'}
+                            </span>
+                        </div>
+                    )}
+                    {(task as any).assigneeType === 'team' || !(task as any).assigneeType ? (
+                        <div className="mb-2">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-3xs font-bold uppercase tracking-wide bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                Internal
+                            </span>
+                        </div>
+                    ) : null}
 
                     {totalItems > 0 && (
                         <div className="mb-2 flex items-center gap-1.5">
@@ -142,14 +162,14 @@ const TaskColumn: React.FC<{
     openModal: (modalType: 'newTask', id?: string, context?: any) => void;
     appMode: AppMode;
 }> = ({ status, tasks, users, matters, onViewDetails, onPriorityClick, onUpdateTaskStatus, openModal, appMode }) => {
-    const title = status.replace('_', ' ');
+    const title = status === 'pending_verification' ? 'Pending Review' : status.replace('_', ' ');
 
     return (
         <div className="flex flex-col w-[85vw] sm:w-72 flex-shrink-0 h-full rounded-xl bg-slate-100/50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700/50 snap-center">
             {/* Column Header */}
             <div className="flex items-center justify-between p-2 border-b border-slate-200 dark:border-zinc-700/50">
                 <h4 className="font-bold text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${status === 'todo' ? 'bg-slate-400' : status === 'in_progress' ? 'bg-blue-500' : 'bg-green-500'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${status === 'todo' ? 'bg-slate-400' : status === 'in_progress' ? 'bg-blue-500' : status === 'pending_verification' ? 'bg-amber-500' : 'bg-green-500'}`}></span>
                     {title}
                     <span className="bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 px-1.5 py-0.5 rounded text-2xs">{tasks.length}</span>
                 </h4>

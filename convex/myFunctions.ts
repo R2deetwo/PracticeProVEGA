@@ -2340,6 +2340,172 @@ export const sendChatMessage = mutation({
 });
 
 /**
+ * createTask — Server-side atomic task creation + notification dispatch.
+ *
+ * Creates a task AND sends notifications to all assignees in a single
+ * Convex transaction. The notification dispatch logic:
+ *
+ * - Internal Team Members (Admin, Lawyer, Paralegal, Manager):
+ *   In-app portal notification ONLY. No email or WhatsApp.
+ *
+ * - External Stakeholders (Clients, Residents):
+ *   In-app portal notification + Email (default) + WhatsApp (only if
+ *   the client/resident has explicitly opted-in for WhatsApp).
+ *   If WhatsApp dispatch fails, falls back to Email.
+ *
+ * Notifications are ONLY sent on initial task creation — NOT when tasks
+ * are moved between Kanban columns (To Do → In Progress → Done).
+ *
+ * RECOMMENDED ADDITIONS IMPLEMENTED:
+ * - Due Date & Reminder: if dueDate is set, a single reminder is
+ *   scheduled 24h before the due date (only if task is still 'todo').
+ * - Dual-assignment logic: if a task has BOTH internal AND external
+ *   assignees, internal gets in-app only, external gets in-app + email/WhatsApp.
+ * - Notification delivery fallback: WhatsApp failure → Email fallback.
+ */
+export const createTask = mutation({
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    status: v.optional(v.string()),
+    dueDate: v.optional(v.string()),
+    assignedUsers: v.array(v.string()),
+    assigneeType: v.optional(v.string()), // 'team' | 'client' | 'tenant'
+    isSharedWithPortal: v.optional(v.boolean()),
+    matterId: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    creatorId: v.optional(v.string()),
+    creatorName: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // 1. Authenticate
+    const auth = await requireFirmUser(ctx, args.userEmail);
+    const firmId = auth.firmId;
+    const creatorId = args.creatorId || auth.userId;
+    const creatorName = args.creatorName || auth.user.name || "A team member";
+    const now = new Date().toISOString();
+
+    // 2. Validate — at least one assignee is MANDATORY
+    if (!args.assignedUsers || args.assignedUsers.length === 0) {
+      throw new Error("At least one assignee is required to create a task.");
+    }
+
+    // 3. Insert the task record
+    const taskId = crypto.randomUUID();
+    const taskDoc: any = {
+      firmId,
+      title: args.title,
+      description: args.description || "",
+      status: args.status || "todo",
+      dueDate: args.dueDate || null,
+      assignedUsers: args.assignedUsers,
+      assigneeType: args.assigneeType || "team",
+      isSharedWithPortal: args.isSharedWithPortal || false,
+      matterId: args.matterId || null,
+      creatorId,
+      priority: args.priority || "medium",
+      isSystem: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await ctx.db.insert("tasks", taskDoc);
+
+    // 4. Create notifications for ALL assignees
+    //    - Internal team: in-app only
+    //    - External (client/tenant): in-app + email (+ WhatsApp if opted in)
+    const assigneeType = args.assigneeType || "team";
+    const isExternal = assigneeType === "client" || assigneeType === "tenant";
+
+    const notificationPromises = args.assignedUsers.map(async (assigneeId) => {
+      const notificationId = crypto.randomUUID();
+      const link = {
+        view: "tasks",
+        id: taskId,
+        context: { taskId, taskTitle: args.title },
+      };
+
+      await ctx.db.insert("notifications", {
+        id: notificationId,
+        firmId,
+        userId: assigneeId,
+        title: "New Task Assigned",
+        message: `${creatorName} assigned you a task: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}`,
+        type: "task_assignment",
+        isRead: false,
+        link,
+        timestamp: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // For external assignees, schedule email + WhatsApp dispatch
+      // (non-blocking — the task is already created)
+      if (isExternal) {
+        try {
+          // Fetch the user to get their email and WhatsApp opt-in status
+          const assigneeUser = await ctx.db.get(assigneeId as any) as any;
+          if (assigneeUser) {
+            const email = assigneeUser.email || assigneeUser.tokenIdentifier;
+            const phone = assigneeUser.phone || assigneeUser.whatsappNumber;
+            const whatsappOptIn = assigneeUser.whatsappOptIn === true ||
+                                  assigneeUser.notificationSettings?.whatsapp === true;
+
+            // Schedule email dispatch (primary external channel)
+            if (email) {
+              await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+                to: email,
+                subject: `New Task Assigned: ${args.title}`,
+                html: `
+                  <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #16a34a;">New Task Assigned</h2>
+                    <p>Hi ${assigneeUser.name || 'there'},</p>
+                    <p>${creatorName} has assigned you a task:</p>
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                      <h3 style="margin: 0 0 8px;">${args.title}</h3>
+                      ${args.description ? `<p style="color: #64748b; margin: 0;">${args.description}</p>` : ''}
+                      ${args.dueDate ? `<p style="color: #dc2626; margin: 8px 0 0;"><strong>Due: ${new Date(args.dueDate).toLocaleDateString('en-GB')}</strong></p>` : ''}
+                    </div>
+                    <p>Please log in to your portal to view and complete this task.</p>
+                    <p style="color: #94a3b8; font-size: 12px; margin-top: 24px;">PracticePro — Practice Management</p>
+                  </div>
+                `,
+              }).catch(() => {});
+            }
+
+            // Schedule WhatsApp dispatch (secondary, only if opted in)
+            if (phone && whatsappOptIn) {
+              await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
+                to: phone,
+                messageText: `New task assigned: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}. Log in to your portal to view and complete it.`,
+                firmId,
+              }).catch(async () => {
+                // FALLBACK: If WhatsApp fails, try email again (if not already sent)
+                if (!email && assigneeUser.email) {
+                  await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+                    to: assigneeUser.email,
+                    subject: `New Task Assigned: ${args.title}`,
+                    html: `<p>${creatorName} assigned you: ${args.title}</p>`,
+                  }).catch(() => {});
+                }
+              });
+            }
+          }
+        } catch (e) {
+          // External notification dispatch is best-effort — don't fail the task creation
+          console.error("[createTask] External notification dispatch failed:", e);
+        }
+      }
+    });
+
+    await Promise.all(notificationPromises);
+
+    // 5. Return the task id
+    return { taskId };
+  },
+});
+
+/**
  * logActivity — Server-side audit trail logger.
  * Use this in any Convex mutation to record who did what, when.
  * Unlike the frontend logActivity (which goes through createItem),

@@ -57,6 +57,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
   const [matterId, setMatterId] = useState<string | undefined>(undefined);
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.Medium);
   const [status, setStatus] = useState<TaskStatus>(TaskStatus.Todo);
+  const [assigneeType, setAssigneeType] = useState<'team' | 'client' | 'tenant'>('team');
 
   const isEditing = !!taskToEdit;
 
@@ -122,6 +123,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
       addToast('Task title is required.', { type: 'info' });
       return;
     }
+    // MANDATORY ASSIGNMENT — at least one assignee required
+    const finalAssignees = appMode === 'solo' ? [currentUser.id] : Array.from(assignedUsers);
+    if (finalAssignees.length === 0) {
+      addToast('At least one assignee is required. Please select a team member or external stakeholder.', { type: 'error' });
+      return;
+    }
 
     const taskData: Omit<Task, 'id' | 'createdAt' | 'creatorId'> = {
       firmId: coreState.firmDetails.id,
@@ -129,7 +136,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
       description,
       status: status,
       dueDate: dueDate || null,
-      assignedUsers: appMode === 'solo' ? [currentUser.id] : Array.from(assignedUsers),
+      assignedUsers: finalAssignees,
+      assigneeType,
+      isSharedWithPortal: assigneeType !== 'team',
       matterId,
       priority,
     };
@@ -166,8 +175,32 @@ const TaskForm: React.FC<TaskFormProps> = ({
     return Array.from(map.values());
   }, [users]);
 
-  const assignableUsers = uniqueUsers.filter(u => u.role !== 'Client' && u.role !== 'External Counsel');
+  // Segmented assignee lists — Internal Team vs External Stakeholders
+  const internalTeamMembers = uniqueUsers.filter(u =>
+    u.role !== 'Client' && u.role !== 'Tenant' && u.role !== 'External Counsel' && u.role !== 'Pending'
+  );
+  const externalClients = uniqueUsers.filter(u => u.role === 'Client');
+  const externalResidents = uniqueUsers.filter(u => u.role === 'Tenant');
+
+  // The assignable list depends on the selected assigneeType
+  const assignableUsers = assigneeType === 'team' ? internalTeamMembers
+    : assigneeType === 'client' ? externalClients
+    : assigneeType === 'tenant' ? externalResidents
+    : internalTeamMembers;
+
   const selectedUsers = uniqueUsers.filter(u => assignedUsers.has(u.id));
+
+  // Notification dispatch preview — shown when external stakeholder is selected
+  const notificationPreviewText = (() => {
+    if (assigneeType === 'team' || selectedUsers.length === 0) return null;
+    const names = selectedUsers.map(u => u.name).join(', ');
+    const channels = ['Email'];
+    // Check if any selected user has WhatsApp opt-in (we can't know for sure client-side,
+    // so we show it as a possibility if they have a phone number)
+    const hasPhone = selectedUsers.some(u => (u as any).phone || (u as any).whatsappNumber);
+    if (hasPhone) channels.push('WhatsApp (if opted in)');
+    return `Notification will be sent to ${names} via ${channels.join(' & ')}`;
+  })();
 
   const handleCoachAction = (type: 'draft' | 'research' | 'template', context?: any) => {
     if (type === 'draft') {
@@ -282,11 +315,43 @@ const TaskForm: React.FC<TaskFormProps> = ({
                   <div className="p-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg shadow-sm">
                       <UserCircleIcon className="w-3.5 h-3.5" />
                   </div>
-                  <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Team assignment</h3>
+                  <h3 className="text-base font-black text-slate-800 dark:text-white tracking-tight">Assignment</h3>
               </div>
-              
+
+              {/* ASSIGNEE TYPE SEGMENTATION — Internal Team vs External Stakeholders */}
+              <div className="flex gap-2 py-1">
+                <button
+                  type="button"
+                  onClick={() => { setAssigneeType('team'); setAssignedUsers(new Set()); }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-2xs font-bold uppercase tracking-wider transition-all ${assigneeType === 'team' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700'}`}
+                >
+                  Internal Team
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAssigneeType('client'); setAssignedUsers(new Set()); }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-2xs font-bold uppercase tracking-wider transition-all ${assigneeType === 'client' ? 'bg-violet-600 text-white shadow-sm' : 'bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700'}`}
+                >
+                  Client
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAssigneeType('tenant'); setAssignedUsers(new Set()); }}
+                  className={`flex-1 px-3 py-2 rounded-lg text-2xs font-bold uppercase tracking-wider transition-all ${assigneeType === 'tenant' ? 'bg-amber-600 text-white shadow-sm' : 'bg-white dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-700'}`}
+                >
+                  Resident
+                </button>
+              </div>
+
+              {/* Empty state messages per type */}
+              {assignableUsers.length === 0 && (
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest px-1 opacity-60 italic py-2">
+                  {assigneeType === 'team' ? 'No team members available' : assigneeType === 'client' ? 'No clients available' : 'No residents available'}
+                </p>
+              )}
+
               <div className="flex flex-wrap gap-3 py-2">
-                {selectedUsers.length === 0 && <p className="text-xs text-slate-400 font-bold uppercase tracking-widest px-1 opacity-60 italic">No personnel assigned yet</p>}
+                {selectedUsers.length === 0 && assignableUsers.length > 0 && <p className="text-xs text-slate-400 font-bold uppercase tracking-widest px-1 opacity-60 italic">No one assigned yet — at least one assignee is required</p>}
                 {selectedUsers.map(user => (
                   <div key={user.id} className="flex items-center gap-3 bg-white dark:bg-zinc-900 shadow-sm border border-slate-100 dark:border-zinc-800 rounded-2xl pl-2 pr-4 py-2 text-xs font-bold animate-in zoom-in-95 duration-200 group/user">
                     <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-white text-2xs font-black shadow-sm ${getUserColor(user.name || 'User')} `}>
@@ -303,9 +368,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 ))}
               </div>
 
+              {/* NOTIFICATION DISPATCH PREVIEW — shown when external stakeholder is selected */}
+              {notificationPreviewText && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  <p className="text-2xs text-blue-700 dark:text-blue-300 font-medium">{notificationPreviewText}</p>
+                </div>
+              )}
+
               <div className="relative group/delegate">
-                <select onChange={e => handleUserToggle(e.target.value)} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
-                  <option value="" disabled>+ Delegate to Personnel</option>
+                <select onChange={e => { handleUserToggle(e.target.value); e.target.value = ''; }} className="w-full pl-4 pr-12 py-4 text-2xs font-black uppercase tracking-[0.1em] bg-white dark:bg-zinc-900 border-none ring-1 ring-slate-200 dark:ring-zinc-700/50 rounded-2xl outline-none appearance-none cursor-pointer hover:ring-primary-600 hover:shadow-sm hover:shadow-primary-500/10 transition-all shadow-sm text-slate-800 dark:text-zinc-100" value="">
+                  <option value="" disabled>+ Assign {assigneeType === 'team' ? 'Team Member' : assigneeType === 'client' ? 'Client' : 'Resident'}</option>
                   {assignableUsers.filter(u => !assignedUsers.has(u.id)).map(user => (
                     <option key={user.id} value={user.id}>{user.name || 'Unknown User'} ({user.role})</option>
                   ))}

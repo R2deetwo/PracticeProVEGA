@@ -3,8 +3,8 @@ import * as React from 'react';
 // Enums
 export enum UserRole { Admin = 'Admin', Lawyer = 'Lawyer', Paralegal = 'Paralegal', Client = 'Client', Tenant = 'Tenant', ExternalCounsel = 'External Counsel', Pending = 'Pending' }
 export enum AppMode { Solo = 'solo', Multi = 'multi' }
-export enum TaskStatus { Todo = 'todo', InProgress = 'in_progress', Done = 'done' }
-export const TaskStatusValues = [TaskStatus.Todo, TaskStatus.InProgress, TaskStatus.Done];
+export enum TaskStatus { Todo = 'todo', InProgress = 'in_progress', PendingVerification = 'pending_verification', Done = 'done' }
+export const TaskStatusValues = [TaskStatus.Todo, TaskStatus.InProgress, TaskStatus.PendingVerification, TaskStatus.Done];
 export enum TaskPriority { High = 'High', Medium = 'Medium', Low = 'Low' }
 export enum MatterStatus { Active = 'Active', Closed = 'Closed', Archived = 'Archived' }
 export enum MatterType { CivilLitigation = 'Civil Litigation', CriminalDefense = 'Criminal Defense', CorporateCommercial = 'Corporate & Commercial', RealEstate = 'Real Estate', FamilyLaw = 'Family Law', IntellectualProperty = 'Intellectual Property', Immigration = 'Immigration', EmploymentLabor = 'Employment & Labor', Tax = 'Tax Law', MaritimeAdmiralty = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Other = 'Other' }
@@ -291,7 +291,7 @@ export interface Matter { id: string; firmId: string; referenceNumber: string; s
     // Enterprise Specialty Data — keyed by specialty to allow multi-specialty matters
     specialtyData?: MatterSpecialtyData;
 }
-export interface Task { id: string; firmId: string; title: string; description?: string; status: TaskStatus; dueDate?: string | null; assignedUsers: string[]; matterId?: string; createdAt: string; creatorId: string; priority: TaskPriority; checklist?: Checklist; }
+export interface Task { id: string; firmId: string; title: string; description?: string; status: TaskStatus; dueDate?: string | null; assignedUsers: string[]; assigneeType?: 'team' | 'client' | 'tenant'; isSharedWithPortal?: boolean; matterId?: string; createdAt: string; creatorId: string; priority: TaskPriority; checklist?: Checklist; }
 export interface DocumentCategory { id: string; firmId: string; name: string; parentId: string | null; isCore?: boolean; product?: Product; }
 export interface FileDetails { name: string; type: string; size: number; filePath: string; dataUrl?: string; storageId?: string; }
 export interface DocumentComment { id: string; content: string; authorId: string; timestamp: string; }
