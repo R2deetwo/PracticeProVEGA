@@ -57,6 +57,10 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
         onViewDetails(task.id, {});
     };
 
+    // Check if task is overdue (due date passed and not done)
+    const isOverdue = task.dueDate && task.status !== 'done' && task.status !== 'pending_verification' &&
+        new Date(task.dueDate).getTime() < Date.now();
+
     return (
         <Draggable draggableId={task.id} index={index}>
             {(provided, snapshot) => (
@@ -69,6 +73,7 @@ const TaskCard: React.FC<{ task: Task; index: number; users: User[]; matters: Ma
                     data-context-type="task"
                     className={`
                         group bg-white dark:bg-zinc-800 p-3 rounded-lg mb-2 transition-all duration-200 cursor-grab relative select-none
+                        ${isOverdue ? 'ring-1 ring-red-300 dark:ring-red-800 bg-red-50/30 dark:bg-red-900/10' : ''}
                         ${snapshot.isDragging ? 'shadow-2xl scale-105 ring-2 ring-primary-500 rotate-2 z-50' : 'shadow-sm border border-slate-200 dark:border-zinc-700 hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600'}
                     `}
                     style={provided.draggableProps.style}

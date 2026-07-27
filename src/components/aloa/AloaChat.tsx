@@ -2190,8 +2190,10 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     const executeStoredAction = (action: any) => {
         if (action.type === 'modal') {
+            onClose(); // Close ALOA panel first so the modal isn't blurred behind it
             openModalRef.current(action.modalType, null, action.context);
         } else if (action.type === 'navigate') {
+            onClose(); // Close ALOA panel first so the target page is visible and not blurred
             navigateToRef.current(action.target, null, action.context);
         } else if (action.type === 'draft') {
             // ─── Open existing draft in a NEW TAB ────────────────────────

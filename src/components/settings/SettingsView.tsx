@@ -76,6 +76,7 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'subscription-management': { main: 'subscription' },
     'security-logs': { main: 'security' },
     'agent-management': { main: 'agents' },
+    'api-config': { main: 'agents' },
     'workflow-management': { main: 'templates', sub: 'workflows' },
     'checklist-template-management': { main: 'templates', sub: 'checklists' },
     'document-template-management': { main: 'templates', sub: 'documents' },

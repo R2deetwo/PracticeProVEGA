@@ -3922,3 +3922,154 @@ export const fixCorporateName = mutation({
     return { success: true, patched };
   },
 });
+
+/**
+ * scanTaskHalfwayReminders — Cron-triggered internal mutation.
+ *
+ * Scans all tasks with a dueDate that haven't been completed. For each task,
+ * calculates the midpoint between creation and due date. If the current time
+ * is at or past the midpoint (and no reminder has been sent yet), dispatches:
+ *
+ * - Internal Team: in-app notification only
+ * - External (Client/Resident): in-app + Email (+ WhatsApp if opted in)
+ *
+ * GUARDRAILS:
+ * - If the task was created with <2 hours until due, skip the halfway reminder
+ *   and instead schedule a 30-minute final reminder.
+ * - Tasks with status 'done' or 'pending_verification' are skipped.
+ * - Uses a 'halfwayReminderSent' flag on the task to prevent duplicate reminders.
+ * - Supports snooze: if 'reminderAcknowledged' is true, skip the reminder.
+ */
+export const scanTaskHalfwayReminders = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+    const THIRTY_MIN_MS = 30 * 60 * 1000;
+
+    // Fetch all tasks that are not done/pending_verification and have a dueDate
+    const allTasks = await ctx.db.query("tasks").take(500);
+    const activeTasks = allTasks.filter((t: any) =>
+      t.dueDate &&
+      t.status !== 'done' &&
+      t.status !== 'pending_verification' &&
+      !t.halfwayReminderSent &&
+      !t.reminderAcknowledged
+    );
+
+    let remindersSent = 0;
+
+    for (const task of activeTasks) {
+      const createdAt = task.createdAt ? new Date(task.createdAt as string).getTime() : now;
+      const dueDate = new Date(task.dueDate as string).getTime();
+      const totalDuration = dueDate - createdAt;
+      const midwayPoint = createdAt + (totalDuration / 2);
+
+      // GUARDRAIL: if <2h total duration, skip halfway, schedule 30min final reminder
+      if (totalDuration < TWO_HOURS_MS) {
+        // For short tasks, remind 30 minutes before due date (or now if already past)
+        const reminderTime = dueDate - THIRTY_MIN_MS;
+        if (now >= reminderTime) {
+          await sendTaskReminder(ctx, task, 'final');
+          await ctx.db.patch(task._id, { halfwayReminderSent: true } as any);
+          remindersSent++;
+        }
+        continue;
+      }
+
+      // Normal halfway reminder
+      if (now >= midwayPoint) {
+        await sendTaskReminder(ctx, task, 'halfway');
+        await ctx.db.patch(task._id, { halfwayReminderSent: true } as any);
+        remindersSent++;
+      }
+    }
+
+    // Also check for overdue tasks (due date passed, not done)
+    for (const taskRaw of allTasks) {
+      const task = taskRaw as any;
+      if (task.dueDate && task.status !== 'done' && task.status !== 'pending_verification' && !task.overdueNotificationSent) {
+        const dueDate = new Date(task.dueDate as string).getTime();
+        if (now > dueDate) {
+          // Notify the task creator that the task is overdue
+          if (task.creatorId) {
+            const notificationId = crypto.randomUUID();
+            await ctx.db.insert("notifications", {
+              id: notificationId,
+              firmId: task.firmId,
+              userId: task.creatorId,
+              title: "Task Overdue",
+              message: `"${task.title}" is past its due date and hasn't been completed.`,
+              type: "task_overdue",
+              isRead: false,
+              link: { view: "tasks", id: task.id || task._id.toString(), context: { taskId: task.id } },
+              timestamp: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+          }
+          await ctx.db.patch(task._id, { overdueNotificationSent: true } as any);
+        }
+      }
+    }
+
+    return { remindersSent };
+  },
+});
+
+// Helper: send a task reminder notification (+ email/WhatsApp for external)
+async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') {
+  const now = new Date().toISOString();
+  const assignees = task.assignedUsers || [];
+  const assigneeType = task.assigneeType || 'team';
+  const isExternal = assigneeType === 'client' || assigneeType === 'tenant';
+  const dueDateStr = task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-GB') : '';
+  const messageText = type === 'halfway'
+    ? `Reminder: "${task.title}" is due on ${dueDateStr}. Please make sure it's on track.`
+    : `Final reminder: "${task.title}" is due soon (${dueDateStr}). Please complete it as soon as possible.`;
+
+  for (const assigneeId of assignees) {
+    const notificationId = crypto.randomUUID();
+    await ctx.db.insert("notifications", {
+      id: notificationId,
+      firmId: task.firmId,
+      userId: assigneeId,
+      title: type === 'halfway' ? "Task Reminder" : "Final Task Reminder",
+      message: messageText,
+      type: "task_reminder",
+      isRead: false,
+      link: { view: "tasks", id: task.id || task._id.toString(), context: { taskId: task.id, reminderType: type } },
+      timestamp: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // External: dispatch email + WhatsApp
+    if (isExternal) {
+      try {
+        const user = await ctx.db.get(assigneeId as any) as any;
+        if (user) {
+          const email = user.email || user.tokenIdentifier;
+          if (email) {
+            await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+              to: email,
+              subject: `${type === 'halfway' ? 'Task Reminder' : 'Final Reminder'}: ${task.title}`,
+              html: `<p>Hi ${user.name || 'there'},</p><p>${messageText}</p><p>Please log in to your portal to complete this task.</p>`,
+            }).catch(() => {});
+          }
+          const phone = user.phone || user.whatsappNumber;
+          const whatsappOptIn = user.whatsappOptIn === true || user.notificationSettings?.whatsapp === true;
+          if (phone && whatsappOptIn) {
+            await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
+              to: phone,
+              messageText: messageText,
+              firmId: task.firmId,
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {
+        // Best-effort — don't fail the reminder scan
+      }
+    }
+  }
+}

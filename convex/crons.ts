@@ -173,4 +173,15 @@ crons.monthly(
   {}
 );
 
+// ─── TASK HALFWAY REMINDERS ──────────────────────────────────────────────────
+// Every 30 minutes. Scans tasks with due dates, calculates the midpoint between
+// creation and due date, and sends a reminder at the midpoint if the task isn't
+// done. Also handles overdue notifications and short-task final reminders.
+crons.interval(
+  "scanTaskHalfwayReminders",
+  { minutes: 30 },
+  internal.myFunctions.scanTaskHalfwayReminders,
+  {}
+);
+
 export default crons;
