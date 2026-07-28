@@ -386,6 +386,8 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handlePermanentDeleteFromArchive: async (id: string) => baseActions.deleteItem('archive', id, 'Archived Item'),
         handleDeleteTimeEntry: async (id: string) => baseActions.deleteItem('timeEntries', id, 'Time Entry'),
         handleDeleteExpense: async (id: string) => baseActions.deleteItem('expenses', id, 'Expense'),
+        handleUpdateWorkflow: async (workflow: any) => baseActions.updateItem('workflows', workflow, 'Workflow'),
+        handleAddWorkflow: async (workflow: any) => baseActions.addItem('workflows', workflow, 'Workflow'),
     }), [
         baseActions, 
         matterHooks, 
