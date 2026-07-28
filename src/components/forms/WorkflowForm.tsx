@@ -103,7 +103,7 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                 }
 
                 // Find existing parent or create new parent container
-                let parentWorkflow = workflowToEdit || workflows.find(w => w.type.toLowerCase() === type.toLowerCase());
+                let parentWorkflow = workflowToEdit || workflows.find(w => w.type && w.type.toLowerCase() === type.toLowerCase());
 
                 if (parentWorkflow && onUpdateWorkflow) {
                     const updatedWorkflow = {
@@ -115,14 +115,16 @@ const WorkflowForm: React.FC<WorkflowFormProps> = ({
                     };
                     await onUpdateWorkflow(updatedWorkflow);
                 } else if (onAddWorkflow) {
-                    await onAddWorkflow({
+                    // No parent found — create a new workflow with the sub-category
+                    const newWorkflow: any = {
                         firmId: coreState.firmDetails.id,
                         type: type as MatterType,
-                        default: { stages: ['Intake', 'InProgress', 'Closed'], suggestions: {} },
+                        default: { stages: finalStages, suggestions: {} },
                         subCategories: {
                             [subCategoryName]: { stages: finalStages, suggestions: {} }
                         }
-                    });
+                    };
+                    await onAddWorkflow(newWorkflow);
                 }
             }
             // CASE 2: Editing Existing Root Workflow

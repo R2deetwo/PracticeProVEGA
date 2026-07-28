@@ -663,7 +663,26 @@ export const getFirmMetadata = query({
         }))),
     ]);
 
-    return { matters, contacts, properties, tasks, events, invoices, ledgerEntries, serviceCharges };
+    // Also fetch workflows in Phase A — they're needed immediately for the
+    // MatterForm practice area dropdown and MatterDetailView stage tracker.
+    // Without this, workflows only arrive in Phase B (getFirmData), which
+    // means the MatterForm shows an empty dropdown until Phase B completes.
+    const workflows = await ctx.db
+      .query("workflows")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
+      .take(200)
+      .then((rows: any[]) => rows.map((w: any) => ({
+        _id: w._id,
+        id: w.id || w._id,
+        firmId: w.firmId,
+        type: w.type,
+        default: w.default,
+        subCategories: w.subCategories,
+        createdAt: w.createdAt,
+        updatedAt: w.updatedAt,
+      })));
+
+    return { matters, contacts, properties, tasks, events, invoices, ledgerEntries, serviceCharges, workflows };
   },
 });
 
