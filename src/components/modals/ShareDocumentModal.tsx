@@ -68,7 +68,9 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     const sharePromises = Array.from(selectedUserIds).map(async recipientId => {
       // Check if DM exists, if not create one
       const chatId = await handleCreateDirectMessage(recipientId, undefined, currentUser.id, undefined, false);
-      handleSendMessage(chatId, message + linkText, currentUser.id);
+      // AWAIT the send — without this, Promise.all resolves before messages
+      // are actually sent, and onClose() fires too early (race condition).
+      await handleSendMessage(chatId, message + linkText, currentUser.id);
     });
 
     setIsSharing(true);

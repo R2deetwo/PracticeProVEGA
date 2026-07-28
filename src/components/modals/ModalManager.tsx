@@ -328,7 +328,18 @@ const ModalManager: React.FC = () => {
       if (matter) {
         const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
         const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
-        content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={(id, note) => { dataHandlers.handleUpdateMatterStage(id, 'Closed'); closeModal(); }} onClose={closeModal} />;
+        content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
+          dataHandlers.handleUpdateMatterStage(id, 'Closed');
+          // Persist the closing note so it's not silently discarded
+          if (note && note.trim()) {
+            try {
+              await dataHandlers.handleAddMatterNote(id, 'Closing Summary', note.trim(), 'user');
+            } catch (e) { /* non-fatal — matter is already closed */ }
+          }
+          // Also update the matter status to Closed
+          await dataHandlers.handleUpdateMatter({ id, status: 'Closed' } as any);
+          closeModal();
+        }} onClose={closeModal} />;
       }
       break;
     }
