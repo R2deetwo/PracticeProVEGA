@@ -158,6 +158,7 @@ const ContextMenu: React.FC = () => {
                      {/* Document download — not yet implemented. Re-add when file download is wired. */}
                      <Divider />
                      <MenuItem icon={<ShareIcon />} label="Share" onClick={() => openModal('shareDocument', contextMenu.itemId)} />
+                     <MenuItem icon={<ArchiveIcon />} label="Archive" onClick={() => archiveItem('documents', contextMenu.itemId!, 'Document')} />
                      <MenuItem icon={<TrashIcon />} label="Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, { onConfirm: () => deleteItem('documents', contextMenu.itemId!, 'Document') })} />
                 </>
             )}
@@ -167,15 +168,17 @@ const ContextMenu: React.FC = () => {
                      <MenuItem icon={<EditIcon />} label="Edit Task" onClick={() => openModal('viewTask', contextMenu.itemId)} />
                      <MenuItem icon={<CheckIcon />} label="Mark Complete" onClick={() => handleUpdateTaskStatus(contextMenu.itemId!, TaskStatus.Done)} />
                      <Divider />
+                     <MenuItem icon={<ArchiveIcon />} label="Archive" onClick={() => archiveItem('tasks', contextMenu.itemId!, 'Task')} />
                      <MenuItem icon={<TrashIcon />} label="Delete" danger onClick={() => deleteItem('tasks', contextMenu.itemId!, 'Task')} />
                 </>
             )}
-            
+
              {contextMenu.type === 'contact' && (
                 <>
                      <MenuItem icon={<div className="font-bold text-xs">View</div>} label="View Profile" onClick={() => navigateTo('contactDetail', contextMenu.itemId)} />
                      <MenuItem icon={<EditIcon />} label="Edit Contact" onClick={() => openModal('editContact', contextMenu.itemId)} />
                      <Divider />
+                     <MenuItem icon={<ArchiveIcon />} label="Archive" onClick={() => archiveItem('contacts', contextMenu.itemId!, 'Contact')} />
                      <MenuItem icon={<TrashIcon />} label="Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, { onConfirm: () => deleteItem('contacts', contextMenu.itemId!, 'Contact') })} />
                 </>
             )}

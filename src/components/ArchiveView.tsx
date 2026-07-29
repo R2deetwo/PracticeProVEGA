@@ -19,7 +19,7 @@ const ArchiveView: React.FC = () => {
   const onEmptyArchive = () => {}; // Not implemented in actions yet
 
 
-  const filteredArchive = useMemo(() => {
+    const filteredArchive = useMemo(() => {
     let items = [...archive];
 
     if (dateFilter !== 'all') {
@@ -28,7 +28,7 @@ const ArchiveView: React.FC = () => {
         if (dateFilter === '7') cutoffDate = new Date(new Date().setDate(now.getDate() - 7));
         else if (dateFilter === '30') cutoffDate = new Date(new Date().setMonth(now.getMonth() - 1));
         else if (dateFilter === '90') cutoffDate = new Date(new Date().setMonth(now.getMonth() - 3));
-        
+
         if (cutoffDate) {
             items = items.filter(item => new Date(item.archivedAt) >= cutoffDate!);
         }
@@ -36,34 +36,31 @@ const ArchiveView: React.FC = () => {
 
     if (searchTerm.trim()) {
         const fuse = new Fuse(items, {
-            keys: ['itemName', 'itemType', 'archiverName', 'originalData.matter.title'],
+            keys: ['itemName', 'itemType', 'archiverName', 'originalData.title'],
             threshold: 0.3,
             includeScore: true,
         });
         return fuse.search(searchTerm.trim()).map((result: any) => result.item);
     }
-    
+
     return items.sort((a,b) => new Date(b.archivedAt).getTime() - new Date(a.archivedAt).getTime());
   }, [archive, searchTerm, dateFilter]);
 
   const groupedArchive = useMemo(() => {
+    // Group by itemType (Matter, Task, Document, Contact) instead of by matter
     const grouped = new Map<string, { matterTitle: string; items: ArchivedItem[] }>();
     const noMatterItems: ArchivedItem[] = [];
 
     filteredArchive.forEach((item: ArchivedItem) => {
-        const matterInfo = item.originalData?.matter;
-        if (matterInfo && matterInfo.id) {
-            if (!grouped.has(matterInfo.id)) {
-                grouped.set(matterInfo.id, { matterTitle: matterInfo.title, items: [] });
-            }
-            grouped.get(matterInfo.id)!.items.push(item);
-        } else {
-            noMatterItems.push(item);
+        const typeKey = item.itemType || 'Other';
+        if (!grouped.has(typeKey)) {
+            grouped.set(typeKey, { matterTitle: typeKey.charAt(0).toUpperCase() + typeKey.slice(1) + 's', items: [] });
         }
+        grouped.get(typeKey)!.items.push(item);
     });
 
     const sortedGroups = Array.from(grouped.values()).sort((a, b) => a.matterTitle.localeCompare(b.matterTitle));
-    
+
     return { sortedGroups, noMatterItems };
   }, [filteredArchive]);
 

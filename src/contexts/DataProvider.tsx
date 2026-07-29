@@ -382,12 +382,47 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleInviteExternalCounsel: async (invite: any) => addToast("External counsel invitations are coming soon.", { type: 'info' }),
         handleUpdatePageContent: async (id: string, title: string, content: string) => baseActions.updateItem('notePages', { id, title, content }, 'Page'),
         handleDeleteNotebook: async (id: string, name: string) => baseActions.deleteItem('noteNotebooks', id, name),
-        handleRestoreItem: async (item: any) => baseActions.addItem(item.type, item.data, item.name),
+        handleRestoreItem: async (item: any) => {
+            // Fix: the archive table stores 'itemType' and 'originalData', not 'type' and 'data'.
+            // Map the fields correctly before re-inserting into the original table.
+            const table = item.itemType || item.type;
+            const data = item.originalData || item.data;
+            if (!table || !data) {
+                addToast('Cannot restore: archive record is missing data.', { type: 'error' });
+                return;
+            }
+            await baseActions.addItem(table, data, item.itemName || item.name || 'Restored Item');
+            // Remove from archive after successful restore
+            await baseActions.deleteItem('archive', item.id, 'Archived Item');
+            addToast(`${item.itemName || item.name || 'Item'} restored successfully.`, { type: 'success' });
+        },
         handlePermanentDeleteFromArchive: async (id: string) => baseActions.deleteItem('archive', id, 'Archived Item'),
         handleDeleteTimeEntry: async (id: string) => baseActions.deleteItem('timeEntries', id, 'Time Entry'),
         handleDeleteExpense: async (id: string) => baseActions.deleteItem('expenses', id, 'Expense'),
         handleUpdateWorkflow: async (workflow: any) => baseActions.updateItem('workflows', workflow, 'Workflow'),
         handleAddWorkflow: async (workflow: any) => baseActions.addItem('workflows', workflow, 'Workflow'),
+        // Generic archive function — works for ANY table (matters, tasks, documents, contacts, etc.)
+        handleArchiveItem: async (type: string, id: string, name: string, data?: any) => {
+            // If data isn't provided, look it up from current appState
+            const item = data || (appStateRef.current as any)[type]?.find((i: any) => i.id === id || i._id === id);
+            if (!item) {
+                addToast(`Cannot archive: item not found.`, { type: 'error' });
+                return;
+            }
+            // Save to archive table
+            await baseActions.addItem('archive', {
+                itemType: type,
+                itemId: id,
+                itemName: name,
+                archivedAt: new Date().toISOString(),
+                archiverId: currentUser?.id || '',
+                archiverName: currentUser?.name || '',
+                originalData: item,
+            }, 'Archived Item');
+            // Delete from original table
+            await baseActions.deleteItem(type as any, id, name);
+            addToast(`${name} archived. You can restore it from the Archive page.`, { type: 'success' });
+        },
     }), [
         baseActions, 
         matterHooks, 

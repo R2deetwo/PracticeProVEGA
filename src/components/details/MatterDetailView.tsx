@@ -72,6 +72,7 @@ const MatterDetailViewContent: React.FC = () => {
     const { documentState, documentActions } = useDocumentState();
     const { executionState, executionActions } = useExecutionState();
     const { financeState, financeActions } = useFinanceState();
+    const dataHandlers = useDataActions();
     const { currentUser } = useAuth();
     const { canViewBilling } = usePermissions();
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
@@ -301,6 +302,13 @@ const MatterDetailViewContent: React.FC = () => {
                     // Keep modal open so user sees the error
                 }
             },
+            onConfirmArchive: () => {
+                if (!matterData) return;
+                dataHandlers.archiveItem('matters', matterData.id, matterData.title, matterData);
+                closeModal();
+                onGoBack();
+            },
+            archiveText: 'Archive Instead',
             confirmText: 'Delete Everything',
             confirmButtonClass: 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-500/30'
         });
