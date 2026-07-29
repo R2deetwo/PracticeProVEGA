@@ -589,6 +589,7 @@ export const getFirmMetadata = query({
         .take(500)
         .then((rows: any[]) => rows.map((t: any) => ({
           _id: t._id,
+          id: t.id || t._id,
           firmId: t.firmId,
           title: t.title,
           status: t.status,
@@ -596,6 +597,8 @@ export const getFirmMetadata = query({
           priority: t.priority,
           matterId: t.matterId,
           assignedUsers: t.assignedUsers,
+          assigneeType: t.assigneeType,
+          isSharedWithPortal: t.isSharedWithPortal,
           createdAt: t.createdAt,
         }))),
 
@@ -2607,6 +2610,7 @@ const INDEXED_CUSTOM_ID_TABLES = [
   "chatMessages",
   "chatConversations",
   "notifications",
+  "tasks",
 ];
 
 /** Recursively strip undefined values from nested objects/arrays so Convex serialization never throws. */

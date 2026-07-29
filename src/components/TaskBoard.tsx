@@ -244,15 +244,44 @@ const TaskBoard: React.FC<TaskBoardProps> = ({ tasks, users, matters, onUpdateTa
         onUpdateTaskStatus(draggableId, destination.droppableId as TaskStatus);
     };
 
-    const tasksByStatus: Record<string, Task[]> = {
+    const tasksByStatus: Record<string, Task[]> = (() => {
+        // ─── Deduplicate tasks by _id (and fall back to id) ───────────────
+        // In rare cases (legacy data, race conditions between optimistic
+        // updates and Convex reactive pushes), the same task can appear
+        // twice in the `tasks` array — once with the original UUID `id`
+        // and once with the Convex `_id` as `id`. Without dedup, BOTH
+        // cards render in the same column, and dragging one leaves the
+        // other behind — making the task look like it "disappeared" or
+        // "jumped back". This pass keeps only the first occurrence of
+        // each task (preferring the version that has `_id` set, since
+        // that's the backend-confirmed copy).
+        const seen = new Set<string>();
+        const deduped: Task[] = [];
+        // Sort so that items with _id come first (backend-confirmed copies win)
+        const sorted = [...tasks].sort((a, b) => {
+            if (a._id && !b._id) return -1;
+            if (!a._id && b._id) return 1;
+            return 0;
+        });
+        for (const t of sorted) {
+            const key = String(t._id || t.id);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            // Also track the id field in case another copy uses id instead of _id
+            if (t.id) seen.add(String(t.id));
+            deduped.push(t);
+        }
+
         // Normalize: any task with a non-standard status (e.g. 'Pending' from
         // checklist-applied tasks, undefined, or legacy values) is shown in
         // the 'todo' column so it never disappears.
-        todo: tasks.filter(t => !t.status || t.status === 'todo' || (t.status !== 'in_progress' && t.status !== 'done' && t.status !== 'pending_verification')),
-        in_progress: tasks.filter(t => t.status === 'in_progress'),
-        pending_verification: tasks.filter(t => t.status === 'pending_verification'),
-        done: tasks.filter(t => t.status === 'done'),
-    };
+        return {
+            todo: deduped.filter(t => !t.status || t.status === 'todo' || (t.status !== 'in_progress' && t.status !== 'done' && t.status !== 'pending_verification')),
+            in_progress: deduped.filter(t => t.status === 'in_progress'),
+            pending_verification: deduped.filter(t => t.status === 'pending_verification'),
+            done: deduped.filter(t => t.status === 'done'),
+        };
+    })();
 
     return (
         <div ref={containerRef} className="flex flex-col h-full w-full">

@@ -15,7 +15,7 @@ import { ResearchStudio } from './research/ResearchStudio';
 import LawReportsView from './research/LawReportsView';
 import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
-import { ChevronRightIcon, LockClosedIcon, ResearchIcon } from '../constants';
+import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
 import { readHashContext, type ContextResult } from '../utils/tabNavigation';
 
@@ -59,7 +59,7 @@ const ResearchView: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<ResearchTab>('research_notes');
     const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
-    const [mobileWorkspaceView, setMobileWorkspaceView] = useState<'chat' | 'sources' | 'studio'>('chat');
+    const [mobileWorkspaceView, setMobileWorkspaceView] = useState<'notebooks' | 'chat' | 'sources' | 'studio'>('chat');
     const [isSaving, setIsSaving] = useState(false);
 
     // ─── Prompt-First Research Pipeline state ──────────────────────────
@@ -271,116 +271,177 @@ const ResearchView: React.FC = () => {
             return <ResearchPlaceholder onClick={() => openModal('newResearchNotebook')} />;
         }
 
+        // ─── New 3-pane layout (desktop) ─────────────────────────────────
+        // Notebooks (left, always visible) | Chat (center) | Sources+Studio (right, tabbed)
+        // This fixes the previous UX issue where selecting a notebook made the
+        // notebooks list disappear — users had to click "back" to switch.
         return (
             <div className="flex-grow flex h-full relative overflow-hidden bg-slate-50 dark:bg-zinc-900">
-                {!selectedNotebook && (
-                    <>
-                        <div className="w-full md:w-72 flex-shrink-0 h-full border-r border-slate-200 dark:border-zinc-800">
-                            <ResearchNotebookColumn
-                                notebooks={userNotebooks}
-                                matters={matterState.matters}
-                                selectedNotebookId={selectedNotebookId}
-                                onSelect={handleSelectNotebook}
-                                openModal={openModal}
-                                onDeleteNotebook={confirmDeleteNotebook}
-                                isLoading={isSaving}
-                            />
+                {/* ─── Pane 1: Notebooks (always visible on desktop, slide-in on mobile) ─── */}
+                <div className={`
+                    absolute inset-0 z-30 bg-white dark:bg-zinc-900
+                    md:static md:flex md:w-64 lg:w-72 flex-shrink-0 h-full border-r border-slate-200 dark:border-zinc-800
+                    ${mobileWorkspaceView === 'notebooks' ? 'flex' : 'hidden md:flex'}
+                `}>
+                    <div className="w-full flex flex-col">
+                        <ResearchNotebookColumn
+                            notebooks={userNotebooks}
+                            matters={matterState.matters}
+                            selectedNotebookId={selectedNotebookId}
+                            onSelect={(id) => {
+                                handleSelectNotebook(id);
+                                setMobileWorkspaceView('chat');
+                            }}
+                            openModal={openModal}
+                            onDeleteNotebook={confirmDeleteNotebook}
+                            isLoading={isSaving}
+                        />
+                    </div>
+                </div>
+
+                {/* ─── Pane 2: Chat (center) ─── */}
+                {!selectedNotebook ? (
+                    <div className="hidden md:flex flex-1 items-center justify-center text-slate-400 dark:text-zinc-500 text-center p-8">
+                        <div className="max-w-sm">
+                            <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                                <ResearchIcon className="w-8 h-8 text-slate-300 dark:text-zinc-600" />
+                            </div>
+                            <p className="font-semibold text-sm text-slate-600 dark:text-zinc-300">Select a notebook to begin</p>
+                            <p className="mt-1.5 text-xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+                                Each notebook is a dedicated workspace for analyzing sources, drafting arguments, and chatting with AI.
+                            </p>
+                            <button
+                                onClick={() => openModal('newResearchNotebook')}
+                                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors"
+                            >
+                                <PlusIcon className="w-3.5 h-3.5" />
+                                New Notebook
+                            </button>
                         </div>
-                        <div className="hidden md:flex flex-1 items-center justify-center text-slate-400 dark:text-zinc-500 text-center p-8">
-                            <div>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                </svg>
-                                <p className="mt-3 font-semibold text-sm">Select a notebook to begin.</p>
-                                <button onClick={() => openModal('newResearchNotebook')} className="mt-3 text-xs text-primary-600 hover:underline">
-                                    + New Notebook
+                    </div>
+                ) : (
+                    <div className={`flex-1 min-w-0 h-full flex flex-col ${mobileWorkspaceView === 'notebooks' || mobileWorkspaceView === 'sources' || mobileWorkspaceView === 'studio' ? 'hidden md:flex' : 'flex'}`}>
+                        {/* Mobile sub-header for navigation between panes */}
+                        <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+                            <button
+                                onClick={() => setMobileWorkspaceView('notebooks')}
+                                className="flex items-center text-2xs font-bold text-slate-500 uppercase tracking-wider"
+                            >
+                                <ChevronRightIcon className="w-3.5 h-3.5 rotate-180 mr-1" /> Notebooks
+                            </button>
+                            <span className="font-bold text-xs truncate max-w-[110px] text-slate-900 dark:text-white">{selectedNotebook.name}</span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setMobileWorkspaceView('sources')}
+                                    className={`text-2xs font-bold uppercase ${mobileWorkspaceView === 'sources' ? 'text-primary-600' : 'text-slate-400'}`}
+                                >
+                                    Sources
+                                </button>
+                                <button
+                                    onClick={() => setMobileWorkspaceView('studio')}
+                                    className={`text-2xs font-bold uppercase ${mobileWorkspaceView === 'studio' ? 'text-indigo-600' : 'text-slate-400'}`}
+                                >
+                                    Studio
                                 </button>
                             </div>
                         </div>
-                    </>
+                        <ResearchChat
+                            notebookId={selectedNotebook.id}
+                            messages={messagesForNotebook}
+                            sources={sourcesForNotebook}
+                            selectedSourceIds={selectedSourceIds}
+                            onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
+                            prefillQuery={prefillState?.query}
+                            prefillContext={prefillState?.context}
+                            prefillDocumentTitle={prefillState?.documentTitle}
+                        />
+                    </div>
                 )}
 
+                {/* ─── Pane 3: Sources + Studio (right, tabbed on desktop, slide-in on mobile) ─── */}
                 {selectedNotebook && (
-                    <div className="flex-grow flex h-full overflow-hidden">
-                        <div className={`
-                            absolute inset-0 z-30 bg-white dark:bg-zinc-900
-                            md:static md:flex md:w-56 lg:w-64 flex-shrink-0 h-full border-r border-slate-200 dark:border-zinc-800
-                            ${mobileWorkspaceView === 'sources' ? 'flex' : 'hidden'}
-                        `}>
-                            <div className="w-full flex flex-col">
-                                <ResearchSourceColumn
-                                    notebookName={selectedNotebook.name}
-                                    sources={sourcesForNotebook}
-                                    selectedSourceIds={selectedSourceIds}
-                                    onToggleSelection={toggleSourceSelection}
-                                    onAddSource={() => openModal('addResearchSource', null, { notebookId: selectedNotebook.id })}
-                                    onAddWebSource={(source) => {
-                                        dataHandlers.handleAddResearchSource(selectedNotebook.id, {
-                                            name: source.name,
-                                            type: source.type,
-                                            content: source.content,
-                                        });
-                                    }}
-                                    onDeleteSource={dataHandlers.handleDeleteResearchSource}
-                                    onOpenInDraftPro={(source) => {
-                                        // Open the source content in DraftPro
-                                        // DRAFTPRO-NEW-TAB — secondary entry point (TODO: route through openDraftProNewTab)
-                                        navigateTo("editor", null, {
-                                            draftTitle: source.name,
-                                            draftContent: source.content || '',
-                                            disableAutoDraft: true,
-                                            openedByAloa: false,
-                                        });
-                                    }}
-                                    isLoading={isSaving}
-                                    onBack={() => {
-                                        if (window.innerWidth < 768) {
-                                            setMobileWorkspaceView('chat');
-                                        } else {
-                                            handleBackToNotebooks();
-                                        }
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        <div className={`flex-1 min-w-0 h-full flex flex-col ${mobileWorkspaceView === 'sources' || mobileWorkspaceView === 'studio' ? 'hidden md:flex' : 'flex'}`}>
-                            <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
-                                <button onClick={handleBackToNotebooks} className="flex items-center text-2xs font-bold text-slate-500 uppercase tracking-wider">
-                                    <ChevronRightIcon className="w-3.5 h-3.5 rotate-180 mr-1" /> Notebooks
+                    <div className={`
+                        absolute inset-0 z-30 bg-white dark:bg-zinc-900
+                        md:static md:flex md:w-[300px] lg:w-[360px] flex-shrink-0 h-full border-l border-slate-200 dark:border-zinc-800
+                        ${mobileWorkspaceView === 'sources' || mobileWorkspaceView === 'studio' ? 'flex' : 'hidden md:flex'}
+                    `}>
+                        <div className="w-full flex flex-col">
+                            {/* Desktop tab switcher — toggles between Sources and Studio in the right pane */}
+                            <div className="hidden md:flex items-center gap-1 px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/50 shrink-0">
+                                <button
+                                    onClick={() => setMobileWorkspaceView('sources')}
+                                    className={`flex-1 px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-md transition-all ${
+                                        mobileWorkspaceView !== 'studio'
+                                            ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'
+                                    }`}
+                                >
+                                    Sources ({sourcesForNotebook.length})
                                 </button>
-                                <span className="font-bold text-xs truncate max-w-[110px] text-slate-900 dark:text-white">{selectedNotebook.name}</span>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => setMobileWorkspaceView('sources')} className="text-2xs font-bold text-primary-600 uppercase">Sources</button>
-                                    <button onClick={() => setMobileWorkspaceView('studio')} className="text-2xs font-bold text-indigo-600 uppercase">Studio</button>
-                                </div>
+                                <button
+                                    onClick={() => setMobileWorkspaceView('studio')}
+                                    className={`flex-1 px-3 py-1.5 text-2xs font-bold uppercase tracking-wider rounded-md transition-all ${
+                                        mobileWorkspaceView === 'studio'
+                                            ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300'
+                                    }`}
+                                >
+                                    Studio
+                                </button>
                             </div>
-                            <ResearchChat
-                                notebookId={selectedNotebook.id}
-                                messages={messagesForNotebook}
-                                sources={sourcesForNotebook}
-                                selectedSourceIds={selectedSourceIds}
-                                onSendMessage={(notebookId, content, sIds) => dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
-                                prefillQuery={prefillState?.query}
-                                prefillContext={prefillState?.context}
-                                prefillDocumentTitle={prefillState?.documentTitle}
-                            />
-                        </div>
 
-                        <div className={`
-                            absolute inset-0 z-30 bg-white dark:bg-zinc-900
-                            md:static md:flex md:w-[300px] lg:w-[340px] flex-shrink-0 h-full border-l border-slate-200 dark:border-zinc-800
-                            ${mobileWorkspaceView === 'studio' ? 'flex' : 'hidden md:flex'}
-                        `}>
-                            <div className="w-full">
-                                <ResearchStudio
-                                    notebook={selectedNotebook}
-                                    sources={sourcesForNotebook.filter(s => selectedSourceIds.includes(s.id))}
-                                    openModal={openModal}
-                                    navigate={navigateTo}
-                                    onSwitchToChat={() => setMobileWorkspaceView('chat')}
-                                    onClose={() => setMobileWorkspaceView('chat')}
-                                />
+                            {/* Mobile back button */}
+                            <div className="md:hidden flex items-center px-3 py-2 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shrink-0">
+                                <button
+                                    onClick={() => setMobileWorkspaceView('chat')}
+                                    className="flex items-center text-2xs font-bold text-slate-500 uppercase tracking-wider"
+                                >
+                                    <ChevronRightIcon className="w-3.5 h-3.5 mr-1" /> Back to Chat
+                                </button>
+                            </div>
+
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                                {mobileWorkspaceView === 'studio' ? (
+                                    <div className="h-full">
+                                        <ResearchStudio
+                                            notebook={selectedNotebook}
+                                            sources={sourcesForNotebook.filter(s => selectedSourceIds.includes(s.id))}
+                                            openModal={openModal}
+                                            navigate={navigateTo}
+                                            onSwitchToChat={() => setMobileWorkspaceView('chat')}
+                                            onClose={() => setMobileWorkspaceView('chat')}
+                                        />
+                                    </div>
+                                ) : (
+                                    /* Default: Sources panel (also shown when mobileWorkspaceView === 'chat' on desktop) */
+                                    <div className="h-full">
+                                        <ResearchSourceColumn
+                                            notebookName={selectedNotebook.name}
+                                            sources={sourcesForNotebook}
+                                            selectedSourceIds={selectedSourceIds}
+                                            onToggleSelection={toggleSourceSelection}
+                                            onAddSource={() => openModal('addResearchSource', null, { notebookId: selectedNotebook.id })}
+                                            onAddWebSource={(source) => {
+                                                dataHandlers.handleAddResearchSource(selectedNotebook.id, {
+                                                    name: source.name,
+                                                    type: source.type,
+                                                    content: source.content,
+                                                });
+                                            }}
+                                            onDeleteSource={dataHandlers.handleDeleteResearchSource}
+                                            onOpenInDraftPro={(source) => {
+                                                navigateTo("editor", null, {
+                                                    draftTitle: source.name,
+                                                    draftContent: source.content || '',
+                                                    disableAutoDraft: true,
+                                                    openedByAloa: false,
+                                                });
+                                            }}
+                                            isLoading={isSaving}
+                                            onBack={() => setMobileWorkspaceView('chat')}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

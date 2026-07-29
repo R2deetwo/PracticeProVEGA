@@ -76,15 +76,25 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             const tempId = data.id || uuidv4();
             const optimisticItem = { ...data, id: tempId };
             setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
-            
+
             try {
                 const rawId = await createItemMutation({ table, data: { ...data, firmId: currentUser?.firmId }, userEmail: currentUser?.email });
-                const id = rawId?.toString() || rawId;
+                const convexId = rawId?.toString() || rawId;
+                // CRITICAL: Keep the original client UUID as `id` (matching what was
+                // saved to the backend document) and store the Convex internal _id
+                // separately as `_id`. Previously this code overwrote `id` with the
+                // Convex _id, which caused a mismatch with the backend document
+                // (backend has id=tempId, local had id=convexId). That mismatch made
+                // the Phase B merge logic treat the local copy as a separate
+                // "optimistic" item, producing DUPLICATE task cards in the UI — and
+                // when the user dragged one copy, the other stayed behind, making
+                // the task appear to "disappear" or jump back to its old column.
                 setAppState(prev => ({
                     ...prev,
-                    [table]: (prev[table as keyof AppState] as any[]).map((i: any) => i.id === tempId ? { ...data, id } : i)
+                    [table]: (prev[table as keyof AppState] as any[]).map((i: any) =>
+                        i.id === tempId ? { ...data, id: tempId, _id: convexId } : i)
                 }));
-                return { ...data, id };
+                return { ...data, id: tempId, _id: convexId };
             } catch (e) {
                 setAppState(prev => ({ ...prev, [table]: (prev[table as keyof AppState] as any[]).filter((i: any) => i.id !== tempId) }));
                 addToast(`Failed to save ${itemName || 'item'}.`, { type: 'error' });
@@ -618,10 +628,29 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                             ...item,
                             id: item.id || item._id
                         }));
-                        // Create a set of IDs from the backend to filter out already-existing items
-                        const backendIds = new Set(mappedBackendValue.map((item: any) => item.id));
+                        // CRITICAL: Build backendIds from BOTH `id` AND `_id` of each
+                        // backend item. Previously this set only contained `id` values,
+                        // which meant a local item whose `id` had been overwritten with
+                        // the Convex `_id` (a legacy bug in addItem) would NOT match,
+                        // and would be incorrectly kept as an "optimistic" item —
+                        // producing duplicate cards in the UI. Including `_id` here
+                        // ensures any local item that references a backend document
+                        // (by either field) is correctly recognized and deduplicated.
+                        const backendIds = new Set<string>();
+                        mappedBackendValue.forEach((item: any) => {
+                            if (item.id) backendIds.add(item.id);
+                            if (item._id) backendIds.add(String(item._id));
+                        });
                         // Keep items from prev that are NOT in the backend (i.e. optimistic creates)
-                        const optimisticItems = prevArray.filter(item => !backendIds.has(item.id) && (!item._id || !backendIds.has(item._id)));
+                        const optimisticItems = prevArray.filter(item => {
+                            if (!item) return false;
+                            // If either id or _id matches a backend id, this is NOT a new optimistic item
+                            const idMatches = item.id && backendIds.has(item.id);
+                            const idAsIdMatches = item.id && backendIds.has(String(item.id));
+                            const _idMatches = item._id && backendIds.has(String(item._id));
+                            const idMatchesBackendId = item.id && mappedBackendValue.some((bi: any) => String(bi._id) === String(item.id));
+                            return !idMatches && !idAsIdMatches && !_idMatches && !idMatchesBackendId;
+                        });
                         // Filter out items the user has just deleted (optimistic delete).
                         // Without this, the backend push would re-add the deleted item
                         // before Convex has propagated the deletion — the root cause of

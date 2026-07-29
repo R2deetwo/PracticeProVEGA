@@ -8,7 +8,7 @@ export const parseAloaMarkdown = (text: string): string => {
 
     // Basic HTML escaping for safety, applied before markdown conversion
     html = html.replace(/&/g, '&amp;');
-    // We NO LONGER escape < and > here because the AI often returns raw HTML 
+    // We NO LONGER escape < and > here because the AI often returns raw HTML
     // for DraftPro/Legal layouts, which we want to preserve and sanitize later.
 
     // 0.5. Markdown links [text](url) → clickable <a> tags
@@ -18,8 +18,14 @@ export const parseAloaMarkdown = (text: string): string => {
     });
 
     // 1. Interactive Citations [Source Name]
-    // Transform [Source Name] into a pill
+    // Transform [Source Name] into a pill (but skip if it looks like a URL link
+    // that was already converted above — those have href attributes)
     html = html.replace(/\[([^\]]+)\]/g, (match, p1) => {
+        // Skip if this is inside an <a> tag (the link regex already ran)
+        if (/<a[^>]*>[^<]*$/.test(html.substring(0, html.indexOf(match)))) {
+            // Heuristic: if the previous content ends with an open <a> tag, skip
+            return match;
+        }
         return `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 mx-0.5 shadow-sm" title="Citation reference">${p1}</span>`;
     });
 
@@ -33,6 +39,11 @@ export const parseAloaMarkdown = (text: string): string => {
             return '';
         }
 
+        // Handle horizontal rules (--- or ___ or ***)
+        if (/^(-{3,}|_{3,}|\*{3,})\s*$/.test(trimmedBlock)) {
+            return `<hr class="border-slate-200 dark:border-zinc-700 my-4" />`;
+        }
+
         // Handle lists (unordered or ordered)
         const isUnorderedList = trimmedBlock.match(/^([*-])\s/m);
         const isOrderedList = trimmedBlock.match(/^\d+\.\s/m);
@@ -40,8 +51,8 @@ export const parseAloaMarkdown = (text: string): string => {
         if (isUnorderedList || isOrderedList) {
             const listType = isUnorderedList ? 'ul' : 'ol';
             const listClass = listType === 'ul'
-                ? "list-disc list-inside space-y-1 my-2"
-                : "list-decimal list-inside space-y-1 my-2";
+                ? "list-disc list-inside space-y-1.5 my-3 pl-2"
+                : "list-decimal list-inside space-y-1.5 my-3 pl-2";
 
             const items = trimmedBlock.split('\n').map(item => {
                 let content = item
@@ -50,7 +61,7 @@ export const parseAloaMarkdown = (text: string): string => {
                     .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
                     .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
                     .trim();
-                
+
                 // Detect legal tasks (procedural or drafting) and color-code by priority
                 // Using soft, semantic, desaturated functional colors that don't clash
                 // with the brand Moss Green (#4A694C)
@@ -115,11 +126,17 @@ export const parseAloaMarkdown = (text: string): string => {
         }
 
         // Handle Headings
+        if (trimmedBlock.startsWith('#### ')) {
+            return `<h4 class="text-xs font-bold mt-4 mb-1.5 text-slate-700 dark:text-zinc-300 uppercase tracking-wider">${trimmedBlock.replace('#### ', '')}</h4>`;
+        }
         if (trimmedBlock.startsWith('### ')) {
-            return `<h3 class="text-sm font-bold mt-6 mb-2 text-slate-800 dark:text-white uppercase tracking-wider">${trimmedBlock.replace('### ', '')}</h3>`;
+            return `<h3 class="text-sm font-bold mt-5 mb-2 text-slate-800 dark:text-white uppercase tracking-wider">${trimmedBlock.replace('### ', '')}</h3>`;
         }
         if (trimmedBlock.startsWith('## ')) {
-            return `<h2 class="text-base font-bold mt-8 mb-3 text-primary-700 dark:text-primary-400 border-b border-slate-100 dark:border-zinc-800 pb-1">${trimmedBlock.replace('## ', '')}</h2>`;
+            return `<h2 class="text-base font-bold mt-6 mb-3 text-primary-700 dark:text-primary-400 border-b border-slate-100 dark:border-zinc-800 pb-1.5">${trimmedBlock.replace('## ', '')}</h2>`;
+        }
+        if (trimmedBlock.startsWith('# ')) {
+            return `<h1 class="text-lg font-bold mt-6 mb-3 text-slate-900 dark:text-white">${trimmedBlock.replace('# ', '')}</h1>`;
         }
 
         // Detect if the block is already HTML (e.g. from DraftPro/Legal layouts)
@@ -130,14 +147,14 @@ export const parseAloaMarkdown = (text: string): string => {
             .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-slate-900 dark:text-white">$1</strong>')
             .replace(/(?<!\s)\*(?!\s|\*)/g, '<em>')
             .replace(/(?<!\s|\*)\*(?!\s)/g, '</em>');
-        
+
         if (!isHtml) {
             content = content.replace(/\n/g, '<br />');
-            return `<p class="text-sm leading-relaxed mb-4">${content}</p>`;
+            return `<p class="text-sm leading-relaxed mb-3">${content}</p>`;
         }
 
         return content;
     }).join('');
-    
+
     return sanitize(finalHtml);
 };

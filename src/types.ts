@@ -291,7 +291,7 @@ export interface Matter { id: string; firmId: string; referenceNumber: string; s
     // Enterprise Specialty Data — keyed by specialty to allow multi-specialty matters
     specialtyData?: MatterSpecialtyData;
 }
-export interface Task { id: string; firmId: string; title: string; description?: string; status: TaskStatus; dueDate?: string | null; assignedUsers: string[]; assigneeType?: 'team' | 'client' | 'tenant'; isSharedWithPortal?: boolean; matterId?: string; createdAt: string; creatorId: string; priority: TaskPriority; checklist?: Checklist; }
+export interface Task { id: string; _id?: string; firmId: string; title: string; description?: string; status: TaskStatus; dueDate?: string | null; assignedUsers: string[]; assigneeType?: 'team' | 'client' | 'tenant'; isSharedWithPortal?: boolean; matterId?: string; createdAt: string; creatorId: string; priority: TaskPriority; checklist?: Checklist; }
 export interface DocumentCategory { id: string; firmId: string; name: string; parentId: string | null; isCore?: boolean; product?: Product; }
 export interface FileDetails { name: string; type: string; size: number; filePath: string; dataUrl?: string; storageId?: string; }
 export interface DocumentComment { id: string; content: string; authorId: string; timestamp: string; }

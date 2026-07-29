@@ -210,6 +210,7 @@ export default defineSchema({
     priority: nullableString,
     checklist: v.optional(v.any()),
     isSystem: nullableBoolean,
+    id: nullableString, // Legacy field — frontend copy of _id (used by_custom_id index)
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
@@ -217,7 +218,8 @@ export default defineSchema({
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"])
     .index("by_status", ["firmId", "status"])
     .index("by_dueDate", ["firmId", "dueDate"])
-    .index("by_assignee_type", ["firmId", "assigneeType"]),
+    .index("by_assignee_type", ["firmId", "assigneeType"])
+    .index("by_custom_id", ["id"]),
 
   documents: defineTable({
     firmId: nullableString,

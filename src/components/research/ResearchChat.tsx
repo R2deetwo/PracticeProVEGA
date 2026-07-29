@@ -58,11 +58,11 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
     };
 
     return (
-        <div className={`flex w-full mb-5 ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
-            <div className={`flex max-w-[85%] md:max-w-[75%] gap-2.5 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div className={`flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'} animate-fade-in-up`}>
+            <div className={`flex max-w-[85%] md:max-w-[78%] gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
                 {/* Avatar */}
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-1 ${isUser
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5 ${isUser
                         ? 'bg-blue-600 text-white'
                         : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-blue-600'
                     }`}>
@@ -70,12 +70,12 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                 </div>
 
                 {/* Bubble */}
-                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} group`}>
+                <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} group min-w-0 flex-1`}>
                     <div className={`
                         px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm
                         ${isUser
                             ? 'bg-blue-600 text-white rounded-tr-sm'
-                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm'
+                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 rounded-tl-sm w-full'
                         }
                     `}>
                         {isThinking ? (
@@ -86,7 +86,23 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
                                 <span className="text-xs text-slate-400 ml-1">Analyzing sources...</span>
                             </div>
                         ) : (
-                            <div className="prose prose-sm dark:prose-invert max-w-none break-words" dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }} />
+                            <div
+                                className="prose prose-sm dark:prose-invert max-w-none break-words
+                                    prose-headings:font-bold prose-headings:tracking-tight
+                                    prose-h2:text-base prose-h2:mt-5 prose-h2:mb-2 prose-h2:border-b prose-h2:border-slate-100 dark:prose-h2:border-zinc-700 prose-h2:pb-1.5
+                                    prose-h3:text-sm prose-h3:mt-4 prose-h3:mb-1.5 prose-h3:uppercase prose-h3:tracking-wider prose-h3:text-slate-700 dark:prose-h3:text-zinc-200
+                                    prose-p:my-2 prose-p:leading-relaxed
+                                    prose-li:my-1 prose-li:leading-relaxed
+                                    prose-strong:font-bold prose-strong:text-slate-900 dark:prose-strong:text-white
+                                    prose-em:italic
+                                    prose-blockquote:border-l-primary-400 dark:prose-blockquote:border-l-primary-700 prose-blockquote:pl-3 prose-blockquote:italic prose-blockquote:text-slate-600 dark:prose-blockquote:text-zinc-400
+                                    prose-a:text-primary-600 dark:prose-a:text-primary-400 prose-a:font-semibold prose-a:underline prose-a:underline-offset-2
+                                    prose-code:bg-slate-100 dark:prose-code:bg-zinc-700 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+                                    prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:my-3 prose-pre:text-xs
+                                    prose-ul:list-disc prose-ul:pl-5 prose-ol:list-decimal prose-ol:pl-5
+                                    prose-hr:border-slate-200 dark:prose-hr:border-zinc-700 prose-hr:my-4"
+                                dangerouslySetInnerHTML={{ __html: sanitize(contentHtml) }}
+                            />
                         )}
                     </div>
 
@@ -121,7 +137,7 @@ const ChatBubble: React.FC<{ message: ResearchMessage; sources: ResearchSource[]
 
                     {/* Citations Footer (AI Only) */}
                     {!isUser && !isThinking && message.citations && message.citations.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1.5 pl-1">
+                        <div className="mt-2 flex flex-wrap gap-1.5 pl-1">
                             {message.citations.map((citation, index) => {
                                 const source = sources.find(s => s.id === citation.sourceId);
                                 if (!source) return null;
@@ -294,26 +310,27 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
             )}
 
             {/* Messages Area */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth">
+            <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-3xl mx-auto w-full">
                     {messages.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="p-3.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl mb-4">
-                                <ResearchIcon className="w-7 h-7 text-blue-500" />
+                        <div className="flex flex-col items-center justify-center py-12 text-center">
+                            <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800/50 rounded-2xl mb-4 shadow-sm">
+                                <ResearchIcon className="w-8 h-8 text-blue-500" />
                             </div>
-                            <h3 className="text-base font-bold text-slate-700 dark:text-zinc-300">Argument Lab</h3>
-                            <p className="text-xs text-slate-400 dark:text-zinc-500 max-w-xs mt-1.5">
+                            <h3 className="text-lg font-bold text-slate-700 dark:text-zinc-200 tracking-tight">Argument Lab</h3>
+                            <p className="text-sm text-slate-500 dark:text-zinc-400 max-w-md mt-1.5 leading-relaxed">
                                 Ask anything about your {isProperty ? 'documents' : 'case files'}. The AI will respond with citations from your sources.
                             </p>
 
                             {sources.length > 0 && (
-                                <div className="mt-6 grid grid-cols-2 gap-2 w-full max-w-sm mx-auto">
+                                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md mx-auto">
                                     {STARTER_PROMPTS.map(prompt => (
                                         <button
                                             key={prompt}
                                             onClick={() => setInput(prompt)}
-                                            className="p-2.5 text-left bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-600 transition-all text-xs font-medium text-slate-600 dark:text-zinc-400 shadow-sm hover:shadow-md"
+                                            className="p-3 text-left bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-md transition-all text-sm font-medium text-slate-600 dark:text-zinc-300"
                                         >
+                                            <span className="text-blue-500 mr-1.5">→</span>
                                             {prompt}
                                         </button>
                                     ))}
@@ -321,9 +338,11 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             )}
 
                             {sources.length === 0 && (
-                                <p className="mt-4 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-3 py-2 rounded-lg">
-                                    Add at least one source to begin asking questions
-                                </p>
+                                <div className="mt-5 max-w-md mx-auto">
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 px-4 py-3 rounded-lg leading-relaxed">
+                                        <span className="font-bold">No sources yet.</span> Add at least one source (PDF, web page, or text) from the right panel to begin asking questions.
+                                    </p>
+                                </div>
                             )}
                         </div>
                     ) : (
