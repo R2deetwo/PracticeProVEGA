@@ -120,23 +120,19 @@ const ContextMenu: React.FC = () => {
                     <MenuItem icon={<EditIcon />} label="Edit Matter" onClick={() => openModal('editMatter', contextMenu.itemId)} />
                     <MenuItem icon={<PlusIcon />} label="Add Task" onClick={() => openModal('newTask', null, { matterId: contextMenu.itemId })} />
                     <Divider />
-                    <MenuItem icon={<ArchiveIcon />} label="Archive" onClick={() => openModal('archiveMatter', contextMenu.itemId)} />
-                    <MenuItem 
-                        icon={<TrashIcon />} 
-                        label="Delete" 
-                        danger 
-                        onClick={() => openModal('deleteConfirmation', contextMenu.itemId, {
-                            title: 'Delete Matter?',
-                            message: (
-                                <div className="space-y-2">
-                                    <p>Are you sure you want to permanently delete this matter?</p>
-                                    <p className="text-red-600 dark:text-red-400 font-bold text-xs">This action cannot be undone.</p>
-                                </div>
-                            ),
-                            onConfirm: () => handleDeleteMatter(contextMenu.itemId!, 'Matter'),
-                            confirmButtonClass: 'bg-red-600 hover:bg-red-700'
-                        })} 
-                    />
+                    <MenuItem icon={<TrashIcon />} label="Archive or Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, {
+                        title: 'Delete Matter?',
+                        message: (
+                            <div className="space-y-2">
+                                <p>Are you sure you want to permanently delete this matter?</p>
+                                <p className="text-red-600 dark:text-red-400 font-bold text-xs">This action cannot be undone. Consider archiving instead.</p>
+                            </div>
+                        ),
+                        onConfirm: () => handleDeleteMatter(contextMenu.itemId!, 'Matter'),
+                        onConfirmArchive: () => archiveItem('matters', contextMenu.itemId!, 'Matter'),
+                        archiveText: 'Archive Instead',
+                        confirmButtonClass: 'bg-red-600 hover:bg-red-700'
+                    })} />
                 </>
             )}
 

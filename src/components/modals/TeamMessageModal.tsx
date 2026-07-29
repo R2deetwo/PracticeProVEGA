@@ -133,7 +133,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-800 transition-all"
+                        className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:text-slate-600 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all"
                         aria-label="Close"
                     >
                         <XIcon className="w-5 h-5" />

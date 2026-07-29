@@ -284,6 +284,23 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const activeWorkflow = availableWorkflows.find(w => w.type === matterType);
     const subCategoryOptions = activeWorkflow?.subCategories ? Object.keys(activeWorkflow.subCategories) : [];
 
+    // Determine the stages that will be used for this matter.
+    // If a sub-category is selected and has stages, use those.
+    // Otherwise use the workflow's default stages.
+    // This replaces the old generic ['Intake', 'Drafting', 'Review', 'Execution', 'Closed']
+    // that was hardcoded when creating a new matter type.
+    const effectiveStages = useMemo(() => {
+        if (activeWorkflow) {
+            if (subCategory && activeWorkflow.subCategories?.[subCategory]?.stages) {
+                return activeWorkflow.subCategories[subCategory].stages;
+            }
+            return activeWorkflow.default?.stages || [];
+        }
+        return [];
+    }, [activeWorkflow, subCategory]);
+
+    const [showWorkflowStages, setShowWorkflowStages] = useState(false);
+
     // TASK: Removed the useEffect that was CLEARING the subCategory field when
     // the user typed custom text. The old logic was:
     //   if (!isEditing && subCategory && !subCategoryOptions.includes(subCategory)) {
@@ -340,10 +357,18 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 finalMatterType = newMatterTypeName.trim();
                 workflow = availableWorkflows.find(w => w.type === finalMatterType);
                 if (!workflow) {
+                    // Use the effective stages from the workflow preview if available,
+                    // otherwise use a sensible default. The old hardcoded generic
+                    // ['Intake', 'Drafting', 'Review', 'Execution', 'Closed'] is kept
+                    // as the fallback only when no stages were defined.
+                    const stagesToUse = effectiveStages.length > 0
+                        ? effectiveStages
+                        : ['Intake', 'In Progress', 'Closed'];
                     workflow = await Promise.resolve(handleAddWorkflow({
                         firmId: activeFirmId,
                         type: finalMatterType,
-                        default: { stages: ['Intake', 'Drafting', 'Review', 'Execution', 'Closed'], suggestions: {} }
+                        default: { stages: stagesToUse, suggestions: {} },
+                        subCategories: subCategory ? { [subCategory]: { stages: stagesToUse, suggestions: {} } } : {},
                     }));
                 }
             }
@@ -731,6 +756,54 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                             )}
                         </div>
                     </div>
+
+                    {/* WORKFLOW STAGES PREVIEW — subtle, collapsible */}
+                    {matterType && (
+                        <div className="mt-1">
+                            <button
+                                type="button"
+                                onClick={() => setShowWorkflowStages(v => !v)}
+                                className="flex items-center gap-1.5 text-2xs font-bold text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                            >
+                                <svg className={`w-3 h-3 transition-transform ${showWorkflowStages ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                                {effectiveStages.length > 0
+                                    ? `Workflow: ${effectiveStages.length} stages`
+                                    : 'No workflow stages — click to create'}
+                            </button>
+                            {showWorkflowStages && (
+                                <div className="mt-2 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700/50">
+                                    {effectiveStages.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {effectiveStages.map((stage, i) => (
+                                                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-2xs font-bold text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
+                                                    <span className="text-primary-500">{i + 1}.</span> {stage}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-2xs text-slate-400 italic mb-2">No workflow defined for this type. A default will be created on save.</p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => openModal('editWorkflow', activeWorkflow?.id, {
+                                            isNewSub: !activeWorkflow,
+                                            matterType: matterType,
+                                            subCategoryName: subCategory || undefined,
+                                        })}
+                                        className="mt-2 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        {effectiveStages.length > 0 ? 'Edit stages' : 'Create workflow'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                 </div>
 
                 {/* MATTER INFORMATION */}
