@@ -170,7 +170,17 @@ export const useMatters = (appState: any, actions: any) => {
      * Archive an item to the global archive.
      */
     const archiveItem = useCallback(async (type: string, id: string, name: string, data: any) => {
-        await actions.addItem('archive', { originalId: id, type, name, data, archivedAt: new Date().toISOString(), archivedBy: currentUser?.id }, 'Archived Item');
+        // Use the SAME field names as the archive schema + ArchiveView expects:
+        // itemType, itemId, itemName, originalData, archivedAt, archiverName
+        await actions.addItem('archive', {
+            itemType: type,
+            itemId: id,
+            itemName: name,
+            originalData: data,
+            archivedAt: new Date().toISOString(),
+            archiverId: currentUser?.id || '',
+            archiverName: currentUser?.name || '',
+        }, 'Archived Item');
         await actions.deleteItem(type as any, id, name);
     }, [actions, currentUser]);
 
